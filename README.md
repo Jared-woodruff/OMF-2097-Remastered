@@ -26,10 +26,12 @@
 <br>
 
 <a id="trailer"></a>
+
+https://github.com/user-attachments/assets/390fdb80-a68d-480b-9558-e720a638652b
+
 <p align="center">
-  <a href="docs/media/trailer.mp4"><img src="docs/media/demo.gif" alt="Trailer preview: fights in all five arenas" width="100%"></a>
-  <br>
-  <sub>▶ <a href="docs/media/trailer.mp4"><b>Watch the trailer</b></a>: 52 seconds, 1080p60, scored with the original <i>One Must Fall</i> menu theme played by this port's music engine.</sub>
+  <sub>52 seconds of CPU fights in all five arenas, scored with the original <i>One Must Fall</i> menu theme played by
+  this port's music engine (turn the sound on). <a href="docs/media/trailer.mp4">Download in 1080p60</a>.</sub>
 </p>
 
 <br>
