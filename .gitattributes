@@ -1,0 +1,12 @@
+# Normalize line endings in the repository (checkouts use the platform's native endings).
+* text=auto
+
+# Binary media
+*.png binary
+*.jpg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.mp4 binary
+*.wav binary

@@ -1,0 +1,41 @@
+{
+  "name": "omf2097-remastered",
+  "private": true,
+  "version": "0.1.0",
+  "description": "One Must Fall 2097 Remastered: a faithful reimplementation of the 1994 robot fighting game with HD graphics",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jared-woodruff/OMF-2097-Remastered.git"
+  },
+  "homepage": "https://github.com/Jared-woodruff/OMF-2097-Remastered#readme",
+  "keywords": [
+    "one-must-fall",
+    "omf2097",
+    "fighting-game",
+    "remaster",
+    "webgl2",
+    "tauri",
+    "retro-gaming"
+  ],
+  "type": "module",
+  "scripts": {
+    "extract": "node tools/extract-gamedata.mjs",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build",
+    "hd:export": "node tools/hd-pack/run.mjs",
+    "hd:import": "node tools/hd-pack/import.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.5",
+    "@types/node": "^26.6.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.1"
+  }
+}

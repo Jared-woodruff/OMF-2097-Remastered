@@ -1,0 +1,118 @@
+// Layout audit of the menus: every entry fits its frame without overlapping the next one, and help texts fit their
+// box (the text engine silently drops lines that do not fit).
+import { describe, expect, it } from 'vitest';
+import { SceneId } from '../game/constants';
+import { ArenaPauseMenu, type PauseHost } from '../game/gui/pauseMenu';
+import { FontSize, Text } from '../game/gui/text';
+import { Button, Component, Label, mainMenuTheme, Menu, TextSelector, TextSlider, type GuiTheme } from '../game/gui/widgets';
+import type { MainMenuScene } from '../game/scenes/mainmenu';
+import { menuAdvancedCreate } from '../game/scenes/mainmenu/menuAdvanced';
+import { menuAudioCreate } from '../game/scenes/mainmenu/menuAudio';
+import { menuConfigurationCreate } from '../game/scenes/mainmenu/menuConfiguration';
+import { menuGameplayCreate } from '../game/scenes/mainmenu/menuGameplay';
+import { menuInputCreate } from '../game/scenes/mainmenu/menuInput';
+import { KEYBOARD_FRAME, menuKeyboardCreate } from '../game/scenes/mainmenu/menuKeyboard';
+import { menuLanguageCreate } from '../game/scenes/mainmenu/menuLanguage';
+import { menuMainCreate } from '../game/scenes/mainmenu/menuMain';
+import { menuTrainingCreate } from '../game/scenes/mainmenu/menuTraining';
+import { menuRemasteredCreate, menuVideoCreate } from '../game/scenes/mainmenu/menuVideo';
+import { createGame, hasGameData } from './harness';
+
+interface Frame {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+const MAIN_FRAME: Frame = { x: 165, y: 5, w: 151, h: 119 };
+
+function labelOf(c: Component): Text | null {
+  if (c instanceof Button || c instanceof Label || c instanceof TextSelector || c instanceof TextSlider) return c.text;
+  return null;
+}
+
+/** All texts an entry can show (every option of a selector). */
+function variants(c: Component): string[] {
+  if (c instanceof TextSelector) {
+    const pos = c.getPos();
+    const out: string[] = [];
+    for (let i = 0; i < Math.max(1, c.options.length); i++) {
+      c.getPos = () => i;
+      c.refresh();
+      out.push(c.text.str);
+    }
+    c.getPos = () => pos;
+    c.refresh();
+    return out;
+  }
+  const t = labelOf(c);
+  return t ? [t.str] : [];
+}
+
+function audit(name: string, menu: Menu, frame: Frame, theme: GuiTheme): string[] {
+  const issues: string[] = [];
+  menu.init(theme);
+  menu.layout(frame.x, frame.y, frame.w, frame.h);
+  let prevBottom = -Infinity;
+  let prevName = '';
+  for (const c of menu.items) {
+    const t = labelOf(c);
+    if (!t) continue;
+    const texts = variants(c);
+    const label = texts[0].replace(/\n/g, ' ');
+    const probe = new Text(t.font, 0xffff, 0xffff);
+    let height = 0;
+    for (const s of texts) {
+      probe.set(s);
+      if (probe.width() > frame.w) issues.push(`${name}: "${s.replace(/\n/g, ' ')}" is ${probe.width()} px wide (frame ${frame.w})`);
+      height = Math.max(height, probe.height());
+    }
+    // Entries are drawn centered in their slot: where the text really is.
+    const top = c.y + Math.max(0, (c.h - height) >> 1);
+    if (top < prevBottom) issues.push(`${name}: "${label}" overlaps "${prevName}"`);
+    if (top + height > frame.y + frame.h) issues.push(`${name}: "${label}" ends below the frame`);
+    prevBottom = top + height;
+    prevName = label;
+    if (c.help) {
+      const help = new Text(FontSize.SMALL, menu.helpW, 0xffff, c.help.str);
+      if (help.height() > menu.helpBoxH()) issues.push(`${name}: help of "${label}" needs ${help.height()} px (box ${menu.helpBoxH()}): "${c.help.str}"`);
+    }
+  }
+  return issues;
+}
+
+describe.skipIf(!hasGameData)('menu layout', () => {
+  it('main menu and all its submenus fit their frames', () => {
+    const gs = createGame(SceneId.MENU);
+    const s = gs.sc as MainMenuScene;
+    const theme = mainMenuTheme();
+    const menus: [string, Menu, Frame][] = [
+      ['MAIN', menuMainCreate(s), MAIN_FRAME],
+      ['CONFIGURATION', menuConfigurationCreate(s), MAIN_FRAME],
+      ['INPUT 1', menuInputCreate(s, 1), MAIN_FRAME],
+      ['INPUT 2', menuInputCreate(s, 2), MAIN_FRAME],
+      ['KEYBOARD', menuKeyboardCreate(s, 1), KEYBOARD_FRAME],
+      ['VIDEO', menuVideoCreate(s), MAIN_FRAME],
+      ['REMASTERED', menuRemasteredCreate(), MAIN_FRAME],
+      ['AUDIO', menuAudioCreate(s), MAIN_FRAME],
+      ['LANGUAGE', menuLanguageCreate(s), MAIN_FRAME],
+      ['GAMEPLAY', menuGameplayCreate(s), MAIN_FRAME],
+      ['ADVANCED', menuAdvancedCreate(s), MAIN_FRAME],
+      ['TRAINING', menuTrainingCreate(s), MAIN_FRAME],
+    ];
+    const issues = menus.flatMap(([name, m, f]) => audit(name, m, f, theme));
+    expect(issues).toEqual([]);
+  });
+
+  it('pause menus fit their frame', () => {
+    const gs = createGame(SceneId.MENU);
+    const theme = mainMenuTheme();
+    const issues: string[] = [];
+    for (const training of [false, true]) {
+      const host: PauseHost = { quitFight() {}, menuVisible: false, training, trainingDummy: () => 0 };
+      const pm = new ArenaPauseMenu(gs, host) as unknown as { menu: Menu };
+      issues.push(...audit(training ? 'PAUSE (training)' : 'PAUSE', pm.menu, { x: 60, y: 5, w: 181, h: 127 }, theme));
+    }
+    expect(issues).toEqual([]);
+  });
+});

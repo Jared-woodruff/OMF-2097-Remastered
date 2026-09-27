@@ -1,0 +1,28 @@
+# Dependencies & build output
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/
+
+# Original game files (not redistributed with the engine source)
+omf21cd/
+gamedata/
+public/gamedata/
+
+# Local / editor
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.captures/
+
+# Generated HD asset pack (contains images of the original game)
+/hd-pack/
+/hd-pack.zip
+
+# Imported HD artwork (derived from the original game)
+public/hd/
+
+# Local tool settings
+.claude/
