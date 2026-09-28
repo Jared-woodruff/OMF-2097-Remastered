@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/TypeScript-7-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript 7">
   <img src="https://img.shields.io/badge/WebGL2-990000?style=for-the-badge&logo=webgl&logoColor=white" alt="WebGL2">
   <img src="https://img.shields.io/badge/Tauri-2-24c8db?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri 2">
-  <img src="https://img.shields.io/badge/tests-155%20passing-2ea44f?style=for-the-badge" alt="155 tests passing">
+  <img src="https://img.shields.io/badge/tests-197%20passing-2ea44f?style=for-the-badge" alt="197 tests passing">
 </p>
 
 <p align="center">
@@ -57,7 +57,8 @@ engine in TypeScript and WebGL2 that plays the **original game data**, runs in a
     <td width="33%" valign="top">
       <h3>🕹️ Modern</h3>
       Any window size up to 4K and beyond, fullscreen, gamepads with rumble, mouse in every menu, rebindable keys,
-      training mode, F1 help and saves that just work.
+      training mode with an input display, move lists, F1 help, saves that just work, and a browser version that
+      works offline.
     </td>
   </tr>
 </table>
@@ -70,17 +71,60 @@ engine in TypeScript and WebGL2 that plays the **original game data**, runs in a
 The whole game is here, playing the original data files:
 
 - **All 11 robots** (HARs) with every move, special and throw, **10 pilots plus Major Kreissack**, and the CPU
-  opponent's personalities and difficulty levels.
+  opponent's personalities and difficulty levels, plus **four new robots** you can turn on (below).
 - **The five arenas and their hazards**: the Stadium, the spiked Danger Room, the Power Plant's electrified fences,
-  the Fire Pit's fireballs and the Desert's strafing jets.
+  the Fire Pit's fireballs and the Desert's strafing jets, plus **four new arenas** you can turn on (below).
 - **Every mode**: one player, two players, demo, the full **tournament** career with the mechlab, upgrades, training
   and newsroom, the scoreboard, the intro and all endings.
 - **The original music and sound**: the PSM soundtrack through a port of the MASI driver, the original samples, and
-  an optional high quality resampler.
+  an optional high quality resampler. Optional additions: **arena acoustics** (the sound effects echo like the
+  stadium, the steel Danger Room, the power plant hall, the fire pit or the open desert) and an **impact bass**
+  thump under heavy hits, wall slams and knockouts.
 
 <p align="center">
   <img src="docs/media/arenas.jpg" alt="The five arenas: Stadium, Danger Room, Power Plant, Fire Pit and The Desert" width="100%">
 </p>
+
+### New for the remaster: four robots, four arenas
+
+Built for this remaster in the spirit of the originals. They are **off by default**, so the game plays exactly like the
+original until you opt in: turn them on in **Gameplay › Extras** (robots and arenas separately).
+
+<p align="center">
+  <img src="docs/media/new-robots.jpg" alt="The new robots on the VS screen: GLACIER, TEMPEST, HELIX and SPECTRE" width="100%">
+</p>
+
+| Robot | Style | Special moves |
+| --- | --- | --- |
+| **GLACIER** | Heavy ice juggernaut: slow, strong, tough | **Ice Lance** ↓↘→ P, **Glacial Ram** ↓↙← K, **Frost Spikes** ↓↘→ K |
+| **TEMPEST** | Light and fast wind robot, high floaty jumps | **Gale Blast** ↓↙← P, **Cyclone Kick** ↓↘→ K, **Sky Dive** ↓ K in the air |
+| **HELIX** | Industrial driller with a spiral drill and a claw | **Drill Rush** ↓↘→ P, **Corkscrew** →↓↘ P, **Drill Bit** ↓↙← P |
+| **SPECTRE** | Phantom with forearm lasers and a cloak of blades | **Photon Beam** ↓↘→ P, **Phase Shift** ↓↙← K, **Shadow Strike** ↓↘→ K |
+
+They are built like the originals: faceted armor over slim, ribbed joints, in the player's three colors used the
+original way (the armor, the joints, a few signature accents), and shaded like the originals' 1994 renders in the
+classic sprites and as polished metal in the HD artwork, which is rendered from the same 3D models. Each has the full
+basic move set, a throw, a scrap and a destruction finisher, CPU tactics for its specials and names in the pause
+menu's move list. Turned on, they sit in a third row of the robot select screen (move down past the second row) and
+join the CPU opponents.
+
+<p align="center">
+  <img src="docs/media/new-arenas.jpg" alt="The new arenas: Orbital, Ice Cave, Rooftop and Abyss" width="100%">
+</p>
+
+- **Orbital**: a space station's hangar deck with the Earth in the window. Dust floats, sparks drift in the low
+  gravity and the stars twinkle.
+- **Ice Cave**: a frozen cavern under the aurora. Snow blows in, frost mist creeps over the ice and the crystals
+  sparkle.
+- **Rooftop**: a skyscraper roof in the rain, above a neon city. Raindrops splash on the wet roof, lightning flashes
+  over the skyline and the neon sign flickers.
+- **Abyss**: a glass dome on the sea floor. Bubbles rise, caustics ripple over the floor and light falls from above.
+
+Turned on, they join the arena rotation of one and two player games. All four have true widescreen backgrounds (not
+mirrored edges), HD versions, their own acoustics and music. The new
+robots bring their own effects too: frost and ice shards, whirlwinds, drill sparks and shavings, laser glow and a
+phase-shift shimmer. Everything new is original and generated from source code in [`src/gen`](src/gen): the robots
+and arenas are 3D models ray traced into the game's own formats (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)).
 
 <br>
 
@@ -113,6 +157,9 @@ The whole game is here, playing the original data files:
           bilateral shading) for anything without it.</li>
         <li>Palette effects still work: player colors, fades, flashes and tints are mapped onto the HD pixels live.</li>
         <li>Widescreen arenas, ambient fill for menus, smooth motion between game ticks, bloom and dynamic resolution.</li>
+        <li>A crisp fight HUD: the health and endurance bars drawn as vector graphics in their original colors, with a
+          trail that shows the damage just taken and a pulse when health runs low.</li>
+        <li>Sharp text: the original fonts rebuilt as clean shapes at any resolution, on frosted-glass panels.</li>
       </ul>
     </td>
   </tr>
@@ -153,7 +200,7 @@ Remastered fights get a layer of modern effects, driven by what actually happens
 | **Particles** | Sparks and impact flares on hits and blocks, dust from falls, throws and wall slams. |
 | **Lighting** | Impacts, fire, energy and projectiles light up the arena and the robots; each arena lights the robots' edges. |
 | **Impact FX** | Shockwaves on heavy hits, and the knockout camera with flash and chromatic aberration. |
-| **Atmosphere** | Embers and heat haze, blowing sand, drifting dust, floodlight glow and camera flashes in the crowd. |
+| **Atmosphere** | Embers and heat haze, blowing sand, drifting dust, floodlight glow and camera flashes in the crowd; in the new arenas snow, frost mist, aurora light, rain and splashes, lightning, neon flicker, bubbles and caustics. |
 
 > [!NOTE]
 > The effects are purely cosmetic. They never touch the game state or its random number generators, so a fight
@@ -171,12 +218,16 @@ Remastered fights get a layer of modern effects, driven by what actually happens
 
 - **Training mode** (main menu, where network play used to be): pick your robot, pilot, opponent and arena, then
   practice against a dummy that stands, crouches, jumps, blocks high or low, or fights back. Nobody gets knocked out,
-  health refills after every combo, and a readout shows the last hit and combo damage.
+  health refills after every combo, a readout shows the last hit and combo damage, and an **input display** lists
+  your recent inputs with how long each was held.
+- **Move lists** in the pause menu: the special moves, throws and finishing moves of both robots, read from the
+  game's own move tables and shown with direction arrows.
 - **The advanced options the original promised**: *Defensive throws*, *Knock down* and *Block damage* were listed in
   the 1994 menus but never implemented by OpenOMF. They now work as the original help text describes.
 - **Gamepad rumble** on hits, blocks, throws, wall slams and knockouts.
 - **Mouse support** in every menu: hover to select, click to activate, scroll to change values, right click to go back.
 - **F1 help at any time**, as the original help pages promised, with the game paused behind it.
+- **Auto pause**: switching to another window or tab pauses a fight.
 
 <br>
 
@@ -195,10 +246,16 @@ Remastered fights get a layer of modern effects, driven by what actually happens
   <img src="docs/media/screen-pause.jpg" alt="The pause menu over a fight" width="49%">
   <img src="docs/media/screen-help.jpg" alt="The F1 help pages" width="49%">
 </p>
+<p align="center">
+  <img src="docs/media/screen-controls-keyboard.jpg" alt="The controls screen: every action on the keyboard for both players" width="49%">
+  <img src="docs/media/screen-controls-pad.jpg" alt="The controls screen: the Xbox controller layout" width="49%">
+</p>
 
 Every menu and text of the game was audited: a layout test checks that each entry fits its frame and each help text
 fits its panel, and a text audit reports anything cut off or drawn off screen in every scene the tests visit.
-Dialogs grow to fit their message, and the remastered font can be smooth or crisp pixels.
+Dialogs grow to fit their message. In remastered mode the letters of the original fonts are drawn as clean, sharp
+shapes with a soft shadow at any resolution (or as crisp pixels), and darkened panels such as menus, dialogs and the
+newsroom's report get a frosted-glass background, so text stays readable over detailed HD artwork.
 
 <br>
 
@@ -232,7 +289,8 @@ The pack and the imported artwork contain images of the original game, so neithe
 
 > [!IMPORTANT]
 > The game data is not included. *One Must Fall 2097* has been freeware since 1999: put the CD contents in `omf21cd/`
-> (the installer is `omf21cd/OMF/OMF21.EXE`) or point `npm run extract` at your copy.
+> (the installer is `omf21cd/OMF/OMF21.EXE`) or point `npm run extract` at your copy. The web version can also take
+> it straight from the player, see below.
 
 ```sh
 git clone https://github.com/Jared-woodruff/OMF-2097-Remastered.git
@@ -245,6 +303,7 @@ npm run dev                      # play at http://localhost:5173
 | Command | Result |
 | --- | --- |
 | `npm run build` | The web version in `dist/`: a static site you can host anywhere, even in a subfolder. |
+| `npm run build:web` | The same site without the game data (0.5 MB): on the first visit, players drop the freeware `OMF21.EXE` (or a zip, or their game folder) onto the page, it is unpacked in the browser and kept there, and the game then works offline as an installable app. |
 | `npm run desktop:build` | The Windows app: a portable `omf2097-remastered.exe` and an installer under `src-tauri/target/release/`. |
 | `npm test` | The test suite (headless, against your game data). |
 
@@ -259,8 +318,15 @@ Prerequisites and details for every platform are in [docs/BUILDING.md](docs/BUIL
 | Kick | Right Shift | Left Shift or G |
 
 <kbd>Esc</kbd> pause menu &nbsp;·&nbsp; <kbd>F1</kbd> help &nbsp;·&nbsp; <kbd>F2</kbd> classic / remastered &nbsp;·&nbsp;
-<kbd>F11</kbd> or <kbd>Alt</kbd>+<kbd>Enter</kbd> fullscreen. Keys can be rebound in **Configuration › Input**, and
-gamepads work out of the box.
+<kbd>F3</kbd> next song (your own music) &nbsp;·&nbsp; <kbd>F11</kbd> or <kbd>Alt</kbd>+<kbd>Enter</kbd> fullscreen.
+
+- **Configuration › Controls** (also in the pause menu) shows the keyboard and the Xbox controller with every action
+  on its key or button. The keyboard has the classic layout above and a **modern** one (WASD for player 1), and keys
+  can be rebound in **Configuration › Input**.
+- **Xbox controllers** (and other standard gamepads) work out of the box, even alongside the keyboard: X / Y / RB
+  punch and A / B / RT kick in the modern layout, or the original's two-button scheme in the classic one.
+- **Sound effects and music volume** are in **Configuration › Audio** and the pause menu. **My music** plays your own
+  songs in fights or everywhere: drop audio files onto the window (or pick them in the Audio menu).
 
 <br>
 
@@ -285,13 +351,13 @@ flowchart LR
 | Rendering | WebGL2: classic VGA pipeline, HD reconstruction, particle, lighting and post-processing passes |
 | Audio | Web Audio with an AudioWorklet mixer and a port of the MASI PSM music driver |
 | Desktop | Tauri 2 (WebView2), a portable exe and an installer |
-| Tests | Vitest, 155 tests running the real game logic headlessly against the original data |
+| Tests | Vitest, 190+ tests running the real game logic headlessly against the original data |
 
 - The remastered renderer measures its GPU time and lowers its internal resolution when a GPU can't keep up. With
   every effect on, a frame takes about 8 ms of GPU time at 1920 × 1200 on an RTX 4080.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) explains how the code is organized and how the C reference maps to it.
-- `?fight=3&ai` in the dev server's URL starts a CPU fight in the Fire Pit; `window.__omf` exposes a debug API for
-  stepping, input and captures.
+- `?fight=3&ai` in the dev server's URL starts a CPU fight in the Fire Pit and `?training` goes straight to training
+  mode; `window.__omf` exposes a debug API for stepping, input and captures.
 
 <br>
 
@@ -304,7 +370,7 @@ flowchart LR
 - **[OpenOMF](https://github.com/omf2097/openomf)** (MIT license): the open-source reimplementation whose reverse
   engineering this port follows.
 - **Hyllian's xBR-lv2 shader** (MIT license): adapted for the remastered sprite reconstruction.
-- The app icon is made from the original game's icon, and the HD artwork was generated from the original images.
+- The app icon and installer artwork are original designs; the HD artwork was generated from the original images.
 
 The source code in this repository is released under the [MIT license](LICENSE). It contains no game data or artwork
 of the original game; the screenshots and videos in `docs/media` show the game running with it.
