@@ -13,12 +13,24 @@ const NUM_PAGES = 13;
 /** Height of text a sheet holds: the panel is 170 high and the text starts 5 below its top. */
 const SHEET_H = 165;
 
+/** The English texts send players to the DOS-era manual (HELPME.EXE); these send them to the remaster's instead. */
+const MANUAL_NOTES: [RegExp, string][] = [
+  [/The on-disk manual is also jam-packed with even more tips\. To view it, type "HELPME" from the DOS prompt\./,
+    "The game manual is also jam-packed with even more tips. Get it from the game's home page: OMF-2097-Remastered-Manual.pdf."],
+  [/\(run HELPME\.EXE from the DOS prompt\)/, "(OMF-2097-Remastered-Manual.pdf, on the game's home page)"],
+];
+
+/** Help page `p` of the language file. */
+export function helpText(p: number): string {
+  return MANUAL_NOTES.reduce((s, [re, to]) => s.replace(re, to), lang(p));
+}
+
 /** The help pages as sheets that fit the panel. */
 export function helpSheets(): Text[][] {
   const sheets: Text[][] = [];
   for (let p = 0; p < NUM_PAGES; p++) {
     // (text_margin {10, 0, 0, 0})
-    let doc = textDocument(lang(p), FontSize.BIG, 280, 170, TEXT_BRIGHT_GREEN, TEXT_SHADOW_GREEN, HAlign.LEFT,
+    let doc = textDocument(helpText(p), FontSize.BIG, 280, 170, TEXT_BRIGHT_GREEN, TEXT_SHADOW_GREEN, HAlign.LEFT,
       GLYPH_SHADOW_NONE, 1, { left: 10 });
     // Rows: the texts up to one that moves down (a line of a laid out paragraph, or a whole block).
     const rowsOf = (texts: Text[]) => {

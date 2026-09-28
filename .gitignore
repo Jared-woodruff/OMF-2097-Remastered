@@ -22,5 +22,8 @@ Thumbs.db
 /hd-pack.zip
 /menu-pack.zip
 
+# The game manual's generated page source (npm run manual)
+/tools/manual/.build/
+
 # Local tool settings
 .claude/

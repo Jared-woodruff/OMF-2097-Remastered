@@ -23,7 +23,10 @@ GPT6-ASTRA) and is shared on the same terms as the game: free of charge, never s
 - The picture of the human coder in [`public/credits/`](public/credits) is Jared Woodruff's.
 - The credits' song, [*Twenty Ninety-Seven (Remix)*](https://www.hadalstatic.com/releases/twenty-ninety-seven/) by
   Hadal Static ([`public/audio/credits/`](public/audio/credits), with its cover in [`public/credits/`](public/credits)),
-  © Hadal Static, is included with the artist's permission. It is not covered by the MIT license.
+  © Hadal Static, is included with the artist's permission. It also scores the trailer
+  ([`docs/media/trailer.mp4`](docs/media/trailer.mp4)). It is not covered by the MIT license.
+- The game manual ([`docs/manual/`](docs/manual)) shows the game's texts and artwork on the game's terms, and embeds
+  subsets of Orbitron and of the Windows fonts Georgia, Verdana, Arial Black and Courier New (as their licenses allow).
 
 This is an unofficial fan project, not affiliated with or endorsed by the original authors. All trademarks belong to
 their owners.

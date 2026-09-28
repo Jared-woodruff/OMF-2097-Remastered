@@ -82,6 +82,22 @@ image model; imported artwork is used instead of the rendered one.
   [eSpeak NG](https://github.com/espeak-ng/espeak-ng) (set `ESPEAK_NG` to its `espeak-ng.exe` when it is not on the
   PATH) and processes them with ffmpeg. Any line can be replaced by a recording of the same name.
 
+### The game manual
+
+The manual (`docs/manual/OMF-2097-Remastered-Manual.pdf`, committed) is made from `tools/manual`: the game's own
+texts, the pilots' stats and every robot's command list are read from the game data (the command lists as the pause
+menu's move list shows them), laid out as the pages of a 1990s booklet and printed to PDF by Microsoft Edge in
+headless mode (Windows).
+
+```sh
+npm run manual                        # docs/manual/OMF-2097-Remastered-Manual.pdf; reports pages whose content does not fit
+npm run manual:images                 # the pictures in tools/manual/img (Python 3 with Pillow)
+```
+
+`npm run manual` only needs `tools/manual/img` (committed). The pictures are made from the HD asset pack (`hd-pack/`:
+the robots, the pilots, the logo), the imported artwork (the main menu's layers, the arenas) and screenshots recorded
+from the game (`.captures/trailer2`), so `manual:images` only runs when they change.
+
 ## Web
 
 | Command | What it does |

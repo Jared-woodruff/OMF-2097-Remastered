@@ -35,7 +35,9 @@
     "gen": "node tools/gen-content.mjs",
     "gen:hd": "python tools/arena-hd.py",
     "menu:export": "node tools/menu-pack/run.mjs",
-    "menu:import": "python tools/menu-pack/import.py"
+    "menu:import": "python tools/menu-pack/import.py",
+    "manual": "node tools/manual/build.mjs",
+    "manual:images": "python tools/manual/prepare.py"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.5",
