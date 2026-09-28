@@ -116,8 +116,9 @@ pixels in one of two ways, switchable at any time (F2, pause menu, VIDEO options
   inside the panel and passed through the panel's remap table fitted as an affine color transform
   (`fitRemapMatrix`), instead of the exact per-pixel remap delta.
 - **Backdrops** (remastered): the host can hand the renderer a live backdrop for the frame (`renderer.backdrop`,
-  `src/video/stage/backdrop.ts`), drawn where the screen's background picture goes; it lists the screen's own sprites
-  it replaces and the native columns it paints (the widescreen sides beyond get the ambient fill). The main menu's is a
+  `src/video/stage/backdrop.ts`), drawn in place of the background picture it stands for (`replaces`, a surface key)
+  on any frame that shows that picture; it lists the screen's own sprites it replaces and the native columns it paints
+  (the widescreen sides beyond get the ambient fill). The main menu's is a
   parallax scene (`stage/parallax.ts`): painted layers from `public/hd/menu/` (made with `tools/menu-pack/`: a master
   image cut into sky, city, towers, robot, a lit robot and crowd) drawn at their depths under a drifting camera that
   leans toward the mouse, with the original's sweeping spotlight done live (the lit robot layer shown through the
@@ -125,7 +126,8 @@ pixels in one of two ways, switchable at any time (F2, pause menu, VIDEO options
   rim light on the crowd and camera flashes (the painted crowd moves only with the parallax: warping it to make heads
   bob sheared the silhouettes). MAIN.BK's two spotlight animations (10, 11) still run for classic
   mode; the backdrop hides them. The menu waits on its first black frame for the layers like other screens do for
-  their HD bundles.
+  their HD bundles. The scoreboard and the help pages show MAIN.BK's picture too, so they get the scene as well, as
+  dark as their palette makes the picture (`MenuScene.brightness`, from the live palette against the BK's own).
 - **HUD bars**: `ProgressBar` draws the original bar surfaces and also describes itself in the draw list
   (`drawList.pushBar`, `HudBar`: value, damage trail, theme colors, warning pulses). The remastered renderer draws that
   description with `hd/hudShaders.ts` in place of the surfaces (HUD option), at the position of the bar's first draw

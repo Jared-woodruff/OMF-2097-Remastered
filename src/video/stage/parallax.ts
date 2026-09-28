@@ -87,6 +87,7 @@ uniform float u_rim;        // crowd: rim light along the tops
 uniform vec3 u_rimColor;
 uniform float u_flash;      // camera flashes: brightening
 uniform float u_sky;        // the sky: twinkling stars and drifting cloud shadows
+uniform float u_bright;     // the whole scene's brightness (screens that darken the picture)
 out vec4 o_color;
 ${NOISE}
 float luma(vec3 c) { return dot(c, vec3(0.3, 0.55, 0.15)); }
@@ -121,6 +122,7 @@ void main() {
     c.rgb += u_rimColor * u_rim * clamp(c.a - above, 0.0, 1.0) * c.a;
   }
   c.rgb += c.rgb * u_flash;
+  c.rgb *= u_bright;
   o_color = c;
 }`;
 
@@ -140,6 +142,7 @@ uniform int u_count;
 uniform vec4 u_beamA[3];     // source x, y; aim x, y (target pixels)
 uniform vec4 u_beamB[3];     // tan of the half angle, intensity, stops at the aim (1) or fades with distance (0), dust
 uniform vec3 u_beamColor[3];
+uniform float u_bright;
 out vec4 o_color;
 ${NOISE}
 void main() {
@@ -172,7 +175,7 @@ void main() {
     }
     acc += u_beamColor[i] * I;
   }
-  o_color = vec4(acc, 0.0);
+  o_color = vec4(acc * u_bright, 0.0);
 }`;
 
 /** Camera flashes: a bright point with a star-shaped glare (additive). */
@@ -180,6 +183,7 @@ const GLARE_FS = `#version 300 es
 precision highp float;
 uniform vec2 u_target;
 uniform vec4 u_flash[2];  // x, y (target pixels), radius, strength
+uniform float u_bright;
 out vec4 o_color;
 void main() {
   vec2 px = vec2(gl_FragCoord.x, u_target.y - gl_FragCoord.y);
@@ -191,7 +195,7 @@ void main() {
     float streak = exp(-abs(d.y) * 55.0) * exp(-abs(d.x) * 2.4) + exp(-abs(d.x) * 55.0) * exp(-abs(d.y) * 2.4);
     acc += (exp(-r2 * 30.0) * 2.0 + exp(-r2 * 3.0) * 0.18 + streak * 0.7) * u_flash[i].w;
   }
-  o_color = vec4(vec3(0.95, 0.97, 1.0) * acc, 0.0);
+  o_color = vec4(vec3(0.95, 0.97, 1.0) * acc * u_bright, 0.0);
 }`;
 
 function compile(gl: WebGL2RenderingContext, vs: string, fs: string, name: string): WebGLProgram {
@@ -236,6 +240,7 @@ function hash(a: number, b: number): number {
 }
 
 export class MenuScene implements Backdrop {
+  readonly replaces = 'MAIN.BK/bg';
   readonly hide = ['MAIN.BK/10/', 'MAIN.BK/11/'];
   covers: readonly [number, number] = [0, 320];
   private layers: Layer[] = [];
@@ -245,6 +250,8 @@ export class MenuScene implements Backdrop {
   private beamProg: Prog | null = null;
   private glareProg: Prog | null = null;
   private vao: WebGLVertexArrayObject | null = null;
+  /** How bright the scene shows (1 = as painted): screens that darken the picture's palette darken it. */
+  brightness = 1;
   private time = 0;
   private lean: Vec2 = [0, 0];
   private leanTarget: Vec2 = [0, 0];
@@ -392,6 +399,7 @@ export class MenuScene implements Backdrop {
       gl.uniform3f(lp.loc('u_rimColor'), ...RIM_COLOR);
       gl.uniform1f(lp.loc('u_flash'), crowd ? flash * 0.15 : l.name.startsWith('robot') ? flash * 0.3 : 0);
       gl.uniform1f(lp.loc('u_sky'), l.name === 'sky' ? 1 : 0);
+      gl.uniform1f(lp.loc('u_bright'), this.brightness);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.uniform1i(lp.loc('u_tex'), 0);
@@ -405,6 +413,7 @@ export class MenuScene implements Backdrop {
       gl.uniform1f(bp.loc('u_time'), t);
       gl.uniform1f(bp.loc('u_unit'), view.sy);
       gl.uniform1i(bp.loc('u_count'), list.length);
+      gl.uniform1f(bp.loc('u_bright'), this.brightness);
       list.forEach((b, i) => {
         const s = toPx(...b.from), a = toPx(...b.to);
         gl.uniform4f(bp.loc(`u_beamA[${i}]`), s[0], s[1], a[0], a[1]);
@@ -442,6 +451,7 @@ export class MenuScene implements Backdrop {
       gl.useProgram(gp.prog);
       gl.blendFunc(gl.ONE, gl.ONE);
       gl.uniform2f(gp.loc('u_target'), view.w, view.h);
+      gl.uniform1f(gp.loc('u_bright'), this.brightness);
       for (let i = 0; i < 2; i++) {
         const f = flashes[i];
         const p = f ? toPx(f.x + cam[0] * 0.85, f.y + cam[1] * 0.85) : [0, 0];

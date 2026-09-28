@@ -158,8 +158,8 @@ export class GLRenderer {
   /** This frame's remastered effects (set by the host before render()), or null. */
   fx: FxFrame | null = null;
   /**
-   * This frame's live backdrop (set by the host before render()), or null: drawn in place of the screen's background
-   * picture (the main menu's parallax scene, video/stage/parallax.ts). Remastered only.
+   * This frame's live backdrop (set by the host before render()), or null: drawn in place of the background picture it
+   * stands for, when the frame shows it (the main menu's parallax scene, video/stage/parallax.ts). Remastered only.
    */
   backdrop: Backdrop | null = null;
   private backdropBroken = false;
@@ -1391,7 +1391,9 @@ export class GLRenderer {
     const target = this.hdTarget!;
     const shakeX = drawList.targetMoveX;
     const shakeY = drawList.targetMoveY;
-    const backdrop = this.backdrop && !this.backdropBroken ? this.backdrop : null;
+    // The backdrop stands for one background picture: frames that show it get the backdrop instead.
+    const backdrop = this.backdrop && !this.backdropBroken && bgIndex >= 0 && drawList.cmds[bgIndex].surf.source?.key === this.backdrop.replaces
+      ? this.backdrop : null;
     const haveBg = !backdrop && !!(bgSurf && extRect && this.bgCache && this.bgRatio);
     const isBg = (c: DrawCmd) => bgIndex >= 0 && c === drawList.cmds[bgIndex];
     // Fights with remastered effects: the world (arena, robots, projectiles) is drawn and post-processed first, and

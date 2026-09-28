@@ -292,16 +292,34 @@ async function main(): Promise<void> {
   canvas.addEventListener('pointerleave', () => {
     lean = [0, 0];
   });
-  const menuBackdrop = () => {
-    if (renderer.options.mode !== 'remastered' || gs.thisId !== SceneId.MENU) {
-      stageSince = -1;
-      return null;
+  // It stands for MAIN.BK's picture wherever the game shows it (the main menu, the scoreboard, the help pages); its loop
+  // starts over each time the main menu opens. Screens that darken the picture's colors (the scoreboard) darken it too.
+  let stageScene = -1;
+  let pictureColors: { bk: unknown; used: number[] } | null = null;
+  const pictureBrightness = () => {
+    const bk = gs.sc.bk;
+    if (!bk) return 1;
+    if (pictureColors?.bk !== bk) {
+      const seen = new Set<number>(bk.background.data);
+      pictureColors = { bk, used: [...seen].filter((i) => i > 0) };
     }
-    menuScene.load(MENU_LAYERS);
+    const ref = bk.palettes[0].colors, cur = vga.undarkened.colors;
+    let a = 0, b = 0;
+    for (const i of pictureColors.used) {
+      a += cur[i * 3] + cur[i * 3 + 1] + cur[i * 3 + 2];
+      b += ref[i * 3] + ref[i * 3 + 1] + ref[i * 3 + 2];
+    }
+    return b > 0 ? Math.min(1, a / b) : 1;
+  };
+  const menuBackdrop = () => {
+    if (renderer.options.mode !== 'remastered') return null;
+    if (gs.thisId === SceneId.MENU) menuScene.load(MENU_LAYERS);
     if (!menuScene.ready) return null;
     const now = performance.now();
-    if (stageSince < 0) stageSince = now;
+    if (stageSince < 0 || (gs.thisId === SceneId.MENU && stageScene !== SceneId.MENU)) stageSince = now;
+    stageScene = gs.thisId;
     menuScene.update(stageDebug.time ?? STAGE_START + (now - stageSince) / 1000, lean);
+    menuScene.brightness = pictureBrightness();
     return menuScene;
   };
   const engine = new Engine(gs, {

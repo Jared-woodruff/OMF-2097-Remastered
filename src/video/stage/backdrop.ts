@@ -14,6 +14,8 @@ export interface BackdropView {
 }
 
 export interface Backdrop {
+  /** The background picture it stands for (surface key, e.g. 'MAIN.BK/bg'): it is drawn on frames that show it. */
+  readonly replaces: string;
   /** Surface keys (prefixes) of the screen's own images it replaces, e.g. an animation of its background. */
   readonly hide: readonly string[];
   /** The native columns it paints (x0, x1); the renderer fills the widescreen sides beyond them itself. */
