@@ -21,6 +21,9 @@ GPT6-ASTRA) and is shared on the same terms as the game: free of charge, never s
   and processed with FFmpeg ([`tools/make-announcer.py`](tools/make-announcer.py)).
 - Hyllian's xBR-lv2 shader (MIT), adapted in `src/video/hd/shaders.ts`; see the notice there.
 - The picture of the human coder in [`public/credits/`](public/credits) is Jared Woodruff's.
+- The credits' song, [*Twenty Ninety-Seven (Remix)*](https://www.hadalstatic.com/releases/twenty-ninety-seven/) by
+  Hadal Static ([`public/audio/credits/`](public/audio/credits), with its cover in [`public/credits/`](public/credits)),
+  © Hadal Static, is included with the artist's permission. It is not covered by the MIT license.
 
 This is an unofficial fan project, not affiliated with or endorsed by the original authors. All trademarks belong to
 their owners.

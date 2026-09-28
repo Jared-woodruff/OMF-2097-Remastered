@@ -235,7 +235,9 @@ own file formats, so the engine runs them like the originals.
   (`video/camera.ts`; the HD renderer zooms the finished world image before the overlay is drawn).
 - **Remaster credits** (`game/credits/`): EXTRAS › CREDITS opens a page of the help overlay (input, pause) that shows
   itself in HTML over the game (`creditsView.ts`: the titles, CSS effects, a canvas backdrop with stars, nebula, neon
-  grid and sparks, auto-scrolling, END.PSM playing). Pages that cover the screen (`Page.opaque`) stop the game's
+  grid and sparks, auto-scrolling). The credits' song plays through `AudioSystem.playTrack` (a media element at the
+  music volume, with an analyser: the equalizers, the grid and horizon follow the low end, sparks fly on the beats;
+  END.PSM when it cannot be played). Pages that cover the screen (`Page.opaque`) stop the game's
   rendering while open (`HelpOverlay.coversScreen`); `Page.onClose` removes their HTML. Dev: `?credits=n`.
 - **HTML over the game**: notices (`platform/toast.ts`), achievement banners (`platform/achievementBanner.ts`, queued,
   from `records.unlock`) and the loading screen (`index.html`, `bootStatus` in `main.ts`) use the remaster's typeface

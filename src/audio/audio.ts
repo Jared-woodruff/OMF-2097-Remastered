@@ -96,6 +96,8 @@ export class AudioSystem {
   /** The player's own music (AUDIO > MY MUSIC), and where it replaces the soundtrack. */
   private custom: CustomMusicPlayer | null = null;
   private myMusicMode: MyMusicMode = 'fights';
+  /** A song file playing over everything (the credits' song, see playTrack), at the music volume. */
+  private trackGain: GainNode | null = null;
 
   constructor() {
     for (let i = 0; i < SOUND_CHANNEL_COUNT; i++) this.channels.push({ priority: 0, soundId: 0, guid: 0, endTime: 0 });
@@ -362,6 +364,55 @@ export class AudioSystem {
     this.musicVolume = Math.min(1, Math.max(0, v));
     this.post({ type: 'volume', sound: this.soundVolume, music: this.musicVolume });
     this.custom?.setVolume(this.musicVolume);
+    if (this.trackGain && this.ctx) this.trackGain.gain.setTargetAtTime(this.musicVolume, this.ctx.currentTime, 0.05);
+  }
+
+  /**
+   * Plays a song file (a URL, looping) at the music volume, fading in; the caller stops the game's music meanwhile.
+   * Returns an analyser of the song (for visuals) and its stop (a fade out), or null without audio.
+   */
+  playTrack(url: string, onError: () => void): { analyser: AnalyserNode; stop: (fadeSeconds?: number) => void } | null {
+    const ctx = this.ctx;
+    if (!ctx || !this.out) return null;
+    const el = new Audio();
+    el.loop = true;
+    el.preload = 'auto';
+    el.addEventListener('error', () => onError(), { once: true });
+    el.src = url;
+    const src = ctx.createMediaElementSource(el);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.72;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(this.musicVolume, ctx.currentTime + 1.6);
+    src.connect(analyser);
+    analyser.connect(gain);
+    gain.connect(this.out);
+    this.trackGain = gain;
+    if (ctx.state !== 'running') void ctx.resume();
+    void el.play().catch(() => undefined);
+    let stopped = false;
+    return {
+      analyser,
+      stop: (fadeSeconds = 0.8) => {
+        if (stopped) return;
+        stopped = true;
+        if (this.trackGain === gain) this.trackGain = null;
+        const t = ctx.currentTime;
+        gain.gain.cancelScheduledValues(t);
+        gain.gain.setValueAtTime(gain.gain.value, t);
+        gain.gain.linearRampToValueAtTime(0, t + fadeSeconds);
+        window.setTimeout(() => {
+          el.pause();
+          el.removeAttribute('src');
+          el.load();
+          src.disconnect();
+          analyser.disconnect();
+          gain.disconnect();
+        }, fadeSeconds * 1000 + 100);
+      },
+    };
   }
 
   /** The place the sounds are heard in: an arena (0..4) gets its acoustics, anything else (-1) is dry. */

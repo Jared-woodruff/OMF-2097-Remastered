@@ -1,7 +1,8 @@
 // The remaster's credits (EXTRAS > CREDITS; not in the original game): who made the remaster, then the projects and
 // licenses it builds on. A page of its own in HTML over the game, sharp at any resolution like a film's end titles: an
 // animated space backdrop on a canvas (stars, a drifting nebula, a neon grid floor, rising sparks, shooting stars), the
-// titles scrolling up by themselves, bursts of sparks as the cards come in, and the game's ending theme playing.
+// titles scrolling up by themselves, bursts of sparks as the cards come in, and Hadal Static's "Twenty Ninety-Seven
+// (Remix)" playing, with the grid, the horizon and the sparks moving to it (the game's ending theme without it).
 import { audio } from '../../audio/audio';
 import { isDown } from '../../controller/input';
 import { ensureUiFont, UI_FONT } from '../../platform/uiFont';
@@ -27,6 +28,13 @@ export interface CreditsOptions {
 
 const AVATAR = 'credits/jared-woodruff.jpg';
 const GITHUB = 'https://github.com/Jared-woodruff';
+/** The credits' song. */
+const SONG = 'audio/credits/twenty-ninety-seven-remix.mp3';
+const SONG_COVER = 'credits/twenty-ninety-seven.jpg';
+const SONG_PAGE = 'https://www.hadalstatic.com/releases/twenty-ninety-seven/';
+/** Bars of the equalizers (the soundtrack card's and the now playing chip's). */
+const EQ_BARS = 28;
+const CHIP_BARS = 5;
 
 /** The projects and tools the remaster builds on. */
 const BUILT_WITH: [string, string, string][] = [
@@ -170,6 +178,43 @@ a.omfc-link:hover { background: rgba(51,230,255,.2); color: #fff; box-shadow: 0 
 .omfc-reveal { opacity: 0; transform: translateY(50px) scale(.97); transition: opacity 1.1s cubic-bezier(.2,.8,.2,1), transform 1.1s cubic-bezier(.2,.8,.2,1); }
 .omfc-reveal.omfc-in { opacity: 1; transform: none; }
 
+.omfc-track { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr); gap: clamp(22px, 3vw, 54px); align-items: center;
+  text-align: left; padding: clamp(22px, 2.6vw, 44px); }
+@media (max-aspect-ratio: 5/4), (max-width: 900px) { .omfc-track { grid-template-columns: 1fr; text-align: center; } }
+.omfc-cover { position: relative; width: 100%; aspect-ratio: 1; perspective: 900px; }
+.omfc-cover img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 16px; object-fit: cover;
+  box-shadow: 0 0 0 2px rgba(255,61,242,.55), 0 0 46px rgba(255,61,242,.45), 0 20px 50px rgba(0,0,0,.6);
+  transform: rotateY(8deg) rotateX(3deg); animation: omfc-sway 7s ease-in-out infinite; }
+@keyframes omfc-sway { 50% { transform: rotateY(-6deg) rotateX(-2deg) } }
+.omfc-cover::after { content: ''; position: absolute; inset: 0; border-radius: 16px; pointer-events: none; mix-blend-mode: screen;
+  background: linear-gradient(115deg, transparent 38%, rgba(255,255,255,.28) 50%, transparent 62%) 0 0 / 250% 100%;
+  animation: omfc-sheen 6s 1s ease-in-out infinite; }
+@keyframes omfc-sheen { 0% { background-position: 130% 0 } 45%, 100% { background-position: -30% 0 } }
+.omfc-track .omfc-role { color: #ff9af2; text-shadow: 0 0 10px rgba(255,61,242,.8); }
+.omfc-song { margin-top: .5em; font-weight: 900; font-size: clamp(26px, 3.2vw, 58px); line-height: 1.08; letter-spacing: .04em;
+  background: linear-gradient(180deg, #ffffff 0%, #ffd2fb 45%, #ff3df2 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 16px rgba(255,61,242,.55)); }
+.omfc-song small { display: block; margin-top: .25em; font-size: .5em; letter-spacing: .3em; }
+.omfc-artist { margin-top: .7em; font-weight: 800; font-size: clamp(18px, 1.9vw, 34px); letter-spacing: .32em; color: #bff6ff;
+  text-shadow: 0 0 10px #33e6ff, 0 0 26px #2f5bff; }
+.omfc-about { margin: 1em 0 0; color: #c9b8e8; font-size: clamp(13px, 1.2vw, 20px); line-height: 1.6; letter-spacing: .03em; }
+.omfc-eq { display: flex; align-items: flex-end; gap: 4px; height: clamp(46px, 5vw, 90px); margin: 1.2em 0 1em; }
+.omfc-track .omfc-eq { justify-content: flex-start; }
+@media (max-aspect-ratio: 5/4), (max-width: 900px) { .omfc-track .omfc-eq { justify-content: center; } }
+.omfc-eq i { flex: 1; max-width: 14px; height: 100%; border-radius: 3px 3px 1px 1px; transform-origin: bottom; transform: scaleY(.06);
+  background: linear-gradient(0deg, #2f5bff, #33e6ff 55%, #ff3df2); box-shadow: 0 0 10px rgba(51,230,255,.5); }
+.omfc-track .omfc-link { color: #ff9af2; border-color: rgba(255,61,242,.55); background: rgba(255,61,242,.08); }
+.omfc-track a.omfc-link:hover { background: rgba(255,61,242,.22); box-shadow: 0 0 22px rgba(255,61,242,.6); color: #fff; }
+.omfc-playing { position: absolute; left: clamp(12px, 2vw, 34px); bottom: clamp(12px, 2.2vh, 30px); z-index: 4; display: flex; align-items: center; gap: .9em;
+  padding: .55em 1.1em .55em .55em; border-radius: 14px; background: rgba(10,8,34,.66); border: 1px solid rgba(255,61,242,.45);
+  box-shadow: 0 0 22px rgba(255,61,242,.3); backdrop-filter: blur(6px); pointer-events: none; opacity: 0; transform: translateY(12px);
+  transition: opacity .8s, transform .8s; font-size: clamp(10px, .82vw, 14px); }
+.omfc-playing.omfc-on { opacity: 1; transform: none; }
+.omfc-playing img { width: 3.6em; height: 3.6em; border-radius: 8px; object-fit: cover; }
+.omfc-playing b { display: block; font-weight: 700; letter-spacing: .3em; font-size: .78em; color: #ff9af2; }
+.omfc-playing span { display: block; margin-top: .3em; font-weight: 800; letter-spacing: .06em; color: #fff; }
+.omfc-playing em { display: block; margin-top: .2em; font-style: normal; font-weight: 600; letter-spacing: .2em; color: #9fe9ff; font-size: .85em; }
+.omfc-playing .omfc-eq { height: 2.4em; width: 3.2em; gap: 3px; margin: 0 0 0 .4em; }
 .omfc-end { min-height: 92vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; margin: 0; }
 .omfc-thanks { font-weight: 900; font-size: clamp(36px, 6.4vw, 118px); letter-spacing: .08em; line-height: 1.1;
   background: linear-gradient(180deg, #ffffff 10%, #ffd84a 55%, #ff7a3d 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
@@ -197,6 +242,9 @@ function markup(links: boolean): string {
   const link = links
     ? `<a class="omfc-link" href="${GITHUB}" target="_blank" rel="noopener noreferrer">github.com/Jared-woodruff</a>`
     : '<span class="omfc-link">github.com/Jared-woodruff</span>';
+  const songLink = links
+    ? `<a class="omfc-link" href="${SONG_PAGE}" target="_blank" rel="noopener noreferrer">hadalstatic.com</a>`
+    : '<span class="omfc-link">hadalstatic.com</span>';
   const items = BUILT_WITH.map(([name, what, lic], i) => `<div class="omfc-item" style="transition-delay: ${0.08 * i}s">
     <h3>${name}</h3><p>${what}</p><span class="omfc-lic">${lic}</span></div>`).join('');
   return `<canvas class="omfc-bg"></canvas>
@@ -231,6 +279,20 @@ function markup(links: boolean): string {
       </article>
     </div>
   </section>
+  <section class="omfc-section omfc-reveal" data-burst="2">
+    <h2><span>SOUNDTRACK</span></h2>
+    <article class="omfc-card omfc-track">
+      <div class="omfc-cover"><img alt="Twenty Ninety-Seven, the cover" src="${SONG_COVER}" draggable="false"></div>
+      <div>
+        <div class="omfc-role">THE CREDITS' SONG</div>
+        <div class="omfc-song">TWENTY <span class="omfc-nb">NINETY-SEVEN</span><small>REMIX</small></div>
+        <div class="omfc-artist">HADAL STATIC</div>
+        <p class="omfc-about">A song about One Must Fall 2097.</p>
+        <div class="omfc-eq omfc-eq-big">${'<i></i>'.repeat(EQ_BARS)}</div>
+        ${songLink}
+      </div>
+    </article>
+  </section>
   <section class="omfc-section omfc-reveal">
     <h2><span>THE ORIGINAL GAME</span></h2>
     <div class="omfc-original">ONE MUST FALL 2097</div>
@@ -254,6 +316,8 @@ function markup(links: boolean): string {
   </section>
 </div></div>
 <button class="omfc-back" type="button">${X_SVG}<span>BACK</span></button>
+<div class="omfc-playing"><img alt="" src="${SONG_COVER}"><div><b>NOW PLAYING</b><span>TWENTY NINETY-SEVEN (REMIX)</span><em>HADAL STATIC</em></div>
+  <div class="omfc-eq omfc-eq-chip">${'<i></i>'.repeat(CHIP_BARS)}</div></div>
 <div class="omfc-hint">UP / DOWN &nbsp;SCROLL &nbsp;&nbsp;·&nbsp;&nbsp; ENTER &nbsp;PAUSE &nbsp;&nbsp;·&nbsp;&nbsp; ESC / B &nbsp;BACK</div>`;
 }
 
@@ -297,6 +361,9 @@ class Backdrop {
   /** Pointer position (-1..1) for a little parallax. */
   px = 0;
   py = 0;
+  /** The music's low end and overall level (0..1), for the grid, the horizon and the sparks. */
+  bass = 0;
+  level = 0;
 
   constructor(private canvas: HTMLCanvasElement, private calm: boolean) {
     this.ctx = canvas.getContext('2d')!;
@@ -348,6 +415,21 @@ class Backdrop {
       this.sparks.push({
         x: x * k, y: y * k, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60 * k, life: max, max, size: (10 + Math.random() * 16) * k,
         sprite: this.sprites[Math.floor(Math.random() * this.sprites.length)], g: 260 * k,
+      });
+    }
+  }
+
+  /** A beat of the music: sparks fly up from along the horizon. */
+  beat(strength: number): void {
+    if (this.calm) return;
+    const k = this.k, horizon = this.h * 0.72;
+    const n = Math.round(10 + strength * 26);
+    for (let i = 0; i < n; i++) {
+      const max = 0.6 + Math.random() * 0.9;
+      this.sparks.push({
+        x: Math.random() * this.w, y: horizon + Math.random() * 6 * k, vx: (Math.random() - 0.5) * 120 * k,
+        vy: -(160 + Math.random() * 320) * k * (0.6 + strength), life: max, max, size: (8 + Math.random() * 14) * k,
+        sprite: this.sprites[Math.floor(Math.random() * this.sprites.length)], g: 380 * k,
       });
     }
   }
@@ -410,7 +492,7 @@ class Backdrop {
     ctx.fillRect(0, horizon, w, h - horizon);
     const haze = ctx.createLinearGradient(0, horizon - h * 0.16, 0, horizon);
     haze.addColorStop(0, 'rgba(255,60,220,0)');
-    haze.addColorStop(1, 'rgba(255,60,220,.22)');
+    haze.addColorStop(1, `rgba(255,60,220,${0.22 + this.bass * 0.3})`);
     ctx.fillStyle = haze;
     ctx.fillRect(0, horizon - h * 0.16, w, h * 0.16);
     const cx = w / 2 + this.px * 30 * k;
@@ -422,7 +504,7 @@ class Backdrop {
         const z = i + 1 - phase;
         const y = horizon + ((h - horizon) * 0.9) / z;
         if (y > h + 10) continue;
-        const a = Math.min(1, 1.3 / z) * (pass ? 0.8 : 0.14);
+        const a = Math.min(1, 1.3 / z) * (pass ? 0.8 : 0.14) * (1 + this.bass * 0.9);
         ctx.strokeStyle = `rgba(60,100,255,${a})`;
         ctx.beginPath();
         ctx.moveTo(0, y);
@@ -431,7 +513,7 @@ class Backdrop {
       }
       for (let j = -16; j <= 16; j++) {
         const x0 = cx + j * w * 0.025, x1 = cx + j * w * 0.34;
-        ctx.strokeStyle = `rgba(60,100,255,${pass ? 0.5 : 0.1})`;
+        ctx.strokeStyle = `rgba(60,100,255,${(pass ? 0.5 : 0.1) * (1 + this.bass * 0.8)})`;
         ctx.beginPath();
         ctx.moveTo(x0, horizon);
         ctx.lineTo(x1, h);
@@ -442,13 +524,13 @@ class Backdrop {
     ctx.fillRect(0, horizon - 1 * k, w, 2 * k);
     const glow = ctx.createLinearGradient(0, horizon - 14 * k, 0, horizon + 14 * k);
     glow.addColorStop(0, 'rgba(51,230,255,0)');
-    glow.addColorStop(0.5, 'rgba(51,230,255,.35)');
+    glow.addColorStop(0.5, `rgba(51,230,255,${0.35 + this.bass * 0.45})`);
     glow.addColorStop(1, 'rgba(51,230,255,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, horizon - 14 * k, w, 28 * k);
     // Sparks rising from the floor, and the bursts.
     if (!this.calm) {
-      this.spawn += dt * 24;
+      this.spawn += dt * (24 + this.level * 60);
       while (this.spawn >= 1) {
         this.spawn--;
         const y = horizon + Math.random() * (h - horizon);
@@ -507,9 +589,23 @@ export function openCreditsView(opts: CreditsOptions): CreditsView {
   const backdrop = new Backdrop(root.querySelector('canvas')!, calm);
   requestAnimationFrame(() => root.classList.add('omfc-on'));
 
-  // The ending theme while the credits run.
+  // The credits' song while they run (the game's ending theme when it cannot be played), and its levels for the visuals.
   const music = audio.music;
-  audio.playMusic('END.PSM');
+  audio.stopMusic();
+  const playing = root.querySelector<HTMLElement>('.omfc-playing')!;
+  const eqBig = [...root.querySelectorAll<HTMLElement>('.omfc-eq-big i')];
+  const eqChip = [...root.querySelectorAll<HTMLElement>('.omfc-eq-chip i')];
+  let song = audio.playTrack(SONG, () => {
+    song?.stop(0);
+    song = null;
+    playing.remove();
+    audio.playMusic('END.PSM');
+  });
+  if (!song) audio.playMusic('END.PSM');
+  const bins = new Uint8Array(song?.analyser.frequencyBinCount ?? 0);
+  let bassAvg = 0;
+  let lastBeat = 0;
+  const chipOn = window.setTimeout(() => song && playing.classList.add('omfc-on'), 1800);
 
   // Scrolling: the titles move up by themselves (after the title's entrance); input takes over for a few seconds.
   let pos = 0;
@@ -612,6 +708,37 @@ export function openCreditsView(opts: CreditsOptions): CreditsView {
     pos += (target - pos) * Math.min(1, dt * 7);
     scroller.scrollTop = pos;
     if ((quietIn -= dt) <= 0) hint.classList.add('omfc-quiet');
+    // The music's levels: the equalizers, the backdrop, and sparks on the beats.
+    if (song) {
+      song.analyser.getByteFrequencyData(bins);
+      const band = (a: number, b: number) => {
+        let sum = 0;
+        for (let i = a; i < b; i++) sum += bins[i];
+        return sum / Math.max(1, b - a) / 255;
+      };
+      const bass = band(1, 7);
+      backdrop.bass = bass * bass;
+      backdrop.level = band(1, 96);
+      // (a beat: the low end well above its recent average)
+      bassAvg += (bass - bassAvg) * Math.min(1, dt * 2.5);
+      if (bass > 0.45 && bass > bassAvg * 1.18 && now - lastBeat > 280) {
+        lastBeat = now;
+        backdrop.beat(Math.min(1, (bass - bassAvg) * 4));
+      }
+      const bars = (els: HTMLElement[], from: number, to: number) => {
+        const n = els.length;
+        let next = from;
+        for (let i = 0; i < n; i++) {
+          // (logarithmic bands, the low end gets more bars; each bar its own bins)
+          const a = Math.max(next, Math.floor(from * Math.pow(to / from, i / n)));
+          const b = Math.max(a + 1, Math.floor(from * Math.pow(to / from, (i + 1) / n)));
+          next = b;
+          els[i].style.transform = `scaleY(${(0.06 + band(a, b) * 0.94).toFixed(3)})`;
+        }
+      };
+      bars(eqBig, 1, 180);
+      bars(eqChip, 1, 120);
+    }
     backdrop.frame(dt, (now - start) / 1000, pos);
   };
   raf = requestAnimationFrame(tick);
@@ -636,6 +763,9 @@ export function openCreditsView(opts: CreditsOptions): CreditsView {
       observer.disconnect();
       window.removeEventListener('resize', onResize);
       root.remove();
+      window.clearTimeout(chipOn);
+      song?.stop(0.7);
+      song = null;
       if (music) audio.playMusic(music);
       else audio.stopMusic();
     },

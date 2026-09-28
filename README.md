@@ -293,7 +293,8 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
 - **Fight camera** (optional, remastered graphics): the view comes closer when the robots are close and follows the
   fight, while the HUD stays put.
 - **Remaster credits** (Extras › Credits): the people and projects behind the remaster as animated end titles over a
-  starfield and a neon grid, to the game's ending theme.
+  starfield and a neon grid, to [*Twenty Ninety-Seven (Remix)*](https://www.hadalstatic.com/releases/twenty-ninety-seven/)
+  by Hadal Static, a song about *One Must Fall 2097*: the grid, the horizon and the sparks move to the music.
 - **Achievements** announce themselves with a banner the moment they are earned.
 
 <p align="center">
@@ -474,6 +475,8 @@ flowchart LR
 
 - **The remaster**: [Jared Woodruff](https://github.com/Jared-woodruff) (human coder), Claude Opus 5.5 in Max Mode (AI
   coder), OpenAI GPT6-ASTRA in Ultra Mode (AI image rendering of the HD artwork).
+- **The credits' song**: [*Twenty Ninety-Seven (Remix)*](https://www.hadalstatic.com/releases/twenty-ninety-seven/) by
+  Hadal Static, used with the artist's permission.
 - ***One Must Fall 2097*** © 1994 Diversions Entertainment, published by Epic MegaGames, freeware since 1999. All
   trademarks belong to their owners. This is an unofficial fan project, not affiliated with or endorsed by the
   original authors.
