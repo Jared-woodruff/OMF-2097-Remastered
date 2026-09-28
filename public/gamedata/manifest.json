@@ -1,0 +1,224 @@
+{
+ "files": [
+  {
+   "name": "ALTPALS.DAT",
+   "size": 8448
+  },
+  {
+   "name": "ARENA0.BK",
+   "size": 96237
+  },
+  {
+   "name": "ARENA0.PSM",
+   "size": 98892
+  },
+  {
+   "name": "ARENA1.BK",
+   "size": 116294
+  },
+  {
+   "name": "ARENA1.PSM",
+   "size": 102435
+  },
+  {
+   "name": "ARENA2.BK",
+   "size": 138515
+  },
+  {
+   "name": "ARENA2.PSM",
+   "size": 76776
+  },
+  {
+   "name": "ARENA3.BK",
+   "size": 159553
+  },
+  {
+   "name": "ARENA3.PSM",
+   "size": 83105
+  },
+  {
+   "name": "ARENA4.BK",
+   "size": 215590
+  },
+  {
+   "name": "ARENA4.PSM",
+   "size": 103428
+  },
+  {
+   "name": "CHARSMAL.DAT",
+   "size": 1344
+  },
+  {
+   "name": "CREDITS.BK",
+   "size": 112085
+  },
+  {
+   "name": "END.BK",
+   "size": 70532
+  },
+  {
+   "name": "END.PSM",
+   "size": 132661
+  },
+  {
+   "name": "END1.BK",
+   "size": 318487
+  },
+  {
+   "name": "END2.BK",
+   "size": 99544
+  },
+  {
+   "name": "ENGLISH.DAT",
+   "size": 92784
+  },
+  {
+   "name": "FIGHTR0.AF",
+   "size": 358085
+  },
+  {
+   "name": "FIGHTR1.AF",
+   "size": 511074
+  },
+  {
+   "name": "FIGHTR10.AF",
+   "size": 741374
+  },
+  {
+   "name": "FIGHTR2.AF",
+   "size": 494055
+  },
+  {
+   "name": "FIGHTR3.AF",
+   "size": 356204
+  },
+  {
+   "name": "FIGHTR4.AF",
+   "size": 505263
+  },
+  {
+   "name": "FIGHTR5.AF",
+   "size": 510136
+  },
+  {
+   "name": "FIGHTR6.AF",
+   "size": 439878
+  },
+  {
+   "name": "FIGHTR7.AF",
+   "size": 514895
+  },
+  {
+   "name": "FIGHTR8.AF",
+   "size": 494527
+  },
+  {
+   "name": "FIGHTR9.AF",
+   "size": 355055
+  },
+  {
+   "name": "GERMAN.DAT",
+   "size": 98525
+  },
+  {
+   "name": "GRAPHCHR.DAT",
+   "size": 1792
+  },
+  {
+   "name": "INTRO.BK",
+   "size": 198354
+  },
+  {
+   "name": "KATUSHAI.BK",
+   "size": 992640
+  },
+  {
+   "name": "KATUSHAI.PIC",
+   "size": 44396
+  },
+  {
+   "name": "KATUSHAI.TRN",
+   "size": 27619
+  },
+  {
+   "name": "MAIN.BK",
+   "size": 83419
+  },
+  {
+   "name": "MECHLAB.BK",
+   "size": 904095
+  },
+  {
+   "name": "MELEE.BK",
+   "size": 376062
+  },
+  {
+   "name": "MENU.PSM",
+   "size": 123656
+  },
+  {
+   "name": "NEWSROOM.BK",
+   "size": 91207
+  },
+  {
+   "name": "NORTH_AM.BK",
+   "size": 317508
+  },
+  {
+   "name": "NORTH_AM.PIC",
+   "size": 110970
+  },
+  {
+   "name": "NORTH_AM.TRN",
+   "size": 33058
+  },
+  {
+   "name": "OMF.ICO",
+   "size": 766
+  },
+  {
+   "name": "PLAYERS.PIC",
+   "size": 14484
+  },
+  {
+   "name": "RANDOM.DAT",
+   "size": 256
+  },
+  {
+   "name": "SETUP.CFG",
+   "size": 296
+  },
+  {
+   "name": "SOUNDS.DAT",
+   "size": 487859
+  },
+  {
+   "name": "VS.BK",
+   "size": 238932
+  },
+  {
+   "name": "WAR.BK",
+   "size": 800477
+  },
+  {
+   "name": "WAR.PIC",
+   "size": 44553
+  },
+  {
+   "name": "WAR.TRN",
+   "size": 35192
+  },
+  {
+   "name": "WORLD.BK",
+   "size": 615882
+  },
+  {
+   "name": "WORLD.PIC",
+   "size": 110970
+  },
+  {
+   "name": "WORLD.TRN",
+   "size": 54832
+  }
+ ]
+}

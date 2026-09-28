@@ -5,11 +5,11 @@ follows, and how to check your changes.
 
 ## Setup
 
-You need Node.js 22.12+ and a copy of the original game (see the [README](README.md#get-started)):
+You need Node.js 22.12+. The original game's data (freeware, see [NOTICE.md](NOTICE.md)) and the HD artwork come
+with the repository:
 
 ```sh
 npm install
-npm run extract        # copies the original data files into public/gamedata/ (git-ignored)
 npm run dev            # http://localhost:5173
 ```
 
@@ -23,8 +23,8 @@ npm test               # vitest: the game logic runs headlessly against the orig
 npm run build          # the web build
 ```
 
-Tests that need the game data skip themselves when `public/gamedata/` is missing, which is what CI does. Run the full
-suite locally before sending a change that touches game logic, rendering or menus.
+The tests run against the game data in `public/gamedata/` (they skip themselves where it is missing, e.g. in a copy
+without it).
 
 The remaster's own robots and arenas are generated from `src/gen` into `public/gen/` (committed). After changing their
 models, moves or scenes, run `npm run gen` (see [docs/BUILDING.md](docs/BUILDING.md)); a test fails when the robots'
@@ -48,5 +48,6 @@ and `capture(name, w, h)` (writes a PNG to `.captures/`). See [docs/ARCHITECTURE
 
 ## What not to commit
 
-The original game's data files and anything derived from its images (the HD asset pack in `hd-pack/` and the imported
-artwork in `public/hd/`) are git-ignored and must stay out of the repository.
+The original game's files are included on its freeware terms ([NOTICE.md](NOTICE.md)): nothing here may ever be sold
+or put behind a charge. Keep other copyrighted material out, and the HD asset pack's working files (`hd-pack/`, source
+images and prompts) too: only the imported artwork in `public/hd/` belongs in the repository.

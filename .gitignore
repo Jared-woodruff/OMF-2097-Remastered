@@ -4,10 +4,9 @@ dist/
 src-tauri/target/
 src-tauri/gen/
 
-# Original game files (not redistributed with the engine source)
-omf21cd/
-gamedata/
-public/gamedata/
+# The original CD and an installed copy (public/gamedata/ holds the game's data files, see NOTICE.md)
+/omf21cd/
+/gamedata/
 
 # Local / editor
 *.log
@@ -17,12 +16,9 @@ Thumbs.db
 .idea/
 .captures/
 
-# Generated HD asset pack (contains images of the original game)
+# The HD asset pack's working files (source images, prompts; public/hd/ holds the imported artwork)
 /hd-pack/
 /hd-pack.zip
-
-# Imported HD artwork (derived from the original game)
-public/hd/
 
 # Local tool settings
 .claude/

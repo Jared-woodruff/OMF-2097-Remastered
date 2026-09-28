@@ -11,6 +11,10 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest"><img src="https://img.shields.io/badge/%E2%AC%87%20Download%20for%20Windows-free-ff7a3d?style=for-the-badge" alt="Download for Windows (free)"></a>
+</p>
+
+<p align="center">
   <a href="#trailer"><b>Trailer</b></a> &nbsp;•&nbsp;
   <a href="#features"><b>Features</b></a> &nbsp;•&nbsp;
   <a href="#classic-remastered"><b>Classic / Remastered</b></a> &nbsp;•&nbsp;
@@ -354,7 +358,7 @@ atlases the game loads on demand:
 
 ```mermaid
 flowchart LR
-    A["Original game data<br/>(your copy)"] -->|npm run extract| B["public/gamedata"]
+    A["Original game data"] -->|npm run extract| B["public/gamedata"]
     B -->|npm run hd:export| C["hd-pack/<br/>3,200+ images, prompts,<br/>guides and specs"]
     C -->|image model| D["*.hd.png"]
     D -->|npm run hd:import| E["public/hd/<br/>34 WebP atlas bundles"]
@@ -366,33 +370,35 @@ flowchart LR
   artwork follows player color choices, fades, flashes and tints exactly like the original sprites.
 - **Streaming**: bundles per scene, robot and shared effects load on demand, and scene changes preload the next ones.
 
-The pack and the imported artwork contain images of the original game, so neither is part of this repository. See
-[docs/BUILDING.md](docs/BUILDING.md) to create and import your own.
+The imported artwork is part of this repository (`public/hd/`, shared on the game's freeware terms, see
+[NOTICE.md](NOTICE.md)); the pack's working files are not. See [docs/BUILDING.md](docs/BUILDING.md) to make and import
+a pack of your own.
 
 <br>
 
 <a id="get-started"></a>
 <p align="center"><a href="#get-started"><img src="docs/media/banner-start.jpg" alt="07 · Get started" width="100%"></a></p>
 
-> [!IMPORTANT]
-> The game data is not included. *One Must Fall 2097* has been freeware since 1999: put the CD contents in `omf21cd/`
-> (the installer is `omf21cd/OMF/OMF21.EXE`) or point `npm run extract` at your copy. The web version can also take
-> it straight from the player, see below.
+**To play**, [download the Windows app](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest): the installer, or the portable
+`omf2097-remastered.exe` that runs from anywhere. Everything is included and free: *One Must Fall 2097* has been
+freeware since 1999, and its owners let everyone share it as long as nobody charges for it (see [NOTICE.md](NOTICE.md)).
+
+**To build it yourself**, the game data and the HD artwork come with the repository:
 
 ```sh
 git clone https://github.com/Jared-woodruff/OMF-2097-Remastered.git
 cd OMF-2097-Remastered
 npm install
-npm run extract                  # or: npm run extract -- path/to/OMF21.EXE
 npm run dev                      # play at http://localhost:5173
 ```
 
 | Command | Result |
 | --- | --- |
-| `npm run build` | The web version in `dist/`: a static site you can host anywhere, even in a subfolder. |
-| `npm run build:web` | The same site without the game data (0.5 MB): on the first visit, players drop the freeware `OMF21.EXE` (or a zip, or their game folder) onto the page, it is unpacked in the browser and kept there, and the game then works offline as an installable app. |
+| `npm run build` | The web version in `dist/`: a static site you can host anywhere, even in a subfolder. The game starts with one click, and works offline as an installable app after the first visit. |
+| `npm run build:web -- --lean` | The same site without the game data and the artwork (0.5 MB): on the first visit, players drop the freeware `OMF21.EXE` (or a zip, or their game folder) onto the page, and it is unpacked in the browser and kept there. |
+| `npm run extract` | Replaces the game data with your own copy's (`omf21cd/` with the CD contents, or `npm run extract -- path/to/OMF21.EXE`). |
 | `npm run desktop:build` | The Windows app: a portable `omf2097-remastered.exe` and an installer under `src-tauri/target/release/`. |
-| `npm test` | The test suite (headless, against your game data). |
+| `npm test` | The test suite (headless, against the game data). |
 
 Prerequisites and details for every platform are in [docs/BUILDING.md](docs/BUILDING.md).
 
@@ -481,8 +487,9 @@ flowchart LR
   ([SIL Open Font License 1.1](public/fonts/Orbitron-OFL.txt)): the remastered text.
 - The app icon and installer artwork are original designs; the HD artwork was generated from the original images.
 
-The source code in this repository is released under the [MIT license](LICENSE). It contains no game data or artwork
-of the original game; the screenshots and videos in `docs/media` show the game running with it.
+The source code in this repository is released under the [MIT license](LICENSE). The original game's data files and
+the remastered artwork made from them are included on the game's freeware terms, not under the MIT license: free of
+charge, never sold. See [NOTICE.md](NOTICE.md).
 
 <br>
 

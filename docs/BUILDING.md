@@ -3,8 +3,8 @@
 ## Prerequisites
 
 - **Node.js 22.12+** (developed on Node 24) and npm.
-- **The original game.** The data files are not in this repository. You need the One Must Fall 2097 CD's
-  `OMF/OMF21.EXE` (a PKZIP self-extractor) or an installed copy of the game.
+- **The original game's data** comes with the repository (`public/gamedata/`; *One Must Fall 2097* is freeware, see
+  [NOTICE.md](../NOTICE.md)), and so does the imported HD artwork (`public/hd/`).
 - **Desktop build only (Windows):**
   - Rust stable with the MSVC toolchain (`x86_64-pc-windows-msvc`), via [rustup](https://rustup.rs).
   - Visual Studio 2022 Build Tools with the "Desktop development with C++" workload (MSVC linker and Windows SDK).
@@ -17,15 +17,22 @@
 
 ```sh
 npm install
+```
+
+To use the data of another copy of the game instead (the CD's `OMF/OMF21.EXE`, a PKZIP self-extractor, or an
+installed copy):
+
+```sh
 npm run extract                       # reads omf21cd/OMF/OMF21.EXE (falls back to gamedata/)
 npm run extract -- path/to/OMF21.EXE  # or pass OMF21.EXE, a .zip, or an installed game directory
 ```
 
-`extract` copies the original game data into `public/gamedata/`, which is git-ignored.
+`extract` replaces the files in `public/gamedata/` with that copy's.
 
-### Optional: HD artwork
+### HD artwork
 
-With a finished HD asset pack (see the README), import it before building:
+The imported artwork in `public/hd/` comes with the repository. To replace it with a new HD asset pack (see the
+README):
 
 ```sh
 npm run hd:import                     # reads hd-pack/, writes public/hd/ (needs Python 3 with numpy and Pillow)
@@ -70,13 +77,21 @@ image model; imported artwork is used instead of the rendered one.
 
 The build uses relative URLs (`base: './'`), so `dist/` works from any path.
 
-### Hosting the web version without the game data
+### Publishing the web version
+
+`npm run build` makes the complete site: game data and artwork included, the game starts with one click. The
+[Web version](../.github/workflows/pages.yml) workflow builds it and publishes it on GitHub Pages on every push to
+`main`, once the site is turned on (repository settings: Pages from GitHub Actions, and the variable
+`WEB_VERSION = on`).
+
+### A lean web version
 
 | Command | What it does |
 | --- | --- |
-| `npm run build:web` | `npm run build`, then removes `dist/gamedata/` and `dist/hd/` (`node tools/web-dist.mjs --with-hd` keeps the HD artwork). |
+| `npm run build:web` | `npm run build`, then reports the site's size (game data and artwork included). |
+| `npm run build:web -- --lean` | The same, then removes `dist/gamedata/` and `dist/hd/` (0.5 MB). |
 
-A site built this way asks for the game on its first visit: players drop or pick the freeware `OMF21.EXE`, a zip
+A lean site asks for the game on its first visit: players drop or pick the freeware `OMF21.EXE`, a zip
 that contains the game or its installer, or the folder of an installed copy. `src/platform/gameData.ts` unpacks it in
 the browser (the installer is a PKZIP self-extractor; deflate goes through `DecompressionStream`) and keeps the files
 in IndexedDB, so later visits start right away. Nothing is uploaded. A service worker (`public/sw.js`) caches the

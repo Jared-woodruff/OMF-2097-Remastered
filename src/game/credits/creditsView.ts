@@ -236,6 +236,7 @@ function markup(links: boolean): string {
     <div class="omfc-original">ONE MUST FALL 2097</div>
     <p><span class="omfc-nb">© 1994 Diversions Entertainment</span> &nbsp;·&nbsp; <span class="omfc-nb">Published by Epic MegaGames</span> &nbsp;·&nbsp;
       <span class="omfc-nb">Freeware since 1999</span></p>
+    <p>Its owners let everyone share it, as long as nobody charges for it.</p>
     <p class="omfc-note">An unofficial fan remaster, not affiliated with or endorsed by the original authors. All trademarks belong to their owners.</p>
   </section>
   <section class="omfc-section omfc-reveal">
@@ -244,7 +245,8 @@ function markup(links: boolean): string {
   </section>
   <section class="omfc-section omfc-reveal">
     <h2><span>THE REMASTER'S CODE</span></h2>
-    <p>Released under the MIT License. It contains no game data or artwork of the original game: you bring your own copy.</p>
+    <p>Released under the MIT License. The original game's files and the artwork made from them come with it on the game's
+      freeware terms: free of charge, never sold.</p>
   </section>
   <section class="omfc-end omfc-reveal" data-burst="3">
     <div class="omfc-thanks">THANKS FOR PLAYING</div>
