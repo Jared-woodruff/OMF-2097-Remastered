@@ -20,6 +20,8 @@ export class Engine {
   /** Fraction of the next dynamic tick already elapsed (for motion interpolation). */
   alpha = 0;
   paused = false;
+  /** The game waits while a scene's remastered artwork loads (see main.ts): its clock stands still meanwhile. */
+  waiting = false;
   /** Draw objects between game ticks (smooth motion on high refresh rate displays). */
   interpolate = false;
   frames = 0;
@@ -84,7 +86,7 @@ export class Engine {
   frame(now: number): void {
     const dt = now - this.last;
     this.last = now;
-    if (!this.paused) this.advance(dt);
+    if (!this.paused && !this.waiting) this.advance(dt);
     drawList.begin();
     drawList.interpAlpha = this.interpolate ? this.alpha : -1;
     this.gs.render();

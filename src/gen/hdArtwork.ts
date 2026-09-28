@@ -48,6 +48,12 @@ interface RobotArt {
 /** Moves rendered first (what shows first: select cell and idle, VS picture, walking, jumping, blocking, hits). */
 const PRIORITY = [MOVE.PORTRAIT_CELL, 11, MOVE.PORTRAIT_VS, 10, 1, 4, 5, 6, 9];
 
+/** The game's generated artwork (set when it is made), for pages that render pictures at run time. */
+let current: GeneratedArtwork | null = null;
+export function generatedArtwork(): GeneratedArtwork | null {
+  return current;
+}
+
 export class GeneratedArtwork {
   private renderer: RobotHdRenderer | null = null;
   private robots = new Map<number, RobotArt>();
@@ -55,7 +61,9 @@ export class GeneratedArtwork {
   private frame = 0;
   private failed = false;
 
-  constructor(private gl: WebGL2RenderingContext, private hd: HdAssets) {}
+  constructor(private gl: WebGL2RenderingContext, private hd: HdAssets) {
+    current = this;
+  }
 
   /** Texels per native pixel follow the installed artwork's resolution setting (half on integrated GPUs). */
   private get texScale(): number {
@@ -231,13 +239,56 @@ export class GeneratedArtwork {
   }
 
   private renderJob(art: RobotArt, j: Job): void {
+    this.renderInto(art.pages, j, this.palette);
+    art.hashes.push(j.hash);
+  }
+
+  private renderInto(pages: HdPageSet, j: Job, palette: number): void {
     const ts = this.texScale;
     const fw = Math.round((j.w + 2 * PAD) * HD_SX * ts), fh = Math.round((j.h + 2 * PAD) * HD_SY * ts);
-    const rect = art.pages.allocate(fw, fh);
+    const rect = pages.allocate(fw, fh);
     const unit = HD_UNIT / (j.scale * ts);
     this.renderer!.draw(rect, (j.x - PAD) / j.scale, (-(j.y - PAD) * 1.2) / j.scale, j.shapes, unit);
-    art.hashes.push(j.hash);
-    this.hd.registerSprite(j.hash, { tex: rect.page.tex, w: rect.page.w, h: rect.page.h }, rect.x, rect.y, fw, fh, PAD, this.palette);
+    this.hd.registerSprite(j.hash, { tex: rect.page.tex, w: rect.page.w, h: rect.page.h }, rect.x, rect.y, fw, fh, PAD, palette);
+  }
+
+  /** The last picture rendered by renderPicture, and the palette rows made for its color mappings. */
+  private picture: { hash: string; pages: HdPageSet } | null = null;
+  private pictureRows = new Map<string, number>();
+
+  /**
+   * HD artwork of a picture made at run time from a generated robot (the workshop's preview): its shapes rendered now
+   * and registered for `pixels` (w x h, placed at x, y at `scale` like a fighter sprite), whose robot colors use the
+   * palette entries `index(1..47)` instead of the ramps. Replaces the previous picture.
+   */
+  renderPicture(pixels: Uint8Array, w: number, h: number, shapes: PlacedShape[], x: number, y: number, scale: number,
+    index: (i: number) => number): void {
+    if (!this.ensureRenderer()) return;
+    const hash = pixelHash(w, h, pixels);
+    if (this.picture?.hash === hash || this.hd.hasRuntime(hash)) return;
+    // The reference palette with the robot's ramps moved where the picture has them (once per mapping).
+    const mapKey = Array.from({ length: 47 }, (_, i) => index(i + 1)).join(',');
+    let row = this.pictureRows.get(mapKey);
+    if (row === undefined) {
+      const ref = this.referencePalette();
+      const rgb = ref.slice();
+      for (let i = 1; i < 48; i++) rgb.set(ref.subarray(i * 3, i * 3 + 3), index(i) * 3);
+      row = this.hd.addBasePalette(rgb);
+      this.pictureRows.set(mapKey, row);
+    }
+    if (this.picture) {
+      this.hd.unregister(this.picture.hash);
+      this.picture.pages.dispose();
+    }
+    const pages = new HdPageSet(this.gl, 1024);
+    const saved = saveState(this.gl);
+    try {
+      this.renderInto(pages, { hash, moveId: -1, shapes, x, y, w, h, scale }, row);
+      pages.finish();
+    } finally {
+      restoreState(this.gl, saved);
+    }
+    this.picture = { hash, pages };
   }
 
   /** Frees the pages of robots nobody wanted for a while, keeping a few. */

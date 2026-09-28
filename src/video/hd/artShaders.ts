@@ -119,6 +119,12 @@ int rawAt(ivec2 p) {
   return int(texelFetch(u_atlas, v_p2.xy + p, 0).r);
 }
 
+// 1 where the surface shows the artwork: any drawn pixel, or with own set only a robot's own colors (below 0x30).
+float keptAt(ivec2 p, bool own) {
+  int raw = rawAt(p);
+  return raw != g_transparency && (!own || raw < 0x30) ? 1.0 : 0.0;
+}
+
 int finalIndex(int raw) {
   int index = raw;
   if (index <= g_palLimit) index = clamp(index + g_palOffset, 0, g_palLimit);
@@ -166,15 +172,17 @@ void main() {
   if (hd.a <= 0.002) discard;
   vec3 c = hd.rgb / hd.a;
   bool grey = (v_p3.y & 1) != 0;
-  if ((v_p3.y & 2) != 0) {
-    // Transparency keyed from this surface's own pixels (bilinear coverage for smooth edges).
+  if ((v_p3.y & 6) != 0) {
+    // Transparency keyed from this surface's own pixels (bilinear coverage for smooth edges); with flag 4 only the
+    // pixels in a robot's own colors count (the VS screen's robots carry pieces of the background).
+    bool own = (v_p3.y & 4) != 0;
     vec2 p = v_nuv - 0.5;
     ivec2 b = ivec2(floor(p));
     vec2 t = p - floor(p);
-    float m00 = rawAt(b) != g_transparency ? 1.0 : 0.0;
-    float m10 = rawAt(b + ivec2(1, 0)) != g_transparency ? 1.0 : 0.0;
-    float m01 = rawAt(b + ivec2(0, 1)) != g_transparency ? 1.0 : 0.0;
-    float m11 = rawAt(b + ivec2(1, 1)) != g_transparency ? 1.0 : 0.0;
+    float m00 = keptAt(b, own);
+    float m10 = keptAt(b + ivec2(1, 0), own);
+    float m01 = keptAt(b + ivec2(0, 1), own);
+    float m11 = keptAt(b + ivec2(1, 1), own);
     hd.a *= mix(mix(m00, m10, t.x), mix(m01, m11, t.x), t.y);
     if (hd.a <= 0.002) discard;
   }
@@ -257,6 +265,7 @@ uniform int u_baseRow;
 uniform vec4 u_rect;        // extended background in the atlas: x, y, w, h
 uniform float u_extNative;  // native pixels of extension on each side of the extended background
 uniform int u_wide;         // 1: u_art covers the whole extended background; 0: only the 320 center (mirrored outside)
+uniform int u_mirror;       // 1: the right half is the left half mirrored (the VS screen)
 out vec4 o_color;
 ` + TRANSFER + `
 vec3 basePal(int i) {
@@ -279,6 +288,7 @@ void main() {
     float w = u_rect.z - 2.0 * u_extNative;
     if (sx < 0.0) sx = -sx;
     if (sx > w) sx = 2.0 * w - sx;
+    if (u_mirror != 0 && sx > 0.5 * w) sx = w - sx;
     auv = vec2(sx / w, local.y / u_rect.w);
   }
   vec4 art = texture(u_art, auv);

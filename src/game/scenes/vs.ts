@@ -286,6 +286,9 @@ export class VsScene extends Scene {
 
     // HAR
     let ani = bkGetInfo(this.bk, 5)!.ani;
+    // The robots' images carry pieces of the holding bay around them (shadows, stripes, railings): the remastered
+    // renderer shows only the robots of their artwork, over the HD holding bay.
+    for (const sp of ani.sprites) if (sp.surface) sp.surface.hdOwnColors = true;
     // The remaster's robots (HARs 11 and up) bring their big image in their fighter files.
     for (const id of [player1.pilot.harId, p2Pilot?.harId ?? -1]) {
       // (VS.BK has an empty placeholder in slot 11: the new robots always bring theirs.)
@@ -375,6 +378,8 @@ export class VsScene extends Scene {
       const bg = this.bk.background.clone();
       bg.blit(this.bk.background, 160, 0, 0, 0, 160, 200, true);
       bg.source = { kind: 'background', key: `${this.bk.file}/bg#mirror` };
+      // (the remastered renderer mirrors the original's artwork the same way)
+      bg.hdSource = { surf: this.bk.background, x: 0, y: 0, gray: false, mirror: true };
       this.bk.background = bg;
     }
 

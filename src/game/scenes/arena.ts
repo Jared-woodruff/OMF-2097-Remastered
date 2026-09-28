@@ -522,6 +522,17 @@ export class ArenaScene extends Scene implements ArenaLike {
     if (!settings().gameplay.victoryScreens || gs.isTournament() || gs.isDemoplay() || this.training) return;
     if (gs.getPlayer(0).ctrl.type === CtrlType.AI && gs.getPlayer(1).ctrl.type === CtrlType.AI) return;
     if (gs.nextId === gs.thisId || gs.nextId === SceneId.VICTORY) return;
+    const w = Math.max(0, this.winner), fs = gs.fightStats;
+    const winnerHar = harData(this.harObj(w));
+    gs.victoryStats = {
+      rounds: [gs.getPlayer(w).score.rounds, gs.getPlayer(1 - w).score.rounds],
+      hits: fs.hitsLanded[w],
+      accuracy: fs.totalAttacks[w] ? Math.round((100 * fs.hitsLanded[w]) / fs.totalAttacks[w]) : 0,
+      bestCombo: Math.max(this.bestCombo[w], this.comboHits[w]),
+      seconds: Math.round((gs.tick * gs.msPerDyntick()) / 1000),
+      perfect: winnerHar.health >= winnerHar.healthMax,
+      finish: fs.finish,
+    };
     gs.victoryNext = gs.nextId;
     gs.nextId = SceneId.VICTORY;
   }

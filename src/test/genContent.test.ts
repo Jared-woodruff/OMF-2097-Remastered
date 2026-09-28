@@ -54,7 +54,7 @@ describe('opting in', () => {
     settings().gameplay.extraRobots = true;
     saveSettings();
     expect(loadSettings().gameplay.extraRobots).toBe(true);
-    expect(settings().revision).toBe(2);
+    expect(settings().revision).toBeGreaterThanOrEqual(2);
   });
 });
 

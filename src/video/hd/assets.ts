@@ -2,7 +2,7 @@
 // game's indexed surfaces to their HD images by pixel fingerprint. Bundles (one per scene / robot, plus shared
 // effects, arena graphics and portraits) load on demand; until a bundle is ready, the renderer keeps using its
 // procedural upscaler for those images. Optional: without public/hd/index.json the game simply has no HD artwork.
-import type { Surface } from '../surface';
+import type { Surface, HdSource } from '../surface';
 import { pixelHash } from './pixelHash';
 
 export interface HdEntry {
@@ -66,7 +66,7 @@ export interface HdImage {
   image?: HdTexture;
   wide?: HdTexture;
   /** Drawing a region of another surface's artwork (see Surface.hdSource). */
-  sub?: { surf: Surface; x: number; y: number; gray: boolean };
+  sub?: HdSource;
 }
 
 export const HAR_BUNDLES = ['JAGUAR', 'SHADOW', 'THORN', 'PYROS', 'ELECTRA', 'KATANA', 'SHREDDER', 'FLAIL', 'GARGOYLE', 'CHRONOS', 'NOVA',
@@ -297,7 +297,9 @@ export class HdAssets {
     const img = this.lookup(surf);
     if (img || !surf.hdSource) return img;
     const parent = this.lookup(surf.hdSource.surf);
-    return parent?.page ? { ...parent, sub: surf.hdSource } : null;
+    if (parent?.page) return { ...parent, sub: surf.hdSource };
+    // A background mirrored from its left half (the VS screen): its artwork, mirrored the same way.
+    return parent?.image && surf.hdSource.mirror ? { ...parent, wide: undefined, sub: surf.hdSource } : null;
   }
 
   /** Starts loading bundles that will be needed soon (e.g. both robots while the VS screen shows). */
@@ -316,8 +318,12 @@ export class HdAssets {
     if (!this.active) return;
     this.preload(names);
     const end = performance.now() + timeoutMs;
-    const busy = () => names.some((n) => this.bundles.get(n)?.status === 'loading');
-    while (busy() && performance.now() < end) await new Promise((r) => setTimeout(r, 30));
+    while (this.loading(names) && performance.now() < end) await new Promise((r) => setTimeout(r, 30));
+  }
+
+  /** Whether any of the named bundles is still loading. */
+  loading(names: string[]): boolean {
+    return this.active && names.some((n) => this.bundles.get(n)?.status === 'loading');
   }
 
   private async load(b: BundleState): Promise<void> {

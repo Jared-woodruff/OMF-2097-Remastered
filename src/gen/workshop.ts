@@ -9,7 +9,7 @@ import { measure } from './fighter/body';
 import { MOVE, portraitMoves } from './fighter/moveset';
 import { ShapeKind, type Shape, type Vec3 } from './geometry';
 import { traceShapes, ROW_H, type TracedSprite } from './raster';
-import type { Joint, Part, RobotModel } from './robot';
+import type { Joint, Part, PlacedShape, RobotModel } from './robot';
 import { fighterOf, GEN_ROBOTS, type GenRobot } from './roster';
 
 export interface WorkshopSpec {
@@ -144,11 +144,13 @@ export function buildWorkshopFighter(spec: WorkshopSpec, id: number): Uint8Array
 }
 
 /** The robot's VS screen picture (quick: one picture instead of the whole fighter), for the workshop's preview. */
-export function workshopPreview(spec: WorkshopSpec): TracedSprite {
+export function workshopPreview(spec: WorkshopSpec): TracedSprite & { shapes: PlacedShape[]; scale: number } {
   const r = workshopRobot(spec, WORKSHOP_FIRST_ID);
   const b = measure(r.model, r.style);
   const vs = portraitMoves(b).find((m) => m.id === MOVE.PORTRAIT_VS)!;
   const sprite = vs.sprites[0];
   const view = sprite.view!;
-  return traceShapes(spriteShapes(r.model, sprite), 1 / view.scale, ROW_H / view.scale);
+  // (the shapes and magnification too: the remastered renderer draws the picture from them, see hdArtwork.ts)
+  const shapes = spriteShapes(r.model, sprite);
+  return { ...traceShapes(shapes, 1 / view.scale, ROW_H / view.scale), shapes, scale: view.scale };
 }

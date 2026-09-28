@@ -39,11 +39,12 @@ export function menuRemasteredCreate(): Menu {
     'Use the high-resolution artwork (backgrounds, robots, portraits). OFF upscales the original images instead.', 'hdArtwork'));
   menu.attach(boolOption('SMOOTH MOTION',
     'Interpolate movement between game ticks for fluid motion on high refresh rate displays.', 'motionSmoothing'));
+  const FONTS = ['type', 'smooth', 'pixel'] as const;
   menu.attach(new TextSelector('FONT',
-    'HD draws the letters of the original font as clean, sharp shapes with a soft shadow at any resolution. PIXEL ' +
-    'keeps their square pixels.',
-    () => (video().hdFont === 'pixel' ? 1 : 0), (pos) => (video().hdFont = pos === 1 ? 'pixel' : 'smooth'), ['HD', 'PIXEL'],
-    () => settingsChanged()));
+    'REMASTERED draws the text in a high-resolution typeface in the style of the original. SMOOTH draws the ' +
+    'original letters as clean shapes. PIXEL keeps their square pixels.',
+    () => Math.max(0, FONTS.indexOf(video().hdFont)), (pos) => (video().hdFont = FONTS[pos] ?? 'type'),
+    ['REMASTERED', 'SMOOTH', 'PIXEL'], () => settingsChanged()));
   menu.attach(new TextSelector('HUD',
     'MODERN draws the health and endurance bars smoothly, with a trail that shows the damage just taken. CLASSIC keeps the original bars.',
     () => (video().hdHud ? 1 : 0), (pos) => (video().hdHud = pos === 1), ['CLASSIC', 'MODERN'], () => settingsChanged()));

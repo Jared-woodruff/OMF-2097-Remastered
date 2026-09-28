@@ -8,7 +8,7 @@ import { MOVE } from '../../gen/fighter/moveset';
 import { globalRandom } from '../../util/random';
 import { TAG_MENU, video } from '../../video/draw';
 import { ACT_ESC, ACT_KICK, ACT_PUNCH, CtrlType, ORIGINAL_HAR_TYPES, RENDER_LAYER_MIDDLE, RENDER_LAYER_TOP, SceneId } from '../constants';
-import { registerScene, type GameState } from '../gameState';
+import { FINISH_DESTRUCTION, FINISH_SCRAP, registerScene, type GameState } from '../gameState';
 import { FontSize, GLYPH_SHADOW_BOTTOM, GLYPH_SHADOW_RIGHT, HAlign, Text, VAlign } from '../gui/text';
 import { GameObject } from '../object';
 import { menuShade } from '../gui/widgets';
@@ -17,6 +17,11 @@ import { Scene } from '../scene';
 
 const COLOR_YELLOW = 0xcf;
 const COLOR_GREEN = 0xa7;
+const COLOR_SHADOW = 0xca;
+const COLOR_LABEL = 0xc5;
+const COLOR_VALUE = 0xdf;
+/** The fight's summary: a panel on the right half. */
+const PANEL_X = 172, PANEL_Y = 38, PANEL_W = 140, PANEL_H = 96;
 /** Ticks until the screen goes on by itself. */
 const WAIT_TICKS = 700;
 
@@ -45,8 +50,10 @@ export class VictoryScene extends Scene {
   private title: Text;
   private quote: Text;
   private hint: Text;
+  private rows: [Text, Text][] = [];
+  private highlight: Text | null = null;
   private ticks = 0;
-  private shade = menuShade(152, 102);
+  private shade = menuShade(PANEL_W, PANEL_H);
 
   constructor(gs: GameState) {
     super(gs, SceneId.VICTORY);
@@ -55,8 +62,10 @@ export class VictoryScene extends Scene {
     const pilot = winner.pilot;
     paletteLoadPlayerColors(pilot.palette, 0);
 
-    // The winner's robot (the VS screen's pictures; the remaster's robots bring theirs), then the portrait.
+    // The winner's robot (the VS screen's pictures; the remaster's robots bring theirs), then the portrait. The pictures
+    // carry pieces of the holding bay: the remastered renderer shows only the robot of their artwork (as on the VS screen).
     const ani = bkGetInfo(this.bk, 5)!.ani;
+    for (const sp of ani.sprites) if (sp.surface) sp.surface.hdOwnColors = true;
     if (pilot.harId >= ORIGINAL_HAR_TYPES) {
       const pic = harPicture(pilot.harId, MOVE.PORTRAIT_VS);
       if (pic) {
@@ -68,6 +77,7 @@ export class VictoryScene extends Scene {
     const bg = this.bk.background.clone();
     bg.blit(this.bk.background, 160, 0, 0, 0, 160, 200, true);
     bg.source = { kind: 'background', key: `${this.bk.file}/bg#mirror` };
+    bg.hdSource = { surf: this.bk.background, x: 0, y: 0, gray: false, mirror: true };
     this.bk.background = bg;
     const har = new GameObject(gs, 160, 0);
     har.setAnimation(ani);
@@ -84,10 +94,33 @@ export class VictoryScene extends Scene {
 
     const name = (pilot.name || `PLAYER ${winnerId + 1}`).toUpperCase();
     this.title = new Text(FontSize.BIG, 320, 10, `${name} WINS!`).setHAlign(HAlign.CENTER).setColor(COLOR_YELLOW)
-      .setShadowColor(202).setShadow(GLYPH_SHADOW_RIGHT | GLYPH_SHADOW_BOTTOM);
-    this.quote = new Text(FontSize.SMALL, 140, 90, `"${winQuote(pilot.pilotId)}"`).setHAlign(HAlign.CENTER).setVAlign(VAlign.MIDDLE)
-      .setColor(COLOR_YELLOW).setShadowColor(202).setShadow(GLYPH_SHADOW_RIGHT | GLYPH_SHADOW_BOTTOM);
+      .setShadowColor(COLOR_SHADOW).setShadow(GLYPH_SHADOW_RIGHT | GLYPH_SHADOW_BOTTOM);
+    // The line goes where the VS screen's dialogue goes: next to the portrait.
+    this.quote = new Text(FontSize.SMALL, 200, 34, `"${winQuote(pilot.pilotId)}"`).setHAlign(HAlign.CENTER).setVAlign(VAlign.MIDDLE)
+      .setColor(COLOR_YELLOW).setShadowColor(COLOR_SHADOW).setShadow(GLYPH_SHADOW_RIGHT | GLYPH_SHADOW_BOTTOM);
     this.hint = new Text(FontSize.SMALL, 150, 8, 'PRESS A BUTTON').setHAlign(HAlign.CENTER).setColor(COLOR_GREEN);
+
+    const st = gs.victoryStats;
+    if (st) {
+      const time = `${Math.floor(st.seconds / 60)}:${String(st.seconds % 60).padStart(2, '0')}`;
+      const rows: [string, string][] = [
+        ['ROUNDS', `${st.rounds[0]} - ${st.rounds[1]}`],
+        ['TIME', time],
+        ['HITS', String(st.hits)],
+        ['ACCURACY', `${st.accuracy}%`],
+        ['BEST COMBO', st.bestCombo > 1 ? `${st.bestCombo} HITS` : '-'],
+      ];
+      const w = PANEL_W - 16;
+      this.rows = rows.map(([l, v]) => [
+        new Text(FontSize.SMALL, w, 8, l).setColor(COLOR_LABEL),
+        new Text(FontSize.SMALL, w, 8, v).setHAlign(HAlign.RIGHT).setColor(COLOR_VALUE),
+      ]);
+      const note = st.finish === FINISH_DESTRUCTION ? 'DESTRUCTION!' : st.finish === FINISH_SCRAP ? 'SCRAP!' : st.perfect ? 'PERFECT!' : '';
+      if (note) {
+        this.highlight = new Text(FontSize.BIG, w, 10, note).setHAlign(HAlign.CENTER).setColor(COLOR_YELLOW)
+          .setShadowColor(COLOR_SHADOW).setShadow(GLYPH_SHADOW_RIGHT | GLYPH_SHADOW_BOTTOM);
+      }
+    }
   }
 
   private next(): void {
@@ -111,9 +144,19 @@ export class VictoryScene extends Scene {
   override render(): void {
     video.setTag(TAG_MENU);
     this.title.draw(0, 4);
-    video.drawRemap(this.shade, 166, 34, 4, 1, 0);
-    this.quote.draw(172, 40);
-    if (this.ticks > 40) this.hint.draw(168, 186);
+    this.quote.draw(100, 156);
+    if (this.rows.length) {
+      video.drawRemap(this.shade, PANEL_X, PANEL_Y, 4, 1, 0);
+      const x = PANEL_X + 8;
+      let y = PANEL_Y + 10;
+      for (const [label, value] of this.rows) {
+        label.draw(x, y);
+        value.draw(x, y);
+        y += 13;
+      }
+      this.highlight?.draw(x, y + 3);
+    }
+    if (this.ticks > 40) this.hint.draw(170, 192);
   }
 }
 

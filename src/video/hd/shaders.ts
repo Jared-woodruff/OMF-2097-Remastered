@@ -358,8 +358,16 @@ flat in ivec4 v_p1;
 uniform float u_remapA[19];
 uniform vec3 u_remapB[19];
 uniform int u_shadowPass;
-uniform int u_textStyle;   // font glyphs: 0 clean HD shapes, 1 crisp pixels
+uniform int u_textStyle;   // font glyphs: 0 clean HD shapes, 1 crisp pixels, 2 the typeface (flag 0x200 quads)
 uniform int u_textPass;    // clean HD text: 1 draws the soft contrast halo that goes under a run of text
+uniform sampler2D u_glyphSdf;  // the remastered typeface's glyphs as distance fields (hd/typeface.ts)
+uniform vec2 u_glyphSdfSize;
+uniform float u_glyphTexels;   // texels per native pixel
+uniform float u_glyphRange;    // native pixels of distance each side of an edge
+uniform vec4 u_addBg;      // the credits: atlas rect of the background that index-adding sprites brighten (w 0: none)
+uniform vec2 u_scale;      // (as in the vertex shader: target pixels per native pixel, offset, target size)
+uniform vec2 u_offset;
+uniform vec2 u_target;
 out vec4 o_color;
 
 // Applies remap table 'row' n times as the fitted RGB transform: dst' = a*dst + b.
@@ -429,6 +437,31 @@ void main() {
     return;
   }
 
+  if ((g_options & 0x200) != 0) {
+    // Text in the remastered typeface: the glyph's distance field, fitted in its original cell (v_uv in its texels).
+    float dist = (texture(u_glyphSdf, v_uv / u_glyphSdfSize).r * 255.0 - 128.0) * u_glyphRange / 127.0;
+    float px = max(max(fwidth(v_uv.x), fwidth(v_uv.y)) / u_glyphTexels, 1e-4);
+    bool halfTone = (g_options & 0x400) != 0;
+    if (halfTone) op *= 0.5;
+    if (u_textPass == 1) {
+      if (halfTone) discard;
+      vec3 ink = pal(finalIndex(1));
+      float h = 0.5 * (1.0 - smoothstep(0.0, 1.6, max(dist, 0.0))) * op * smoothstep(0.08, 0.2, dot(ink, vec3(0.299, 0.587, 0.114)));
+      if (h <= 0.002) discard;
+      o_color = vec4(0.0, 0.0, 0.0, h);
+      return;
+    }
+    float m = clamp(0.5 - dist / px, 0.0, 1.0);
+    if (m <= 0.002) discard;
+    if (u_shadowPass == 2) {
+      o_color = vec4(m * op);
+      return;
+    }
+    vec3 ink = pal(finalIndex(1));
+    float a = m * op;
+    o_color = vec4(ink * a, a);
+    return;
+  }
   if ((g_options & 0x100) != 0 && u_textStyle == 0 && mode == 0) {
     // Text: the original letters as clean shapes (see TEXT), anti-aliased over one screen pixel.
     float px = max(max(fwidth(v_uv.x), fwidth(v_uv.y)), 1e-4);
@@ -491,6 +524,23 @@ void main() {
     remapTransform(enc % 19, enc / 19, A, B);
     float cov = s.a * op;
     o_color = vec4(B * cov, 1.0 - cov + cov * A);
+    return;
+  }
+  if (mode == 3 && u_addBg.w > 0.0) {
+    // The credits' names add 60 per step of their pixels to the palette index of the background under them (the
+    // palette holds brighter copies of the background's colors there): that color, with the smooth silhouette.
+    vec2 np = (vec2(gl_FragCoord.x, u_target.y - gl_FragCoord.y) - u_offset) / u_scale;
+    ivec2 bp = clamp(ivec2(floor(np)), ivec2(0), ivec2(u_addBg.zw) - 1);
+    int bg = int(texelFetch(u_atlas, ivec2(u_addBg.xy) + bp, 0).r);
+    int k = 0;
+    for (int j = 1; j <= 3; j++) {
+      for (int i = 1; i <= 3; i++) {
+        int r = NR[j * 5 + i];
+        if (r != g_transparency) k = max(k, r);
+      }
+    }
+    float a = s.a * op;
+    o_color = vec4(pal(bg + 60 * k) * a, a);
     return;
   }
   if (mode == 4) {

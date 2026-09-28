@@ -2,6 +2,16 @@ import type { Sprite } from '../formats/sprite';
 
 let nextSurfaceId = 1;
 
+/** A surface's origin in another image (see Surface.hdSource). */
+export interface HdSource {
+  surf: Surface;
+  x: number;
+  y: number;
+  gray: boolean;
+  /** The right half is the left half mirrored (backgrounds). */
+  mirror?: boolean;
+}
+
 /**
  * An 8-bit indexed image. `transparent` is the palette index treated as transparent
  * (0 for sprites, -1 for opaque images like backgrounds).
@@ -21,10 +31,16 @@ export class Surface {
   /** Where this surface came from, used by the HD renderer to find upscaled variants. */
   source: SurfaceSource | null = null;
   /**
-   * For surfaces derived at run time from another image (a region cut out of it, optionally turned grey): the HD
-   * renderer draws that region of the original's artwork.
+   * For surfaces derived at run time from another image (a region cut out of it, optionally turned grey; or a
+   * background whose right half is its left half mirrored, as the VS screen makes it): the HD renderer draws that part
+   * of the original's artwork.
    */
-  hdSource: { surf: Surface; x: number; y: number; gray: boolean } | null = null;
+  hdSource: HdSource | null = null;
+  /**
+   * Remastered artwork shows only where this surface's pixels are in a robot's own colors (indices below 0x30): the VS
+   * screen's robots carry pieces of the background around them, which the HD background already has.
+   */
+  hdOwnColors = false;
 
   constructor(w: number, h: number, data?: Uint8Array, transparent = 0) {
     this.w = w;

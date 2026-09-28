@@ -40,8 +40,11 @@ export interface Settings {
     hdResolution: 'auto' | 'full';
     /** Remastered: use the HD artwork (backgrounds, robots, portraits...) where it is installed. */
     hdArtwork: boolean;
-    /** Remastered: the original font as clean HD shapes ('smooth'), or kept as crisp pixels. */
-    hdFont: 'smooth' | 'pixel';
+    /**
+     * Remastered: text in a high-resolution typeface in the style of the original fonts ('type'), the original font as
+     * clean HD shapes ('smooth'), or kept as crisp pixels.
+     */
+    hdFont: 'type' | 'smooth' | 'pixel';
     /** Remastered: health, endurance and stat bars drawn as smooth vector graphics (else the original bars). */
     hdHud: boolean;
     /** Remastered fights: sparks, dust and debris. */
@@ -146,9 +149,10 @@ export interface Settings {
 
 /**
  * Current settings revision. 2: the new robots and arenas became opt-in; settings saved before could only hold the old
- * default (on), so loading them turns both off.
+ * default (on), so loading them turns both off. 3: the remastered typeface became the default font; the smooth letters
+ * saved before were the old default.
  */
-const REVISION = 2;
+const REVISION = 3;
 
 export function defaultSettings(): Settings {
   return {
@@ -163,7 +167,7 @@ export function defaultSettings(): Settings {
       motionSmoothing: true,
       hdResolution: 'auto',
       hdArtwork: true,
-      hdFont: 'smooth',
+      hdFont: 'type',
       hdHud: true,
       fxParticles: true,
       fxLighting: true,
@@ -264,6 +268,7 @@ export function loadSettings(): Settings {
         current.gameplay.extraRobots = false;
         current.gameplay.extraArenas = false;
       }
+      if (!((saved?.revision ?? 0) >= 3) && current.video.hdFont === 'smooth') current.video.hdFont = 'type';
       current.revision = REVISION;
     }
   } catch {

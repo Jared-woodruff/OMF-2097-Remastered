@@ -1,4 +1,4 @@
-import { BlendMode, drawList, FLIP_HORIZONTAL, FLIP_VERTICAL, NATIVE_H, NATIVE_W, TAG_HAR, TAG_HUD, WIDE_AMBIENT, WIDE_MIRROR, type DrawCmd, type HudBar } from '../draw';
+import { BlendMode, drawList, FBUFOPT_CREDITS, FLIP_HORIZONTAL, FLIP_VERTICAL, NATIVE_H, NATIVE_W, TAG_HAR, TAG_HUD, WIDE_AMBIENT, WIDE_MIRROR, type DrawCmd, type HudBar } from '../draw';
 import type { FxFrame } from '../fx/types';
 import { FxPasses, type FxView } from './fxPasses';
 import { vga } from '../vga';
@@ -10,6 +10,7 @@ import { hdAssets, type HdImage } from '../hd/assets';
 import { HD_ASSET_FS, HD_ASSET_VS, HD_BGART_FS } from '../hd/artShaders';
 import { HUD_BAR_FS, HUD_BAR_VS } from '../hd/hudShaders';
 import { IndexAtlas, type AtlasRect } from './atlas';
+import { GLYPH_MARGIN, GLYPH_RANGE, GLYPH_TEXELS, type GlyphAtlas } from '../hd/typeface';
 import { createTexture, FULLSCREEN_VS, Program, RenderTarget } from './glutil';
 
 /** Frosted panels: the blurred background through the panel's remap table, fitted as an affine color transform. */
@@ -162,7 +163,9 @@ export class GLRenderer {
   camera = { zoom: 1, x: 160, y: 100 };
   private camTarget: RenderTarget | null = null;
   private camProg: Program;
-  /** Remastered text: 0 smooth (reconstructed like the sprites), 1 crisp pixel font. */
+  /** The remastered typeface's glyphs (hd/typeface.ts) once built, for text style 2. */
+  private glyphs: { tex: WebGLTexture; w: number; h: number; tiles: Map<string, [number, number]>; halftone: Set<string> } | null = null;
+  /** Remastered text: 0 smooth (the original letters reconstructed as shapes), 1 crisp pixel font, 2 typeface. */
   textStyle = 0;
   private bgCacheKey = '';
   private emptyVao: WebGLVertexArrayObject;
@@ -177,6 +180,8 @@ export class GLRenderer {
   options: PresentOptions = { mode: 'remastered', scaleMode: 'sharp', classicWidescreen: false, bloom: true, hdResolution: 'auto', hdHud: true };
   /** Dynamic resolution: maximum screen pixels per native pixel for the remastered renderer. */
   private hdMaxScale = Infinity;
+  /** The credits' background in the atlas (index-adding sprites brighten its colors), else null. */
+  private addBgRect: AtlasRect | null = null;
   private timerExt: { TIME_ELAPSED_EXT: number; GPU_DISJOINT_EXT: number } | null = null;
   private pendingQuery: WebGLQuery | null = null;
   private gpuSamples: number[] = [];
@@ -367,9 +372,30 @@ export class GLRenderer {
   // ---------------------------------------------------------------------------------
   // Shared state
 
+  /** The text style in effect (the typeface falls back to the smooth letters until its glyphs are built). */
+  private get fontStyle(): number {
+    return this.textStyle === 2 && !this.glyphs ? 0 : this.textStyle;
+  }
+
+  /** Installs the remastered typeface's glyphs (see hd/typeface.ts). */
+  setGlyphAtlas(atlas: GlyphAtlas): void {
+    const gl = this.gl;
+    if (this.glyphs) gl.deleteTexture(this.glyphs.tex);
+    const tex = gl.createTexture()!;
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, atlas.w, atlas.h, 0, gl.RED, gl.UNSIGNED_BYTE, atlas.data);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    this.glyphs = { tex, w: atlas.w, h: atlas.h, tiles: atlas.tiles, halftone: atlas.halftone };
+  }
+
   /** Whether this frame goes through the remastered path. */
   private get remastered(): boolean {
-    return this.options.mode === 'remastered' && !(drawList.framebufferOptions & 1);
+    return this.options.mode === 'remastered';
   }
 
   private syncPaletteAndRemaps(): void {
@@ -791,7 +817,7 @@ export class GLRenderer {
   private ensureBgCache(bg: Surface, extRect: AtlasRect, scale: number, art: HdImage | null): void {
     const gl = this.gl;
     const t = this.tuning;
-    const artKey = art?.image ? `art${art.wide ? 'W' : ''}` : 'xbr';
+    const artKey = art?.image ? `art${art.wide ? 'W' : ''}${art.sub?.mirror ? 'M' : ''}` : 'xbr';
     const key = `${bg.id}:${bg.version}:${scale}:${extRect.x},${extRect.y}:${this.usedPaletteHash(bg)}:${t.bgSigma}:${t.bgDiff}:${artKey}`;
     if (this.bgCache && this.bgCacheKey === key) return;
     this.bgCacheKey = key;
@@ -822,6 +848,7 @@ export class GLRenderer {
       p.f4('u_rect', extRect.x, extRect.y, extRect.w, extRect.h);
       p.f('u_extNative', EXT_MAX);
       p.i('u_wide', art.wide ? 1 : 0);
+      p.i('u_mirror', art.sub?.mirror ? 1 : 0);
     } else {
       const p = this.hdBgCacheProg;
       p.use();
@@ -930,8 +957,16 @@ export class GLRenderer {
     p.f('u_rangeK', 1 / (2 * this.tuning.spriteSigma * this.tuning.spriteSigma));
     p.f('u_diffT', this.tuning.spriteDiff);
     p.i('u_shadowPass', shadowPass);
-    p.i('u_textStyle', this.textStyle);
+    p.i('u_textStyle', this.fontStyle);
     p.i('u_textPass', 0);
+    const g = this.glyphs;
+    this.bindTex(3, g?.tex ?? this.fxPasses.black, p, 'u_glyphSdf');
+    p.f2('u_glyphSdfSize', g?.w ?? 1, g?.h ?? 1);
+    p.f('u_glyphTexels', GLYPH_TEXELS);
+    p.f('u_glyphRange', GLYPH_RANGE);
+    // The credits (FBUFOPT_CREDITS): index-adding sprites brighten the background's colors (see HD_SPRITE_FS).
+    const bg = this.addBgRect;
+    p.f4('u_addBg', bg?.x ?? 0, bg?.y ?? 0, bg?.w ?? 0, bg ? bg.h : 0);
     this.bindTex(0, this.atlas.tex, p, 'u_atlas');
     this.bindTex(1, this.remapTex, p, 'u_remaps');
     this.bindTex(2, this.paletteTex, p, 'u_palette');
@@ -983,8 +1018,8 @@ export class GLRenderer {
       [nv0, nv1] = [nv1, nv0];
     }
     // Flags: 1 = draw grey, 2 = transparency keyed from this surface's pixels (its transparent color is not the
-    // artwork's, e.g. the robot grid's black cells).
-    const flags = (img.sub?.gray ? 1 : 0) | (surf.transparent > 0 ? 2 : 0);
+    // artwork's, e.g. the robot grid's black cells), 4 = only where its pixels are in a robot's own colors.
+    const flags = (img.sub?.gray ? 1 : 0) | (surf.transparent > 0 ? 2 : 0) | (surf.hdOwnColors ? 4 : 0);
     const xs = [x0, x1, x1, x0], ys = [y0, y0, y1, y1];
     const hus = [hu0, hu1, hu1, hu0], hvs = [hv0, hv0, hv1, hv1];
     const nus = [nu0, nu1, nu1, nu0], nvs = [nv0, nv0, nv1, nv1];
@@ -1037,7 +1072,8 @@ export class GLRenderer {
 
   /**
    * Draws the frame's sprites in draw order, each either with its HD artwork or with the procedural upscaler.
-   * `skip` excludes commands; `shadowPass` draws shadow coverage (see the shadow buffer) instead of colors.
+   * `skip` excludes commands; `shadowPass` draws coverage instead of colors: 1 shadows (see the shadow buffer), 2 object
+   * masks, 3 cut out of the target (what is under the letters is taken out of the bloom's source).
    */
   private drawSprites(vp: Viewport, count: number, shakeX: number, shakeY: number, skip: (c: DrawCmd) => boolean, shadowPass: number,
     frost?: { target: RenderTarget; is: (c: DrawCmd) => boolean }): void {
@@ -1049,7 +1085,10 @@ export class GLRenderer {
       frost?: DrawCmd };
     const runs: Run[] = [];
     const vectorBars = this.options.hdHud;
-    const hdText = this.textStyle === 0 && !shadowPass;
+    const style = this.fontStyle;
+    const hdText = (style === 0 || style === 2) && !shadowPass;
+    const glyphs = style === 2 ? this.glyphs : null;
+    const coverage = shadowPass === 3 ? 2 : shadowPass;
     let nx = 0, nh = 0;
     for (let i = 0; i < count; i++) {
       const c = drawList.cmds[i];
@@ -1076,8 +1115,17 @@ export class GLRenderer {
         const font = c.surf.source?.kind === 'font';
         const options = font ? c.options | 0x100 : c.options;
         // Clean HD letters are drawn with a margin of two pixels for their halo (the atlas border is transparent).
-        const text = hdText && font && c.mode === BlendMode.SET && c.w === r.w && c.h === r.h;
-        if (text) {
+        const plain = font && c.mode === BlendMode.SET && c.w === r.w && c.h === r.h;
+        const text = hdText && plain;
+        const tile = glyphs && plain ? glyphs.tiles.get(c.surf.source!.key) : undefined;
+        if (tile) {
+          // The remastered typeface: the glyph's distance field over its cell and margin (flag 0x200, uv in its texels;
+          // 0x400: at half strength).
+          const m = GLYPH_MARGIN, k = GLYPH_TEXELS;
+          const half = glyphs!.halftone.has(c.surf.source!.key) ? 0x400 : 0;
+          this.writeQuad(nx, c.fx - m, c.fy - m, c.w + 2 * m, c.h + 2 * m, { x: tile[0], y: tile[1], w: (c.w + 2 * m) * k, h: (c.h + 2 * m) * k },
+            0, c.surf.transparent, c.remapOffset, c.remapRounds, c.palOffset, c.palLimit, c.opacity, options | 0x200 | half, c.mode);
+        } else if (text) {
           const m = 2;
           this.writeQuad(nx, c.fx - m, c.fy - m, c.w + 2 * m, c.h + 2 * m, { x: r.x - m, y: r.y - m, w: r.w + 2 * m, h: r.h + 2 * m }, c.flip,
             c.surf.transparent, c.remapOffset, c.remapRounds, c.palOffset, c.palLimit, c.opacity, options, c.mode);
@@ -1110,7 +1158,7 @@ export class GLRenderer {
       }
       if (run.hd) {
         if (current !== 'hd') {
-          this.useHdAssetProg(vp, shakeX, shakeY, shadowPass);
+          this.useHdAssetProg(vp, shakeX, shakeY, coverage);
           gl.bindVertexArray(this.hdVao);
           current = 'hd';
         }
@@ -1119,11 +1167,15 @@ export class GLRenderer {
         p.f2('u_hdStep', 5 / run.pw, 6 / run.ph);
         p.f2('u_pageSize', run.pw, run.ph);
       } else if (current !== 'xbr') {
-        this.useHdSpriteProg(vp, shakeX, shakeY, shadowPass);
+        this.useHdSpriteProg(vp, shakeX, shakeY, coverage);
         gl.bindVertexArray(this.vao);
         current = 'xbr';
       }
-      if (shadowPass) {
+      if (shadowPass === 3) {
+        gl.enable(gl.BLEND);
+        gl.blendEquation(gl.FUNC_ADD);
+        gl.blendFunc(gl.ZERO, gl.ONE_MINUS_SRC_COLOR);
+      } else if (shadowPass) {
         gl.enable(gl.BLEND);
         gl.blendEquation(gl.MAX);
         gl.blendFunc(gl.ONE, gl.ONE);
@@ -1306,6 +1358,7 @@ export class GLRenderer {
     const bgIndex = this.findBackground(count);
     const bgSurf = bgIndex >= 0 ? extendedBackground(drawList.cmds[bgIndex].surf) : null;
     const extRect = this.resolveAtlas(count, bgSurf);
+    this.addBgRect = drawList.framebufferOptions & FBUFOPT_CREDITS && bgIndex >= 0 ? this.rects[bgIndex] ?? null : null;
     // HD artwork for this frame's images (null where there is none, or its bundle is still loading).
     hdAssets.beginFrame();
     for (let i = 0; i < count; i++) {
@@ -1424,6 +1477,12 @@ export class GLRenderer {
       }
       gl.bindVertexArray(this.emptyVao);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
+      // Letters never glow: what is under them is cut out of the bloom's source, so white text stays crisp (the
+      // overlay of fights is drawn after the bloom anyway).
+      const kx = a.w / scene.w, ky = a.h / scene.h;
+      this.drawSprites({ x: 0, y: 0, w: a.w, h: a.h, ext: vp.ext, sx: vp.sx * kx, sy: vp.sy * ky }, count, shakeX, shakeY,
+        (c) => isOverlay(c) || c.surf.source?.kind !== 'font', 3);
+      a.bind();
       // Light-emitting particles (sparks, flares, embers) glow too.
       if (fx && fx.particleCount > 0) {
         const k = a.w / scene.w;

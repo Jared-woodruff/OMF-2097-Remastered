@@ -16,12 +16,14 @@ import { MOVE } from './gen/fighter/moveset';
 import { EXTRA_HAR_IDS, extraRobotsEnabled } from './game/roster';
 import { loadStoredGameFiles, provideGameFiles } from './platform/gameData';
 import { showImportScreen } from './platform/importScreen';
-import { langGet, loadLanguage, soundBank } from './resources/resources';
+import { fonts, langGet, loadLanguage, soundBank } from './resources/resources';
 import { GLRenderer } from './video/gl/renderer';
 import { drawList } from './video/draw';
 import { isDesktop, isFullscreen, quitApp, setFullscreen, toggleFullscreen } from './platform/desktop';
 import { onKey } from './controller/input';
 import { HdAssets, hdAssets } from './video/hd/assets';
+import { buildGlyphAtlas, loadTypeface, type GlyphAtlas } from './video/hd/typeface';
+import TypefaceWorker from './video/hd/typefaceWorker.ts?worker';
 import { vga } from './video/vga';
 import { FxDirector } from './fx/director';
 import { FxType, onFx } from './game/fx';
@@ -91,6 +93,12 @@ function setupQuickFight(gs: GameState, params: URLSearchParams): SceneId {
   }
   return SceneId.ARENA0 + arena;
 }
+
+/** Font family name of the remastered typeface. */
+const TYPEFACE_FAMILY = 'OMF Remastered';
+
+/** How long a fight waits at most for its remastered artwork (see onSceneChange). */
+const ARTWORK_WAIT_MS = 4000;
 
 async function main(): Promise<void> {
   resize();
@@ -167,11 +175,15 @@ async function main(): Promise<void> {
   if (startScene !== SceneId.MENU) gs.swapScene(startScene);
   // On scene changes: evict stale surfaces from the atlas, and start loading the HD artwork the scene needs (the VS
   // screen also loads both robots and the fight graphics, so fights start with their artwork ready).
-  const artworkFor = () => {
+  // The artwork a scene shows itself...
+  const sceneArtwork = () => {
     const fight = gs.sc.isArena() || gs.thisId === SceneId.VS;
     const hars = fight ? [0, 1].map((i) => gs.getPlayer(i).pilot?.harId ?? -1).filter((h) => h >= 0) : [];
-    const names = HdAssets.bundlesFor(gs.sc.bk?.file ?? null, hars, fight);
-    // The arena is picked on the VS screen (or at random right after it): have them all ready.
+    return HdAssets.bundlesFor(gs.sc.bk?.file ?? null, hars, fight);
+  };
+  // ...and what it loads ahead: the arena is picked on the VS screen (or at random right after it), have them all ready.
+  const artworkFor = () => {
+    const names = sceneArtwork();
     if (gs.thisId === SceneId.VS) for (let a = 0; a < 5; a++) names.push(`scene-ARENA${a}`);
     return names;
   };
@@ -186,6 +198,13 @@ async function main(): Promise<void> {
     renderer.resetAtlas();
     hdAssets.preload(artworkFor());
     wantGenerated();
+    // A scene whose artwork is not there yet (a fight entered without the VS screen, which loads it beforehand, the
+    // first visit of a screen): the game waits on the scene's black first frame until it is (a few seconds at most),
+    // so nothing starts blurry and sharpens a moment later.
+    if (renderer.options.mode === 'remastered' && hdAssets.loading(sceneArtwork())) {
+      engine.waiting = true;
+      artworkWaitEnd = performance.now() + ARTWORK_WAIT_MS;
+    }
     audio.setRoom(gs.sc.isArena() ? gs.thisId - SceneId.ARENA0 : -1);
     // Back from trying a workshop robot: the workshop opens again.
     if (workshopAfter && gs.thisId === SceneId.MENU) {
@@ -194,6 +213,7 @@ async function main(): Promise<void> {
     }
   };
   let workshopAfter = false;
+  let artworkWaitEnd = 0;
   // Pages that open once the main menu is back and has faded in (the replay list after watching a replay, the results
   // of an arcade, survival or time attack run).
   let onMenu: (() => void) | null = null;
@@ -242,6 +262,7 @@ async function main(): Promise<void> {
         onMenu = null;
         open();
       }
+      if (engine.waiting && (!hdAssets.loading(sceneArtwork()) || performance.now() > artworkWaitEnd)) engine.waiting = false;
       dispatchPointer();
       touch.update(settings().keys.touch, touchWanted());
       help.update();
@@ -304,6 +325,33 @@ async function main(): Promise<void> {
     }
   });
 
+  // The remastered typeface (FONT: REMASTERED): loaded and its glyphs built in a worker the first time it is wanted
+  // (here if the worker cannot draw text); text keeps the smooth letters until then.
+  let typefaceWanted = false;
+  const wantTypeface = () => {
+    if (typefaceWanted) return;
+    typefaceWanted = true;
+    const url = new URL('fonts/Orbitron.ttf', location.href).href;
+    const here = () => void loadTypeface(url, TYPEFACE_FAMILY).then((ok) => {
+      const atlas = ok ? buildGlyphAtlas(TYPEFACE_FAMILY, fonts()) : null;
+      if (atlas) renderer.setGlyphAtlas(atlas);
+    });
+    try {
+      const worker = new TypefaceWorker();
+      worker.onmessage = (e: MessageEvent<GlyphAtlas | null>) => {
+        worker.terminate();
+        if (e.data) renderer.setGlyphAtlas(e.data);
+        else here();
+      };
+      worker.onerror = () => {
+        worker.terminate();
+        here();
+      };
+      worker.postMessage({ url, family: TYPEFACE_FAMILY, fonts: fonts() });
+    } catch {
+      here();
+    }
+  };
   // Apply video/audio settings to the renderer and audio system.
   const applySettings = () => {
     const v = settings().video;
@@ -312,7 +360,8 @@ async function main(): Promise<void> {
     renderer.options.classicWidescreen = v.classicWidescreen;
     renderer.options.bloom = v.bloom;
     renderer.options.hdResolution = v.hdResolution;
-    renderer.textStyle = v.hdFont === 'pixel' ? 1 : 0;
+    renderer.textStyle = v.hdFont === 'pixel' ? 1 : v.hdFont === 'type' ? 2 : 0;
+    if (v.hdFont === 'type') wantTypeface();
     renderer.options.hdHud = v.hdHud;
     hdAssets.enabled = v.hdArtwork;
     engine.interpolate = v.motionSmoothing && v.graphics === 'remastered';

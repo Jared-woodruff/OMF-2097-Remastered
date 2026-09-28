@@ -2,6 +2,7 @@
 // workshop slots; a robot is edited with a live picture of it: its name (type it, or pick one), the frame, the head,
 // the special moves, size, weight and colors. TRAINING and FIGHT try it out (it is built into a fighter on the spot),
 // E / SAVE FILE shares it as a .omfbot file, I loads robots from files.
+import { generatedArtwork } from '../../gen/hdArtwork';
 import type { PointerKind } from '../../controller/mouse';
 import { cleanName, defaultSpec, PART_NAMES, readSpec, SIZE_NAMES, WEIGHT_NAMES, WORKSHOP_SLOTS, workshopPreview,
   workshopRobot, type WorkshopSpec } from '../../gen/workshop';
@@ -84,6 +85,8 @@ export class WorkshopPage extends Page {
     }
     this.preview = new Surface(t.w, t.h, data, 0);
     this.preview.source = { kind: 'generated', key: `workshop/preview/${key}` };
+    // Remastered graphics: the picture rendered in HD from the same shapes.
+    generatedArtwork()?.renderPicture(data, t.w, t.h, t.shapes, t.x, t.y, t.scale, previewIndex);
   }
 
   // ---- input ----

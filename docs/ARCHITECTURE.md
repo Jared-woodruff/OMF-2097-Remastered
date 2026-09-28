@@ -88,7 +88,10 @@ pixels in one of two ways, switchable at any time (F2, pause menu, VIDEO options
   with the classic pipeline (`DELTA_FS`), so both look like the original, only smooth. Fights extend the arena
   for widescreen (`hd/extend.ts`, mirrored and progressively blurred); other screens get an ambient fill.
   Objects are drawn between game ticks when SMOOTH MOTION is on (`GameObject.snapshotPosition`, `drawList.interpAlpha`).
-  Bloom, vignette and a highlight shoulder are applied last.
+  Bloom, vignette and a highlight shoulder are applied last; letters are cut out of the bloom's source (drawn again
+  as coverage, `drawSprites` pass 3), so white text never glows. The credits (`FBUFOPT_CREDITS`: their names add 60 per
+  pixel value to the background's palette index) are remastered too: index-adding sprites take the color at the
+  background index under them plus 60 per step (`u_addBg`), with the upscaler's smooth silhouette.
 - **Remastered effects** (fights): the fight logic reports cosmetic events (`src/game/fx.ts`: hits, blocks, slams,
   landings, knockouts). `src/fx/director.ts` turns them into particles (`src/fx/particles.ts`), lights and camera
   effects, adds each arena's ambience (`src/fx/arenas.ts`) and derives light from glowing objects (projectiles,
@@ -97,10 +100,17 @@ pixels in one of two ways, switchable at any time (F2, pause menu, VIDEO options
   chromatic aberration, flash), adds bloom and light shafts, and only then draws the overlay (TAG_HUD draws: HUD,
   announcements, pause menu), so the overlay is never distorted or lit. The effects never touch game state or the
   game's random generators (checked by `src/test/gameplay-options.test.ts`).
-- **Text and panels** (remastered): font glyphs (surfaces with `source.kind === 'font'`) are drawn by the TEXT part of
-  `HD_SPRITE_FS` as clean shapes: ink pixels become squares with rounded outward corners and diagonal neighbors are
-  joined by strokes, evaluated as a signed distance and anti-aliased per screen pixel. Each run of letters first gets
-  a soft dark halo (`u_textPass`), so the halo never covers a letter's own shadow. Darkened panels (`menushade`
+- **Text and panels** (remastered): font glyphs (surfaces with `source.kind === 'font'`) are drawn in one of three
+  styles (REMASTERED OPTIONS › FONT, `renderer.textStyle`). The default is a typeface (`hd/typeface.ts`, Orbitron
+  under the OFL in `public/fonts`): a worker (`hd/typefaceWorker.ts`) renders every glyph of both game fonts fitted
+  into its original cell (cap height and baseline of the cell, the original's ink center and width: wide letters are
+  condensed and get their stems back by smearing, lowercase takes the original's x-height, descenders are pressed into
+  the cell, the capital I gets the original's serifs) and stores them as signed distance fields in one atlas; the
+  sprite shader draws such glyph quads (flag 0x200) from it, so the layout of every text is the original's. SMOOTH
+  draws the original letters as clean shapes in the TEXT part of `HD_SPRITE_FS`: ink pixels become squares with
+  rounded outward corners and diagonal neighbors are joined by strokes, evaluated as a signed distance. PIXEL keeps
+  the square pixels, anti-aliased per screen pixel. Each run of letters first gets a soft dark halo (`u_textPass`),
+  so the halo never covers a letter's own shadow. Darkened panels (`menushade`
   surfaces drawn through a remap table) get a frosted background: the frame so far is blurred at quarter resolution
   inside the panel and passed through the panel's remap table fitted as an affine color transform
   (`fitRemapMatrix`), instead of the exact per-pixel remap delta.
@@ -113,7 +123,12 @@ pixels in one of two ways, switchable at any time (F2, pause menu, VIDEO options
   artwork by a fingerprint of their palette indices (`hd/pixelHash.ts`), so no game code changes are needed. Each HD
   pixel is mapped through the palette change of the native pixel it belongs to (artwork palette → live palette), which
   keeps player colors, fades, flashes and tints working. Bundles (per scene, per robot, shared effects/arena
-  graphics/portraits) load on demand; scene changes preload what the next screens need.
+  graphics/portraits) load on demand; scene changes preload what the next screens need, and a scene whose own bundles
+  are still loading waits on its black first frame (`Engine.waiting`, at most `ARTWORK_WAIT_MS`), so fights entered
+  without the VS screen (training, replays) do not start with upscaled pixels. Surfaces made at run time from an
+  image with artwork point back to it (`Surface.hdSource`: a region, turned grey, or mirrored like the VS screen's
+  backdrop). The VS screen's robot pictures carry pieces of the holding bay around them; `Surface.hdOwnColors` shows
+  their artwork only where the pixels are in the robot's own colors (below 0x30), over the HD holding bay.
 
 
 ## Menus, text and input additions
@@ -205,7 +220,9 @@ own file formats, so the engine runs them like the originals.
 - **Workshop** (`gen/workshop.ts`): a robot description picks a frame, a head, the moves of the generated robots, a
   size, a weight and colors; `workshopRobot` makes a `GenRobot` of it and `buildWorkshopFighter` a fighter file, which
   `game/workshop/registry.ts` provides as `FIGHTR15.AF`.. (HARs 15 to 22, named in the language file's free entries)
-  and registers with `gen/roster` (move names, remastered artwork).
+  and registers with `gen/roster` (move names, remastered artwork). The editor's picture is rendered in HD from the same
+  shapes by `GeneratedArtwork.renderPicture`, against a palette row that moves the robot's color ramps to the page's
+  palette entries.
 - **Custom tournaments** (`game/tournament/custom.ts`): a `TournamentFile` derived from an installed one, registered
   with `resources.registerTournament` so the tournament list and saved characters find it.
 - **Presentation**: the announcer (`audio/announcer.ts`, lines made by `tools/make-announcer.py`), the victory screen

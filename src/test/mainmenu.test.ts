@@ -327,7 +327,9 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     press('Enter');
     expect(selectedText()).toBe('HD ARTWORK ON');
     press('ArrowDown', 2);
-    expect(selectedText()).toBe('FONT HD');
+    expect(selectedText()).toBe('FONT REMASTERED');
+    press('Enter');
+    expect(settings().video.hdFont).toBe('smooth');
     press('Enter');
     expect(settings().video.hdFont).toBe('pixel');
     press('ArrowDown');

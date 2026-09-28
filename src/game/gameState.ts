@@ -42,6 +42,20 @@ export interface MatchSettings {
   sim: boolean;
 }
 
+/** The finished fight as the victory screen sums it up (the winner's numbers). */
+export interface VictoryStats {
+  /** Rounds won by the winner and by the loser. */
+  rounds: [number, number];
+  hits: number;
+  /** Hits per attack, percent. */
+  accuracy: number;
+  bestCombo: number;
+  seconds: number;
+  perfect: boolean;
+  /** FINISH_NONE, FINISH_SCRAP or FINISH_DESTRUCTION. */
+  finish: number;
+}
+
 export interface FightStats {
   winner: number;
   plugText: number;
@@ -170,8 +184,9 @@ export class GameState {
   silent = false;
   /** The main menu opens this submenu when it comes back (e.g. EXTRAS after watching a replay). */
   menuReturn: 'extras' | null = null;
-  /** Where the victory screen goes on to (scenes/victory.ts). */
+  /** Where the victory screen goes on to (scenes/victory.ts), and the fight it sums up. */
   victoryNext: SceneId | null = null;
+  victoryStats: VictoryStats | null = null;
   /** Arcade, survival or time attack under way (see modes/run.ts). */
   modeRun: import('./modes/run').ModeRun | null = null;
   sc!: Scene;

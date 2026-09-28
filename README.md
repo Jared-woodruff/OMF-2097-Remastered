@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/TypeScript-7-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript 7">
   <img src="https://img.shields.io/badge/WebGL2-990000?style=for-the-badge&logo=webgl&logoColor=white" alt="WebGL2">
   <img src="https://img.shields.io/badge/Tauri-2-24c8db?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri 2">
-  <img src="https://img.shields.io/badge/tests-222%20passing-2ea44f?style=for-the-badge" alt="222 tests passing">
+  <img src="https://img.shields.io/badge/tests-230%20passing-2ea44f?style=for-the-badge" alt="230 tests passing">
 </p>
 
 <p align="center">
@@ -160,7 +160,8 @@ and arenas are 3D models ray traced into the game's own formats (see [docs/ARCHI
         <li>Widescreen arenas, ambient fill for menus, smooth motion between game ticks, bloom and dynamic resolution.</li>
         <li>A crisp fight HUD: the health and endurance bars drawn as vector graphics in their original colors, with a
           trail that shows the damage just taken and a pulse when health runs low.</li>
-        <li>Sharp text: the original fonts rebuilt as clean shapes at any resolution, on frosted-glass panels.</li>
+        <li>Sharp text at any resolution: a high-resolution typeface fitted into the original fonts' letter cells
+          (every text keeps its layout), on frosted-glass panels.</li>
       </ul>
     </td>
   </tr>
@@ -283,12 +284,13 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
 - **Announcer**: a synthesized robot voice calls the rounds, "Fight!", knockouts, perfects, scraps and destructions,
   and the winners. The lines are plain MP3 files in [`public/audio/announcer`](public/audio/announcer): replace any of
   them with your own recording.
-- **Victory screens**: the winner's portrait and robot with a line of theirs after one and two player fights.
+- **Victory screens**: after one and two player fights, the winner's portrait and robot with a line of theirs and
+  the fight in numbers (rounds, time, hits, accuracy, best combo, perfects and finishers).
 - **Fight camera** (optional, remastered graphics): the view comes closer when the robots are close and follows the
   fight, while the HUD stays put.
 
 <p align="center">
-  <img src="docs/media/victory.jpg" alt="A victory screen: the winner's portrait, robot and a line of theirs" width="100%">
+  <img src="docs/media/victory.jpg" alt="A victory screen: the winner's portrait, robot, a line of theirs and the fight's numbers" width="100%">
 </p>
 
 #### And also
@@ -326,9 +328,11 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
 
 Every menu and text of the game was audited: a layout test checks that each entry fits its frame and each help text
 fits its panel, and a text audit reports anything cut off or drawn off screen in every scene the tests visit.
-Dialogs grow to fit their message. In remastered mode the letters of the original fonts are drawn as clean, sharp
-shapes with a soft shadow at any resolution (or as crisp pixels), and darkened panels such as menus, dialogs and the
-newsroom's report get a frosted-glass background, so text stays readable over detailed HD artwork.
+Dialogs grow to fit their message. In remastered mode text is set in a high-resolution typeface in the style of
+the original fonts (Orbitron, fitted into the originals' letter cells, so every line, menu and dialog keeps its layout,
+and sharp even at 4K), with a soft shadow; **Remastered options › Font** switches to the original letters drawn as
+clean shapes or as crisp pixels. Darkened panels such as menus, dialogs and the newsroom's report get a frosted-glass
+background, so text stays readable over detailed HD artwork.
 
 <br>
 
@@ -456,6 +460,8 @@ flowchart LR
 - **[OpenOMF](https://github.com/omf2097/openomf)** (MIT license): the open-source reimplementation whose reverse
   engineering this port follows.
 - **Hyllian's xBR-lv2 shader** (MIT license): adapted for the remastered sprite reconstruction.
+- **[Orbitron](https://github.com/theleagueof/orbitron)** by Matt McInerney and The League of Moveable Type
+  ([SIL Open Font License 1.1](public/fonts/Orbitron-OFL.txt)): the remastered text.
 - The app icon and installer artwork are original designs; the HD artwork was generated from the original images.
 
 The source code in this repository is released under the [MIT license](LICENSE). It contains no game data or artwork
