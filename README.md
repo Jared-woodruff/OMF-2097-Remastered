@@ -12,10 +12,12 @@
 
 <p align="center">
   <a href="https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest"><img src="https://img.shields.io/badge/%E2%AC%87%20Download%20for%20Windows-free-ff7a3d?style=for-the-badge" alt="Download for Windows (free)"></a>
+  <a href="docs/manual/OMF-2097-Remastered-Manual.pdf"><img src="https://img.shields.io/badge/%F0%9F%93%96%20Game%20manual-PDF-c8102e?style=for-the-badge" alt="Game manual (PDF)"></a>
 </p>
 
 <p align="center">
   <a href="#trailer"><b>Trailer</b></a> &nbsp;•&nbsp;
+  <a href="#manual"><b>Manual</b></a> &nbsp;•&nbsp;
   <a href="#features"><b>Features</b></a> &nbsp;•&nbsp;
   <a href="#classic-remastered"><b>Classic / Remastered</b></a> &nbsp;•&nbsp;
   <a href="#effects"><b>Effects</b></a> &nbsp;•&nbsp;
@@ -31,11 +33,14 @@
 
 <a id="trailer"></a>
 
-https://github.com/user-attachments/assets/390fdb80-a68d-480b-9558-e720a638652b
+<p align="center">
+  <a href="docs/media/trailer.mp4"><img src="docs/media/trailer-poster.jpg" alt="Watch the trailer" width="100%"></a>
+</p>
 
 <p align="center">
-  <sub>52 seconds of CPU fights in all five arenas, scored with the original <i>One Must Fall</i> menu theme played by
-  this port's music engine (turn the sound on). <a href="docs/media/trailer.mp4">Download in 1080p60</a>.</sub>
+  <sub>A minute of the whole remaster: the painted main menu, the five arenas, the four new robots and arenas, the
+  training lab, replays, the robot workshop and the manual, cut to Hadal Static's <i>Twenty Ninety-Seven (Remix)</i>
+  (turn the sound on). <a href="docs/media/trailer.mp4">Watch it in 1080p60</a>.</sub>
 </p>
 
 <br>
@@ -55,8 +60,8 @@ engine in TypeScript and WebGL2 that plays the **original game data**, runs in a
     </td>
     <td width="33%" valign="top">
       <h3>💎 Remastered</h3>
-      3,200+ images redrawn in HD, every sprite rebuilt at your display resolution, widescreen arenas, dynamic
-      lighting, particles, bloom and smooth motion for high refresh rate displays.
+      3,200+ images redrawn in HD, every sprite rebuilt at your display resolution, a painted parallax main menu,
+      widescreen arenas, dynamic lighting, particles, bloom and smooth motion for high refresh rate displays.
     </td>
     <td width="33%" valign="top">
       <h3>🕹️ Modern</h3>
@@ -66,6 +71,17 @@ engine in TypeScript and WebGL2 that plays the **original game data**, runs in a
     </td>
   </tr>
 </table>
+
+<a id="manual"></a>
+
+<p align="center">
+  <a href="docs/manual/OMF-2097-Remastered-Manual.pdf"><img src="docs/media/manual.jpg" alt="The game manual: the cover, the robots' pages and the pilots' pages" width="100%"></a>
+</p>
+
+**📖 The manual.** Games used to come with a booklet, so this one does too: [a 32-page game manual](docs/manual/OMF-2097-Remastered-Manual.pdf)
+(PDF) in the style of the 1990s, with the story, the controls, how to fight, every robot's command list, the pilots,
+the arenas, the tournament, what's new in the remaster, tips from the pros and troubleshooting. The texts, the stats
+and the command lists come from the game's own data.
 
 <br>
 
@@ -124,6 +140,10 @@ select buttons in the mechlab.
 - **Rooftop**: a skyscraper roof in the rain, above a neon city. Raindrops splash on the wet roof, lightning flashes
   over the skyline and the neon sign flickers.
 - **Abyss**: a glass dome on the sea floor. Bubbles rise, caustics ripple over the floor and light falls from above.
+
+<p align="center">
+  <img src="docs/media/new-arenas.gif" alt="Fights in the new arenas: Orbital, Ice Cave, Rooftop and Abyss" width="100%">
+</p>
 
 Turned on, they join the arena rotation of one and two player games and tournaments. All four have true widescreen backgrounds (not
 mirrored edges), HD versions, their own acoustics and music. The new
@@ -219,7 +239,7 @@ Remastered fights get a layer of modern effects, driven by what actually happens
 <p align="center"><a href="#gameplay"><img src="docs/media/banner-gameplay.jpg" alt="04 · Gameplay additions" width="100%"></a></p>
 
 <p align="center">
-  <img src="docs/media/training.gif" alt="Training mode: hitting a dummy with a damage and combo readout" width="100%">
+  <img src="docs/media/training.gif" alt="The training lab: a combo on the dummy with the frame data and the input display" width="100%">
 </p>
 
 Everything below is new, and none of it changes how the original game plays unless you use it.
@@ -299,6 +319,12 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
   starfield and a neon grid, to [*Twenty Ninety-Seven (Remix)*](https://www.hadalstatic.com/releases/twenty-ninety-seven/)
   by Hadal Static, a song about *One Must Fall 2097*: the grid, the horizon and the sparks move to the music.
 - **Achievements** announce themselves with a banner the moment they are earned.
+- **The game manual**: a [32-page PDF booklet](docs/manual/OMF-2097-Remastered-Manual.pdf) in the style of the
+  1990s (see [above](#manual)); the F1 help's pointers to the DOS-era manual now lead to it.
+
+<p align="center">
+  <img src="docs/media/main-menu.gif" alt="The main menu: the painted scene, the spotlight on the robot, searchlights and the camera drifting" width="100%">
+</p>
 
 <p align="center">
   <img src="docs/media/victory.jpg" alt="A victory screen: the winner's portrait, robot, a line of theirs and the fight's numbers" width="100%">
@@ -328,7 +354,7 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
 <p align="center"><a href="#screens"><img src="docs/media/banner-screens.jpg" alt="05 · Every screen, every mode" width="100%"></a></p>
 
 <p align="center">
-  <img src="docs/media/menus.gif" alt="Main menu and training setup" width="49%">
+  <img src="docs/media/menus.gif" alt="The main menu, the configuration menu and the controls screen" width="49%">
   <img src="docs/media/select.gif" alt="Pilot and robot selection" width="49%">
 </p>
 <p align="center">
@@ -337,7 +363,7 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
 </p>
 <p align="center">
   <img src="docs/media/screen-pause.jpg" alt="The pause menu over a fight" width="49%">
-  <img src="docs/media/screen-help.jpg" alt="The F1 help pages" width="49%">
+  <img src="docs/media/screen-help.jpg" alt="The help pages over the dimmed main menu" width="49%">
 </p>
 <p align="center">
   <img src="docs/media/screen-controls-keyboard.jpg" alt="The controls screen: every action on the keyboard for both players" width="49%">
@@ -386,6 +412,7 @@ a pack of your own.
 **To play**, [download the Windows app](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest): the installer, or the portable
 `omf2097-remastered.exe` that runs from anywhere. Everything is included and free: *One Must Fall 2097* has been
 freeware since 1999, and its owners let everyone share it as long as nobody charges for it (see [NOTICE.md](NOTICE.md)).
+New to the game? The [manual](docs/manual/OMF-2097-Remastered-Manual.pdf) has a quick start on page 2.
 
 **To build it yourself**, the game data and the HD artwork come with the repository:
 
@@ -403,6 +430,7 @@ npm run dev                      # play at http://localhost:5173
 | `npm run extract` | Replaces the game data with your own copy's (`omf21cd/` with the CD contents, or `npm run extract -- path/to/OMF21.EXE`). |
 | `npm run desktop:build` | The Windows app: a portable `omf2097-remastered.exe` and an installer under `src-tauri/target/release/`. |
 | `npm test` | The test suite (headless, against the game data). |
+| `npm run manual` | The game manual, `docs/manual/OMF-2097-Remastered-Manual.pdf` (printed by Microsoft Edge, Windows). |
 
 Prerequisites and details for every platform are in [docs/BUILDING.md](docs/BUILDING.md).
 
