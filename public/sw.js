@@ -1,7 +1,7 @@
 // Service worker of the web version: the game works offline after the first visit (the game data itself is kept in
 // IndexedDB, see src/platform/gameData.ts). Pages are fetched network first; hashed build assets and HD artwork
 // bundles cache first; everything else is served from the cache while it is refreshed in the background.
-const CACHE = 'omf2097r-v3';
+const CACHE = 'omf2097r-v4';
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -31,7 +31,8 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(fetch(req).then((res) => put(req, res)).catch(async () => (await caches.match(req)) ?? (await caches.match('./'))));
     return;
   }
-  const immutable = /\/assets\//.test(url.pathname) || (/\/hd\//.test(url.pathname) && !url.pathname.endsWith('index.json'));
+  // (HD files are named by their content; their indexes, index.json and the menu's layers.json, are not)
+  const immutable = /\/assets\//.test(url.pathname) || (/\/hd\//.test(url.pathname) && !/(index|layers)\.json$/.test(url.pathname));
   event.respondWith((async () => {
     const hit = await caches.match(req);
     if (hit && immutable) return hit;

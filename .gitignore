@@ -18,7 +18,9 @@ Thumbs.db
 
 # The HD asset pack's working files (source images, prompts; public/hd/ holds the imported artwork)
 /hd-pack/
+/menu-pack/
 /hd-pack.zip
+/menu-pack.zip
 
 # Local tool settings
 .claude/

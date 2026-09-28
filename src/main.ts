@@ -55,6 +55,7 @@ import { setupPlayerInput } from './game/scenes/mainmenu/menuMain';
 import { FightCamera } from './video/camera';
 import { loadAnnouncer } from './audio/announcer';
 import { CtrlType } from './game/constants';
+import { MenuScene } from './video/stage/parallax';
 
 const boot = document.getElementById('boot')!;
 /** The loading screen's line (and its bar, 0..1). */
@@ -106,6 +107,11 @@ function setupQuickFight(gs: GameState, params: URLSearchParams): SceneId {
 
 /** Font family name of the remastered typeface. */
 const TYPEFACE_FAMILY = 'OMF Remastered';
+
+/** The main menu's parallax layers (tools/menu-pack). */
+const MENU_LAYERS = 'hd/menu/';
+/** Where the main menu scene starts its loop (seconds): the spotlight on the robot's chest. */
+const STAGE_START = 0.3;
 
 /** How long a fight waits at most for its remastered artwork (see onSceneChange). */
 const ARTWORK_WAIT_MS = 4000;
@@ -198,6 +204,9 @@ async function main(): Promise<void> {
     if (gs.thisId === SceneId.VS) for (let a = 0; a < 5; a++) names.push(`scene-ARENA${a}`);
     return names;
   };
+  // The main menu's parallax scene (loaded when the menu is first shown in remastered mode).
+  const menuScene = new MenuScene();
+  const menuLoading = () => renderer.options.mode === 'remastered' && gs.thisId === SceneId.MENU && menuScene.loading;
   // The generated robots' artwork: all of the fighting robots, the select screen's cells and idle animations.
   const wantGenerated = () => {
     const fight = gs.sc.isArena() || gs.thisId === SceneId.VS;
@@ -212,7 +221,8 @@ async function main(): Promise<void> {
     // A scene whose artwork is not there yet (a fight entered without the VS screen, which loads it beforehand, the
     // first visit of a screen): the game waits on the scene's black first frame until it is (a few seconds at most),
     // so nothing starts blurry and sharpens a moment later.
-    if (renderer.options.mode === 'remastered' && hdAssets.loading(sceneArtwork())) {
+    if (renderer.options.mode === 'remastered' && gs.thisId === SceneId.MENU) menuScene.load(MENU_LAYERS);
+    if (renderer.options.mode === 'remastered' && (hdAssets.loading(sceneArtwork()) || menuLoading())) {
       engine.waiting = true;
       artworkWaitEnd = performance.now() + ARTWORK_WAIT_MS;
     }
@@ -232,7 +242,9 @@ async function main(): Promise<void> {
   wantGenerated();
   // The first screen waits (briefly) for its artwork so it does not pop in.
   bootStatus('LOADING ARTWORK…', 0.9);
+  if (renderer.options.mode === 'remastered') menuScene.load(MENU_LAYERS);
   await hdAssets.whenReady(artworkFor(), 4000);
+  if (gs.thisId === SceneId.MENU) await menuScene.whenReady(4000);
   bootStatus('', 1);
 
   // Remastered effects follow the game clock (dynamic ticks), so they pause and slow down with the game.
@@ -267,6 +279,31 @@ async function main(): Promise<void> {
     }
     renderedFrames.length = 0;
   };
+  // The main menu's parallax scene in remastered mode (video/stage/parallax.ts): its clock starts when the menu
+  // opens, and its camera leans toward the mouse.
+  let stageSince = -1;
+  /** Development: a fixed time for the menu scene (seconds), or null. */
+  const stageDebug = { time: null as number | null };
+  let lean: [number, number] | null = null;
+  canvas.addEventListener('pointermove', (e) => {
+    const r = canvas.getBoundingClientRect();
+    lean = [((e.clientX - r.left) / r.width) * 2 - 1, ((e.clientY - r.top) / r.height) * 2 - 1];
+  });
+  canvas.addEventListener('pointerleave', () => {
+    lean = [0, 0];
+  });
+  const menuBackdrop = () => {
+    if (renderer.options.mode !== 'remastered' || gs.thisId !== SceneId.MENU) {
+      stageSince = -1;
+      return null;
+    }
+    menuScene.load(MENU_LAYERS);
+    if (!menuScene.ready) return null;
+    const now = performance.now();
+    if (stageSince < 0) stageSince = now;
+    menuScene.update(stageDebug.time ?? STAGE_START + (now - stageSince) / 1000, lean);
+    return menuScene;
+  };
   const engine = new Engine(gs, {
     render: () => {
       if (onMenu && gs.thisId === SceneId.MENU && gs.nextId === SceneId.MENU && gs.thisWaitTicks === 0 && !help.isOpen()) {
@@ -274,13 +311,14 @@ async function main(): Promise<void> {
         onMenu = null;
         open();
       }
-      if (engine.waiting && (!hdAssets.loading(sceneArtwork()) || performance.now() > artworkWaitEnd)) engine.waiting = false;
+      if (engine.waiting && ((!hdAssets.loading(sceneArtwork()) && !menuLoading()) || performance.now() > artworkWaitEnd)) engine.waiting = false;
       dispatchPointer();
       touch.update(settings().keys.touch, touchWanted());
       help.update();
       help.render();
       fxDirector.update(gs, engine.ticks + engine.alpha, renderer.options.mode === 'remastered');
       renderer.fx = fxDirector.frame;
+      renderer.backdrop = menuBackdrop();
       renderer.camera = camera.update(gs, performance.now(), settings().gameplay.fightCamera && renderer.options.mode === 'remastered');
       if (renderer.options.mode === 'remastered' && hdAssets.enabled) genArt.pump(4);
       // (a page covering the screen: nothing of the game shows)
@@ -565,6 +603,8 @@ async function main(): Promise<void> {
     /** The host hooks (show the replay list, records...). */
     app,
     renderer,
+    /** The live menu scene's clock override (set `time` to freeze it at a moment). */
+    stage: stageDebug,
     /** The app's draw list (dynamic imports from the console may get a different module instance after HMR). */
     drawList,
     vga,

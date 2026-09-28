@@ -285,6 +285,9 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
 
 #### Presentation
 
+- **Main menu** (remastered graphics): the robot on its stage is a parallax scene of painted layers under a slowly
+  drifting camera that leans toward the mouse, lit live like the original: the spotlight sweeps over the robot and the
+  tower's top, its beam hangs in the haze, searchlights cross the sky and cameras flash in the crowd.
 - **Announcer**: a synthesized robot voice calls the rounds, "Fight!", knockouts, perfects, scraps and destructions,
   and the winners. The lines are plain MP3 files in [`public/audio/announcer`](public/audio/announcer): replace any of
   them with your own recording.

@@ -12,6 +12,7 @@ import { HUD_BAR_FS, HUD_BAR_VS } from '../hd/hudShaders';
 import { IndexAtlas, type AtlasRect } from './atlas';
 import { GLYPH_MARGIN, GLYPH_RANGE, GLYPH_TEXELS, type GlyphAtlas } from '../hd/typeface';
 import { createTexture, FULLSCREEN_VS, Program, RenderTarget } from './glutil';
+import type { Backdrop } from '../stage/backdrop';
 
 /** Frosted panels: the blurred background through the panel's remap table, fitted as an affine color transform. */
 const FROST_FS = `#version 300 es
@@ -156,6 +157,12 @@ export class GLRenderer {
   private fxPasses: FxPasses;
   /** This frame's remastered effects (set by the host before render()), or null. */
   fx: FxFrame | null = null;
+  /**
+   * This frame's live backdrop (set by the host before render()), or null: drawn in place of the screen's background
+   * picture (the main menu's parallax scene, video/stage/parallax.ts). Remastered only.
+   */
+  backdrop: Backdrop | null = null;
+  private backdropBroken = false;
   /**
    * The fight camera (remastered fights, video/camera.ts): the world (not the HUD) is shown `zoom` times closer, around
    * native point (x, y). Zoom 1 is the original view.
@@ -1340,6 +1347,17 @@ export class GLRenderer {
     }
   }
 
+  /** Draws the backdrop into `target` where the background goes (see `backdrop`). */
+  private drawBackdrop(backdrop: Backdrop, vp: Viewport, shakeX: number, shakeY: number, target: RenderTarget): void {
+    try {
+      backdrop.draw(this.gl, { w: vp.w, h: vp.h, sx: vp.sx, sy: vp.sy, ox: (vp.ext + shakeX) * vp.sx, oy: shakeY * vp.sy, ext: vp.ext }, target.fbo);
+    } catch (err) {
+      this.backdropBroken = true;
+      console.warn('The live backdrop failed and is switched off:', err);
+    }
+    target.bind();
+  }
+
   private renderHD(): void {
     const gl = this.gl;
     this.syncHdTables();
@@ -1373,7 +1391,8 @@ export class GLRenderer {
     const target = this.hdTarget!;
     const shakeX = drawList.targetMoveX;
     const shakeY = drawList.targetMoveY;
-    const haveBg = !!(bgSurf && extRect && this.bgCache && this.bgRatio);
+    const backdrop = this.backdrop && !this.backdropBroken ? this.backdrop : null;
+    const haveBg = !backdrop && !!(bgSurf && extRect && this.bgCache && this.bgRatio);
     const isBg = (c: DrawCmd) => bgIndex >= 0 && c === drawList.cmds[bgIndex];
     // Fights with remastered effects: the world (arena, robots, projectiles) is drawn and post-processed first, and
     // the overlay (HUD, announcements, pause menu) is drawn over the result.
@@ -1395,8 +1414,10 @@ export class GLRenderer {
     target.bind();
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    // Non-arena screens keep their 4:3 composition; the sides get an ambient fill afterwards.
-    const ambient = drawList.wideStyle === WIDE_AMBIENT && vp.ext > 0.5;
+    // Non-arena screens keep their 4:3 composition; the sides get an ambient fill afterwards (unless a backdrop paints
+    // them).
+    const backdropWide = !!backdrop && backdrop.covers[0] <= 0.5 - vp.ext && backdrop.covers[1] >= NATIVE_W + vp.ext - 0.5;
+    const ambient = !backdropWide && drawList.wideStyle === WIDE_AMBIENT && vp.ext > 0.5;
     const frameX = Math.round(vp.ext * vp.sx);
     const frameW = Math.min(vp.w - frameX, Math.round(NATIVE_W * vp.sx));
     this.frameScissor = null;
@@ -1407,6 +1428,8 @@ export class GLRenderer {
     }
 
 
+    // A live backdrop in place of the background picture.
+    if (backdrop) this.drawBackdrop(backdrop, vp, shakeX, shakeY, target);
     // Background (cached reconstruction, exact shadows, widescreen sides darkened).
     if (haveBg) {
       gl.disable(gl.BLEND);
@@ -1434,9 +1457,12 @@ export class GLRenderer {
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
 
-    // Sprites (shadows were applied with the background when there is one).
+    // Sprites (shadows were applied with the background when there is one; a stage replaces some of the screen's
+    // animations, like the main menu's spotlight).
+    const hidden = backdrop?.hide;
+    const isHidden = (c: DrawCmd) => !!hidden && !!c.surf.source && hidden.some((h) => c.surf.source!.key.startsWith(h));
     this.drawSprites(vp, count, shakeX, shakeY,
-      (c) => isBg(c) || isOverlay(c) || (haveBg && c.mode === BlendMode.SHADOW) || (haveDelta && c.mode === BlendMode.REMAP), 0,
+      (c) => isBg(c) || isOverlay(c) || isHidden(c) || (haveBg && c.mode === BlendMode.SHADOW) || (haveDelta && c.mode === BlendMode.REMAP), 0,
       { target, is: (c) => isShade(c) && !isOverlay(c) });
     this.frameScissor = null;
     if (haveDelta) this.applyRemapDelta(target, vp, deltaExt, shakeX, shakeY);

@@ -11,7 +11,7 @@ OpenOMF project (MIT, https://github.com/omf2097/openomf); rendering and platfor
 | `src/formats/` | Binary parsers for the original files (AF, BK, sprites, palettes, PIC, TRN, pilots, fonts, sounds, language). |
 | `src/script/` | Animation-string ("A20-B10-s3C5...") decoder and tag table. |
 | `src/resources/` | Runtime resources built from parsed files: `loadAf`, `loadBk`, `langGet`, `fonts()`, `soundBank()`, `loadPic`, `loadTournament`. Loaded AF/BK objects are fresh mutable copies per scene. |
-| `src/video/` | Draw list (`video.draw*`), VGA palette state (`vga`), indexed `Surface`, WebGL2 renderer. |
+| `src/video/` | Draw list (`video.draw*`), VGA palette state (`vga`), indexed `Surface`, WebGL2 renderer; `stage/`: live backdrops (the main menu's parallax scene). |
 | `src/audio/` | Audio system (3 SFX channels + PSM music in an AudioWorklet; impact thumps; an effects send through a convolution reverb for the arena acoustics). |
 | `src/platform/` | Desktop shell bridge (`desktop.ts`); the web version's game data import (`gameData.ts`: installer and zip unpacking, IndexedDB) and its first-run screen (`importScreen.ts`). |
 | `src/controller/` | Controllers: keyboard, gamepad, AI (`ai.ts`), menu polling. |
@@ -115,6 +115,17 @@ pixels in one of two ways, switchable at any time (F2, pause menu, VIDEO options
   surfaces drawn through a remap table) get a frosted background: the frame so far is blurred at quarter resolution
   inside the panel and passed through the panel's remap table fitted as an affine color transform
   (`fitRemapMatrix`), instead of the exact per-pixel remap delta.
+- **Backdrops** (remastered): the host can hand the renderer a live backdrop for the frame (`renderer.backdrop`,
+  `src/video/stage/backdrop.ts`), drawn where the screen's background picture goes; it lists the screen's own sprites
+  it replaces and the native columns it paints (the widescreen sides beyond get the ambient fill). The main menu's is a
+  parallax scene (`stage/parallax.ts`): painted layers from `public/hd/menu/` (made with `tools/menu-pack/`: a master
+  image cut into sky, city, towers, robot, a lit robot and crowd) drawn at their depths under a drifting camera that
+  leans toward the mouse, with the original's sweeping spotlight done live (the lit robot layer shown through the
+  light's pool, the tower's top brightened, the beam with dust), searchlights, twinkling stars and cloud shadows, a
+  rim light on the crowd and camera flashes (the painted crowd moves only with the parallax: warping it to make heads
+  bob sheared the silhouettes). MAIN.BK's two spotlight animations (10, 11) still run for classic
+  mode; the backdrop hides them. The menu waits on its first black frame for the layers like other screens do for
+  their HD bundles.
 - **HUD bars**: `ProgressBar` draws the original bar surfaces and also describes itself in the draw list
   (`drawList.pushBar`, `HudBar`: value, damage trail, theme colors, warning pulses). The remastered renderer draws that
   description with `hd/hudShaders.ts` in place of the surfaces (HUD option), at the position of the bar's first draw

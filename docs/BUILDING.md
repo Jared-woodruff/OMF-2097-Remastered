@@ -42,6 +42,20 @@ npm run hd:import -- path/to/pack     # or another pack folder
 The web and desktop builds include `public/hd/` when it exists; without it, the remastered mode upscales the
 original images procedurally.
 
+### The main menu's layers
+
+In remastered mode the main menu is a parallax scene of painted layers (`public/hd/menu/`, drawn by
+`src/video/stage/parallax.ts`). `npm run menu:export` writes a small pack for an image generation model to
+`menu-pack/`: a master image of the whole scene and the layers cut from it (sky, city, the two towers, the robot and
+the robot in the spotlight, two rows of crowd), each with a guide, a mask, a context image and a prompt (the pack's
+README and OUTPUT_SPEC explain the rest). Once the model has made the `*.hd.png` files:
+
+```sh
+npm run menu:import                   # reads menu-pack/, writes public/hd/menu/ (Python 3 with numpy and Pillow)
+```
+
+Layers the pack does not have yet come from placeholders cut from the current HD artwork (made by `menu:export`).
+
 ### Generated content: the new robots and arenas
 
 The new robots and arenas are generated from `src/gen` into `public/gen/` (committed, so a fresh checkout does not need
