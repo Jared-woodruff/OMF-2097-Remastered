@@ -35,7 +35,11 @@ import { ProgressBar, PROGRESSBAR_LEFT, PROGRESSBAR_RIGHT, THEME_ENDURANCE, THEM
 import { HAlign, hudText, type Text } from '../gui/text';
 import { DummyController, DUMMY_MODE_NAMES, DummyMode } from '../../controller/dummy';
 import { ArenaPauseMenu } from '../gui/pauseMenu';
+import { InputDisplay } from '../gui/inputDisplay';
+import type { Af } from '../../resources/resources';
 import { arenaScreengrabWinner, harScreencapsCompress, harScreencapsReset, SCREENCAP_BLOW, SCREENCAP_POSE } from '../harScreencap';
+import { GEN_ARENAS } from '../../gen/scene/arenas';
+import { arenaCount } from '../roster';
 
 const HAR1_START_POS = 110;
 const HAR2_START_POS = 210;
@@ -77,6 +81,8 @@ export class ArenaScene extends Scene implements ArenaLike {
   private trnCombo = [0, 0];
   private trnReeling = [false, false];
   private trnText: Text | null = null;
+  /** Training: player 1's recent inputs. */
+  private inputDisplay: InputDisplay | null = null;
 
   constructor(gs: GameState, id: SceneId) {
     super(gs, id);
@@ -84,7 +90,9 @@ export class ArenaScene extends Scene implements ArenaLike {
     const bk = this.bk;
     // memset(fight_stats, 0): this also clears a pending tournament challenger
     gs.fightStats = emptyFightStats();
+    gs.fightStats.arena = id - SceneId.ARENA0;
     const music: Record<number, string> = { 8: 'ARENA0.PSM', 16: 'ARENA1.PSM', 32: 'ARENA2.PSM', 64: 'ARENA3.PSM', 128: 'ARENA4.PSM' };
+    for (const a of GEN_ARENAS) music[a.fileId] = a.music;
     if (music[bk.fileId]) gs.playMusic(music[bk.fileId]);
     this.rounds = [1, 3, 5, 7][gs.matchSettings.rounds] ?? 1;
     let palIndex = 0;
@@ -158,6 +166,10 @@ export class ArenaScene extends Scene implements ArenaLike {
     this.healthBars = [new ProgressBar(THEME_HEALTH, PROGRESSBAR_RIGHT, 100), new ProgressBar(THEME_HEALTH, PROGRESSBAR_LEFT, 100)];
     this.healthBars[0].layout(4, 4, 100, 8);
     this.healthBars[1].layout(216, 4, 100, 8);
+    for (const b of this.healthBars) {
+      b.damageTrail = true;
+      b.warnBelow = 25;
+    }
     this.enduranceBars = [new ProgressBar(THEME_ENDURANCE, PROGRESSBAR_RIGHT, 100), new ProgressBar(THEME_ENDURANCE, PROGRESSBAR_LEFT, 100)];
     this.enduranceBars[0].layout(4, 13, 100, 4);
     this.enduranceBars[1].layout(216, 13, 100, 4);
@@ -179,6 +191,7 @@ export class ArenaScene extends Scene implements ArenaLike {
     if (id === SceneId.ARENA3) bk.soundTranslationTable[20] = 0;
     this.pauseMenu = new ArenaPauseMenu(gs, this);
     if (this.training) {
+      this.inputDisplay = new InputDisplay();
       this.trnText = hudText('', 0xe7, 0xf8, 320, 6).setHAlign(HAlign.CENTER);
       for (let i = 0; i < 2; i++) this.trnHealth[i] = harData(this.harObj(i)).health;
     }
@@ -423,7 +436,7 @@ export class ArenaScene extends Scene implements ArenaLike {
     if (gs.isSingleplayer() && winnerId === 0) {
       // cycle the maps in singleplayer
       gs.arena++;
-      if (gs.arena > 4) gs.arena = 0;
+      if (gs.arena >= arenaCount()) gs.arena = 0;
     }
   }
 
@@ -877,14 +890,20 @@ export class ArenaScene extends Scene implements ArenaLike {
           if (e.type === 'action') har?.act(e.action);
           else if (e.type === 'close') gs.setNext(SceneId.MENU);
         }
+        if (i === 0 && this.inputDisplay) {
+          this.inputDisplay.record(ev.filter((e) => e.type === 'action').map((e) => e.action), har?.direction === OBJECT_FACE_LEFT);
+        }
       }
     }
     const menuEv: CtrlEvent[] = [];
-    gs.menuPoll(menuEv);
+    // In a running fight the pads' buttons belong to the players; the Menu button pauses (and resumes).
+    gs.menuPoll(menuEv, { playerScene: !this.menuVisible, startIsEsc: true });
     for (const e of menuEv) {
       if (e.type !== 'action') continue;
       if (e.action === ACT_ESC && gs.isDemoplay()) {
         gs.setNext(SceneId.MENU);
+      } else if (e.action === ACT_ESC && this.menuVisible && this.pauseMenu.back()) {
+        // ESC on a page of the pause menu (the move list) goes back to the menu.
       } else if (e.action === ACT_ESC) {
         this.menuVisible = !this.menuVisible;
         gs.paused = this.menuVisible;
@@ -893,6 +912,22 @@ export class ArenaScene extends Scene implements ArenaLike {
         this.pauseMenu.action(e.action);
       }
     }
+  }
+
+  /** A player's robot and its name, for the move list of the pause menu. */
+  robot(player: number): { af: Af; name: string } | null {
+    const p = this.gs.getPlayer(player);
+    const obj = this.gs.findObject(p.harObjId);
+    return obj ? { af: harData(obj).afData, name: langGet(31 + p.pilot.harId) } : null;
+  }
+
+  /** Pauses a running fight when the player switches away (not demos, which just keep playing). */
+  override focusLost(): void {
+    const gs = this.gs;
+    if (this.menuVisible || gs.isDemoplay() || this.over) return;
+    this.menuVisible = true;
+    gs.paused = true;
+    this.pauseMenu.open();
   }
 
   override paletteTransform(): void {
@@ -920,6 +955,7 @@ export class ArenaScene extends Scene implements ArenaLike {
     gs.getPlayer(0).score.render(gs.getPlayer(0).selectable);
     gs.getPlayer(1).score.render(gs.getPlayer(1).selectable);
     if (this.trnText && !this.menuVisible) this.trnText.draw(0, 191);
+    if (this.inputDisplay && settings().training.inputDisplay) this.inputDisplay.render(4, 44);
     if (this.menuVisible) this.pauseMenu.render();
   }
 
@@ -933,17 +969,8 @@ export class ArenaScene extends Scene implements ArenaLike {
     }
     gs.stopMusic();
   }
-
-  /** HUD values for the HD renderer's vector HUD. */
-  hudState(): { health: number[]; endurance: number[]; flashing: boolean[] } {
-    return {
-      health: this.healthBars.map((b) => b.displayFraction()),
-      endurance: this.enduranceBars.map((b) => b.displayFraction()),
-      flashing: this.enduranceBars.map((b) => b.isFlashingOn()),
-    };
-  }
 }
 
-for (const id of [SceneId.ARENA0, SceneId.ARENA1, SceneId.ARENA2, SceneId.ARENA3, SceneId.ARENA4]) {
+for (const id of [SceneId.ARENA0, SceneId.ARENA1, SceneId.ARENA2, SceneId.ARENA3, SceneId.ARENA4, SceneId.ARENA5, SceneId.ARENA6, SceneId.ARENA7, SceneId.ARENA8]) {
   registerScene(id, (gs) => new ArenaScene(gs, id));
 }

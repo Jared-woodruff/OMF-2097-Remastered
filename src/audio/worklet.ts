@@ -1,4 +1,6 @@
-// AudioWorklet mixer: 3 sound-effect channels (8-bit PCM at Sound Blaster rates) plus the PSM music player.
+// AudioWorklet mixer: 3 sound-effect channels (8-bit PCM at Sound Blaster rates) plus the PSM music player, and the
+// remaster's impact thumps. Output 0 is the mix; output 1 carries the sound effects alone, for the arena acoustics
+// (a convolution reverb on the main thread).
 import { parsePSM } from './psm';
 import { TrackerPlayer } from './tracker';
 
@@ -23,6 +25,19 @@ interface Channel {
 }
 
 const CHANNELS = 3;
+const MAX_THUMPS = 4;
+
+/** A low "thump" under heavy impacts: a decaying sine that sweeps down, with a little second harmonic. */
+interface Thump {
+  t: number;
+  dur: number;
+  f0: number;
+  f1: number;
+  amp: number;
+  phase: number;
+  l: number;
+  r: number;
+}
 
 function panGains(pan: number): [number, number] {
   // Same law as the reference SDL backend: the far side attenuates linearly.
@@ -43,6 +58,9 @@ class OmfAudioProcessor extends AudioWorkletProcessor {
   private cubic = false;
   private mixL = new Float32Array(128);
   private mixR = new Float32Array(128);
+  private sfxL = new Float32Array(128);
+  private sfxR = new Float32Array(128);
+  private thumps: Thump[] = [];
 
   constructor() {
     super();
@@ -118,6 +136,12 @@ class OmfAudioProcessor extends AudioWorkletProcessor {
         case 'musicStop':
           this.music = null;
           break;
+        case 'thump': {
+          if (this.thumps.length >= MAX_THUMPS) this.thumps.shift();
+          const [l, r] = panGains(m.pan as number);
+          this.thumps.push({ t: 0, dur: m.dur as number, f0: m.f0 as number, f1: m.f1 as number, amp: m.amp as number, phase: 0, l, r });
+          break;
+        }
       }
     } catch (err) {
       this.port.postMessage({ type: 'error', message: String((err as Error)?.stack ?? err) });
@@ -132,10 +156,16 @@ class OmfAudioProcessor extends AudioWorkletProcessor {
     if (this.mixL.length < n) {
       this.mixL = new Float32Array(n);
       this.mixR = new Float32Array(n);
+      this.sfxL = new Float32Array(n);
+      this.sfxR = new Float32Array(n);
     }
     const ml = this.mixL, mr = this.mixR;
     ml.fill(0, 0, n);
     mr.fill(0, 0, n);
+    // Sound effects are mixed apart first: they also feed the acoustics send.
+    const sl = this.sfxL, sr = this.sfxR;
+    sl.fill(0, 0, n);
+    sr.fill(0, 0, n);
     if (this.music) {
       try {
         this.music.render(ml, mr, 0, n);
@@ -163,8 +193,8 @@ class OmfAudioProcessor extends AudioWorkletProcessor {
         // Smooth pan changes (pan follows moving objects).
         c.gainL += (c.targetL - c.gainL) * 0.002;
         c.gainR += (c.targetR - c.gainR) * 0.002;
-        ml[i] += s * c.gainL;
-        mr[i] += s * c.gainR;
+        sl[i] += s * c.gainL;
+        sr[i] += s * c.gainR;
         c.pos += c.step;
         if (c.fadeDelta !== 0) {
           c.fade += c.fadeDelta;
@@ -178,9 +208,31 @@ class OmfAudioProcessor extends AudioWorkletProcessor {
         }
       }
     }
+    const send = outputs[1];
+    if (send && send[0]) {
+      send[0].set(sl.subarray(0, n));
+      if (send[1]) send[1].set(sr.subarray(0, n));
+    }
+    // Impact thumps (dry: low frequencies would only muddy the reverb).
+    const dt = 1 / sampleRate;
+    for (let k = this.thumps.length - 1; k >= 0; k--) {
+      const th = this.thumps[k];
+      const decay = th.dur * 0.3, sweep = th.dur * 0.22;
+      for (let i = 0; i < n; i++) {
+        const t = th.t;
+        const env = Math.min(1, t / 0.004) * Math.exp(-t / decay);
+        const f = th.f1 + (th.f0 - th.f1) * Math.exp(-t / sweep);
+        th.phase += 2 * Math.PI * f * dt;
+        const s = (Math.sin(th.phase) + 0.3 * Math.sin(2 * th.phase) * Math.exp(-t / (decay * 0.5))) * env * th.amp * sv;
+        sl[i] += s * th.l;
+        sr[i] += s * th.r;
+        th.t += dt;
+      }
+      if (th.t >= th.dur) this.thumps.splice(k, 1);
+    }
     for (let i = 0; i < n; i++) {
       // Soft clip to avoid harsh distortion when many sources overlap.
-      const l = ml[i], r = mr[i];
+      const l = ml[i] + sl[i], r = mr[i] + sr[i];
       L[i] = l > 1 || l < -1 ? Math.tanh(l) : l;
       if (R !== L) R[i] = r > 1 || r < -1 ? Math.tanh(r) : r;
     }

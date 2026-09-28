@@ -26,6 +26,10 @@ export const enum ParticleKind {
   WISP = 7,
   /** Star-shaped impact flare (additive). */
   FLARE = 8,
+  /** Air bubble: a thin bright rim with a highlight (alpha blended). */
+  BUBBLE = 9,
+  /** Ice shard: a bright sliver along its motion (additive). */
+  SHARD = 10,
 }
 
 export interface FxLight {

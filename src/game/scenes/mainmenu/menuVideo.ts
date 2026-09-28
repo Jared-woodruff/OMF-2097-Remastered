@@ -15,7 +15,7 @@ import { menuDone, parentMenu, settingsChanged } from './common';
 const OFF_ON = ['OFF', 'ON'];
 const FILTERS: Settings['video']['classicFilter'][] = ['sharp', 'smooth', 'crt'];
 type BoolKey = 'classicWidescreen' | 'crossfade' | 'screenShake' | 'bloom' | 'motionSmoothing' | 'fullscreen' | 'hdArtwork' |
-  'fxParticles' | 'fxLighting' | 'fxImpact' | 'fxAtmosphere';
+  'hdHud' | 'fxParticles' | 'fxLighting' | 'fxImpact' | 'fxAtmosphere';
 
 function video(): Settings['video'] {
   return settings().video;
@@ -32,16 +32,21 @@ function boolOption(title: string, help: string, key: BoolKey, onToggle?: (on: b
 /** Options of the remastered graphics: artwork, motion, glow and the fight effects. */
 export function menuRemasteredCreate(): Menu {
   const menu = new Menu();
+  // Ten entries: rows one pixel closer than in the other menus and no spacer under the title, to fit the frame.
+  menu.padding = 2;
   menu.attach(Label.title('REMASTERED'));
-  menu.attach(new Filler());
   menu.attach(boolOption('HD ARTWORK',
     'Use the high-resolution artwork (backgrounds, robots, portraits). OFF upscales the original images instead.', 'hdArtwork'));
   menu.attach(boolOption('SMOOTH MOTION',
     'Interpolate movement between game ticks for fluid motion on high refresh rate displays.', 'motionSmoothing'));
   menu.attach(new TextSelector('FONT',
-    "The original font, smoothed like the rest of the graphics or kept as crisp pixels.",
-    () => (video().hdFont === 'pixel' ? 1 : 0), (pos) => (video().hdFont = pos === 1 ? 'pixel' : 'smooth'), ['SMOOTH', 'PIXEL'],
+    'HD draws the letters of the original font as clean, sharp shapes with a soft shadow at any resolution. PIXEL ' +
+    'keeps their square pixels.',
+    () => (video().hdFont === 'pixel' ? 1 : 0), (pos) => (video().hdFont = pos === 1 ? 'pixel' : 'smooth'), ['HD', 'PIXEL'],
     () => settingsChanged()));
+  menu.attach(new TextSelector('HUD',
+    'MODERN draws the health and endurance bars smoothly, with a trail that shows the damage just taken. CLASSIC keeps the original bars.',
+    () => (video().hdHud ? 1 : 0), (pos) => (video().hdHud = pos === 1), ['CLASSIC', 'MODERN'], () => settingsChanged()));
   menu.attach(boolOption('BLOOM', 'Add a soft glow around bright lights, fire, sparks and energy effects.', 'bloom'));
   menu.attach(boolOption('PARTICLES', 'Sparks fly from hits, dust rises from falls and slams.', 'fxParticles'));
   menu.attach(boolOption('LIGHTING',

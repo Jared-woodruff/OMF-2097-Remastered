@@ -2,7 +2,7 @@ import { ACT_DOWN, ACT_ESC, ACT_KICK, ACT_LEFT, ACT_NONE, ACT_PUNCH, ACT_RIGHT, 
 import type { GameState } from '../game/gameState';
 import type { KeyBindings } from '../game/settings';
 import { Controller, type CtrlEvent } from './controller';
-import { anyDown, isDown, readPad, rumble } from './input';
+import { anyDown, connectedPads, isDown, readPad, rumble } from './input';
 
 /** Converts a set of pressed directions/buttons to an action exactly like the reference keyboard poll. */
 function resolveAction(
@@ -27,9 +27,16 @@ function resolveAction(
   return action;
 }
 
+/**
+ * Keyboard player. It also plays with a gamepad when one is free: the first free pad for player 1, the second for
+ * player 2 (pads assigned to a player in the input menu are not free), so a controller works without any setup.
+ */
 export class KeyboardController extends Controller {
   /** Extra bindings merged in (e.g. player 2's keys when player 2 is the CPU). */
   extra: KeyBindings[] = [];
+  /** Which free gamepad this player also reads (-1: none), and the pads that are not free. */
+  padSlot = -1;
+  reservedPads: () => number[] = () => [];
 
   constructor(gs: GameState, public keys: KeyBindings) {
     super(gs);
@@ -43,15 +50,32 @@ export class KeyboardController extends Controller {
     return false;
   }
 
+  /** The gamepad this player reads besides the keyboard, or -1. */
+  pad(): number {
+    if (this.padSlot < 0) return -1;
+    const reserved = this.reservedPads();
+    return connectedPads().filter((i) => !reserved.includes(i))[this.padSlot] ?? -1;
+  }
+
   override poll(ev: CtrlEvent[]): number {
     this.current = 0;
+    const padIndex = this.pad();
+    const p = padIndex >= 0 ? readPad(padIndex) : null;
+    const pu = !!p?.up, pd = !!p?.down, pl = !!p?.left, pr = !!p?.right;
     const action = resolveAction(
-      this.held((k) => k.jumpLeft), this.held((k) => k.duckBack), this.held((k) => k.jumpRight), this.held((k) => k.duckForward),
-      this.held((k) => k.walkBack), this.held((k) => k.walkRight), this.held((k) => k.jumpUp), this.held((k) => k.duck),
-      this.held((k) => k.punch), this.held((k) => k.kick),
+      this.held((k) => k.jumpLeft) || (pu && pl), this.held((k) => k.duckBack) || (pd && pl),
+      this.held((k) => k.jumpRight) || (pu && pr), this.held((k) => k.duckForward) || (pd && pr),
+      this.held((k) => k.walkBack) || pl, this.held((k) => k.walkRight) || pr, this.held((k) => k.jumpUp) || pu,
+      this.held((k) => k.duck) || pd, this.held((k) => k.punch) || !!p?.punch, this.held((k) => k.kick) || !!p?.kick,
     );
     this.cmd(action === 0 ? ACT_STOP : action, ev);
     this.last = this.current;
+    return 0;
+  }
+
+  override rumble(magnitude: number, durationMs: number): number {
+    const padIndex = this.pad();
+    if (padIndex >= 0) rumble(padIndex, magnitude, durationMs);
     return 0;
   }
 }
@@ -82,12 +106,24 @@ export class GamepadController extends Controller {
   }
 }
 
+/** How a scene uses the pads besides its menus. */
+export interface MenuPollOptions {
+  /**
+   * The players' controllers are read in this scene too (character select, VS screen, a running fight): the pads'
+   * face buttons belong to the players, so only the View button goes back.
+   */
+  playerScene?: boolean;
+  /** The Menu button toggles the pause menu (fights) instead of confirming. */
+  startIsEsc?: boolean;
+}
+
 /**
  * Menu navigation from any keyboard or gamepad (arrows/enter/escape and pad d-pad/buttons), like the reference
  * game_state_menu_poll: keyboard events are reported with a keyboard source, pad events with a gamepad source
- * (text inputs use that to offer the gamepad letter wheel).
+ * (text inputs use that to offer the gamepad letter wheel). Pads follow the Xbox conventions: A confirms, B goes back,
+ * X and Y are the second button (kick), Menu confirms (or pauses in fights), View goes back.
  */
-export function menuPoll(ctrl: Controller, ev: CtrlEvent[]): void {
+export function menuPoll(ctrl: Controller, ev: CtrlEvent[], opts: MenuPollOptions = {}): void {
   ctrl.type = CtrlType.KEYBOARD;
   if (ctrl.queued !== ACT_NONE) {
     ctrl.cmd(ctrl.queued, ev);
@@ -106,12 +142,15 @@ export function menuPoll(ctrl: Controller, ev: CtrlEvent[]): void {
     if (!gp || !gp.connected) continue;
     const p = readPad(gp.index);
     if (!p) continue;
+    if (p.back) ctrl.cmd(ACT_ESC, ev);
+    if (p.start) ctrl.cmd(opts.startIsEsc ? ACT_ESC : ACT_PUNCH, ev);
+    if (opts.playerScene) continue;
     if (p.right) ctrl.cmd(ACT_RIGHT, ev);
     if (p.left) ctrl.cmd(ACT_LEFT, ev);
     if (p.up) ctrl.cmd(ACT_UP, ev);
     if (p.down) ctrl.cmd(ACT_DOWN, ev);
-    if (p.punch || p.start) ctrl.cmd(ACT_PUNCH, ev);
-    if (p.kick) ctrl.cmd(ACT_KICK, ev);
-    if (p.back) ctrl.cmd(ACT_ESC, ev);
+    if (p.a) ctrl.cmd(ACT_PUNCH, ev);
+    if (p.x || p.y) ctrl.cmd(ACT_KICK, ev);
+    if (p.b) ctrl.cmd(ACT_ESC, ev);
   }
 }

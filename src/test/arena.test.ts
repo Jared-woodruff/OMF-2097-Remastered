@@ -24,4 +24,24 @@ describe.skipIf(!hasGameData)('arena (headless)', () => {
     expect(harData(p2).health).toBeLessThan(hp0);
     expect(gs.fightStats.hitsLanded[0]).toBeGreaterThan(0);
   });
+
+  it('pauses the fight when the window loses focus', () => {
+    const gs = createGame(SceneId.MENU);
+    gs.swapScene(SceneId.ARENA0);
+    const run = new HeadlessRunner(gs);
+    run.advance(3500);
+    const sc = gs.sc as unknown as { menuVisible: boolean };
+    gs.sc.focusLost();
+    expect(sc.menuVisible).toBe(true);
+    expect(gs.paused).toBe(true);
+    // Losing focus again changes nothing; the pause menu resumes as usual.
+    gs.sc.focusLost();
+    expect(sc.menuVisible).toBe(true);
+    setKeyState('Escape', true);
+    run.advance(100);
+    setKeyState('Escape', false);
+    run.advance(100);
+    expect(sc.menuVisible).toBe(false);
+    expect(gs.paused).toBe(false);
+  });
 });

@@ -12,13 +12,16 @@ OpenOMF project (MIT, https://github.com/omf2097/openomf); rendering and platfor
 | `src/script/` | Animation-string ("A20-B10-s3C5...") decoder and tag table. |
 | `src/resources/` | Runtime resources built from parsed files: `loadAf`, `loadBk`, `langGet`, `fonts()`, `soundBank()`, `loadPic`, `loadTournament`. Loaded AF/BK objects are fresh mutable copies per scene. |
 | `src/video/` | Draw list (`video.draw*`), VGA palette state (`vga`), indexed `Surface`, WebGL2 renderer. |
-| `src/audio/` | Audio system (3 SFX channels + PSM music in an AudioWorklet). |
+| `src/audio/` | Audio system (3 SFX channels + PSM music in an AudioWorklet; impact thumps; an effects send through a convolution reverb for the arena acoustics). |
+| `src/platform/` | Desktop shell bridge (`desktop.ts`); the web version's game data import (`gameData.ts`: installer and zip unpacking, IndexedDB) and its first-run screen (`importScreen.ts`). |
 | `src/controller/` | Controllers: keyboard, gamepad, AI (`ai.ts`), menu polling. |
 | `src/game/` | Game logic: `GameState`, `Scene`, `GameObject` (object+animation player), HAR/projectile/hazard/scrap objects, score, GUI, scenes. |
 | `src/game/scenes/` | One module per scene family; each calls `registerScene(SceneId.X, gs => new XScene(gs))`. `index.ts` imports them all. |
 | `src/game/gui/` | Text rendering (`text.ts`) and menu widgets (`widgets.ts`: `Menu`, `Button`, `TextSelector`, `TextSlider`, `Label`, `Filler`, `GuiFrame`), progress bars, pause menu. |
 | `src/game/scenes/mechlab/`, `src/game/tournament/` | Tournament mode: mechlab menus and dashboards, HAR economy, CHR characters (`src/formats/chr.ts`). |
 | `src/resources/sgmanager.ts`, `trnmanager.ts` | Save games (CHR files in localStorage through a small `SaveStorage` interface) and the tournament list. |
+| `src/gen/` | The remaster's own content: the new robots and arenas, generated from 3D models (see below). |
+| `src/fx/` | Remastered effects: the director (fight events → particles, lights, camera), per-arena ambience and weather, the new robots' special move effects. |
 
 ## Porting conventions (C reference → TypeScript)
 
@@ -56,8 +59,8 @@ OpenOMF project (MIT, https://github.com/omf2097/openomf); rendering and platfor
 ## Running
 
 - `npm run dev` then open http://localhost:5173/ (boots to the intro/menu).
-- Dev params: `?scene=MELEE` start at a scene; `?fight=0&h1=0&h2=5&p1=0&p2=1[&ai]` quick fight;
-  `?noaudio`; `?viewer` asset viewer.
+- Dev params: `?scene=MELEE` start at a scene; `?fight=0&h1=0&h2=5&p1=0&p2=1[&ai]` quick fight; `?training`
+  training mode; `?noaudio`; `?nopause` (fights keep running when the window loses focus); `?viewer` asset viewer.
 - Debug API in the page: `__omf.gs`, `__omf.step(ms)` (advance simulation; works when the tab is hidden),
   `__omf.key(code, down)` (simulate keys by `KeyboardEvent.code`), `await __omf.capture(name, w, h, crop?)` (renders a
   frame at w x h and saves `.captures/<name>.png` via the dev server — view it to check visuals),
@@ -89,6 +92,17 @@ pixels in one of two ways, switchable at any time (F2, pause menu, VIDEO options
   chromatic aberration, flash), adds bloom and light shafts, and only then draws the overlay (TAG_HUD draws: HUD,
   announcements, pause menu), so the overlay is never distorted or lit. The effects never touch game state or the
   game's random generators (checked by `src/test/gameplay-options.test.ts`).
+- **Text and panels** (remastered): font glyphs (surfaces with `source.kind === 'font'`) are drawn by the TEXT part of
+  `HD_SPRITE_FS` as clean shapes: ink pixels become squares with rounded outward corners and diagonal neighbors are
+  joined by strokes, evaluated as a signed distance and anti-aliased per screen pixel. Each run of letters first gets
+  a soft dark halo (`u_textPass`), so the halo never covers a letter's own shadow. Darkened panels (`menushade`
+  surfaces drawn through a remap table) get a frosted background: the frame so far is blurred at quarter resolution
+  inside the panel and passed through the panel's remap table fitted as an affine color transform
+  (`fitRemapMatrix`), instead of the exact per-pixel remap delta.
+- **HUD bars**: `ProgressBar` draws the original bar surfaces and also describes itself in the draw list
+  (`drawList.pushBar`, `HudBar`: value, damage trail, theme colors, warning pulses). The remastered renderer draws that
+  description with `hd/hudShaders.ts` in place of the surfaces (HUD option), at the position of the bar's first draw
+  command, so the draw order is kept; the classic renderer ignores it.
 - **HD artwork** (`src/video/hd/assets.ts`, `artShaders.ts`): when imported artwork is installed (`public/hd/`,
   see `tools/hd-pack/`), remastered mode draws it instead of the procedural upscale. Surfaces are matched to their
   artwork by a fingerprint of their palette indices (`hd/pixelHash.ts`), so no game code changes are needed. Each HD
@@ -109,4 +123,51 @@ pixels in one of two ways, switchable at any time (F2, pause menu, VIDEO options
 - Menus are audited by `src/test/menuLayout.test.ts` (entries fit their frame, help texts fit the help panel), and
   `TEXT_AUDIT=<file> npx vitest run src/test` records texts that get cut off or drawn off screen in any scene test.
 - Training mode: `src/game/scenes/mainmenu/menuTraining.ts` (setup), `src/controller/dummy.ts` (the dummy),
-  `GameState.training` (no knockouts in `har.ts`, refills and the damage readout in `arena.ts`).
+  `GameState.training` (no knockouts in `har.ts`, refills and the damage readout in `arena.ts`), the input display
+  (`src/game/gui/inputDisplay.ts`, fed by the arena's input poll).
+- Move list (`src/game/gui/moveList.ts`): a page of the fight pause menu built from the robots' move tables (move
+  strings hold a button and the directions most recent first; `moveNotation` puts them in the order they are
+  entered). The original data has no move names, so moves are listed by kind. Direction icons: `inputIcons.ts`.
+- Losing the window focus calls `Scene.focusLost()`; the arena opens its pause menu.
+
+## Generated content: the new robots and arenas
+
+The four new robots (HARs 11-14) and arenas (5-8) are made from source code in `src/gen`, into the original game's
+own file formats, so the engine runs them like the originals.
+
+- **Shapes** (`gen/geometry.ts`): signed distance functions (boxes, ellipsoids, capsules, cylinders, cones, wedges,
+  tapered boxes, faceted prisms) ray traced by marching from bounding spheres; the same functions run in GLSL
+  (`gen/hdRender.ts`).
+- **Robots** (`gen/robots/*.ts`): a humanoid skeleton (`robots/parts.ts`) carrying low-polygon parts like the
+  originals' (prisms, tapered boxes, blades; ribbed joints), painted in the player's three color ramps the way the
+  original robots use them (primary = the armor, tertiary = joint rings and mechanics, secondary = a few signature
+  accents), so player colors, flashes and shadows work as for the originals. The native sprites are shaded like the
+  originals' 1994 renders (`gen/raster.ts`): flat facets, diffuse light that saturates at the ramp's base shade (the
+  shade most of an original robot's pixels use), hard-edged highlights and error-diffusion dithering within each part;
+  `src/gen/dev/stylestats.test.ts` and `lineup.test.ts` compare them with the originals (shade histograms, color use,
+  build). `gen/pose.ts` poses them (limb IK to screen targets);
+  `gen/fighter/poses.ts` is the pose library every robot shares (built from each robot's measurements and fighting
+  style), including the 24-frame damage sheet whose meaning all robots' moves rely on.
+- **Moves** (`gen/fighter/moveset.ts`, `gen/roster/*.ts`): animation strings with the originals' timing and reaction
+  idioms, specials, projectiles and finishers. `gen/fighter/build.ts` renders every pose (`gen/raster.ts`), stores
+  identical sprites once, and derives hit points from the striking limbs' pixels. `npm run gen` writes
+  `public/gen/FIGHTR11.AF`..`FIGHTR14.AF`; `src/test/genRobots.test.ts` checks they are up to date.
+- **Arenas** (`gen/scene/`): 3D scenes (materials with procedural patterns, point lights with soft shadows, a mirror
+  bounce, fog, stars, aurora) seen through the original arenas' camera (`scene/types.ts`), rendered on the CPU
+  (`scene/render.ts`), quantized to the arena's 64 own colors plus the 90 every arena shares (`scene/palette.ts`, which
+  also derives the 19 remap tables from the reference arena's), into `ARENAn.BK` plus a native widescreen background
+  (`ARENAn.WID`, used instead of the mirrored extension). Their HD backgrounds come from the GPU twin
+  (`scene/gpu.ts`) through a dev-server tool (`?genarenahd`, then `npm run gen:hd`).
+- **Loading** (`resources/generated.ts`, `resources.ts`): the generated files hold only their own content; the parts
+  every robot or arena shares (sparks, scrap metal, blasts; the round announcements, shared palette entries, the
+  robots' remap rows, sounds) are copied from the player's FIGHTR0.AF / ARENA0.BK when loaded.
+- **HD art** (`gen/hdArtwork.ts`): the robots' sprites are rendered again on the GPU at the HD artwork scale (as
+  smooth polished metal: rounded facets and rims, a reflected studio, contact shadows, like the originals' HD
+  artwork) from the
+  same poses (a few per frame, as scenes need them) and registered in `hd/assets.ts` by pixel fingerprint, like
+  installed artwork; the arenas' HD backgrounds load from `public/gen/*.webp`.
+- **In the game**: `game/roster.ts` (which robots and arenas can be picked: the GAMEPLAY › EXTRAS toggles, off by
+  default; settings saved before they became opt-in load with them off, see `loadSettings`), the robot select
+  screen's third row (`melee.ts`), VS images and arena previews (`vs.ts`), CPU tactics (`controller/ai.ts`), move
+  names (`gui/moveList.ts`), arena ambience (`fx/arenas.ts`) and special move effects (`fx/robotFx.ts`).
+

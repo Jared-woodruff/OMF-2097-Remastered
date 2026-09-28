@@ -1,0 +1,19 @@
+<!doctype html>
+<!-- Renders one of the brand images at the window size (used by tools/make-icons.py with headless Edge). ?img=icon.svg -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
+  img, iframe { display: block; width: 100vw; height: 100vh; border: 0; }
+</style>
+</head>
+<body>
+<script>
+  const src = new URLSearchParams(location.search).get('img') || 'icon.svg';
+  const el = document.createElement(src.endsWith('.html') ? 'iframe' : 'img');
+  el.src = src;
+  document.body.appendChild(el);
+</script>
+</body>
+</html>

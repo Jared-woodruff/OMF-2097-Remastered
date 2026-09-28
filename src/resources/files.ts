@@ -47,11 +47,21 @@ export function loadFile(name: string): Promise<Uint8Array> {
   return p;
 }
 
-/** Preloads the whole data set listed in manifest.json, reporting progress in bytes. */
-export async function preloadAll(onProgress?: (loaded: number, total: number) => void): Promise<void> {
-  const res = await fetch(baseUrl + 'manifest.json');
-  if (!res.ok) throw new Error('Game data not found. Run "npm run extract" to extract the original game files.');
-  const manifest = (await res.json()) as { files: { name: string; size: number }[] };
+/**
+ * Preloads the whole data set listed in manifest.json, reporting progress in bytes. Returns false when the server has
+ * no game data (the web version then asks the player for it, see platform/gameData.ts).
+ */
+export async function preloadAll(onProgress?: (loaded: number, total: number) => void): Promise<boolean> {
+  let manifest: { files: { name: string; size: number }[] };
+  try {
+    const res = await fetch(baseUrl + 'manifest.json');
+    if (!res.ok) return false;
+    // Hosts with a single-page-app fallback answer missing files with index.html.
+    manifest = (await res.json()) as typeof manifest;
+    if (!Array.isArray(manifest?.files)) return false;
+  } catch {
+    return false;
+  }
   const total = manifest.files.reduce((a, f) => a + f.size, 0);
   let loaded = 0;
   await Promise.all(
@@ -61,4 +71,5 @@ export async function preloadAll(onProgress?: (loaded: number, total: number) =>
       onProgress?.(loaded, total);
     }),
   );
+  return true;
 }

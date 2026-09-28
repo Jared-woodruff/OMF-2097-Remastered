@@ -392,6 +392,11 @@ export function harHasProjectiles(harId: number): boolean {
     case HarId.SHREDDER:
     case HarId.CHRONOS:
     case HarId.NOVA:
+    // The remaster's robots: ICE LANCE, GALE BLAST, DRILL BIT, PHOTON BEAM.
+    case HarId.GLACIER:
+    case HarId.TEMPEST:
+    case HarId.HELIX:
+    case HarId.SPECTRE:
       return true;
   }
   return false;
@@ -410,6 +415,10 @@ export function harHasCharge(harId: number): boolean {
     case HarId.SHREDDER:
     case HarId.CHRONOS:
     case HarId.GARGOYLE:
+    case HarId.GLACIER:
+    case HarId.TEMPEST:
+    case HarId.HELIX:
+    case HarId.SPECTRE:
       return true;
   }
   return false;
@@ -425,6 +434,9 @@ export function harHasPush(harId: number): boolean {
     case HarId.PYROS:
     case HarId.ELECTRA:
     case HarId.NOVA:
+    case HarId.GLACIER:
+    case HarId.TEMPEST:
+    case HarId.HELIX:
       return true;
   }
   return false;
@@ -1790,6 +1802,32 @@ function attemptChargeAttack(ctrl: AiController, ev: CtrlEvent[]): boolean {
       }
       break;
     }
+    case HarId.GLACIER: {
+      // Glacial Ram : D,B+K
+      chainControllerCmd(ctrl, [ACT_DOWN, downBack(o), back(o) | ACT_KICK], ev);
+      break;
+    }
+    case HarId.TEMPEST: {
+      // Cyclone Kick : D,F+K
+      chainControllerCmd(ctrl, [ACT_DOWN, downForward(o), forward(o) | ACT_KICK], ev);
+      break;
+    }
+    case HarId.HELIX: {
+      // Drill Rush : D,F+P
+      chainControllerCmd(ctrl, [ACT_DOWN, downForward(o), forward(o) | ACT_PUNCH], ev);
+      break;
+    }
+    case HarId.SPECTRE: {
+      if (enemyRange >= RANGE_MID && rollPref(a.pilot.apSpecial) && diffScale(a)) {
+        // Phase Shift : D,B+K (behind the enemy), then a close-range tactic
+        chainControllerCmd(ctrl, [ACT_DOWN, downBack(o), back(o) | ACT_KICK], ev);
+        chainConsiderTactics(ctrl, [TACTIC_GRAB, TACTIC_PUSH, TACTIC_SPAM, TACTIC_TRIP]);
+      } else {
+        // Shadow Strike : D,F+K
+        chainControllerCmd(ctrl, [ACT_DOWN, downForward(o), forward(o) | ACT_KICK], ev);
+      }
+      break;
+    }
     default:
       return false;
   }
@@ -1864,6 +1902,21 @@ function attemptPushAttack(ctrl: AiController, ev: CtrlEvent[]): boolean {
       }
       break;
     }
+    case HarId.GLACIER: {
+      // Frost Spikes : D,F+K
+      chainControllerCmd(ctrl, [ACT_DOWN, downForward(o), forward(o) | ACT_KICK], ev);
+      break;
+    }
+    case HarId.TEMPEST: {
+      // Cyclone Kick : D,F+K
+      chainControllerCmd(ctrl, [ACT_DOWN, downForward(o), forward(o) | ACT_KICK], ev);
+      break;
+    }
+    case HarId.HELIX: {
+      // Corkscrew : F,D,F+P
+      chainControllerCmd(ctrl, [forward(o), ACT_DOWN, downForward(o) | ACT_PUNCH], ev);
+      break;
+    }
     default:
       return false;
   }
@@ -1921,6 +1974,16 @@ function attemptProjectileAttack(ctrl: AiController, ev: CtrlEvent[]): boolean {
         return false;
       }
       // Stasis : D, B, P
+      chainControllerCmd(ctrl, [ACT_DOWN, downBack(o), back(o) | ACT_PUNCH], ev);
+      return true;
+    }
+    case HarId.GLACIER: // Ice Lance : D,F+P
+    case HarId.SPECTRE: { // Photon Beam : D,F+P
+      chainControllerCmd(ctrl, [ACT_DOWN, downForward(o), forward(o) | ACT_PUNCH], ev);
+      return true;
+    }
+    case HarId.TEMPEST: // Gale Blast : D,B+P
+    case HarId.HELIX: { // Drill Bit : D,B+P
       chainControllerCmd(ctrl, [ACT_DOWN, downBack(o), back(o) | ACT_PUNCH], ev);
       return true;
     }

@@ -5,6 +5,7 @@ import { settings, type Settings } from '../../settings';
 import type { MainMenuScene } from '../mainmenu';
 import { menuDone, parentMenu, settingsChanged } from './common';
 import { menuAdvancedCreate } from './menuAdvanced';
+import { menuExtrasCreate } from './menuExtras';
 
 function gameplay(): Settings['gameplay'] {
   return settings().gameplay;
@@ -12,8 +13,9 @@ function gameplay(): Settings['gameplay'] {
 
 export function menuGameplayCreate(s: MainMenuScene): Menu {
   const menu = new Menu();
+  // Ten entries: tighter rows (like REMASTERED OPTIONS) so they fit the frame under the title.
+  menu.padding = 2;
   menu.attach(Label.title('GAMEPLAY'));
-  menu.attach(new Filler());
   menu.attach(new TextSlider('SPEED', 'Change the overall speed of the game. Press left and right to change.', 10, false,
     () => gameplay().speed, (pos) => (gameplay().speed = pos), (pos) => {
       // menu_gameplay_speed_slide
@@ -46,6 +48,8 @@ export function menuGameplayCreate(s: MainMenuScene): Menu {
     () => gameplay().rounds, (pos) => (gameplay().rounds = pos), ROUND_TYPE_NAMES, settingsChanged));
   menu.attach(new Button('ADVANCED OPTIONS', 'Do I really have to tell you what this is?', false, false,
     (b) => parentMenu(b).setSubmenu(menuAdvancedCreate(s))));
+  menu.attach(new Button('EXTRAS', 'The robots and arenas made for the remaster: turn them on or off.', false, false,
+    (b) => parentMenu(b).setSubmenu(menuExtrasCreate())));
   menu.attach(new Button('DONE', 'Go back to the main menu.', false, false, menuDone));
   return menu;
 }

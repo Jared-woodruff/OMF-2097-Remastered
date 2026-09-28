@@ -24,6 +24,7 @@
         "preventOverflow": true,
         "visible": false,
         "backgroundColor": "#000000",
+        "dragDropEnabled": false,
         "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required"
       }
     ],
@@ -46,7 +47,10 @@
     ],
     "windows": {
       "nsis": {
-        "installMode": "currentUser"
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "installer/header.bmp",
+        "sidebarImage": "installer/sidebar.bmp"
       }
     }
   }

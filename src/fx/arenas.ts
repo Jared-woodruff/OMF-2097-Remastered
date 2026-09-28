@@ -4,9 +4,22 @@
 import { ParticleKind, type FxHaze, type FxLight, type FxRimLight, type FxShaft } from '../video/fx/types';
 import type { ParticleSystem } from './particles';
 
+/** What an arena's weather may do besides spawning particles. */
+export interface ArenaCtx {
+  ps: ParticleSystem;
+  /** White flash over the scene (0..1, fades quickly). */
+  flash(v: number): void;
+  /** A light fading out over `life` ticks. */
+  light(x: number, y: number, radius: number, r: number, g: number, b: number, life: number): void;
+}
+
 export interface ArenaFx {
   /** Floor dust color (landings, slams). */
   dust: readonly [number, number, number];
+  /** Gravity of sparks and debris (1 = normal; the orbital station floats them). */
+  gravity?: number;
+  /** Weather events (lightning...) for `dt` ticks at time `t`. */
+  weather?(ctx: ArenaCtx, dt: number, t: number): void;
   rim: FxRimLight;
   /** Light from the background art that should reach the robots (animated by the time in ticks). */
   envLights(t: number, out: FxLight[]): void;
@@ -142,9 +155,173 @@ const DESERT: ArenaFx = {
   },
 };
 
-/** Effects configuration of an arena (0..4). */
+// ---- The remaster's arenas ---------------------------------------------------------------------------------------
+
+// ---- Orbital: a station's hangar deck, the Earth in the window; sparks and debris float in the low gravity.
+const ORBITAL: ArenaFx = {
+  dust: [0.55, 0.6, 0.7],
+  gravity: 0.35,
+  rim: { x: 170, y: 70, r: 0.35, g: 0.55, b: 0.95, ambR: 0.95, ambG: 0.97, ambB: 1.03 },
+  envLights(t, out) {
+    // Earthlight from the window on the robots, and the side panels' slow cyan pulse.
+    out.push({ x: 175, y: 125, radius: 240, r: 0.1, g: 0.16, b: 0.3, objectsOnly: true });
+    const p = 0.6 + 0.4 * Math.sin(t * 0.05);
+    for (const x of [-54, 374]) out.push({ x, y: 74, radius: 150, r: 0.05 * p, g: 0.28 * p, b: 0.34 * p, objectsOnly: false });
+  },
+  haze: [],
+  shafts: [{ x: 200, y: 160, strength: 0.16 }],
+  ambient(ps, dt) {
+    // Dust glinting in the station light, drifting without falling...
+    emit(0.35, dt, () => {
+      const s = rnd(0.35, 0.7);
+      ps.spawn({
+        kind: ParticleKind.GLOW, x: rnd(-50, 370), y: rnd(10, 190), vx: rnd(-0.06, 0.06), vy: rnd(-0.04, 0.04), wobble: 0.01,
+        life: rnd(200, 420), size0: s, size1: s, fadeIn: 0.3, c0: [0.7, 0.8, 1, 0.55], c1: [0.6, 0.7, 1, 0],
+      });
+    });
+    // ... and stars twinkling through the window.
+    emit(0.06, dt, () => {
+      const s = rnd(1.2, 2.2);
+      ps.spawn({ kind: ParticleKind.FLARE, x: rnd(35, 285), y: rnd(55, 110), life: rnd(10, 22), size0: s, size1: s * 0.4, c0: [0.85, 0.9, 1, 0.9], c1: [0.6, 0.7, 1, 0] });
+    });
+  },
+};
+
+// ---- Ice Cave: snow blowing in through the cave mouth, frost mist on the ice, crystals sparkling, the aurora's glow.
+const CRYSTALS: readonly (readonly [number, number])[] = [[49, 144], [271, 144], [8, 122], [312, 122]];
+const ICE_CAVE: ArenaFx = {
+  dust: [0.82, 0.9, 0.97],
+  rim: { x: 160, y: -60, r: 0.3, g: 0.75, b: 0.62, ambR: 0.95, ambG: 1, ambB: 1.06 },
+  envLights(t, out) {
+    // The aurora's shimmer on the robots.
+    const a = 0.75 + 0.25 * Math.sin(t * 0.021) * Math.sin(t * 0.013 + 1);
+    out.push({ x: 160, y: -30, radius: 300, r: 0.05 * a, g: 0.2 * a, b: 0.14 * a, objectsOnly: true });
+    // The crystals' glow, breathing slowly.
+    CRYSTALS.forEach(([x, y], i) => {
+      const k = 0.7 + 0.3 * Math.sin(t * 0.04 + i * 1.9);
+      out.push({ x, y, radius: 70, r: 0.04 * k, g: 0.2 * k, b: 0.28 * k, objectsOnly: false });
+    });
+  },
+  haze: [],
+  shafts: [{ x: 160, y: 20, strength: 0.12 }],
+  ambient(ps, dt) {
+    // Snowflakes swirling down.
+    emit(0.9, dt, () => {
+      const s = rnd(0.45, 1.05);
+      ps.spawn({
+        kind: ParticleKind.GLOW, x: rnd(-60, 380), y: rnd(-10, 30), vx: rnd(-0.25, 0.1), vy: rnd(0.25, 0.6), wobble: 0.06,
+        life: rnd(260, 420), size0: s, size1: s, fadeIn: 0.1, c0: [0.92, 0.97, 1, 0.8], c1: [0.85, 0.92, 1, 0], floor: 196, bounce: 0,
+      });
+    });
+    // Frost mist creeping over the ice.
+    emit(0.12, dt, () => {
+      ps.spawn({
+        kind: ParticleKind.SMOKE, x: rnd(-60, 380), y: rnd(178, 198), vx: rnd(-0.18, 0.18), vy: rnd(-0.02, 0.01), drag: 0.998,
+        life: rnd(160, 260), size0: rnd(8, 14), size1: rnd(18, 28), fadeIn: 0.35, c0: [0.75, 0.88, 1, 0.12], c1: [0.7, 0.85, 1, 0],
+      });
+    });
+    // Sparkles on the crystals.
+    emit(0.12, dt, () => {
+      const [x, y] = CRYSTALS[Math.floor(Math.random() * CRYSTALS.length)];
+      const s = rnd(1, 2);
+      ps.spawn({ kind: ParticleKind.FLARE, x: x + rnd(-10, 10), y: y + rnd(-22, 4), life: rnd(8, 14), size0: s, size1: 0.3, c0: [0.8, 1, 1, 1], c1: [0.4, 0.8, 1, 0] });
+    });
+  },
+};
+
+// ---- Rooftop: rain and its splashes on the wet roof, the neon sign flickering, lightning over the city.
+const ROOFTOP: ArenaFx = {
+  dust: [0.45, 0.5, 0.62],
+  rim: { x: 330, y: 90, r: 0.9, g: 0.25, b: 0.75, ambR: 0.93, ambG: 0.92, ambB: 1.04 },
+  envLights(t, out) {
+    // The sign's magenta, with the odd dropout of an old neon tube.
+    const f = flicker(t * 3.1, 2.7);
+    const on = f > 0.22 ? 1 : 0.15;
+    out.push({ x: 317, y: 91, radius: 170, r: 0.5 * on, g: 0.1 * on, b: 0.4 * on, objectsOnly: true });
+    out.push({ x: 317, y: 91, radius: 90, r: 0.2 * on, g: 0.03 * on, b: 0.16 * on, objectsOnly: false });
+    // A cyan lamp over the roof on the left.
+    out.push({ x: 12, y: 57, radius: 190, r: 0.05, g: 0.22, b: 0.28, objectsOnly: true });
+  },
+  haze: [],
+  shafts: [],
+  ambient(ps, dt) {
+    // Rain streaks...
+    emit(5, dt, () => {
+      const vx = rnd(1.1, 1.6), vy = rnd(7.5, 9.5);
+      ps.spawn({
+        kind: ParticleKind.WISP, x: rnd(-80, 380), y: rnd(-30, 150), vx, vy, life: rnd(8, 22), size0: rnd(0.35, 0.55), stretch: 1.3,
+        c0: [0.7, 0.75, 0.9, 0.35], c1: [0.7, 0.75, 0.9, 0.2], floor: 199, bounce: 0,
+      });
+    });
+    // ... splashing on the roof.
+    emit(2.2, dt, () => {
+      const x = rnd(-60, 380), y = rnd(184, 199);
+      ps.spawn({ kind: ParticleKind.RING, x, y, life: rnd(6, 10), size0: 0.4, size1: rnd(2, 3.5), c0: [0.7, 0.75, 0.95, 0.35], c1: [0.7, 0.75, 0.95, 0] });
+      if (Math.random() < 0.5) {
+        ps.spawn({
+          kind: ParticleKind.GLOW, x, y: y - 1, vx: rnd(-0.4, 0.4), vy: rnd(-1.2, -0.5), gravity: 0.18, life: rnd(5, 9), size0: 0.45, size1: 0.3,
+          c0: [0.8, 0.85, 1, 0.6], c1: [0.8, 0.85, 1, 0],
+        });
+      }
+    });
+  },
+  weather(ctx, dt) {
+    // Lightning every few seconds: a flash, the sky lighting up and a jagged bolt over the city.
+    if (Math.random() > dt / 700) return;
+    ctx.flash(0.28);
+    ctx.light(160, -20, 420, 0.9, 0.9, 1.1, 14);
+    let x = rnd(20, 300), y = -10;
+    while (y < 80) {
+      const nx = x + rnd(-9, 9), ny = y + rnd(4, 9);
+      for (let k = 0; k < 3; k++) {
+        const t = k / 3;
+        ctx.ps.spawn({ kind: ParticleKind.GLOW, x: x + (nx - x) * t, y: y + (ny - y) * t, life: rnd(4, 7), size0: 1.4, size1: 0.6, c0: [0.85, 0.9, 1, 1], c1: [0.5, 0.6, 1, 0] });
+      }
+      x = nx;
+      y = ny;
+    }
+  },
+};
+
+// ---- Abyss: bubbles rising, marine snow, caustics dancing over the floor, the water's gentle distortion.
+const ABYSS: ArenaFx = {
+  dust: [0.32, 0.46, 0.5],
+  rim: { x: 160, y: -80, r: 0.25, g: 0.7, b: 0.8, ambR: 0.9, ambG: 1, ambB: 1.06 },
+  envLights(t, out) {
+    // Caustics: bright patches drifting over the floor and the robots.
+    for (let i = 0; i < 5; i++) {
+      const x = 160 + 150 * Math.sin(t * 0.011 * (1 + i * 0.37) + i * 1.7);
+      const y = 178 + 16 * Math.sin(t * 0.017 * (1 + i * 0.23) + i * 2.3);
+      const k = 0.6 + 0.4 * Math.sin(t * 0.09 + i * 2.1);
+      out.push({ x, y, radius: 55, r: 0.05 * k, g: 0.2 * k, b: 0.2 * k, objectsOnly: false });
+    }
+    out.push({ x: 160, y: -60, radius: 300, r: 0.03, g: 0.12, b: 0.15, objectsOnly: true });
+  },
+  haze: [{ x0: -80, y0: 0, x1: 400, y1: 200, strength: 0.28 }],
+  shafts: [{ x: 160, y: 8, strength: 0.3 }],
+  ambient(ps, dt) {
+    // Bubbles wobbling up.
+    emit(0.4, dt, () => {
+      const s = rnd(0.8, 2.2);
+      ps.spawn({
+        kind: ParticleKind.BUBBLE, x: rnd(-50, 370), y: rnd(185, 205), vx: 0, vy: -rnd(0.5, 1.1) * (0.6 + s * 0.3), wobble: 0.12,
+        life: rnd(120, 260), size0: s, size1: s * 1.2, fadeIn: 0.05, c0: [0.7, 0.95, 1, 0.75], c1: [0.7, 0.95, 1, 0],
+      });
+    });
+    // Marine snow sinking.
+    emit(0.3, dt, () => {
+      const s = rnd(0.35, 0.6);
+      ps.spawn({
+        kind: ParticleKind.GLOW, x: rnd(-50, 370), y: rnd(-10, 120), vx: rnd(-0.03, 0.03), vy: rnd(0.05, 0.14), wobble: 0.02,
+        life: rnd(300, 500), size0: s, size1: s, fadeIn: 0.2, c0: [0.7, 0.85, 0.85, 0.45], c1: [0.7, 0.85, 0.85, 0],
+      });
+    });
+  },
+};
+
+/** Effects configuration of an arena (0..8). */
 export function arenaFx(arena: number): ArenaFx {
-  return [STADIUM, DANGER_ROOM, POWER_PLANT, FIRE_PIT, DESERT][arena] ?? STADIUM;
+  return [STADIUM, DANGER_ROOM, POWER_PLANT, FIRE_PIT, DESERT, ORBITAL, ICE_CAVE, ROOFTOP, ABYSS][arena] ?? STADIUM;
 }
 
 export { FLOOR as FX_FLOOR };

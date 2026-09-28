@@ -3,6 +3,7 @@
 import workletUrl from './worklet.ts?worker&url';
 import { pitchedSampleRate, SOUND_CHANNEL_COUNT, soundSampleRate, type SoundOpts } from './soundOpts';
 import type { SoundEntry } from '../formats/misc';
+import { CustomMusicPlayer, myMusicFor, type MyMusicMode } from './customMusic';
 
 export const AUDIO_INVALID_HANDLE = 0;
 
@@ -14,6 +15,58 @@ interface ChannelState {
 }
 
 export type MusicQuality = 'classic' | 'enhanced';
+
+/** Acoustics of a place: reverb time (s), delay before it (s), high frequency damping (Hz), level, early echoes (ms, gain). */
+export interface Room {
+  decay: number;
+  predelay: number;
+  damping: number;
+  wet: number;
+  early: [number, number][];
+}
+
+/** The arenas, in order: stadium, danger room, power plant, fire pit, desert. */
+export const ROOMS: Room[] = [
+  { decay: 1.9, predelay: 0.025, damping: 6500, wet: 0.22, early: [[23, 0.5], [41, 0.35], [67, 0.25]] },
+  { decay: 0.85, predelay: 0.006, damping: 9000, wet: 0.26, early: [[7, 0.6], [13, 0.45], [19, 0.35], [29, 0.25]] },
+  { decay: 2.6, predelay: 0.04, damping: 3500, wet: 0.26, early: [[38, 0.45], [71, 0.3], [110, 0.2]] },
+  { decay: 1.4, predelay: 0.015, damping: 4500, wet: 0.22, early: [[15, 0.5], [31, 0.35], [52, 0.2]] },
+  { decay: 0.45, predelay: 0.09, damping: 3000, wet: 0.12, early: [[90, 0.35], [180, 0.12]] },
+  // The remaster's arenas: a metal hangar, an ice cave (long and bright), an open roof in the rain, a sealed dome.
+  { decay: 2.2, predelay: 0.03, damping: 7500, wet: 0.24, early: [[29, 0.5], [53, 0.35], [89, 0.2]] },
+  { decay: 3.1, predelay: 0.035, damping: 8500, wet: 0.3, early: [[21, 0.45], [47, 0.35], [83, 0.25], [127, 0.15]] },
+  { decay: 0.5, predelay: 0.06, damping: 2600, wet: 0.1, early: [[70, 0.25], [150, 0.1]] },
+  { decay: 1.7, predelay: 0.02, damping: 2200, wet: 0.3, early: [[17, 0.5], [34, 0.4], [61, 0.3]] },
+];
+
+/** Stereo impulse response of a room: decorrelated noise decaying to -60 dB, darker as it fades, plus early echoes. */
+export function impulseResponse(ctx: Pick<BaseAudioContext, 'sampleRate' | 'createBuffer'>, room: Room, seed: number): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.ceil(rate * (room.predelay + room.decay * 1.1));
+  const buf = ctx.createBuffer(2, len, rate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    let x = (seed * 7919 + ch * 104729) >>> 0 || 1;
+    let lp = 0;
+    const start = Math.floor(room.predelay * rate);
+    for (let i = start; i < len; i++) {
+      x ^= x << 13;
+      x ^= x >>> 17;
+      x ^= x << 5;
+      const white = ((x >>> 0) / 4294967296) * 2 - 1;
+      const t = (i - start) / rate;
+      const cutoff = room.damping * (1 - 0.7 * Math.min(1, t / room.decay));
+      lp += (1 - Math.exp((-2 * Math.PI * cutoff) / rate)) * (white - lp);
+      d[i] = lp * Math.exp((-6.9 * t) / room.decay);
+    }
+    // Early echoes, alternating sides.
+    room.early.forEach(([ms, gain], k) => {
+      const i = start + Math.floor((ms / 1000) * rate);
+      if (i < len) d[i] += gain * (k % 2 === ch ? 1 : 0.55);
+    });
+  }
+  return buf;
+}
 
 export class AudioSystem {
   private ctx: AudioContext | null = null;
@@ -30,6 +83,16 @@ export class AudioSystem {
   /** Audio could not be started (no Web Audio): messages are dropped instead of queued. */
   private unavailable = false;
   private quality: MusicQuality = 'classic';
+  /** Arena acoustics: the effects send of the mixer goes through a convolution reverb. */
+  private convolver: ConvolverNode | null = null;
+  private wet: GainNode | null = null;
+  private impulses = new Map<number, AudioBuffer>();
+  private room = -1;
+  private acoustics = true;
+  private impactBass = true;
+  /** The player's own music (AUDIO > MY MUSIC), and where it replaces the soundtrack. */
+  private custom: CustomMusicPlayer | null = null;
+  private myMusicMode: MyMusicMode = 'fights';
 
   constructor() {
     for (let i = 0; i < SOUND_CHANNEL_COUNT; i++) this.channels.push({ priority: 0, soundId: 0, guid: 0, endTime: 0 });
@@ -42,8 +105,18 @@ export class AudioSystem {
     try {
       this.ctx = new AudioContext({ latencyHint: 'interactive' });
       await this.ctx.audioWorklet.addModule(workletUrl);
-      this.node = new AudioWorkletNode(this.ctx, 'omf-audio', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
-      this.node.connect(this.ctx.destination);
+      this.node = new AudioWorkletNode(this.ctx, 'omf-audio', { numberOfInputs: 0, numberOfOutputs: 2, outputChannelCount: [2, 2] });
+      this.node.connect(this.ctx.destination, 0);
+      this.convolver = this.ctx.createConvolver();
+      this.wet = this.ctx.createGain();
+      this.wet.gain.value = 0;
+      this.node.connect(this.convolver, 1);
+      this.convolver.connect(this.wet);
+      this.wet.connect(this.ctx.destination);
+      this.applyRoom();
+      this.custom = new CustomMusicPlayer(this.ctx, this.musicVolume);
+      this.custom.onSong = (name) => this.onSong?.(name);
+      void this.custom.refresh().then(() => this.refreshMusic());
       this.node.port.onmessage = (e) => {
         if (e.data?.type === 'error') console.error('[audio worklet]', e.data.message);
       };
@@ -70,6 +143,7 @@ export class AudioSystem {
   /** Resumes the context after a user gesture (needed on the web). */
   resume(): void {
     if (this.ctx && this.ctx.state !== 'running') void this.ctx.resume();
+    this.custom?.resume();
     this.started = true;
   }
 
@@ -162,6 +236,13 @@ export class AudioSystem {
   playMusic(name: string): void {
     if (this.currentMusic === name) return;
     this.currentMusic = name;
+    // The player's own music instead of the original piece (a new song for every fight).
+    if (this.custom && this.custom.count > 0 && myMusicFor(name, this.myMusicMode)) {
+      this.post({ type: 'musicStop' });
+      this.custom.play(/^ARENA\d/i.test(name) || !this.custom.playing);
+      return;
+    }
+    this.custom?.stop();
     if (!this.musicLoader) return;
     let data: Uint8Array;
     try {
@@ -178,6 +259,49 @@ export class AudioSystem {
     if (this.currentMusic === null) return;
     this.currentMusic = null;
     this.post({ type: 'musicStop' });
+    this.custom?.stop();
+  }
+
+  /** Where the player's own music plays; applied to the music playing now. */
+  setMyMusicMode(mode: MyMusicMode): void {
+    if (mode === this.myMusicMode) return;
+    this.myMusicMode = mode;
+    this.refreshMusic();
+  }
+
+  /** Re-reads the music library (after songs were added or removed) and applies it to the music playing now. */
+  async reloadMyMusic(): Promise<void> {
+    await this.custom?.refresh();
+    this.refreshMusic();
+  }
+
+  /** Called when one of the player's songs starts. */
+  onSong: ((name: string) => void) | null = null;
+
+  /** Songs in the player's music library (0 without audio). */
+  get myMusicCount(): number {
+    return this.custom?.count ?? 0;
+  }
+
+  /** The player's song playing now, or ''. */
+  get nowPlaying(): string {
+    return this.custom?.playing ? this.custom.nowPlaying : '';
+  }
+
+  /** Skips to another of the player's songs, when one is playing. */
+  nextSong(): void {
+    if (this.custom?.playing) void this.custom.next();
+  }
+
+  /** Plays the current piece again from the right source (original or the player's music). */
+  private refreshMusic(): void {
+    const name = this.currentMusic;
+    if (name === null) return;
+    const custom = !!this.custom && this.custom.count > 0 && myMusicFor(name, this.myMusicMode);
+    if (custom === !!this.custom?.playing) return;
+    this.currentMusic = null;
+    if (!custom) this.custom?.stop();
+    this.playMusic(name);
   }
 
   get music(): string | null {
@@ -192,6 +316,58 @@ export class AudioSystem {
   setMusicVolume(v: number): void {
     this.musicVolume = Math.min(1, Math.max(0, v));
     this.post({ type: 'volume', sound: this.soundVolume, music: this.musicVolume });
+    this.custom?.setVolume(this.musicVolume);
+  }
+
+  /** The place the sounds are heard in: an arena (0..4) gets its acoustics, anything else (-1) is dry. */
+  setRoom(room: number): void {
+    if (room === this.room) return;
+    this.room = room;
+    this.applyRoom();
+  }
+
+  /** Arena acoustics on or off. */
+  setAcoustics(on: boolean): void {
+    this.acoustics = on;
+    this.applyRoom();
+  }
+
+  private applyRoom(): void {
+    const ctx = this.ctx, conv = this.convolver, wet = this.wet;
+    if (!ctx || !conv || !wet) return;
+    const room = this.acoustics ? ROOMS[this.room] : undefined;
+    const now = ctx.currentTime;
+    wet.gain.cancelScheduledValues(now);
+    if (!room) {
+      wet.gain.setTargetAtTime(0, now, 0.05);
+      return;
+    }
+    let ir = this.impulses.get(this.room);
+    if (!ir) {
+      ir = impulseResponse(ctx, room, this.room + 1);
+      this.impulses.set(this.room, ir);
+    }
+    // Switching rooms happens between scenes (behind a fade), when nothing is playing.
+    if (conv.buffer !== ir) conv.buffer = ir;
+    wet.gain.setTargetAtTime(room.wet, now, 0.05);
+  }
+
+  /** Impact bass on or off. */
+  setImpactBass(on: boolean): void {
+    this.impactBass = on;
+  }
+
+  /**
+   * A low thump under a heavy impact: `strength` 0..1 sets its level, `weight` 0..1 how deep and long it is (a knockout
+   * or a wall slam is heavier than a hit); `pan` -100..100.
+   */
+  thump(strength: number, weight: number, pan = 0): void {
+    if (!this.impactBass || strength <= 0) return;
+    const w = Math.max(0, Math.min(1, weight));
+    this.post({
+      type: 'thump', amp: Math.min(1, strength) * 0.7, f0: 110 - 30 * w, f1: 44 - 10 * w, dur: 0.2 + 0.4 * w,
+      pan: Math.max(-100, Math.min(100, pan)),
+    });
   }
 
   /** 'classic' = linear resampling like the original mixer; 'enhanced' = high quality interpolation. */

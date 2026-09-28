@@ -8,10 +8,12 @@ import type { GameState } from '../../gameState';
 import { Button, Filler, Label, Menu, TextSelector } from '../../gui/widgets';
 import { setPilotColors } from '../../pilotColors';
 import { settings } from '../../settings';
+import { allowedArena, allowedHar, arenaCount, extraRobotsEnabled } from '../../roster';
+import { GEN_ARENAS } from '../../../gen/scene/arenas';
 import type { MainMenuScene } from '../mainmenu';
 import { menuDone, settingsChanged } from './common';
 
-const ARENA_NAMES = ['STADIUM', 'DANGER ROOM', 'POWER PLANT', 'FIRE PIT', 'DESERT'];
+const ARENA_NAMES = ['STADIUM', 'DANGER ROOM', 'POWER PLANT', 'FIRE PIT', 'DESERT', ...GEN_ARENAS.map((a) => a.name)];
 const PILOTS = PILOT_NAMES.slice(0, 10);
 
 function setPilot(gs: GameState, player: number, pilotId: number, harId: number): void {
@@ -36,27 +38,33 @@ export function startTraining(gs: GameState): void {
   else gs.setupKeyboard(0, 0);
   gs.matchSettingsReset();
   gs.matchSettings.rounds = 0;
-  setPilot(gs, 0, t.pilot, t.har);
+  setPilot(gs, 0, t.pilot, allowedHar(t.har));
   // The dummy gets another pilot's colors, so a mirror match is still easy to tell apart.
-  setPilot(gs, 1, (t.pilot + 5) % 10, t.opponent);
+  setPilot(gs, 1, (t.pilot + 5) % 10, allowedHar(t.opponent));
   if (t.dummy === DummyMode.CPU) gs.setupAi(1);
   else gs.getPlayer(1).setCtrl(new DummyController(gs, t.dummy as DummyMode));
   gs.training = true;
-  gs.arena = t.arena;
-  gs.setNext(SceneId.ARENA0 + t.arena);
+  gs.arena = allowedArena(t.arena);
+  gs.setNext(SceneId.ARENA0 + gs.arena);
 }
 
 export function menuTrainingCreate(s: MainMenuScene): Menu {
   const t = settings().training;
+  // The remaster's robots only while they are on.
+  const robots = extraRobotsEnabled() ? HAR_NAMES : HAR_NAMES.slice(0, 11);
+  t.har = allowedHar(t.har);
+  t.opponent = allowedHar(t.opponent);
+  t.arena = allowedArena(t.arena);
+  const arenas = ARENA_NAMES.slice(0, arenaCount());
   const menu = new Menu();
   menu.attach(Label.title('TRAINING'));
   menu.attach(new Filler());
-  const sel = (title: string, help: string, key: keyof typeof t, options: string[]) =>
+  const sel = (title: string, help: string, key: 'har' | 'pilot' | 'opponent' | 'arena' | 'dummy', options: string[]) =>
     menu.attach(new TextSelector(title, help, () => t[key], (v) => (t[key] = v), options, settingsChanged));
-  sel('ROBOT', 'The robot you practice with.', 'har', HAR_NAMES);
+  sel('ROBOT', 'The robot you practice with.', 'har', robots);
   sel('PILOT', 'Your pilot. Pilots differ in power, agility and endurance.', 'pilot', PILOTS);
-  sel('OPPONENT', 'The robot of the training dummy.', 'opponent', HAR_NAMES);
-  sel('ARENA', 'Where to train. Hazards follow the GAMEPLAY setting.', 'arena', ARENA_NAMES);
+  sel('OPPONENT', 'The robot of the training dummy.', 'opponent', robots);
+  sel('ARENA', 'Where to train. Hazards follow the GAMEPLAY setting.', 'arena', arenas);
   sel('DUMMY', 'What the dummy does: stand, crouch, jump, block high or low attacks, or fight back like the computer. ' +
     'It can also be changed from the pause menu.', 'dummy', DUMMY_MODE_NAMES);
   menu.attach(new Button('START', 'Practice moves and combos: nobody gets knocked out and health refills after every combo.',

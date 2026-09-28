@@ -211,6 +211,7 @@ function rasterizeCmd(c: DrawCmd, dst: Surface, ax: number, ay: number): void {
 function renderArea(gs: GameState, ax: number, ay: number, aw: number, ah: number): Surface {
   const out = new Surface(aw, ah, undefined, -1);
   const savedCount = drawList.count;
+  const savedBars = drawList.barCount;
   const savedTag = drawList.currentTag;
   const savedOptions = drawList.framebufferOptions;
   try {
@@ -219,6 +220,7 @@ function renderArea(gs: GameState, ax: number, ay: number, aw: number, ah: numbe
   } finally {
     // Drop the capture's commands: the current frame's draw list is left exactly as it was.
     drawList.count = savedCount;
+    drawList.barCount = savedBars;
     drawList.currentTag = savedTag;
     drawList.framebufferOptions = savedOptions;
   }

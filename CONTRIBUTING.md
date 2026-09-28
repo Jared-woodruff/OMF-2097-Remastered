@@ -26,6 +26,10 @@ npm run build          # the web build
 Tests that need the game data skip themselves when `public/gamedata/` is missing, which is what CI does. Run the full
 suite locally before sending a change that touches game logic, rendering or menus.
 
+The remaster's own robots and arenas are generated from `src/gen` into `public/gen/` (committed). After changing their
+models, moves or scenes, run `npm run gen` (see [docs/BUILDING.md](docs/BUILDING.md)); a test fails when the robots'
+files are out of date.
+
 The dev server has a debug API for poking at the running game: `?fight=3&ai` starts a CPU fight in the Fire Pit,
 `?scene=MELEE` opens a scene directly, and `window.__omf` offers `step(ms)`, `key(code, down)`, `pointer(kind, x, y)`
 and `capture(name, w, h)` (writes a PNG to `.captures/`). See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#running).

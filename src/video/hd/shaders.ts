@@ -273,14 +273,93 @@ vec4 hqSample(vec2 uv, float scale, bool withMask) {
 }
 `;
 
-export const HD_SPRITE_FS = COMMON + SAMPLING + XBR + `
+/**
+ * Text: the original bitmap fonts as clean shapes, sharp at any size. Every ink pixel is a square whose outward
+ * corners are rounded, and ink pixels that touch diagonally are joined by a stroke (which also bevels the
+ * stair-step corners of curves), so letters keep their exact design without pixel steps or upscaling blur.
+ */
+const TEXT = `
+float g_ink[25];
+float inkK(int i, int j) {
+  return g_ink[(j + 2) * 5 + (i + 2)];
+}
+
+// Box of half size 0.5 with a radius per corner: r = (+x+y, +x-y, -x+y, -x-y), y pointing down.
+float sdCornerBox(vec2 p, vec4 r) {
+  vec2 rr = p.x > 0.0 ? r.xy : r.zw;
+  float rad = p.y > 0.0 ? rr.x : rr.y;
+  vec2 q = abs(p) - 0.5 + rad;
+  return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - rad;
+}
+
+float sdSegment(vec2 p, vec2 a, vec2 b) {
+  vec2 pa = p - a, ba = b - a;
+  float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+  return length(pa - ba * h);
+}
+
+// Radii of the outward corners of ink pixel (i, j): where both neighbors at a corner are empty.
+vec4 cornerRadii(int i, int j) {
+  const float R = 0.45;
+  return vec4(
+    inkK(i + 1, j) + inkK(i, j + 1) < 0.5 ? R : 0.0,
+    inkK(i + 1, j) + inkK(i, j - 1) < 0.5 ? R : 0.0,
+    inkK(i - 1, j) + inkK(i, j + 1) < 0.5 ? R : 0.0,
+    inkK(i - 1, j) + inkK(i, j - 1) < 0.5 ? R : 0.0);
+}
+
+// Signed distance (in font pixels) from atlas position p to the ink of the glyph.
+float glyphDistance(vec2 p) {
+  ivec2 e = ivec2(floor(p));
+  for (int j = 0; j < 5; j++) {
+    for (int i = 0; i < 5; i++) g_ink[j * 5 + i] = rawAt(e + ivec2(i - 2, j - 2)) == g_transparency ? 0.0 : 1.0;
+  }
+  const float W = 0.5;    // half width of diagonal strokes
+  float d = 1e3;
+  vec2 q = p - vec2(e) - 0.5;
+  if (inkK(0, 0) > 0.5) {
+    // Inside an ink pixel: the distance to its own exposed edges. The box reaches into ink neighbors, so the seams
+    // between pixels are no edges.
+    vec2 lo = vec2(-0.5) - vec2(inkK(-1, 0), inkK(0, -1));
+    vec2 hi = vec2(0.5) + vec2(inkK(1, 0), inkK(0, 1));
+    vec2 c = (lo + hi) * 0.5;
+    vec2 h = (hi - lo) * 0.5;
+    vec4 r = cornerRadii(0, 0);
+    vec2 rr = q.x > c.x ? r.xy : r.zw;
+    float rad = q.y > c.y ? rr.x : rr.y;
+    vec2 t = abs(q - c) - h + rad;
+    d = min(max(t.x, t.y), 0.0) + length(max(t, 0.0)) - rad;
+  } else {
+    // Outside the ink: the nearest pixel of it (two pixels around, for the halo; the outer ring without rounding).
+    for (int j = -2; j <= 2; j++) {
+      for (int i = -2; i <= 2; i++) {
+        if (inkK(i, j) < 0.5) continue;
+        bool near = abs(i) <= 1 && abs(j) <= 1;
+        d = min(d, sdCornerBox(q - vec2(i, j), near ? cornerRadii(i, j) : vec4(0.0)));
+      }
+    }
+  }
+  for (int j = -1; j <= 0; j++) {
+    for (int i = -1; i <= 0; i++) {
+      float a = inkK(i, j), b = inkK(i + 1, j), c = inkK(i, j + 1), f = inkK(i + 1, j + 1);
+      vec2 o = vec2(e + ivec2(i, j));
+      if (a > 0.5 && f > 0.5 && b + c < 1.5) d = min(d, sdSegment(p, o + 0.5, o + 1.5) - W);
+      if (b > 0.5 && c > 0.5 && a + f < 1.5) d = min(d, sdSegment(p, o + vec2(1.5, 0.5), o + vec2(0.5, 1.5)) - W);
+    }
+  }
+  return d;
+}
+`;
+
+export const HD_SPRITE_FS = COMMON + SAMPLING + XBR + TEXT + `
 in vec2 v_uv;
 flat in ivec4 v_p0;
 flat in ivec4 v_p1;
 uniform float u_remapA[19];
 uniform vec3 u_remapB[19];
 uniform int u_shadowPass;
-uniform int u_textStyle;   // font glyphs: 0 smooth (xBR), 1 crisp pixels
+uniform int u_textStyle;   // font glyphs: 0 clean HD shapes, 1 crisp pixels
+uniform int u_textPass;    // clean HD text: 1 draws the soft contrast halo that goes under a run of text
 out vec4 o_color;
 
 // Applies remap table 'row' n times as the fitted RGB transform: dst' = a*dst + b.
@@ -350,6 +429,30 @@ void main() {
     return;
   }
 
+  if ((g_options & 0x100) != 0 && u_textStyle == 0 && mode == 0) {
+    // Text: the original letters as clean shapes (see TEXT), anti-aliased over one screen pixel.
+    float px = max(max(fwidth(v_uv.x), fwidth(v_uv.y)), 1e-4);
+    float dist = glyphDistance(v_uv);
+    if (u_textPass == 1) {
+      // Halo: a soft shadow around the letters that keeps them readable on busy backgrounds (none for near-black
+      // text, which would only get muddier).
+      vec3 ink = pal(finalIndex(1));
+      float h = 0.5 * (1.0 - smoothstep(0.0, 1.6, max(dist, 0.0))) * op * smoothstep(0.08, 0.2, dot(ink, vec3(0.299, 0.587, 0.114)));
+      if (h <= 0.002) discard;
+      o_color = vec4(0.0, 0.0, 0.0, h);
+      return;
+    }
+    float m = clamp(0.5 - dist / px, 0.0, 1.0);
+    if (m <= 0.002) discard;
+    if (u_shadowPass == 2) {
+      o_color = vec4(m * op);
+      return;
+    }
+    vec3 ink = pal(finalIndex(1));
+    float a = m * op;
+    o_color = vec4(ink * a, a);
+    return;
+  }
   if ((g_options & 0x100) != 0 && u_textStyle == 1 && mode == 0) {
     // Text: the original pixel font kept crisp at any size, anti-aliased over one screen pixel.
     vec2 px = max(fwidth(v_uv), vec2(1e-4));

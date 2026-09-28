@@ -27,6 +27,11 @@ export enum SceneId {
   ARENA2,
   ARENA3,
   ARENA4,
+  // The remaster's arenas (generated, see src/gen/scene; opt-in: settings gameplay.extraArenas).
+  ARENA5,
+  ARENA6,
+  ARENA7,
+  ARENA8,
   TRN_CUTSCENE,
   SCOREBOARD,
   LOBBY,
@@ -48,11 +53,19 @@ export const SCENE_BK: Record<number, string> = {
   [SceneId.ARENA2]: 'ARENA2.BK',
   [SceneId.ARENA3]: 'ARENA3.BK',
   [SceneId.ARENA4]: 'ARENA4.BK',
+  [SceneId.ARENA5]: 'ARENA5.BK',
+  [SceneId.ARENA6]: 'ARENA6.BK',
+  [SceneId.ARENA7]: 'ARENA7.BK',
+  [SceneId.ARENA8]: 'ARENA8.BK',
   [SceneId.SCOREBOARD]: 'MAIN.BK',
 };
 
+/** The original game's arenas are 0..4; the remaster's 5..8. */
+export const ORIGINAL_ARENAS = 5;
+export const ARENA_COUNT = 9;
+
 export function isArenaScene(id: number): boolean {
-  return id >= SceneId.ARENA0 && id <= SceneId.ARENA4;
+  return id >= SceneId.ARENA0 && id <= SceneId.ARENA8;
 }
 
 export enum HarId {
@@ -67,9 +80,19 @@ export enum HarId {
   GARGOYLE,
   CHRONOS,
   NOVA,
+  // The remaster's robots (generated, see src/gen; opt-in: settings gameplay.extraRobots).
+  GLACIER,
+  TEMPEST,
+  HELIX,
+  SPECTRE,
 }
-export const NUMBER_OF_HAR_TYPES = 11;
-export const HAR_NAMES = ['JAGUAR', 'SHADOW', 'THORN', 'PYROS', 'ELECTRA', 'KATANA', 'SHREDDER', 'FLAIL', 'GARGOYLE', 'CHRONOS', 'NOVA'];
+export const NUMBER_OF_HAR_TYPES = 15;
+/** The original game's robots are 0..10. */
+export const ORIGINAL_HAR_TYPES = 11;
+export const HAR_NAMES = [
+  'JAGUAR', 'SHADOW', 'THORN', 'PYROS', 'ELECTRA', 'KATANA', 'SHREDDER', 'FLAIL', 'GARGOYLE', 'CHRONOS', 'NOVA',
+  'GLACIER', 'TEMPEST', 'HELIX', 'SPECTRE',
+];
 
 export enum PilotId {
   CRYSTAL = 0,

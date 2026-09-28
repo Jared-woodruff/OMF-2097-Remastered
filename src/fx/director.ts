@@ -9,8 +9,10 @@ import { settings } from '../game/settings';
 import { emptyFxFrame, ParticleKind, type FxFrame, type FxLight } from '../video/fx/types';
 import type { Surface } from '../video/surface';
 import { vga } from '../video/vga';
-import { arenaFx, flicker, FX_FLOOR, type ArenaFx } from './arenas';
+import { arenaFx, flicker, FX_FLOOR, type ArenaCtx, type ArenaFx } from './arenas';
 import { ParticleSystem } from './particles';
+import { RobotFx } from './robotFx';
+import { HarId } from '../game/constants';
 
 /** Seconds of effect time per game tick (noise animation). */
 const SECONDS_PER_TICK = 0.028;
@@ -71,6 +73,13 @@ export class FxDirector {
   private shake = 0;
   private zoom: { x: number; y: number; age: number } | null = null;
   private dispose: () => void;
+  /** The remaster robots' special move effects. */
+  private robots = new RobotFx();
+  private readonly ctx: ArenaCtx = {
+    ps: this.ps,
+    flash: (v) => (this.flash = Math.max(this.flash, v)),
+    light: (x, y, radius, r, g, b, life) => this.light(x, y, radius, r, g, b, life),
+  };
 
   constructor() {
     this.dispose = onFx((e) => {
@@ -112,7 +121,11 @@ export class FxDirector {
     for (const e of this.events) if (e.sceneId === gs.thisId) this.onEvent(e, cfg, gs);
     this.events.length = 0;
 
-    if (v.fxAtmosphere && dt > 0) cfg.ambient(this.ps, dt, this.t);
+    if (v.fxAtmosphere && dt > 0) {
+      cfg.ambient(this.ps, dt, this.t);
+      cfg.weather?.(this.ctx, dt, this.t);
+    }
+    if (v.fxParticles) this.robots.update(gs, this.ps, dt, this.ctx.light);
     if (!v.fxParticles && !v.fxAtmosphere) this.ps.clear();
     this.ps.step(dt);
     f.particleCount = this.ps.pack(f.particles);
@@ -182,6 +195,7 @@ export class FxDirector {
 
   private reset(): void {
     this.ps.clear();
+    this.robots.reset();
     this.events.length = 0;
     this.timed = [];
     this.shocks = [];
@@ -203,6 +217,8 @@ export class FxDirector {
       case FxType.PROJECTILE_HIT:
       case FxType.HAZARD_HIT:
         this.impact(e.x, e.y, e.dir, p, HOT, HOT_END, e.type !== FxType.HIT);
+        // GLACIER's blows knock ice off its fists.
+        if (e.type === FxType.HIT && e.playerId >= 0 && gs.getPlayer(1 - e.playerId).pilot?.harId === HarId.GLACIER) this.iceChips(e.x, e.y, e.dir, p);
         if (e.type === FxType.HAZARD_HIT && cfg.electricWalls) this.electric(e.x, e.y, p);
         break;
       case FxType.BLOCK:
@@ -227,8 +243,23 @@ export class FxDirector {
       const s = speed * rnd(0.35, 1.15);
       this.ps.spawn({
         kind: ParticleKind.SPARK, x: x + rnd(-2, 2), y: y + rnd(-2, 2), vx: Math.cos(a) * s, vy: Math.sin(a) * s - rnd(0.3, 1.8),
-        gravity: 0.2, drag: 0.91, life: rnd(9, 22), size0: rnd(1.05, 1.6), size1: 0.45, stretch: 1.9, c0, c1,
+        gravity: 0.2 * (this.cfg?.gravity ?? 1), drag: 0.91, life: rnd(9, 22) / Math.sqrt(this.cfg?.gravity ?? 1), size0: rnd(1.05, 1.6), size1: 0.45,
+        stretch: 1.9, c0, c1,
         floor: FX_FLOOR, bounce: 0.35,
+      });
+    }
+  }
+
+  private iceChips(x: number, y: number, dir: number, p: number): void {
+    if (!settings().video.fxParticles) return;
+    const base = dir < 0 ? Math.PI : 0;
+    for (let i = 0; i < 6 + p * 0.25; i++) {
+      const a = base + rnd(-1.1, 1.1);
+      const s = rnd(1.5, 3.8);
+      this.ps.spawn({
+        kind: ParticleKind.SHARD, x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - rnd(0.3, 1.2), gravity: 0.16 * (this.cfg?.gravity ?? 1),
+        drag: 0.94, life: rnd(12, 24), size0: rnd(0.8, 1.3), size1: 0.3, stretch: 1.3, c0: [0.75, 0.95, 1, 1], c1: [0.3, 0.7, 1, 0],
+        floor: FX_FLOOR, bounce: 0.3,
       });
     }
   }

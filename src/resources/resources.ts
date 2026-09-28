@@ -1,5 +1,6 @@
 // Runtime resources: fighters (AF), scenes (BK), language strings, fonts, sounds, pilots.
 import { parseAF, type AfFile } from '../formats/af';
+import { AnimationData } from '../formats/animation';
 import { parseBK, type BkFile } from '../formats/bk';
 import { parseAltPals, parseFont, parseLanguage, parsePic, parseSounds, type BitmapFont, type PicPhoto, type SoundEntry } from '../formats/misc';
 import type { Palette, RemapTables } from '../formats/palette';
@@ -8,6 +9,9 @@ import { ANIM_JUMPING, JUMP_COORD_ADJUSTMENT } from '../game/constants';
 import { Surface } from '../video/surface';
 import { Animation, createAnimation } from './animation';
 import { getFile } from './files';
+import { getGenerated } from './generated';
+import { decodeSprite } from '../formats/sprite';
+import { setExtendedBackground } from '../video/hd/extend';
 
 // ---------------------------------------------------------------------------
 // Fighters
@@ -49,13 +53,74 @@ export interface Af {
 
 const afCache = new Map<string, AfFile>();
 
+/** Effect moves every robot shares (sparks, scrap metal, bolt, screw, blasts), identical in all original files. */
+const SHARED_MOVES = [7, 8, 12, 13, 14, 55, 56, 57];
+
 function afFile(name: string): AfFile {
   let f = afCache.get(name);
   if (!f) {
-    f = parseAF(getFile(name));
+    const generated = getGenerated(name);
+    f = generated ? withSharedMoves(parseAF(generated)) : parseAF(getFile(name));
     afCache.set(name, f);
   }
   return f;
+}
+
+/**
+ * A generated robot's file gets the shared effect moves from the original robots' (the player's game data; they are
+ * not part of the generated files). Their sprites lose their sharing index so they cannot stand in for the robot's own.
+ */
+function withSharedMoves(af: AfFile): AfFile {
+  const src = afFile('FIGHTR0.AF');
+  for (const id of SHARED_MOVES) {
+    const m = src.moves[id];
+    if (!m || af.moves[id]) continue;
+    const animation = new AnimationData();
+    animation.startX = m.animation.startX;
+    animation.startY = m.animation.startY;
+    animation.animString = m.animation.animString;
+    animation.coords = m.animation.coords.map((c) => ({ ...c }));
+    animation.extraStrings = m.animation.extraStrings.slice();
+    animation.sprites = m.animation.sprites.map((sp) => {
+      const c = sp.clone();
+      c.index = 0;
+      c.missing = 0;
+      return c;
+    });
+    af.moves[id] = { ...m, animation, unknown: m.unknown.slice() };
+  }
+  return af;
+}
+
+/**
+ * A picture stored in a robot's fighter file as a one-sprite move (the generated robots keep their robot select cell
+ * and VS screen image there); a fresh surface each call.
+ */
+export function harPicture(harId: number, moveId: number): { surface: Surface; x: number; y: number } | null {
+  if (!hasFighter(harId)) return null;
+  const name = harFileName(harId);
+  const sp = afFile(name).moves[moveId]?.animation.sprites[0];
+  if (!sp || sp.isEmpty()) return null;
+  const surface = new Surface(sp.width, sp.height, sp.pixels().slice(), 0);
+  surface.source = { kind: 'sprite', key: `${name}/${moveId}/0` };
+  return { surface, x: sp.posX, y: sp.posY };
+}
+
+/** The parsed fighter file of a robot (shared: do not modify). */
+export function fighterFile(harId: number): AfFile {
+  return afFile(harFileName(harId));
+}
+
+/** Whether a robot's fighter file is available (the generated robots ship separately from the game data). */
+export function hasFighter(harId: number): boolean {
+  const name = harFileName(harId);
+  if (afCache.has(name) || getGenerated(name)) return true;
+  try {
+    getFile(name);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function harFileName(harId: number): string {
@@ -143,10 +208,57 @@ const bkCache = new Map<string, BkFile>();
 function bkFile(name: string): BkFile {
   let f = bkCache.get(name);
   if (!f) {
-    f = parseBK(getFile(name));
+    const generated = getGenerated(name);
+    f = generated ? withSharedArenaParts(parseBK(generated)) : parseBK(getFile(name));
     bkCache.set(name, f);
   }
   return f;
+}
+
+/** Scene animations every arena shares: ROUND, the round number, YOU LOSE, YOU WIN, FIGHT!, READY, dust, round token. */
+const SHARED_ARENA_ANIMS = [6, 7, 8, 9, 10, 11, 24, 25, 26, 27];
+
+/**
+ * A generated arena's file holds only its own content: the rest comes from the first original arena (the player's game
+ * data): the palette entries every arena shares, the remap rows of the robots' colors, the shared scene animations
+ * and the sound table.
+ */
+function withSharedArenaParts(bk: BkFile): BkFile {
+  const ref = bkFile('ARENA0.BK');
+  bk.palettes = bk.palettes.map((own) => {
+    const p = ref.palettes[0].clone();
+    p.copyRange(own, 0x60, 0x40);
+    return p;
+  });
+  bk.remaps.forEach((r) => r.tables.forEach((t, k) => t.set(ref.remaps[0].tables[k].subarray(0, 0x60), 0)));
+  for (const id of SHARED_ARENA_ANIMS) {
+    const a = ref.anims[id];
+    if (!a || bk.anims[id]) continue;
+    const animation = new AnimationData();
+    animation.startX = a.animation.startX;
+    animation.startY = a.animation.startY;
+    animation.animString = a.animation.animString;
+    animation.coords = a.animation.coords.map((c) => ({ ...c }));
+    animation.extraStrings = a.animation.extraStrings.slice();
+    animation.sprites = a.animation.sprites.map((sp) => {
+      const c = sp.clone();
+      c.index = 0;
+      c.missing = 0;
+      return c;
+    });
+    bk.anims[id] = { ...a, animation };
+  }
+  bk.soundTable = ref.soundTable.slice();
+  return bk;
+}
+
+/** The native widescreen background of a generated arena (576 x 200), or null. */
+function wideBackground(name: string): Surface | null {
+  const data = getGenerated(name.replace(/\.BK$/i, '.WID'));
+  if (!data) return null;
+  const w = data[0] | (data[1] << 8), h = data[2] | (data[3] << 8);
+  const surf = new Surface(w, h, decodeSprite(data.subarray(4), w, h), -1);
+  return surf;
 }
 
 export function loadBk(name: string): Bk {
@@ -168,6 +280,12 @@ export function loadBk(name: string): Bk {
   // Every load gets its own copies of the mutable parts (scenes edit palettes / pixels in place).
   const background = new Surface(src.width, src.height, src.background.slice(), -1);
   background.source = { kind: 'background', key: `${name}/bg` };
+  // Generated arenas bring a real widescreen background (instead of the mirrored sides of the others).
+  const wide = wideBackground(name);
+  if (wide) {
+    wide.source = { kind: 'background', key: `${name}/bg#ext` };
+    setExtendedBackground(background, wide);
+  }
   return {
     fileId: src.fileId,
     file: name,
@@ -198,7 +316,14 @@ export function loadLanguage(file = 'ENGLISH.DAT'): void {
     // Older files (e.g. GERMAN.DAT): insert placeholders so ids line up with the 1013-entry layout.
     for (const id of LANG_21_NEW_IDS) language.splice(id, 0, '');
   }
+  // The remaster's robots take the unused entries after the robot names (31 + HAR id).
+  GENERATED_HAR_NAMES.forEach((name, i) => {
+    if (!language[42 + i]) language[42 + i] = name;
+  });
 }
+
+/** Names of HARs 11.. (the generated robots), in the case of the originals' ("Jaguar"; the news report prints it). */
+const GENERATED_HAR_NAMES = ['Glacier', 'Tempest', 'Helix', 'Spectre'];
 
 export function langGet(id: number): string {
   return language[id] ?? '';

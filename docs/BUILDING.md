@@ -35,6 +35,21 @@ npm run hd:import -- path/to/pack     # or another pack folder
 The web and desktop builds include `public/hd/` when it exists; without it, the remastered mode upscales the
 original images procedurally.
 
+### Generated content: the new robots and arenas
+
+The new robots and arenas are generated from `src/gen` into `public/gen/` (committed, so a fresh checkout does not need
+this). After changing their definitions:
+
+```sh
+npm run gen                           # robots (FIGHTR11-14.AF) and arenas (ARENA5-8.BK/.WID); the arenas need public/gamedata
+SKIP_ARENAS=1 npm run gen             # only the robots (ROBOT=glacier for one); SKIP_ROBOTS=1 / ARENA=ORBITAL likewise
+```
+
+The arenas' HD backgrounds are rendered on the GPU in the browser: start `npm run dev`, open
+http://localhost:5173/?genarenahd (or `?genarenahd=ARENA6.BK` for one arena), wait for "done", then run
+`npm run gen:hd` (Python 3 with Pillow) to pack `.captures/ARENAn-HD.png` / `-WIDE.png` into `public/gen/*.webp`.
+The robots' HD artwork needs no files: the game renders it on the GPU while it runs.
+
 ## Web
 
 | Command | What it does |
@@ -43,6 +58,19 @@ original images procedurally.
 | `npm run build` | Typechecks (`tsc --noEmit`), then builds the static site into `dist/`. `npm run preview` serves it. |
 
 The build uses relative URLs (`base: './'`), so `dist/` works from any path.
+
+### Hosting the web version without the game data
+
+| Command | What it does |
+| --- | --- |
+| `npm run build:web` | `npm run build`, then removes `dist/gamedata/` and `dist/hd/` (`node tools/web-dist.mjs --with-hd` keeps the HD artwork). |
+
+A site built this way asks for the game on its first visit: players drop or pick the freeware `OMF21.EXE`, a zip
+that contains the game or its installer, or the folder of an installed copy. `src/platform/gameData.ts` unpacks it in
+the browser (the installer is a PKZIP self-extractor; deflate goes through `DecompressionStream`) and keeps the files
+in IndexedDB, so later visits start right away. Nothing is uploaded. A service worker (`public/sw.js`) caches the
+site for offline play, and `public/manifest.webmanifest` makes it installable. Serve it over HTTPS (or localhost):
+browsers only run service workers there.
 
 ## Desktop (Tauri 2, Windows)
 
@@ -66,11 +94,17 @@ The desktop app keeps its web storage (localStorage, IndexedDB) in `%LOCALAPPDAT
 The app version comes from `package.json`. Tauri settings are in `src-tauri/tauri.conf.json`, and window permissions are in
 `src-tauri/capabilities/default.json`. Game code reaches native window features through `src/platform/desktop.ts`.
 
-## App icon
+## App icon and installer artwork
 
-The icons are made from the original game's `OMF.ICO`, so run `npm run extract` first:
+The icon and the installer images are original vector artwork in `tools/brand/`: `icon.svg`, a simplified
+`icon-small.svg` for 16 to 40 pixels, and the installer's `sidebar.html` (welcome and finish pages) and `header.html`.
+To change them, edit those files and run:
 
 ```sh
-node tools/make-icon.mjs                        # writes src-tauri/icons/source.png (1024x1024) and public/favicon.png (64x64)
-npx tauri icon src-tauri/icons/source.png       # regenerates src-tauri/icons/*
+npm run icons    # Python 3 with Pillow, and Microsoft Edge or Google Chrome
 ```
+
+It renders everything at 1024 pixels (4x for the installer images) in a headless browser, scales it down with Lanczos
+filtering, and writes `src-tauri/icons/*` (through `npx tauri icon`, plus an `icon.ico` with a separately rendered
+image for every size from 16 to 256 pixels), `src-tauri/installer/sidebar.bmp` (164x314) and `header.bmp` (150x57),
+`public/favicon.png` and the web app icons. `src-tauri/tauri.conf.json` points the installer at these files.

@@ -35,7 +35,7 @@ void main() {
   vec2 center = a_p0.xy * u_scale + u_offset;
   float size = max(a_p1.x, 0.05) * unit;
   vec2 ax, ay;
-  if (kind == 0 || kind == 7) {
+  if (kind == 0 || kind == 7 || kind == 10) {
     // Streak along the motion; the head leads, the tail trails.
     vec2 v = a_p0.zw * u_scale;
     float sp = length(v);
@@ -76,7 +76,7 @@ out vec4 o_color;
 ` + NOISE + `
 void main() {
   int kind = int(v_p1.z + 0.5);
-  if (u_glow != 0 && kind >= 4 && kind <= 7) discard;
+  if (u_glow != 0 && ((kind >= 4 && kind <= 7) || kind == 9)) discard;
   float seed = v_p1.w;
   vec2 q = v_local;
   vec3 col = v_col.rgb;
@@ -122,6 +122,19 @@ void main() {
     float i = (core + star * 0.8 + halo) * step(d2, 1.0);
     vec3 c = mix(col, vec3(1.0), clamp(core, 0.0, 1.0));
     o_color = vec4(c * i * a * 1.4, 0.0);
+  } else if (kind == 9) {
+    // Bubble: a thin rim, brighter at the top, with a small highlight.
+    float d = sqrt(d2);
+    float rim = exp(-pow((d - 0.8) / 0.13, 2.0)) * (0.55 + 0.45 * clamp(-q.y, 0.0, 1.0));
+    float spot = exp(-dot(q - vec2(-0.32, -0.38), q - vec2(-0.32, -0.38)) * 40.0);
+    float al = a * clamp(rim * 0.9 + spot + 0.08 * step(d, 0.8), 0.0, 1.0);
+    o_color = vec4(mix(col, vec3(1.0), spot) * al, al * 0.8);
+  } else if (kind == 10) {
+    // Ice shard: a thin diamond along the motion with a white core.
+    float dia = 1.0 - (abs(q.x) + abs(q.y) * 2.6);
+    float i = clamp(dia, 0.0, 1.0);
+    vec3 c = mix(col, vec3(1.0), clamp(i * 1.4 - 0.2, 0.0, 1.0));
+    o_color = vec4(c * i * a * 1.6, 0.0);
   } else {
     // Wisp (blown sand): a faint streak.
     float i = (1.0 - q.y * q.y) * (1.0 - q.x * q.x);

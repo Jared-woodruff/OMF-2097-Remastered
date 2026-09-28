@@ -23,13 +23,17 @@
     "extract": "node tools/extract-gamedata.mjs",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:web": "npm run build && node tools/web-dist.mjs",
+    "icons": "python tools/make-icons.py",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
     "hd:export": "node tools/hd-pack/run.mjs",
-    "hd:import": "node tools/hd-pack/import.mjs"
+    "hd:import": "node tools/hd-pack/import.mjs",
+    "gen": "node tools/gen-content.mjs",
+    "gen:hd": "python tools/arena-hd.py"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.5",

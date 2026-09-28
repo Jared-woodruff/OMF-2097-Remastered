@@ -1,19 +1,22 @@
 // Melee: the pilot and HAR selection screen of one- and two-player games (port of the reference melee scene).
 //
 // Page 1 (PILOT_SELECT) shows the 5x2 pilot grid with bios and power/agility/endurance bars; page 2 (HAR_SELECT)
-// shows the HAR grid with animated previews. In one-player mode the CPU opponent of the first fight is chosen here
+// shows the HAR grid with animated previews. With the remaster's robots on, the HAR grid has a third row (HARs
+// 11-14 in columns 1-4, so DOWN on KATANA still stays there for the NOVA cheat) that the two visible rows scroll to. In one-player mode the CPU opponent of the first fight is chosen here
 // (from player 1's single-player wins); afterwards the newsroom picks the following ones. Confirming the HAR goes
 // to the VS scene.
 import type { CtrlEvent } from '../../controller/controller';
 import { onKey } from '../../controller/input';
 import type { Pilot } from '../../formats/pilot';
-import { bkGetInfo, langGet } from '../../resources/resources';
+import type { Animation } from '../../resources/animation';
+import { afGetMove, bkGetInfo, harPicture, langGet, loadAf } from '../../resources/resources';
+import { CELL_BACKGROUND, MOVE } from '../../gen/fighter/moveset';
 import { globalRandom } from '../../util/random';
 import { TAG_MENU, video } from '../../video/draw';
 import { Surface } from '../../video/surface';
 import { vga } from '../../video/vga';
 import {
-  ACT_DOWN, ACT_ESC, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_STOP, ACT_UP, CtrlType, HAR_NAMES, HarId,
+  ACT_DOWN, ACT_ESC, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_STOP, ACT_UP, ANIM_IDLE, CtrlType, HAR_NAMES, HarId,
   NUMBER_OF_HAR_TYPES, OBJECT_FACE_LEFT, PILOT_INFO, PilotId, PSM_FILES, SceneId,
 } from '../constants';
 import { registerScene, type GameState } from '../gameState';
@@ -24,6 +27,7 @@ import {
 import { menuBackground, MenuBackgroundStyle, playMenuSound } from '../gui/widgets';
 import { GameObject } from '../object';
 import { paletteLoadPlayerColors, PRIMARY, SECONDARY, setPilotColor, TERTIARY } from '../pilotColors';
+import { EXTRA_HAR_IDS, extraRobotsEnabled, randomHarPool } from '../roster';
 import { Scene } from '../scene';
 
 const MAX_STAT = 20;
@@ -155,6 +159,15 @@ export class MeleeScene extends Scene {
   pilotPortraits: Portrait[] = [];
   harPortraits: Portrait[] = [];
 
+  /** The remaster's robots are on: the HAR grid has a third row (row 2). */
+  extraRow = false;
+  /** First HAR grid row on screen (0: rows 0-1, 1: rows 1-2). */
+  viewTop = 0;
+  /** Unselected cells when scrolled: the original sheet's second row, and the new robots' row. */
+  private rowGray: Surface | null = null;
+  private extraGray: { back: Surface; cells: { surf: Surface; x: number }[] } | null = null;
+  private idleAnims = new Map<number, Animation>();
+
   har: [GameObject, GameObject];
 
   barStat: ProgressBar[][] = [[], []];
@@ -199,6 +212,7 @@ export class MeleeScene extends Scene {
 
     const player1 = gs.getPlayer(0);
     const player2 = gs.getPlayer(1);
+    this.extraRow = extraRobotsEnabled();
 
     this.networkGame = false;
     if (player1.ctrl && player2.ctrl) {
@@ -315,6 +329,35 @@ export class MeleeScene extends Scene {
     return 5 * this.cursor[player].row + this.cursor[player].column;
   }
 
+  /** The HAR under a player's cursor on the HAR page (row 2 holds the remaster's robots, from column 1). */
+  harIndex(player: number): number {
+    const c = this.cursor[player];
+    return c.row === 2 ? EXTRA_HAR_IDS[c.column - 1] : 5 * c.row + c.column;
+  }
+
+  /** The grid scrolls to show the row a cursor moved to. */
+  private follow(cur: CursorData): void {
+    if (cur.row === 2) this.viewTop = 1;
+    else if (cur.row === 0) this.viewTop = 0;
+  }
+
+  /** Screen row of a grid row on the current page, or -1 when scrolled out of view. */
+  private screenRow(row: number): number {
+    const r = this.page === HAR_SELECT ? row - this.viewTop : row;
+    return r >= 0 && r <= 1 ? r : -1;
+  }
+
+  /** The idle animation shown for a robot (the original robots' previews are in MELEE.BK). */
+  private previewAnim(harId: number): Animation {
+    if (harId < 10) return bkGetInfo(this.bk, 18 + harId)!.ani;
+    let ani = this.idleAnims.get(harId);
+    if (!ani) {
+      ani = afGetMove(loadAf(harId), ANIM_IDLE)!.ani;
+      this.idleAnims.set(harId, ani);
+    }
+    return ani;
+  }
+
   private cursorsMatch(): boolean {
     return this.cursor[0].column === this.cursor[1].column && this.cursor[0].row === this.cursor[1].row;
   }
@@ -379,14 +422,14 @@ export class MeleeScene extends Scene {
     if (this.page !== HAR_SELECT) return;
     const player2 = this.gs.getPlayer(1);
     const har = this.har[player];
-    const ani = bkGetInfo(this.bk, 18 + this.cursorIndex(player))!.ani;
+    const ani = this.previewAnim(this.harIndex(player));
     har.setAnimation(ani);
     har.selectSprite(0);
     har.setRepeat(true);
     if (player2.selectable) {
-      this.harTitle.set(`${harGetName(this.cursorIndex(0))} VS. ${harGetName(this.cursorIndex(1))}`);
+      this.harTitle.set(`${harGetName(this.harIndex(0))} VS. ${harGetName(this.harIndex(1))}`);
     } else {
-      this.harTitle.set(harGetName(this.cursorIndex(0)));
+      this.harTitle.set(harGetName(this.harIndex(0)));
     }
   }
 
@@ -441,7 +484,7 @@ export class MeleeScene extends Scene {
         break;
       case ACT_LEFT:
         cur.column--;
-        if (cur.column < 0) {
+        if (cur.column < (cur.row === 2 ? 1 : 0)) {
           cur.column = 4;
           if (this.page === PILOT_SELECT) this.cheatPilotStats[player] |= cur.row + 1;
         }
@@ -450,17 +493,20 @@ export class MeleeScene extends Scene {
       case ACT_RIGHT:
         cur.column++;
         if (cur.column > 4) {
-          cur.column = 0;
+          cur.column = cur.row === 2 ? 1 : 0;
           if (this.page === PILOT_SELECT) this.cheatPilotStats[player] |= cur.row + 1;
         }
         this.resetCursorBlinky(player);
         break;
       case ACT_UP:
-        if (cur.row === 1) cur.row = 0;
+        if (cur.row > 0) cur.row--;
+        this.follow(cur);
         this.resetCursorBlinky(player);
         break;
       case ACT_DOWN:
         if (cur.row === 0) cur.row = 1;
+        else if (cur.row === 1 && cur.column > 0 && this.page === HAR_SELECT && this.extraRow) cur.row = 2;
+        this.follow(cur);
         this.resetCursorBlinky(player);
         // nova selection cheat
         if (cur.row === 1 && cur.column === 0) {
@@ -539,11 +585,11 @@ export class MeleeScene extends Scene {
               novaActivated[i] = this.katanaDownCount[i] >= 11 && !this.cheatSelected[i].includes(0);
             }
             if (novaActivated[0] && this.cursorNovaSelect(0)) player1.pilot.harId = HarId.NOVA;
-            else player1.pilot.harId = this.cursorIndex(0);
+            else player1.pilot.harId = this.harIndex(0);
             player1.pilot.pilotId = this.pilotIdA;
             if (player2.selectable) {
               if (novaActivated[1] && this.cursorNovaSelect(1)) player2.pilot.harId = HarId.NOVA;
-              else player2.pilot.harId = this.cursorIndex(1);
+              else player2.pilot.harId = this.harIndex(1);
               player2.pilot.pilotId = this.pilotIdB;
             } else {
               if (player1.spWins === (2046 ^ (2 << player1.pilot.pilotId))) {
@@ -560,7 +606,9 @@ export class MeleeScene extends Scene {
                   const i = globalRandom.int(10);
                   if ((2 << i) & player1.spWins || i === player1.pilot.pilotId) continue;
                   player2.pilot.pilotId = i;
-                  player2.pilot.harId = globalRandom.int(10);
+                  // The original ten robots (the reference's int(10)), and the remaster's when they are on.
+                  const pool = randomHarPool();
+                  player2.pilot.harId = pool[globalRandom.int(pool.length)];
                   break;
                 }
               }
@@ -593,7 +641,7 @@ export class MeleeScene extends Scene {
       }
     }
 
-    this.cheatSelected[player][5 * cur.row + cur.column] = 1;
+    if (cur.row < 2) this.cheatSelected[player][5 * cur.row + cur.column] = 1;
   }
 
   /** True when the reference's random opponent loop can terminate. */
@@ -608,20 +656,33 @@ export class MeleeScene extends Scene {
     // which the original game handles surprisingly elegantly.
     if (a === HarId.NOVA) a = HarId.FLAIL;
     if (b === HarId.NOVA) b = HarId.FLAIL;
-    this.cursor[0].column = a % 5;
-    this.cursor[0].row = Math.trunc(a / 5);
-    this.cursor[0].done = false;
-    this.cursor[1].column = b % 5;
-    this.cursor[1].row = Math.trunc(b / 5);
-    this.cursor[1].done = false;
+    [a, b].forEach((id, i) => {
+      const c = this.cursor[i];
+      const extra = this.page === HAR_SELECT ? EXTRA_HAR_IDS.indexOf(id) : -1;
+      if (extra >= 0 && this.extraRow) {
+        c.row = 2;
+        c.column = extra + 1;
+      } else if (id >= 10) {
+        // A remaster robot while they are turned off: back to the first cell.
+        c.row = 0;
+        c.column = 0;
+      } else {
+        c.column = id % 5;
+        c.row = Math.trunc(id / 5);
+      }
+      c.done = false;
+    });
+    this.viewTop = this.cursor[0].row === 2 ? 1 : 0;
   }
 
   /** Mouse (not in the original game): player 1 points at a portrait to move the cursor there and clicks to pick it. */
   override pointer(x: number, y: number, kind: import('../../controller/mouse').PointerKind): boolean {
     const cur = this.cursor[0];
     if (cur.done) return false;
-    const column = Math.floor((x - 11) / 62), row = Math.floor((y - 115) / 42);
-    if (column < 0 || column > 4 || row < 0 || row > 1 || x - 11 - column * 62 > 52 || y - 115 - row * 42 > 38) return false;
+    const column = Math.floor((x - 11) / 62), screenRow = Math.floor((y - 115) / 42);
+    if (column < 0 || column > 4 || screenRow < 0 || screenRow > 1 || x - 11 - column * 62 > 52 || y - 115 - screenRow * 42 > 38) return false;
+    const row = screenRow + (this.page === HAR_SELECT ? this.viewTop : 0);
+    if (row === 2 && column === 0) return false;
     if (kind !== 'move' && kind !== 'click') return false;
     if (row !== cur.row || column !== cur.column) {
       // Step the cursor like the arrow keys would (sounds, stats and cheat bookkeeping included).
@@ -651,7 +712,7 @@ export class MeleeScene extends Scene {
     }
 
     const menuEv: CtrlEvent[] = [];
-    gs.menuPoll(menuEv);
+    gs.menuPoll(menuEv, { playerScene: true });
     for (const i of menuEv) {
       if (i.type === 'action' && i.action === ACT_ESC) {
         playMenuSound(20, 0);
@@ -669,8 +730,10 @@ export class MeleeScene extends Scene {
   }
 
   private drawHighlight(cursor: CursorData, offset: number): void {
+    const r = this.screenRow(cursor.row);
+    if (r < 0) return;
     const x = 11 + 62 * cursor.column;
-    const y = 115 + 42 * cursor.row;
+    const y = 115 + 42 * r;
     video.drawOffset(this.selectHilight, x, y, offset, 255);
   }
 
@@ -684,10 +747,12 @@ export class MeleeScene extends Scene {
   }
 
   private renderEnabledPortrait(portraits: Portrait[], cursor: CursorData, player: number): void {
-    const p = portraits[5 * cursor.row + cursor.column];
-    if (!p) return;
-    if (player < 0) video.draw(p.enabled, p.x, p.y);
-    else video.drawOffset(p.enabled, p.x, p.y, player * 48, (player + 1) * 48);
+    const r = this.screenRow(cursor.row);
+    const p = portraits[cursor.row === 2 ? EXTRA_HAR_IDS[cursor.column - 1] : 5 * cursor.row + cursor.column];
+    if (!p || r < 0) return;
+    const x = 11 + 62 * cursor.column, y = 115 + 42 * r;
+    if (player < 0) video.draw(p.enabled, x, y);
+    else video.drawOffset(p.enabled, x, y, player * 48, (player + 1) * 48);
   }
 
   private renderPilotSelect(player2IsSelectable: boolean): void {
@@ -733,7 +798,13 @@ export class MeleeScene extends Scene {
     this.player2Placeholder.render();
 
     // render the unselected HAR portraits before anything so we can render anything else on top of them
-    this.unselectedHarPortraits.render();
+    if (this.viewTop === 0 || !this.rowGray || !this.extraGray) {
+      this.unselectedHarPortraits.render();
+    } else {
+      video.draw(this.rowGray, 11, 115);
+      video.draw(this.extraGray.back, 11, 157);
+      for (const c of this.extraGray.cells) video.draw(c.surf, 11 + c.x, 157);
+    }
     this.renderHighlights(player2IsSelectable);
 
     // currently selected player
@@ -824,6 +895,35 @@ export class MeleeScene extends Scene {
     this.unselectedHarPortraits = new GameObject(this.gs, 0, 0);
     this.unselectedHarPortraits.setAnimation(harPortraits);
     this.unselectedHarPortraits.selectSprite(0);
+    if (this.extraRow) this.loadExtraPortraits(sheetSurface, gray);
+  }
+
+  /** The remaster robots' cells (from their fighter files) and the unselected rows shown when the grid scrolls. */
+  private loadExtraPortraits(sheet: Surface, gray: Surface): void {
+    this.rowGray = new Surface(sheet.w, 36, undefined, gray.transparent);
+    this.rowGray.blit(gray, 0, 0, 0, 42, sheet.w, 36);
+    this.rowGray.source = { kind: 'generated', key: 'melee/har-row2-gray' };
+    this.rowGray.hdSource = { surf: sheet, x: 0, y: 42, gray: true };
+    // The row's black cell backgrounds (the first cell, below KATANA, stays empty).
+    const back = new Surface(sheet.w, 36, undefined, 0);
+    for (let i = 0; i < 5; i++) back.fillRect(62 * i, 0, 51, 36, CELL_BACKGROUND);
+    back.source = { kind: 'generated', key: 'melee/har-row3-back' };
+    const cells: { surf: Surface; x: number }[] = [];
+    EXTRA_HAR_IDS.forEach((id, i) => {
+      const pic = harPicture(id, MOVE.PORTRAIT_CELL);
+      if (!pic) return;
+      const enabled = pic.surface;
+      enabled.transparent = CELL_BACKGROUND;
+      this.harPortraits[id] = { x: 11 + 62 * (i + 1), y: 157, disabledOffset: 0, enabled, disabled: null };
+      // Unselected: the cell in grey, which the remastered renderer draws from the colored cell's artwork in grey
+      // (like the original rows).
+      const g = new Surface(enabled.w, enabled.h, enabled.data.slice(), CELL_BACKGROUND);
+      g.convertHarToGrayscale(8);
+      g.source = { kind: 'generated', key: `melee/har-cell-gray/${id}` };
+      g.hdSource = { surf: enabled, x: 0, y: 0, gray: true };
+      cells.push({ surf: g, x: 62 * (i + 1) });
+    });
+    this.extraGray = { back, cells };
   }
 
   private loadHars(player2IsSelectable: boolean): void {

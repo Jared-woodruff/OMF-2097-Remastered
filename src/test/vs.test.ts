@@ -9,6 +9,7 @@ import { PLUG_WIN_BIG, playerPilot, type VsScene } from '../game/scenes/vs';
 import { langGet, loadBk, loadPic } from '../resources/resources';
 import { drawList } from '../video/draw';
 import { createGame, hasGameData, HeadlessRunner } from './harness';
+import { arenaCount, randomHarPool } from '../game/roster';
 
 const lang = (id: number) => langGet(id).replace(/\n$/, '');
 const held = new Set<string>();
@@ -61,11 +62,11 @@ describe.skipIf(!hasGameData)('vs (headless)', () => {
     for (let i = 0; i < 2; i++) {
       const p = gs.getPlayer(i).pilot;
       expect(p.pilotId).toBeLessThan(10);
-      expect(p.harId).toBeLessThan(11);
+      expect(randomHarPool(true)).toContain(p.harId);
       expect(gs.getPlayer(i).ctrl.type).toBe(CtrlType.AI);
     }
     expect(gs.arena).toBeGreaterThanOrEqual(0);
-    expect(gs.arena).toBeLessThan(5);
+    expect(gs.arena).toBeLessThan(arenaCount());
     expect(vs.arenaName).toBeNull(); // nobody chooses the arena
     expect(renderCount(gs)).toBeGreaterThan(10);
     const arena = SceneId.ARENA0 + gs.arena;

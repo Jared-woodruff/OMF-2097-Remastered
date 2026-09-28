@@ -10,3 +10,9 @@
 *.icns binary
 *.mp4 binary
 *.wav binary
+*.bmp binary
+
+# The remaster's generated robot and arena files (the original game's binary formats)
+*.AF binary
+*.BK binary
+*.WID binary

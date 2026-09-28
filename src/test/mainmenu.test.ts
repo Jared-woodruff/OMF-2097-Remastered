@@ -55,7 +55,7 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     const s = settings();
     Object.assign(s.video, {
       graphics: 'remastered', classicFilter: 'sharp', classicWidescreen: false, crossfade: true, screenShake: true,
-      fullscreen: false, bloom: true, motionSmoothing: true,
+      fullscreen: false, bloom: true, motionSmoothing: true, hdHud: true,
     });
     Object.assign(s.sound, { soundVol: 7, musicVol: 6, enhancedMusic: true });
     Object.assign(s.gameplay, { speed: 5, fightMode: 0, power1: 5, power2: 5, hazards: true, difficulty: 1, rounds: 1 });
@@ -292,7 +292,7 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     press('ArrowDown', 4);
     press('Enter');
     expect(selectedText()).toBe('LANGUAGE');
-    press('ArrowDown', 3);
+    press('ArrowDown', 4);
     press('Enter');
     expect(selectedText()).toBe('VISUALS REMASTERED');
     press('ArrowDown');
@@ -327,9 +327,13 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     press('Enter');
     expect(selectedText()).toBe('HD ARTWORK ON');
     press('ArrowDown', 2);
-    expect(selectedText()).toBe('FONT SMOOTH');
+    expect(selectedText()).toBe('FONT HD');
     press('Enter');
     expect(settings().video.hdFont).toBe('pixel');
+    press('ArrowDown');
+    expect(selectedText()).toBe('HUD MODERN');
+    press('Enter');
+    expect(settings().video.hdHud).toBe(false);
     press('ArrowDown', 2);
     expect(selectedText()).toBe('PARTICLES ON');
     press('Enter');
@@ -350,7 +354,7 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     const quality = vi.spyOn(audio, 'setQuality');
     press('ArrowDown', 4);
     press('Enter');
-    press('ArrowDown', 4);
+    press('ArrowDown', 5);
     press('Enter');
     expect(selectedText()).toBe('SOUND ' + '\x7f'.repeat(7) + '|'.repeat(3));
     press('ArrowLeft');

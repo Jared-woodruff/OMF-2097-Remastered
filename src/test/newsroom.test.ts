@@ -81,6 +81,20 @@ describe.skipIf(!hasGameData)('newsroom text generation', () => {
     expect(newsroomFormat('~3/~4', gargoyle)).toBe('Gargoyle/Shredder');
   });
 
+  it('names the arena fought in and the new robots (remaster)', () => {
+    const gs = createGame(SceneId.MENU);
+    expect(newsroomFormat(langGet(131), { ...CRYSTAL_VS_STEFFAN, arena: 4 }))
+      .toBe('Wow, this was a close one.  Crystal and Steffan traded blows in the Desert until...');
+    expect(newsroomFormat(langGet(97), { ...CRYSTAL_VS_STEFFAN, arena: 8 }))
+      .toBe(' The Abyss was rocked tonight by the impressive Crystal.  Steffan needs some more practice before he can beat the likes of her.');
+    expect(newsroomFormat(langGet(89), { ...CRYSTAL_VS_STEFFAN, arena: 5 })).toContain('at the Orbital Station.');
+    expect(newsroomFormat(langGet(87), { ...CRYSTAL_VS_STEFFAN, har1: HarId.HELIX }))
+      .toBe(' Crystal showed incredible abilities with the Helix as Steffan became little more than a punching bag.');
+    // The arena scene records where the fight is: single player moves on to the next arena before the report.
+    gs.swapScene(SceneId.ARENA6);
+    expect(gs.fightStats.arena).toBe(6);
+  });
+
   it('capitalizes the first letter and sentence starts after double spaces', () => {
     expect(newsroomFixupCapitalization('his robot.  her robot.  ok')).toBe('His robot.  Her robot.  Ok');
     expect(newsroomFixupCapitalization(' a.   b')).toBe(' a.   b');

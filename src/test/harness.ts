@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { provideFile } from '../resources/files';
+import { provideGenerated } from '../resources/generated';
 import { loadLanguage } from '../resources/resources';
 import { PILOT_INFO, SceneId } from '../game/constants';
 import { GameState } from '../game/gameState';
@@ -43,16 +44,20 @@ if (process.env.TEXT_AUDIT) {
 }
 
 export const GAMEDATA_DIR = path.resolve(__dirname, '../../public/gamedata');
+export const GENERATED_DIR = path.resolve(__dirname, '../../public/gen');
 export const hasGameData = fs.existsSync(path.join(GAMEDATA_DIR, 'FIGHTR0.AF'));
 
 let loaded = false;
 
-/** Loads every original data file into the in-memory file cache. */
+/** Loads every original data file into the in-memory file cache, and the remaster's generated files. */
 export function loadGameData(): void {
   if (loaded) return;
   for (const f of fs.readdirSync(GAMEDATA_DIR)) {
     if (f === 'manifest.json') continue;
     provideFile(f, new Uint8Array(fs.readFileSync(path.join(GAMEDATA_DIR, f))));
+  }
+  if (fs.existsSync(GENERATED_DIR)) {
+    for (const f of fs.readdirSync(GENERATED_DIR)) provideGenerated(f, new Uint8Array(fs.readFileSync(path.join(GENERATED_DIR, f))));
   }
   loadLanguage();
   loaded = true;

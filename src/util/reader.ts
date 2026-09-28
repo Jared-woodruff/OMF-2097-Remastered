@@ -200,6 +200,12 @@ export class BinaryWriter {
     for (let i = 0; i < Math.min(s.length, len - 1); i++) b[i] = s.charCodeAt(i) & 0xff;
     this.bytes(b);
   }
+  /** u16 length, the characters and a NUL terminator (the inverse of BinaryReader.terminatedStr). */
+  terminatedStr(s: string): void {
+    this.u16(s.length);
+    for (let i = 0; i < s.length; i++) this.u8(s.charCodeAt(i));
+    this.u8(0);
+  }
   paddedStr(s: string): void {
     if (s.length === 0) {
       this.u16(0);

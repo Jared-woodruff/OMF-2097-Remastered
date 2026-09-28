@@ -7,6 +7,7 @@ import type { VsScene } from '../game/scenes/vs';
 import { langGet, loadBk } from '../resources/resources';
 import { drawList } from '../video/draw';
 import { vga } from '../video/vga';
+import { arenaCount, randomHarPool } from '../game/roster';
 import { createGame, hasGameData, HeadlessRunner } from './harness';
 
 const lang = (id: number) => langGet(id).replace(/\n$/, '');
@@ -77,8 +78,8 @@ describe.skipIf(!hasGameData)('melee (headless)', () => {
     expect(p2.pilotId).not.toBe(PilotId.STEFFAN);
     expect(p2.pilotId).toBeGreaterThanOrEqual(0);
     expect(p2.pilotId).toBeLessThan(10);
-    expect(p2.harId).toBeGreaterThanOrEqual(0);
-    expect(p2.harId).toBeLessThan(10);
+    // One of the original ten robots, or the remaster's (on by default).
+    expect(randomHarPool()).toContain(p2.harId);
     expect(p2.name).toBe(lang(20 + p2.pilotId));
     expect(p2.color1).toBe(PILOT_INFO[p2.pilotId].color1);
 
@@ -141,7 +142,7 @@ describe.skipIf(!hasGameData)('melee (headless)', () => {
     expect(vs.arenaDesc!.str).toBe(lang(67));
     press(run, 'ArrowLeft');
     press(run, 'ArrowLeft');
-    expect(gs.arena).toBe(4); // wraps
+    expect(gs.arena).toBe(arenaCount() - 1); // wraps (to the last of the remaster's arenas when they are on)
     press(run, 'ArrowRight');
     expect(gs.arena).toBe(0);
     press(run, 'ArrowRight');

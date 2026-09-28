@@ -2,7 +2,7 @@
 import { audio } from '../audio/audio';
 import type { SoundOpts } from '../audio/soundOpts';
 import { Controller, type CtrlEvent } from '../controller/controller';
-import { KeyboardController, GamepadController, menuPoll } from '../controller/keyboard';
+import { KeyboardController, GamepadController, menuPoll, type MenuPollOptions } from '../controller/keyboard';
 import type { Palette } from '../formats/palette';
 import { Pilot } from '../formats/pilot';
 import { drawList, FBUFOPT_CREDITS, TAG_BACKGROUND, TAG_HAR, TAG_HUD, TAG_NONE, video, WIDE_MIRROR } from '../video/draw';
@@ -18,6 +18,7 @@ import {
 import type { GameObject } from './object';
 import type { Scene } from './scene';
 import { settings } from './settings';
+import { randomHarPool } from './roster';
 import { ChrScore } from './score';
 import type { ChrFile } from './tournament/chr';
 import { HarScreencaps } from './harScreencap';
@@ -55,6 +56,8 @@ export interface FightStats {
   averageDamage: [number, number];
   totalAttacks: [number, number];
   hitMissRatio: [number, number];
+  /** The arena fought in (single player moves on to the next one before the news report names it). */
+  arena: number;
 }
 
 // fight_stats.h: fight finishers and the Plug report texts (language id PLUG_TEXT_START + plug_text).
@@ -75,7 +78,7 @@ export const PLUG_SOLD_UPGRADE = 18;
 export function emptyFightStats(): FightStats {
   return {
     winner: 0, plugText: 0, sold: '', winnings: 0, bonuses: 0, repairCost: 0, profit: 0, hp: 0, maxHp: 0, finish: 0,
-    challenger: null, hitsLanded: [0, 0], averageDamage: [0, 0], totalAttacks: [0, 0], hitMissRatio: [0, 0],
+    challenger: null, hitsLanded: [0, 0], averageDamage: [0, 0], totalAttacks: [0, 0], hitMissRatio: [0, 0], arena: 0,
   };
 }
 
@@ -212,6 +215,15 @@ export class GameState {
   setupKeyboard(playerId: number, controlId: number): void {
     const k = settings().keys;
     const ctrl = new KeyboardController(this, controlId === 0 ? k.p1 : k.p2);
+    // A free gamepad plays along (player 1 the first, player 2 the second); pads chosen in the input menu are taken.
+    ctrl.padSlot = k.autoPads ? playerId : -1;
+    ctrl.reservedPads = () => {
+      const s = settings().keys;
+      const out: number[] = [];
+      if (s.ctrlType1 === CtrlType.GAMEPAD && s.gamepad1 >= 0) out.push(s.gamepad1);
+      if (s.ctrlType2 === CtrlType.GAMEPAD && s.gamepad2 >= 0) out.push(s.gamepad2);
+      return out;
+    };
     const p = this.players[playerId];
     p.setCtrl(ctrl);
     p.selectable = true;
@@ -239,7 +251,9 @@ export class GameState {
       p.setCtrl(createAiController(this, 4, p.pilot, p.pilot.pilotId));
       p.selectable = false;
       p.pilot.pilotId = globalRandomInt(10);
-      p.pilot.harId = globalRandomInt(11);
+      // Any robot (the reference's int(11)), the remaster's too when they are on.
+      const pool = randomHarPool(true);
+      p.pilot.harId = pool[globalRandomInt(pool.length)];
       p.score.reset(true);
       const info = PILOT_INFO[p.pilot.pilotId];
       p.pilot.power = info.power;
@@ -580,10 +594,10 @@ export class GameState {
     audio.stopMusic();
   }
 
-  menuPoll(ev: CtrlEvent[]): void {
+  menuPoll(ev: CtrlEvent[], opts?: MenuPollOptions): void {
     this.menuCtrl.last = this.menuCtrl.current;
     this.menuCtrl.current = 0;
-    menuPoll(this.menuCtrl, ev);
+    menuPoll(this.menuCtrl, ev, opts);
   }
 }
 

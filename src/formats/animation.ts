@@ -1,4 +1,4 @@
-import { BinaryReader } from '../util/reader';
+import { BinaryReader, BinaryWriter } from '../util/reader';
 import { Sprite } from './sprite';
 
 /** A hit coordinate belonging to one sprite frame of an attack animation. */
@@ -47,6 +47,24 @@ export class AnimationData {
     for (let i = 0; i < extraCount; i++) a.extraStrings.push(r.terminatedStr(EXTRA_STRING_MAX));
     for (let i = 0; i < spriteCount; i++) a.sprites.push(Sprite.load(r));
     return a;
+  }
+
+  /** Writes the record in the file layout load() reads. */
+  save(w: BinaryWriter): void {
+    w.i16(this.startX);
+    w.i16(this.startY);
+    w.u32(this.nullValue);
+    w.u16(this.coords.length);
+    w.u8(this.sprites.length);
+    for (const c of this.coords) {
+      const lo = (c.x & 0x3ff) | ((c.nullValue & 0x3f) << 10);
+      const hi = (c.y & 0x3ff) | ((c.frameId & 0x3f) << 10);
+      w.u32(((hi << 16) | lo) >>> 0);
+    }
+    w.terminatedStr(this.animString);
+    w.u8(this.extraStrings.length);
+    for (const e of this.extraStrings) w.terminatedStr(e);
+    for (const s of this.sprites) s.save(w);
   }
 }
 

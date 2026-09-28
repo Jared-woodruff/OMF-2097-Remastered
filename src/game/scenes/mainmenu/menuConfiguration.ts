@@ -1,4 +1,5 @@
 // Configuration menu (port of the reference mainmenu/menu_configuration.c).
+import { app } from '../../../app';
 import { Button, Filler, Label, Menu, TextSelector } from '../../gui/widgets';
 import { settings } from '../../settings';
 import type { MainMenuScene } from '../mainmenu';
@@ -18,6 +19,9 @@ export function menuConfigurationCreate(s: MainMenuScene): Menu {
     (b) => parentMenu(b).setSubmenu(menuInputCreate(s, 1))));
   menu.attach(new Button('PLAYER 2 INPUT', 'Choose the control for player 2: keyboard or joystick.', false, false,
     (b) => parentMenu(b).setSubmenu(menuInputCreate(s, 2))));
+  menu.attach(new Button('CONTROLS',
+    'See the keys and controller buttons of both players, and switch between the classic and a modern keyboard layout (WASD) or the controller button layouts.',
+    false, false, () => app.showControls()));
   menu.attach(new Button('VIDEO OPTIONS', 'Various options for visual effects and detail levels.', false, false,
     (b) => parentMenu(b).setSubmenu(menuVideoCreate(s))));
   menu.attach(new Button('AUDIO OPTIONS', 'Various options for audio effects and volume.', false, false,

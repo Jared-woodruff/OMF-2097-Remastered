@@ -1,15 +1,28 @@
-import { BlendMode, drawList, FLIP_HORIZONTAL, FLIP_VERTICAL, NATIVE_H, NATIVE_W, TAG_HAR, TAG_HUD, WIDE_AMBIENT, WIDE_MIRROR, type DrawCmd } from '../draw';
+import { BlendMode, drawList, FLIP_HORIZONTAL, FLIP_VERTICAL, NATIVE_H, NATIVE_W, TAG_HAR, TAG_HUD, WIDE_AMBIENT, WIDE_MIRROR, type DrawCmd, type HudBar } from '../draw';
 import type { FxFrame } from '../fx/types';
 import { FxPasses, type FxView } from './fxPasses';
 import { vga } from '../vga';
-import { fitRemaps, paletteHash, type RemapFit } from '../hd/analysis';
+import { fitRemapMatrix, fitRemaps, paletteHash, type RemapFit } from '../hd/analysis';
 import { EXT_MAX, extendedBackground } from '../hd/extend';
 import { HD_AMBIENT_FS, HD_BG_FS, HD_BGCACHE_FS, HD_BLUR_FS, HD_BRIGHT_FS, HD_DELTA_FS, HD_DOWN_FS, HD_GLOW_ADD_FS, HD_POST_FS, HD_SHADOWRATIO_FS, HD_SPRITE_FS, HD_SPRITE_VS, HD_UP_FS } from '../hd/shaders';
 import type { Surface } from '../surface';
 import { hdAssets, type HdImage } from '../hd/assets';
 import { HD_ASSET_FS, HD_ASSET_VS, HD_BGART_FS } from '../hd/artShaders';
+import { HUD_BAR_FS, HUD_BAR_VS } from '../hd/hudShaders';
 import { IndexAtlas, type AtlasRect } from './atlas';
 import { createTexture, FULLSCREEN_VS, Program, RenderTarget } from './glutil';
+
+/** Frosted panels: the blurred background through the panel's remap table, fitted as an affine color transform. */
+const FROST_FS = `#version 300 es
+precision highp float;
+in vec2 uv;
+uniform sampler2D u_src;
+uniform mat3 u_m;
+uniform vec3 u_o;
+out vec4 o_color;
+void main() {
+  o_color = vec4(clamp(u_m * texture(u_src, uv).rgb + u_o, 0.0, 1.0), 1.0);
+}`;
 import { DELTA_FS, PRESENT_FS, RESOLVE_FS, SPRITE_FS, SPRITE_VS } from './shaders';
 
 const MAX_QUADS = 4096;
@@ -44,6 +57,8 @@ export interface PresentOptions {
    * (then upscales smoothly) when the GPU cannot keep up; 'full' always renders at display resolution.
    */
   hdResolution: 'auto' | 'full';
+  /** Remastered: health, endurance and stat bars as vector graphics (else the original bars, upscaled). */
+  hdHud: boolean;
 }
 
 interface Viewport {
@@ -87,6 +102,16 @@ export class GLRenderer {
   private hdAmbientProg: Program;
   private hdAssetProg: Program;
   private hdBgArtProg: Program;
+  private hudBarProg: Program;
+  private hudColors = new Float32Array(7 * 3);
+  /** Frosted panels: quarter resolution blur targets, and the scissor of the 4:3 frame while it is active. */
+  private frostA: RenderTarget | null = null;
+  private frostB: RenderTarget | null = null;
+  private frameScissor: [number, number, number, number] | null = null;
+  private frostProg: Program;
+  /** Affine fits of remap tables for frosted panels (per table and repeat count), for the palette `frostFitHash`. */
+  private frostFits = new Map<number, Float32Array>();
+  private frostFitHash = -1;
   private hdVao: WebGLVertexArrayObject;
   private hdVbo: WebGLBuffer;
   private hdData = new ArrayBuffer(MAX_HD_QUADS * 4 * HD_VERTEX_BYTES);
@@ -142,7 +167,7 @@ export class GLRenderer {
   private remapData = new Uint8Array(256 * 19);
   private rects: (AtlasRect | null)[] = [];
   private usedIndices = new WeakMap<Surface, { version: number; list: Uint8Array }>();
-  options: PresentOptions = { mode: 'remastered', scaleMode: 'sharp', classicWidescreen: false, bloom: true, hdResolution: 'auto' };
+  options: PresentOptions = { mode: 'remastered', scaleMode: 'sharp', classicWidescreen: false, bloom: true, hdResolution: 'auto', hdHud: true };
   /** Dynamic resolution: maximum screen pixels per native pixel for the remastered renderer. */
   private hdMaxScale = Infinity;
   private timerExt: { TIME_ELAPSED_EXT: number; GPU_DISJOINT_EXT: number } | null = null;
@@ -176,6 +201,8 @@ export class GLRenderer {
     this.hdAmbientProg = new Program(gl, FULLSCREEN_VS, HD_AMBIENT_FS, 'hdAmbient');
     this.hdAssetProg = new Program(gl, HD_ASSET_VS, HD_ASSET_FS, 'hdAsset');
     this.hdBgArtProg = new Program(gl, HD_SPRITE_VS, HD_BGART_FS, 'hdBgArt');
+    this.hudBarProg = new Program(gl, HUD_BAR_VS, HUD_BAR_FS, 'hudBar');
+    this.frostProg = new Program(gl, FULLSCREEN_VS, FROST_FS, 'frost');
     this.atlas = new IndexAtlas(gl, 4096);
     this.fxPasses = new FxPasses(gl);
     this.paletteTex = createTexture(gl, 256, 1, { internalFormat: gl.RGBA8, format: gl.RGBA, type: gl.UNSIGNED_BYTE });
@@ -896,6 +923,7 @@ export class GLRenderer {
     p.f('u_diffT', this.tuning.spriteDiff);
     p.i('u_shadowPass', shadowPass);
     p.i('u_textStyle', this.textStyle);
+    p.i('u_textPass', 0);
     this.bindTex(0, this.atlas.tex, p, 'u_atlas');
     this.bindTex(1, this.remapTex, p, 'u_remaps');
     this.bindTex(2, this.paletteTex, p, 'u_palette');
@@ -1003,29 +1031,53 @@ export class GLRenderer {
    * Draws the frame's sprites in draw order, each either with its HD artwork or with the procedural upscaler.
    * `skip` excludes commands; `shadowPass` draws shadow coverage (see the shadow buffer) instead of colors.
    */
-  private drawSprites(vp: Viewport, count: number, shakeX: number, shakeY: number, skip: (c: DrawCmd) => boolean, shadowPass: number): void {
+  private drawSprites(vp: Viewport, count: number, shakeX: number, shakeY: number, skip: (c: DrawCmd) => boolean, shadowPass: number,
+    frost?: { target: RenderTarget; is: (c: DrawCmd) => boolean }): void {
     const gl = this.gl;
-    type Run = { hd: boolean; start: number; count: number; mode: number; page: WebGLTexture | null; pw: number; ph: number };
+    // bar: a progress bar drawn as vector graphics in place of its surfaces (index in drawList.bars), else -1.
+    // text: letters in the clean HD style, which get a soft halo under the whole run first.
+    // frost: a darkened panel (menus, dialogs, the newsroom) whose background is blurred first.
+    type Run = { hd: boolean; start: number; count: number; mode: number; page: WebGLTexture | null; pw: number; ph: number; bar: number; text: boolean;
+      frost?: DrawCmd };
     const runs: Run[] = [];
+    const vectorBars = this.options.hdHud;
+    const hdText = this.textStyle === 0 && !shadowPass;
     let nx = 0, nh = 0;
     for (let i = 0; i < count; i++) {
       const c = drawList.cmds[i];
       const r = this.rects[i];
+      if (frost?.is(c)) {
+        runs.push({ hd: false, start: 0, count: 0, mode: -1, page: null, pw: 0, ph: 0, bar: -1, text: false, frost: c });
+        continue;
+      }
       if (!r || skip(c)) continue;
+      if (c.bar !== -1 && vectorBars) {
+        if (c.bar >= 0 && !shadowPass) runs.push({ hd: false, start: 0, count: 0, mode: -1, page: null, pw: 0, ph: 0, bar: c.bar, text: false });
+        continue;
+      }
       const img = this.hdImages[i];
       const last = runs[runs.length - 1];
       // Shadows use the artwork's silhouette in the shadow pass; the fallback fitted-remap shadow stays procedural.
       if (img?.page && nh < MAX_HD_QUADS && (shadowPass || c.mode !== BlendMode.SHADOW)) {
         if (!this.writeHdQuad(nh, c, r, img)) continue;
         if (last && last.hd && last.page === img.page.tex && last.mode === c.mode) last.count++;
-        else runs.push({ hd: true, start: nh, count: 1, mode: c.mode, page: img.page.tex, pw: img.page.w, ph: img.page.h });
+        else runs.push({ hd: true, start: nh, count: 1, mode: c.mode, page: img.page.tex, pw: img.page.w, ph: img.page.h, bar: -1, text: false });
         nh++;
       } else if (nx < MAX_QUADS) {
         // Font glyphs get the text rendering of the HD sprite shader (flag 0x100).
-        const options = c.surf.source?.kind === 'font' ? c.options | 0x100 : c.options;
-        this.writeQuad(nx, c.fx, c.fy, c.w, c.h, r, c.flip, c.surf.transparent, c.remapOffset, c.remapRounds, c.palOffset, c.palLimit, c.opacity, options, c.mode);
-        if (last && !last.hd && last.mode === c.mode) last.count++;
-        else runs.push({ hd: false, start: nx, count: 1, mode: c.mode, page: null, pw: 0, ph: 0 });
+        const font = c.surf.source?.kind === 'font';
+        const options = font ? c.options | 0x100 : c.options;
+        // Clean HD letters are drawn with a margin of two pixels for their halo (the atlas border is transparent).
+        const text = hdText && font && c.mode === BlendMode.SET && c.w === r.w && c.h === r.h;
+        if (text) {
+          const m = 2;
+          this.writeQuad(nx, c.fx - m, c.fy - m, c.w + 2 * m, c.h + 2 * m, { x: r.x - m, y: r.y - m, w: r.w + 2 * m, h: r.h + 2 * m }, c.flip,
+            c.surf.transparent, c.remapOffset, c.remapRounds, c.palOffset, c.palLimit, c.opacity, options, c.mode);
+        } else {
+          this.writeQuad(nx, c.fx, c.fy, c.w, c.h, r, c.flip, c.surf.transparent, c.remapOffset, c.remapRounds, c.palOffset, c.palLimit, c.opacity, options, c.mode);
+        }
+        if (last && !last.hd && last.bar < 0 && last.mode === c.mode && last.text === text) last.count++;
+        else runs.push({ hd: false, start: nx, count: 1, mode: c.mode, page: null, pw: 0, ph: 0, bar: -1, text });
         nx++;
       }
     }
@@ -1038,6 +1090,16 @@ export class GLRenderer {
     }
     let current: 'hd' | 'xbr' | '' = '';
     for (const run of runs) {
+      if (run.frost && frost) {
+        this.frostPanel(frost.target, vp, shakeX, shakeY, run.frost);
+        current = '';
+        continue;
+      }
+      if (run.bar >= 0) {
+        this.drawHudBar(vp, shakeX, shakeY, drawList.bars[run.bar]);
+        current = '';
+        continue;
+      }
       if (run.hd) {
         if (current !== 'hd') {
           this.useHdAssetProg(vp, shakeX, shakeY, shadowPass);
@@ -1060,11 +1122,150 @@ export class GLRenderer {
       } else {
         this.setHdBlend(run.mode);
       }
+      if (run.text) {
+        // The halo of all these letters goes under all of them (it never darkens a letter's own shadow).
+        this.hdSpriteProg.i('u_textPass', 1);
+        gl.drawElements(gl.TRIANGLES, run.count * 6, gl.UNSIGNED_SHORT, run.start * 12);
+        this.hdSpriteProg.i('u_textPass', 0);
+      }
       gl.drawElements(gl.TRIANGLES, run.count * 6, gl.UNSIGNED_SHORT, run.start * 12);
     }
     gl.blendEquation(gl.FUNC_ADD);
     gl.disable(gl.BLEND);
     gl.bindVertexArray(null);
+  }
+
+  /** A progress bar as vector graphics (see hd/hudShaders.ts), in the colors of the live palette. */
+  private drawHudBar(vp: Viewport, shakeX: number, shakeY: number, b: HudBar): void {
+    const gl = this.gl;
+    const p = this.hudBarProg;
+    p.use();
+    p.f2('u_scale', vp.sx, vp.sy);
+    p.f2('u_offset', (vp.ext + shakeX) * vp.sx, shakeY * vp.sy);
+    p.f2('u_target', vp.w, vp.h);
+    p.f4('u_rect', b.x, b.y, b.w, b.h);
+    p.f('u_margin', 3);
+    p.f('u_value', b.value);
+    p.f('u_trail', Math.max(b.value, b.trail));
+    p.f('u_dir', b.dir);
+    p.f('u_trackAlpha', b.clearTrack ? 0 : 1);
+    p.f('u_flash', b.flash);
+    p.f('u_low', b.low);
+    const pal = vga.undarkened.colors;
+    for (let k = 0; k < 7; k++) {
+      // The highlight offset applies to the fill (like the original, which draws the fill block with it).
+      const i = (b.colors[k] + (k >= 4 ? b.palOffset : 0)) & 255;
+      for (let ch = 0; ch < 3; ch++) this.hudColors[k * 3 + ch] = pal[i * 3 + ch] / 255;
+    }
+    gl.uniform3fv(p.loc('u_col'), this.hudColors);
+    gl.enable(gl.BLEND);
+    gl.blendEquation(gl.FUNC_ADD);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.bindVertexArray(this.emptyVao);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  /**
+   * Frosted glass behind a darkened panel: what is drawn so far is blurred inside the panel's rectangle (the panel's
+   * own darkening is applied afterwards like any remap effect, and its contents are drawn sharp on top).
+   */
+  private frostPanel(target: RenderTarget, vp: Viewport, shakeX: number, shakeY: number, c: DrawCmd): void {
+    const gl = this.gl;
+    const w = Math.max(1, target.w >> 2), h = Math.max(1, target.h >> 2);
+    if (!this.frostA || this.frostA.w !== w || this.frostA.h !== h) {
+      this.frostA?.dispose();
+      this.frostB?.dispose();
+      const f = { internalFormat: gl.RGBA8, format: gl.RGBA, type: gl.UNSIGNED_BYTE, filter: gl.LINEAR };
+      this.frostA = new RenderTarget(gl, w, h, [f]);
+      this.frostB = new RenderTarget(gl, w, h, [f]);
+    }
+    const a = this.frostA, b = this.frostB!;
+    gl.disable(gl.SCISSOR_TEST);
+    gl.disable(gl.BLEND);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, target.fbo);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, a.fbo);
+    gl.blitFramebuffer(0, 0, target.w, target.h, 0, 0, w, h, gl.COLOR_BUFFER_BIT, gl.LINEAR);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+    gl.bindVertexArray(this.emptyVao);
+    const blur = this.hdBlurProg;
+    blur.use();
+    for (let pass = 0; pass < 3; pass++) {
+      b.bind();
+      this.bindTex(0, a.textures[0], blur, 'u_src');
+      blur.f2('u_dir', (1 + pass) / w, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      a.bind();
+      this.bindTex(0, b.textures[0], blur, 'u_src');
+      blur.f2('u_dir', 0, (1 + pass) / h);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+    // Back into the panel's rectangle (framebuffer rows go up, native rows down).
+    target.bind();
+    const x0 = Math.round((c.fx + vp.ext + shakeX) * vp.sx), x1 = Math.round((c.fx + c.w + vp.ext + shakeX) * vp.sx);
+    const y0 = Math.round((c.fy + shakeY) * vp.sy), y1 = Math.round((c.fy + c.h + shakeY) * vp.sy);
+    let sx0 = x0, sy0 = target.h - y1, sx1 = x1, sy1 = target.h - y0;
+    if (this.frameScissor) {
+      const [fx, fy, fw, fh] = this.frameScissor;
+      sx0 = Math.max(sx0, fx);
+      sy0 = Math.max(sy0, fy);
+      sx1 = Math.min(sx1, fx + fw);
+      sy1 = Math.min(sy1, fy + fh);
+    }
+    if (sx1 > sx0 && sy1 > sy0) {
+      gl.enable(gl.SCISSOR_TEST);
+      gl.scissor(sx0, sy0, sx1 - sx0, sy1 - sy0);
+      // The panel's own darkening, applied to the blurred background as a smooth color transform (the exact per-pixel
+      // remap would bring the sharp background back).
+      const fit = this.frostFit(c.remapOffset, c.remapRounds);
+      const p = this.frostProg;
+      p.use();
+      this.bindTex(0, a.textures[0], p, 'u_src');
+      // Column-major 3x3 from the row-major [M | o] rows.
+      gl.uniformMatrix3fv(p.loc('u_m'), false, [fit[0], fit[4], fit[8], fit[1], fit[5], fit[9], fit[2], fit[6], fit[10]]);
+      gl.uniform3f(p.loc('u_o'), fit[3], fit[7], fit[11]);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+    // Restore the scissor of the 4:3 frame (non-arena screens), if any.
+    if (this.frameScissor) {
+      gl.enable(gl.SCISSOR_TEST);
+      gl.scissor(...this.frameScissor);
+    } else {
+      gl.disable(gl.SCISSOR_TEST);
+    }
+  }
+
+  /** The remap table `row` applied `rounds` times, as one affine color transform (row-major [M | o]). */
+  private frostFit(row: number, rounds: number): Float32Array {
+    const h = paletteHash(vga.base) ^ vga.remapVersion;
+    if (h !== this.frostFitHash) {
+      this.frostFitHash = h;
+      this.frostFits.clear();
+    }
+    row = Math.max(0, Math.min(18, row));
+    rounds = Math.max(1, Math.min(16, rounds));
+    const key = row * 32 + rounds;
+    let fit = this.frostFits.get(key);
+    if (!fit) {
+      const one = fitRemapMatrix(vga.base, vga.remaps.tables[row]);
+      fit = one;
+      for (let k = 1; k < rounds; k++) {
+        // Compose: apply `one` after `fit`.
+        const next = new Float32Array(12);
+        for (let r = 0; r < 3; r++) {
+          for (let col = 0; col < 3; col++) {
+            let v = 0;
+            for (let t = 0; t < 3; t++) v += one[r * 4 + t] * fit[t * 4 + col];
+            next[r * 4 + col] = v;
+          }
+          let o = one[r * 4 + 3];
+          for (let t = 0; t < 3; t++) o += one[r * 4 + t] * fit[t * 4 + 3];
+          next[r * 4 + 3] = o;
+        }
+        fit = next;
+      }
+      this.frostFits.set(key, fit);
+    }
+    return fit;
   }
 
   private setHdBlend(mode: number): void {
@@ -1119,7 +1320,9 @@ export class GLRenderer {
     const isOverlay = (c: DrawCmd) => fx !== null && c.tag === TAG_HUD;
     // Glows (remap effects) are computed exactly at native resolution and added after the sprites.
     const deltaExt = drawList.wideStyle === WIDE_AMBIENT ? 0 : Math.round(vp.ext);
-    const haveDelta = this.renderRemapDelta(count, bgIndex, extRect, deltaExt, isOverlay);
+    // Darkened panels get a frosted background (menus, dialogs, help, the newsroom); they are darkened with it.
+    const isShade = (c: DrawCmd) => c.mode === BlendMode.REMAP && c.surf.source?.key === 'menushade';
+    const haveDelta = this.renderRemapDelta(count, bgIndex, extRect, deltaExt, (c) => isOverlay(c) || isShade(c));
 
     // HAR shadows go into a coverage buffer; the background pass applies the original remap tables exactly.
     const shadowTarget = this.shadowTarget!;
@@ -1135,10 +1338,13 @@ export class GLRenderer {
     const ambient = drawList.wideStyle === WIDE_AMBIENT && vp.ext > 0.5;
     const frameX = Math.round(vp.ext * vp.sx);
     const frameW = Math.min(vp.w - frameX, Math.round(NATIVE_W * vp.sx));
+    this.frameScissor = null;
     if (ambient) {
       gl.enable(gl.SCISSOR_TEST);
       gl.scissor(frameX, 0, frameW, vp.h);
+      this.frameScissor = [frameX, 0, frameW, vp.h];
     }
+
 
     // Background (cached reconstruction, exact shadows, widescreen sides darkened).
     if (haveBg) {
@@ -1169,7 +1375,9 @@ export class GLRenderer {
 
     // Sprites (shadows were applied with the background when there is one).
     this.drawSprites(vp, count, shakeX, shakeY,
-      (c) => isBg(c) || isOverlay(c) || (haveBg && c.mode === BlendMode.SHADOW) || (haveDelta && c.mode === BlendMode.REMAP), 0);
+      (c) => isBg(c) || isOverlay(c) || (haveBg && c.mode === BlendMode.SHADOW) || (haveDelta && c.mode === BlendMode.REMAP), 0,
+      { target, is: (c) => isShade(c) && !isOverlay(c) });
+    this.frameScissor = null;
     if (haveDelta) this.applyRemapDelta(target, vp, deltaExt, shakeX, shakeY);
     if (ambient) {
       gl.disable(gl.SCISSOR_TEST);
@@ -1253,9 +1461,11 @@ export class GLRenderer {
       }
       // Remap effects of the overlay (the menu shading) are applied exactly like the glows of the world: computed with
       // the original pipeline and added after the overlay's sprites (the delta is zero where later sprites cover them).
-      const overlayDelta = this.renderRemapDelta(count, bgIndex, extRect, deltaExt, (c) => !isOverlay(c) && c.mode === BlendMode.REMAP);
+      const overlayDelta = this.renderRemapDelta(count, bgIndex, extRect, deltaExt,
+        (c) => (!isOverlay(c) && c.mode === BlendMode.REMAP) || isShade(c));
       scene.bind();
-      this.drawSprites(vp, count, shakeX, shakeY, (c) => !isOverlay(c) || (overlayDelta && c.mode === BlendMode.REMAP), 0);
+      this.drawSprites(vp, count, shakeX, shakeY, (c) => !isOverlay(c) || (overlayDelta && c.mode === BlendMode.REMAP), 0,
+        { target: scene, is: (c) => isShade(c) && isOverlay(c) });
       if (overlayDelta) this.applyRemapDelta(scene, vp, deltaExt, shakeX, shakeY);
     }
 

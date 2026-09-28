@@ -13,6 +13,7 @@ import { registerScene, type FightStats, type GamePlayer, type GameState } from 
 import { Dialog, DialogResult, DialogStyle } from '../gui/dialog';
 import { FontSize, HAlign, Text, VAlign } from '../gui/text';
 import { menuBackground, MenuBackgroundStyle, menuShade } from '../gui/widgets';
+import { arenaNewsName } from '../roster';
 import { SCREENCAP_BLOW, SCREENCAP_H, SCREENCAP_POSE, SCREENCAP_W } from '../harScreencap';
 import { paletteLoadPlayerColors, setPilotColors } from '../pilotColors';
 import { Scene } from '../scene';
@@ -78,6 +79,8 @@ export interface NewsNames {
   har2: number;
   sex1: number;
   sex2: number;
+  /** The arena fought in (~5). The reference always says "Stadium"; the remaster names the real one. */
+  arena?: number;
 }
 
 /** Fills a news text template (reference newsroom_fixup_str without the translation choice). */
@@ -92,7 +95,7 @@ export function newsroomFormat(template: string, n: NewsNames): string {
   rep('~8', pronounStrip(subjectPronoun(n.sex1)));
   rep('~7', pronounStrip(objectPronoun(n.sex1)));
   rep('~6', pronounStrip(possessivePronoun(n.sex1)));
-  rep('~5', 'Stadium');
+  rep('~5', arenaNewsName(n.arena ?? 0));
   rep('~4', pronounStrip(langGet(n.har2 + LANG_STR_HAR)));
   rep('~3', pronounStrip(langGet(n.har1 + LANG_STR_HAR)));
   rep('~2', n.pilot2);
@@ -191,7 +194,7 @@ export class NewsroomScene extends Scene {
     this.newsId = newsroomPickNewsId(this.won, health);
 
     const opp = pilotOf(p2)!;
-    this.setNames(p1.pilot.name, opp.name, p1.pilot.harId, opp.harId, p1.pilot.sex, opp.sex);
+    this.setNames(p1.pilot.name, opp.name, p1.pilot.harId, opp.harId, p1.pilot.sex, opp.sex, gs.fightStats.arena);
     this.fixupStr();
 
     this.continueDialog = new Dialog(DialogStyle.YES_NO, langGet(LANG_STR_CONTINUE), 72, 60);
@@ -237,11 +240,11 @@ export class NewsroomScene extends Scene {
     }
   }
 
-  setNames(pilot1: string, pilot2: string, har1: number, har2: number, sex1: number, sex2: number): void {
+  setNames(pilot1: string, pilot2: string, har1: number, har2: number, sex1: number, sex2: number, arena = 0): void {
     this.names = {
       pilot1: pilot1.replace(/\s+$/, ''),
       pilot2: pilot2.replace(/\s+$/, ''),
-      har1, har2, sex1, sex2,
+      har1, har2, sex1, sex2, arena,
     };
   }
 

@@ -117,6 +117,8 @@ export class Scene {
   keyEvent(_code: string, _e: KeyboardEvent): boolean {
     return false;
   }
+  /** The game window lost focus or was hidden (fights pause). */
+  focusLost(): void {}
 
   // ---- driver entry points (not usually overridden) ------------------------------------
   doStaticTick(paused: boolean): void {

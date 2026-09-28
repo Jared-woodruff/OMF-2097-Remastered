@@ -3,13 +3,19 @@ import { audio } from './audio/audio';
 import { initInput, setKeyState } from './controller/input';
 import { startViewer } from './debug/viewer';
 import { Engine } from './engine';
-import { PILOT_INFO, SceneId } from './game/constants';
+import { ANIM_IDLE, ARENA_COUNT, PILOT_INFO, SceneId } from './game/constants';
 import { GameState, hasScene } from './game/gameState';
 import { setPilotColors } from './game/pilotColors';
 import { loadSettings, saveSettings, settings } from './game/settings';
 import './game/scenes/index';
 import { registerPlaceholders } from './game/scenes/placeholder';
 import { getFile, preloadAll } from './resources/files';
+import { loadGenerated } from './resources/generated';
+import { GeneratedArtwork } from './gen/hdArtwork';
+import { MOVE } from './gen/fighter/moveset';
+import { EXTRA_HAR_IDS, extraRobotsEnabled } from './game/roster';
+import { loadStoredGameFiles, provideGameFiles } from './platform/gameData';
+import { showImportScreen } from './platform/importScreen';
 import { langGet, loadLanguage, soundBank } from './resources/resources';
 import { GLRenderer } from './video/gl/renderer';
 import { drawList } from './video/draw';
@@ -23,6 +29,10 @@ import { globalRandom } from './util/random';
 import { HelpOverlay } from './game/gui/helpOverlay';
 import { drainPointer, initMouse, pushPointer } from './controller/mouse';
 import { renderedFrames } from './game/gui/widgets';
+import { startTraining } from './game/scenes/mainmenu/menuTraining';
+import { applyPadSettings } from './game/controls';
+import { addTracks, audioFiles } from './audio/customMusic';
+import { toast } from './platform/toast';
 import { ACT_ESC, ACT_PUNCH } from './game/constants';
 
 const boot = document.getElementById('boot')!;
@@ -48,7 +58,7 @@ function resize(): void {
 
 /** Sets up a quick fight from URL parameters: ?fight=0&p1=0&p2=1&h1=0&h2=5 */
 function setupQuickFight(gs: GameState, params: URLSearchParams): SceneId {
-  const arena = Math.max(0, Math.min(4, parseInt(params.get('fight') ?? '0', 10) || 0));
+  const arena = Math.max(0, Math.min(ARENA_COUNT - 1, parseInt(params.get('fight') ?? '0', 10) || 0));
   for (let i = 0; i < 2; i++) {
     const p = gs.getPlayer(i);
     const pilotId = parseInt(params.get(`p${i + 1}`) ?? String(i), 10) || 0;
@@ -69,9 +79,18 @@ async function main(): Promise<void> {
   resize();
   window.addEventListener('resize', resize);
   autoHideCursor();
-  await preloadAll((loaded, total) => {
+  // The original game data: from the server (npm run extract, the desktop app), else imported earlier in this
+  // browser, else the player provides it now (web version).
+  const fromServer = await preloadAll((loaded, total) => {
     boot.textContent = `Loading game data… ${Math.round((loaded / total) * 100)}%`;
   });
+  if (!fromServer && !(await loadStoredGameFiles())) {
+    boot.textContent = '';
+    provideGameFiles(await showImportScreen());
+    boot.textContent = 'Loading…';
+  }
+  // The remaster's own content (the new robots), shipped with the app.
+  await loadGenerated();
   loadSettings();
   try {
     loadLanguage(settings().language);
@@ -85,9 +104,17 @@ async function main(): Promise<void> {
   // Integrated / mobile GPUs load the artwork at half resolution (a quarter of the memory).
   if (renderer.isLowEndGpu) hdAssets.textureScale = 0.5;
   hdAssets.enabled = settings().video.hdArtwork;
+  // The remaster's robots get their HD artwork rendered on the GPU (between frames, as scenes need it).
+  const genArt = new GeneratedArtwork(renderer.gl, hdAssets);
   const params = new URLSearchParams(location.search);
   if (params.has('viewer')) {
     startViewer(renderer);
+    return;
+  }
+  // Development: render the generated arenas' HD backgrounds (see gen/dev/arenaHd.ts).
+  if (import.meta.env.DEV && params.has('genarenahd')) {
+    const { renderArenaHd } = await import('./gen/dev/arenaHd');
+    await renderArenaHd(renderer.gl, (s) => (boot.textContent = s), params.get('genarenahd') || undefined);
     return;
   }
   if (!params.has('noaudio')) await audio.init(soundBank(), (name) => getFile(name));
@@ -112,6 +139,11 @@ async function main(): Promise<void> {
     gs.arena = startScene - SceneId.ARENA0;
     if (params.has('ai')) gs.setupAi(1);
   }
+  // ?training: straight into training mode with the last used setup.
+  if (params.has('training')) {
+    startScene = SceneId.MENU;
+    startTraining(gs);
+  }
   if (startScene !== SceneId.MENU) gs.swapScene(startScene);
   // On scene changes: evict stale surfaces from the atlas, and start loading the HD artwork the scene needs (the VS
   // screen also loads both robots and the fight graphics, so fights start with their artwork ready).
@@ -123,10 +155,21 @@ async function main(): Promise<void> {
     if (gs.thisId === SceneId.VS) for (let a = 0; a < 5; a++) names.push(`scene-ARENA${a}`);
     return names;
   };
+  // The generated robots' artwork: all of the fighting robots, the select screen's cells and idle animations.
+  const wantGenerated = () => {
+    const fight = gs.sc.isArena() || gs.thisId === SceneId.VS;
+    if (fight) genArt.want([0, 1].map((i) => gs.getPlayer(i).pilot?.harId ?? -1));
+    if (gs.sc.isArena() && gs.sc.bk) genArt.wantArena(gs.sc.bk);
+    else if (gs.thisId === SceneId.MELEE && extraRobotsEnabled()) genArt.want(EXTRA_HAR_IDS, [MOVE.PORTRAIT_CELL, ANIM_IDLE]);
+  };
   gs.onSceneChange = () => {
     renderer.resetAtlas();
     hdAssets.preload(artworkFor());
+    wantGenerated();
+    audio.setRoom(gs.sc.isArena() ? gs.thisId - SceneId.ARENA0 : -1);
   };
+  audio.setRoom(gs.sc.isArena() ? gs.thisId - SceneId.ARENA0 : -1);
+  wantGenerated();
   // The first screen waits (briefly) for its artwork so it does not pop in.
   boot.textContent = 'Loading artwork…';
   await hdAssets.whenReady(artworkFor(), 4000);
@@ -141,7 +184,7 @@ async function main(): Promise<void> {
   const dispatchPointer = () => {
     for (const e of drainPointer()) {
       if (help.isOpen()) {
-        help.pointer(e.kind);
+        help.pointer(e.kind, e.x, e.y);
         continue;
       }
       let used = false;
@@ -161,8 +204,30 @@ async function main(): Promise<void> {
       help.render();
       fxDirector.update(gs, engine.ticks + engine.alpha, renderer.options.mode === 'remastered');
       renderer.fx = fxDirector.frame;
+      if (renderer.options.mode === 'remastered' && hdAssets.enabled) genArt.pump(4);
       renderer.render();
     },
+  });
+  // Impact bass: a low thump under heavy hits, slams and knockouts (the original sounds stay as they are).
+  onFx((e) => {
+    const p = Math.max(0, Math.min(60, e.power));
+    const pan = ((e.x - 160) / 160) * 40;
+    switch (e.type) {
+      case FxType.HIT:
+      case FxType.PROJECTILE_HIT:
+      case FxType.HAZARD_HIT:
+        if (p >= 6) audio.thump((p - 4) / 36, 0.1 + p / 120, pan);
+        break;
+      case FxType.KO:
+        audio.thump(1, 1, pan);
+        break;
+      case FxType.WALL_SLAM:
+        audio.thump(0.85, 0.75, pan);
+        break;
+      case FxType.LANDING:
+        if (p >= 15) audio.thump((p - 10) / 40, 0.4, pan);
+        break;
+    }
   });
   // Gamepad rumble on impacts (the player hit feels it most, the attacker a little).
   onFx((e) => {
@@ -202,9 +267,14 @@ async function main(): Promise<void> {
     renderer.options.bloom = v.bloom;
     renderer.options.hdResolution = v.hdResolution;
     renderer.textStyle = v.hdFont === 'pixel' ? 1 : 0;
+    renderer.options.hdHud = v.hdHud;
     hdAssets.enabled = v.hdArtwork;
     engine.interpolate = v.motionSmoothing && v.graphics === 'remastered';
     audio.setQuality(settings().sound.enhancedMusic ? 'enhanced' : 'classic');
+    applyPadSettings();
+    audio.setAcoustics(settings().sound.acoustics);
+    audio.setMyMusicMode(settings().sound.myMusic);
+    audio.setImpactBass(settings().sound.impactBass);
   };
   applySettings();
   app.setGraphicsMode = (mode) => {
@@ -235,6 +305,7 @@ async function main(): Promise<void> {
     else gs.setNext(SceneId.MENU);
   };
   gs.onQuit = () => app.quit();
+  app.showControls = () => help.open('controls');
   // Global hotkeys: F2 swaps classic/remastered graphics, F11 / Alt+Enter toggle fullscreen.
   onKey((code, e) => {
     if (code === 'F1' && !help.isOpen()) {
@@ -249,6 +320,10 @@ async function main(): Promise<void> {
       if (!e.repeat) app.setGraphicsMode(settings().video.graphics === 'classic' ? 'remastered' : 'classic');
       return;
     }
+    if (code === 'F3') {
+      if (!e.repeat) audio.nextSong();
+      return;
+    }
     if (code === 'F11' || ((code === 'Enter' || code === 'NumpadEnter') && e.altKey)) {
       if (!e.repeat) app.toggleFullscreen();
       return;
@@ -256,6 +331,29 @@ async function main(): Promise<void> {
     // Raw key events for scenes that want them (text entry, key capture, help pages).
     gs.sc.keyEvent(code, e);
   });
+
+  // The player's own music: songs dropped onto the window go to the library; a notice names each song as it starts.
+  audio.onSong = (name) => toast(`\u266A  ${name}`);
+  window.addEventListener('dragover', (e) => {
+    if (e.dataTransfer?.types.includes('Files')) e.preventDefault();
+  });
+  window.addEventListener('drop', (e) => {
+    const files = Array.from(e.dataTransfer?.files ?? []);
+    if (audioFiles(files).length === 0) return;
+    e.preventDefault();
+    void addTracks(files).then(async (n) => {
+      await audio.reloadMyMusic();
+      toast(`${n} song${n === 1 ? '' : 's'} added to your music (${audio.myMusicCount} in total). AUDIO > MY MUSIC chooses where they play.`, 5000);
+    }).catch(() => toast('The songs could not be saved in this browser.'));
+  });
+
+  // Switching to another window or tab pauses a fight (?nopause keeps it running, e.g. for recordings).
+  if (!params.has('nopause')) {
+    window.addEventListener('blur', () => gs.sc.focusLost());
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) gs.sc.focusLost();
+    });
+  }
 
   boot.style.display = 'none';
   engine.start();
@@ -271,6 +369,7 @@ async function main(): Promise<void> {
     fx: fxDirector,
     audio,
     hdAssets,
+    genArt,
     /** Advances the simulation by `ms` of game time (in small chunks, so long steps are not capped). */
     step(ms: number) {
       for (let t = 0; t < ms; t += 20) engine.advance(Math.min(20, ms - t));
@@ -313,6 +412,11 @@ async function main(): Promise<void> {
       return res.json();
     },
   };
+}
+
+// Web version: work offline and be installable (not in the desktop app or the dev server).
+if (import.meta.env.PROD && !isDesktop && 'serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => void navigator.serviceWorker.register('./sw.js').catch(() => undefined));
 }
 
 main().catch((err) => {

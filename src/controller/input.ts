@@ -69,7 +69,28 @@ export function setKeyState(code: string, pressed: boolean): void {
 }
 
 // ---------------------------------------------------------------------------
-// Gamepads
+// Gamepads (the browser's "standard" mapping, which is the Xbox controller's layout)
+
+/** Standard mapping button indices. */
+export const PadButton = {
+  A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, VIEW: 8, MENU: 9, LS: 10, RS: 11, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15,
+} as const;
+
+/**
+ * Which buttons punch and kick: 'modern' like today's fighting games (X, Y and RB punch; A, B and RT kick: punches on
+ * the top row, kicks on the bottom row), 'classic' like the original two-button joysticks (A and X punch; B and Y
+ * kick).
+ */
+export type PadLayout = 'modern' | 'classic';
+let padLayout: PadLayout = 'modern';
+
+export function setPadLayout(layout: PadLayout): void {
+  padLayout = layout;
+}
+
+export function getPadLayout(): PadLayout {
+  return padLayout;
+}
 
 export interface PadState {
   up: boolean;
@@ -78,29 +99,48 @@ export interface PadState {
   right: boolean;
   punch: boolean;
   kick: boolean;
+  /** Face buttons and the two middle buttons, for menus (A confirms, B goes back, Menu pauses). */
+  a: boolean;
+  b: boolean;
+  x: boolean;
+  y: boolean;
   start: boolean;
   back: boolean;
 }
 
-const DEADZONE = 0.45;
+/** Stick deflection below which it counts as centered. */
+const DEADZONE = 0.4;
 
-export function readPad(index: number): PadState | null {
+export function readPad(index: number, layout: PadLayout = padLayout): PadState | null {
   const pads = navigator.getGamepads?.() ?? [];
   const p = pads[index];
   if (!p || !p.connected) return null;
   const b = (i: number) => !!p.buttons[i]?.pressed;
   const ax = p.axes[0] ?? 0;
   const ay = p.axes[1] ?? 0;
+  // The left stick in eight 45 degree sectors, so diagonals are as easy to hit as straight directions.
+  let su = false, sd = false, sl = false, sr = false;
+  if (Math.hypot(ax, ay) > DEADZONE) {
+    const sector = Math.round(Math.atan2(ay, ax) / (Math.PI / 4));
+    sr = sector === 0 || sector === 1 || sector === -1;
+    sl = sector === 4 || sector === -4 || sector === 3 || sector === -3;
+    sd = sector >= 1 && sector <= 3;
+    su = sector <= -1 && sector >= -3;
+  }
+  const modern = layout === 'modern';
   return {
-    up: b(12) || ay < -DEADZONE,
-    down: b(13) || ay > DEADZONE,
-    left: b(14) || ax < -DEADZONE,
-    right: b(15) || ax > DEADZONE,
-    // Standard mapping: A/X (face bottom/left) punch, B/Y (face right/top) kick; shoulders too.
-    punch: b(0) || b(2) || b(4),
-    kick: b(1) || b(3) || b(5),
-    start: b(9),
-    back: b(8),
+    up: b(PadButton.UP) || su,
+    down: b(PadButton.DOWN) || sd,
+    left: b(PadButton.LEFT) || sl,
+    right: b(PadButton.RIGHT) || sr,
+    punch: modern ? b(PadButton.X) || b(PadButton.Y) || b(PadButton.RB) : b(PadButton.A) || b(PadButton.X) || b(PadButton.LB),
+    kick: modern ? b(PadButton.A) || b(PadButton.B) || b(PadButton.RT) : b(PadButton.B) || b(PadButton.Y) || b(PadButton.RB),
+    a: b(PadButton.A),
+    b: b(PadButton.B),
+    x: b(PadButton.X),
+    y: b(PadButton.Y),
+    start: b(PadButton.MENU),
+    back: b(PadButton.VIEW),
   };
 }
 
@@ -109,6 +149,12 @@ export function connectedPads(): number[] {
   const out: number[] = [];
   for (const p of pads) if (p && p.connected) out.push(p.index);
   return out;
+}
+
+/** Name of a connected pad (without the driver details browsers append), or ''. */
+export function padName(index: number): string {
+  const id = navigator.getGamepads?.()[index]?.id ?? '';
+  return id.replace(/\s*\(.*$/, '').trim();
 }
 
 export function rumble(index: number, magnitude: number, durationMs: number): void {

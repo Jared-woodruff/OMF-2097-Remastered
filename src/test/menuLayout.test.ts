@@ -2,7 +2,9 @@
 // box (the text engine silently drops lines that do not fit).
 import { describe, expect, it } from 'vitest';
 import { SceneId } from '../game/constants';
-import { ArenaPauseMenu, type PauseHost } from '../game/gui/pauseMenu';
+import { ArenaPauseMenu, pauseFrame, type PauseHost } from '../game/gui/pauseMenu';
+import { moveListMenu } from '../game/gui/moveList';
+import { langGet, loadAf } from '../resources/resources';
 import { FontSize, Text } from '../game/gui/text';
 import { Button, Component, Label, mainMenuTheme, Menu, TextSelector, TextSlider, type GuiTheme } from '../game/gui/widgets';
 import type { MainMenuScene } from '../game/scenes/mainmenu';
@@ -109,9 +111,19 @@ describe.skipIf(!hasGameData)('menu layout', () => {
     const theme = mainMenuTheme();
     const issues: string[] = [];
     for (const training of [false, true]) {
-      const host: PauseHost = { quitFight() {}, menuVisible: false, training, trainingDummy: () => 0 };
+      const host: PauseHost = { quitFight() {}, menuVisible: false, training, trainingDummy: () => 0, robot: () => null };
       const pm = new ArenaPauseMenu(gs, host) as unknown as { menu: Menu };
-      issues.push(...audit(training ? 'PAUSE (training)' : 'PAUSE', pm.menu, { x: 60, y: 5, w: 181, h: 127 }, theme));
+      issues.push(...audit(training ? 'PAUSE (training)' : 'PAUSE', pm.menu, pauseFrame(training), theme));
+      expect(pm.menu.items.some((c) => c instanceof Button && c.text.str === 'MOVE LIST')).toBe(true);
+    }
+    // The move list page of every robot fits the frame too.
+    for (let har = 0; har < 11; har++) {
+      const af = loadAf(har);
+      const page = moveListMenu({ robot: () => ({ af, name: langGet(31 + har) }) }, 0);
+      issues.push(...audit(`MOVE LIST ${har}`, page, pauseFrame(false), theme));
+      const f = pauseFrame(false);
+      const view = page.items[1];
+      if (view.y + view.h > f.y + f.h) issues.push(`MOVE LIST ${har}: the list ends below the frame`);
     }
     expect(issues).toEqual([]);
   });

@@ -1,4 +1,4 @@
-import { BinaryReader } from '../util/reader';
+import { BinaryReader, BinaryWriter } from '../util/reader';
 import { AnimationData, resolveMissingSprites } from './animation';
 
 export const MAX_AF_MOVES = 70;
@@ -82,4 +82,42 @@ export function parseAF(data: Uint8Array): AfFile {
   af.soundTable.set(r.bytes(30));
   resolveMissingSprites(af.moves.filter((m): m is AfMoveData => m !== null).map((m) => m.animation));
   return af;
+}
+
+/** Writes an AF file (the inverse of parseAF; used for the generated robots). */
+export function saveAF(af: AfFile): Uint8Array {
+  const w = new BinaryWriter(1 << 16);
+  w.u16(af.fighterId);
+  w.u16(af.execWindow);
+  w.u32(af.endurance);
+  w.u8(af.upwardsJumpFrameLimit);
+  w.u16(af.health);
+  w.i32(Math.round(af.forwardSpeed * 256));
+  w.i32(Math.round(af.reverseSpeed * 256));
+  w.i32(Math.round(af.jumpSpeed * 256));
+  w.i32(Math.round(af.fallSpeed * 256));
+  w.u8(af.version1);
+  w.u8(af.aiProjectileYThreshold);
+  af.moves.forEach((m, id) => {
+    if (!m) return;
+    w.u8(id);
+    m.animation.save(w);
+    w.u16(m.aiFlags);
+    w.u16(m.posConstraint);
+    for (let i = 0; i < 8; i++) w.u8(m.unknown[i] ?? 0);
+    w.u8(m.playIfHit);
+    w.u8(m.category);
+    w.u8(m.blockDamage);
+    w.u8(m.blockStun);
+    w.u8(m.successorId);
+    w.u8(m.damageAmount);
+    w.u8(m.throwDuration);
+    w.u8(m.extraStringSelector);
+    w.u8(m.points);
+    w.fixedStr(m.moveString, 21);
+    w.paddedStr(m.footerString);
+  });
+  w.u8(250);
+  w.bytes(af.soundTable);
+  return w.toBytes();
 }

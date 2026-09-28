@@ -2,21 +2,27 @@
 import { app } from '../../app';
 import { audio } from '../../audio/audio';
 import { langGet } from '../../resources/resources';
-import { CtrlType } from '../constants';
+import { ACT_ESC, CtrlType } from '../constants';
 import type { GameState } from '../gameState';
 import { saveSettings, settings } from '../settings';
 import { DUMMY_MODE_NAMES, type DummyMode } from '../../controller/dummy';
 import { Button, Filler, GuiFrame, Label, Menu, TextSelector, TextSlider, type GuiTheme } from './widgets';
 import { FontSize } from './text';
+import { moveListMenu, type MoveListSource } from './moveList';
 
-export interface PauseHost {
+export interface PauseHost extends Partial<MoveListSource> {
   quitFight(): void;
   menuVisible: boolean;
-  /** Training mode: the dummy's behavior and a position reset are offered too. */
+  /** Training mode: the dummy's behavior, the input display and a position reset are offered too. */
   readonly training?: boolean;
   trainingDummy?(): DummyMode;
   setTrainingDummy?(mode: DummyMode): void;
   resetTrainingPositions?(): void;
+}
+
+/** Where the pause menu goes (training has more entries). */
+export function pauseFrame(training: boolean): { x: number; y: number; w: number; h: number } {
+  return { x: 60, y: 5, w: 181, h: training ? 137 : 127 };
 }
 
 export class ArenaPauseMenu {
@@ -29,18 +35,30 @@ export class ArenaPauseMenu {
       borderColor: 0xfe, font: FontSize.BIG, primaryColor: 0xfe, secondaryColor: 0xfd, activeColor: 0xff,
       inactiveColor: 0xfe, disabledColor: 0xc0, shadowColor: 0xc0,
     };
-    this.frame = new GuiFrame(theme, 60, 5, 181, 127);
+    const f = pauseFrame(!!host.training);
+    this.frame = new GuiFrame(theme, f.x, f.y, f.w, f.h);
     const s = settings();
     const m = new Menu();
     m.attach(Label.title('OMF 2097'));
-    m.attach(new Filler());
+    // Training has ten entries: rows one pixel closer and no spacer under the title.
+    if (host.training) m.padding = 2;
+    else m.attach(new Filler());
     this.returnButton = new Button('RETURN TO GAME', 'Continue fighting.', false, false, () => this.close());
     m.attach(this.returnButton);
+    const robot = host.robot?.bind(host);
+    if (robot) {
+      m.attach(new Button('MOVE LIST', 'The special moves, throws and finishing moves of both robots.', false, false,
+        () => m.setSubmenu(moveListMenu({ robot }, 0))));
+    }
+    m.attach(new Button('CONTROLS', 'The keys and controller buttons of both players, and the layout choices.', false, false,
+      () => app.showControls()));
     if (host.training) {
       m.attach(new TextSelector('DUMMY', 'What the training dummy does: stand, crouch, jump, block high or low attacks, or fight back.',
         () => host.trainingDummy?.() ?? 0, (v) => host.setTrainingDummy?.(v as DummyMode), DUMMY_MODE_NAMES, (v) => {
           settings().training.dummy = v;
         }));
+      m.attach(new TextSelector('INPUTS', 'Show your recent inputs at the left of the screen, with how long each was held (in game ticks).',
+        () => (settings().training.inputDisplay ? 1 : 0), (v) => (settings().training.inputDisplay = v === 1), ['OFF', 'ON']));
       m.attach(new Button('RESET POSITIONS', 'Put both robots back at their starting positions with full health.', false, false, () => {
         host.resetTrainingPositions?.();
         this.close();
@@ -69,6 +87,13 @@ export class ArenaPauseMenu {
 
   open(): void {
     this.menu.select(this.returnButton);
+  }
+
+  /** ESC while a page of the menu (the move list) is open goes back to the menu; returns false otherwise. */
+  back(): boolean {
+    if (!this.menu.activeSubmenu()) return false;
+    this.frame.action(ACT_ESC, CtrlType.KEYBOARD);
+    return true;
   }
 
   close(): void {

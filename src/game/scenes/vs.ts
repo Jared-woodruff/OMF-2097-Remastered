@@ -6,13 +6,16 @@ import { isDown } from '../../controller/input';
 import type { Pilot } from '../../formats/pilot';
 import type { Sprite } from '../../formats/sprite';
 import { Animation, RSprite } from '../../resources/animation';
-import { bkGetInfo, langGet } from '../../resources/resources';
+import { bkGetInfo, harPicture, langGet, loadBk } from '../../resources/resources';
+import { GEN_ARENAS } from '../../gen/scene/arenas';
+import { arenaCount, arenaDescription, arenaName, extraArenasEnabled } from '../roster';
+import { MOVE } from '../../gen/fighter/moveset';
 import { globalRandom } from '../../util/random';
 import { TAG_MENU, video } from '../../video/draw';
 import { Surface } from '../../video/surface';
 import {
   ACT_DOWN, ACT_ESC, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_UP, CtrlType, OBJECT_FACE_LEFT, OBJECT_FACE_RIGHT,
-  PilotId, RENDER_LAYER_MIDDLE, RENDER_LAYER_TOP, SceneId,
+  ORIGINAL_HAR_TYPES, PilotId, RENDER_LAYER_MIDDLE, RENDER_LAYER_TOP, SceneId,
 } from '../constants';
 import { registerScene, type FightStats, type GamePlayer, type GameState } from '../gameState';
 import { Dialog, DialogResult, DialogStyle } from '../gui/dialog';
@@ -281,6 +284,15 @@ export class VsScene extends Scene {
 
     // HAR
     let ani = bkGetInfo(this.bk, 5)!.ani;
+    // The remaster's robots (HARs 11 and up) bring their big image in their fighter files.
+    for (const id of [player1.pilot.harId, p2Pilot?.harId ?? -1]) {
+      // (VS.BK has an empty placeholder in slot 11: the new robots always bring theirs.)
+      if (id < ORIGINAL_HAR_TYPES) continue;
+      const pic = harPicture(id, MOVE.PORTRAIT_VS);
+      if (!pic) continue;
+      while (ani.sprites.length < id) ani.sprites.push(new RSprite(ani.sprites.length, 0, 0, null));
+      ani.sprites[id] = new RSprite(id, -(pic.surface.w + 12), 152 - pic.surface.h, pic.surface);
+    }
     const player1Har = new GameObject(gs, 160, 0);
     player1Har.setAnimation(ani);
     player1Har.selectSprite(player1.pilot.harId);
@@ -367,17 +379,17 @@ export class VsScene extends Scene {
     if (player2.selectable && !isSpectator(gs)) {
       // player1 gets to choose, start at arena 0
       gs.arena = 0;
-      this.arenaName = createArenaText(lang(56 + gs.arena), 211 - 74, 6);
-      this.arenaDesc = createArenaText(lang(66 + gs.arena), 211 - 74, 50);
+      this.arenaName = createArenaText(arenaName(gs.arena), 211 - 74, 6);
+      this.arenaDesc = createArenaText(arenaDescription(gs.arena), 211 - 74, 50);
     } else if (p2Pilot && p2Pilot.pilotId === PilotId.KREISSACK) {
       // force arena 0 when fighting Kreissack in 1 player mode
       gs.arena = 0;
     } else if (gs.isTournament() || gs.isDemoplay()) {
-      // pick random arenas
-      gs.arena = globalRandom.int(5);
+      // pick random arenas (the tournament keeps to the original five)
+      gs.arena = globalRandom.int(gs.isTournament() ? 5 : arenaCount());
     } else if (isSpectator(gs)) {
-      this.arenaName = createArenaText(lang(56 + gs.arena), 211 - 74, 6);
-      this.arenaDesc = createArenaText(lang(66 + gs.arena), 211 - 74, 50);
+      this.arenaName = createArenaText(arenaName(gs.arena), 211 - 74, 6);
+      this.arenaDesc = createArenaText(arenaDescription(gs.arena), 211 - 74, 50);
     } else {
       // 1 player mode cycles through the arenas (the arena scene advances gs.arena after each win)
     }
@@ -401,6 +413,7 @@ export class VsScene extends Scene {
     // Arena
     if (player2.selectable) {
       ani = bkGetInfo(this.bk, 3)!.ani;
+      this.addArenaThumbnails(ani);
       const arenaSelect = new GameObject(gs, 59, 155);
       this.arenaSelectObjId = arenaSelect.id;
       arenaSelect.setAnimation(ani);
@@ -543,7 +556,7 @@ export class VsScene extends Scene {
         case ACT_LEFT:
           if (player2.selectable) {
             gs.arena--;
-            if (gs.arena < 0) gs.arena = 4;
+            if (gs.arena < 0) gs.arena = arenaCount() - 1;
             this.arenaChanged();
           }
           break;
@@ -551,7 +564,7 @@ export class VsScene extends Scene {
         case ACT_RIGHT:
           if (player2.selectable) {
             gs.arena++;
-            if (gs.arena > 4) gs.arena = 0;
+            if (gs.arena >= arenaCount()) gs.arena = 0;
             this.arenaChanged();
           }
           break;
@@ -562,8 +575,48 @@ export class VsScene extends Scene {
   private arenaChanged(): void {
     const gs = this.gs;
     gs.findObject(this.arenaSelectObjId)?.selectSprite(gs.arena);
-    this.arenaName?.set(lang(56 + gs.arena));
-    this.arenaDesc?.set(lang(66 + gs.arena));
+    this.arenaName?.set(arenaName(gs.arena));
+    this.arenaDesc?.set(arenaDescription(gs.arena));
+  }
+
+  /**
+   * Preview pictures for the remaster's arenas, like the originals' (64x40, in the originals' grey shades): their
+   * backgrounds shrunk five times.
+   */
+  private addArenaThumbnails(ani: Animation): void {
+    if (!extraArenasEnabled()) return;
+    const pal = this.bk.palettes[0];
+    // The shades the original previews are drawn with, darkest to brightest.
+    const shades = new Set<number>();
+    for (const sp of ani.sprites) if (sp.surface) for (const v of sp.surface.data) shades.add(v);
+    const lum = (i: number) => pal.r(i) * 0.3 + pal.g(i) * 0.59 + pal.b(i) * 0.11;
+    const ramp = [...shades].filter((v) => v > 0).sort((a, b) => lum(a) - lum(b));
+    if (ramp.length === 0) return;
+    for (const a of GEN_ARENAS) {
+      if (ani.sprites[a.index]?.surface) continue;
+      const bk = loadBk(a.file);
+      const src = bk.background, apal = bk.palettes[0];
+      const thumb = new Surface(64, 40, undefined, -1);
+      for (let y = 0; y < 40; y++) {
+        for (let x = 0; x < 64; x++) {
+          let l = 0;
+          for (let dy = 0; dy < 5; dy++) {
+            for (let dx = 0; dx < 5; dx++) {
+              const v = src.data[(y * 5 + dy) * 320 + x * 5 + dx];
+              l += apal.r(v) * 0.3 + apal.g(v) * 0.59 + apal.b(v) * 0.11;
+            }
+          }
+          l /= 25;
+          // Nearest shade by brightness (the previews are grey).
+          let best = ramp[0];
+          for (const v of ramp) if (Math.abs(lum(v) - l * 1.15) < Math.abs(lum(best) - l * 1.15)) best = v;
+          thumb.data[y * 64 + x] = best;
+        }
+      }
+      thumb.source = { kind: 'generated', key: `vs/arena-thumb/${a.index}` };
+      while (ani.sprites.length < a.index) ani.sprites.push(new RSprite(ani.sprites.length, 0, 0, null));
+      ani.sprites[a.index] = new RSprite(a.index, 0, 0, thumb);
+    }
   }
 
   // vs_dynamic_tick only forwards the extra events of network controllers; netplay is not part of this port.
@@ -579,7 +632,7 @@ export class VsScene extends Scene {
     const gs = this.gs;
     const player1 = gs.getPlayer(0);
     const menuEv: CtrlEvent[] = [];
-    gs.menuPoll(menuEv);
+    gs.menuPoll(menuEv, { playerScene: true });
 
     // game_state_handle_event(): in demo mode ESC returns to the main menu and ENTER skips straight to a random
     // arena, before the scene sees the input. The TS game state has no such hook, so it is emulated here.
@@ -589,7 +642,7 @@ export class VsScene extends Scene {
         return;
       }
       if (isDown('Enter') && menuEv.some((e) => e.type === 'action' && e.action === ACT_PUNCH)) {
-        gs.setNext(SceneId.ARENA0 + globalRandom.int(5)); // rand_arena()
+        gs.setNext(SceneId.ARENA0 + globalRandom.int(arenaCount())); // rand_arena()
         return;
       }
     }

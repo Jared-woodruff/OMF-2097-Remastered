@@ -93,6 +93,10 @@ export class HdAssets {
   private surfHash = new WeakMap<Surface, { version: number; hash: string }>();
   private frame = 0;
   private loadingCount = 0;
+  /** HD artwork made at run time (the generated robots and arenas), by pixel fingerprint. */
+  private runtime = new Map<string, HdImage>();
+  /** Base palette rows (RGBA, 256 entries each): the index's palettes, then the ones added at run time. */
+  private paletteRows: Uint8Array[] = [];
 
   /** Loads the index (if HD artwork is installed). Never rejects. */
   async init(gl: WebGL2RenderingContext, baseUrl = 'hd/'): Promise<void> {
@@ -109,26 +113,19 @@ export class HdAssets {
         if (list) list.push(e);
         else this.byHash.set(e.hash, [e]);
       }
-      // Base palettes texture.
-      const rows = index.palettes.length;
-      const data = new Uint8Array(256 * rows * 4);
-      index.palettes.forEach((hex, r) => {
+      // Base palettes texture (rows added at run time come after the index's; see addBasePalette).
+      const indexRows = index.palettes.map((hex) => {
+        const row = new Uint8Array(256 * 4);
         for (let i = 0; i < 256; i++) {
-          data[(r * 256 + i) * 4] = parseInt(hex.substr(i * 6, 2), 16);
-          data[(r * 256 + i) * 4 + 1] = parseInt(hex.substr(i * 6 + 2, 2), 16);
-          data[(r * 256 + i) * 4 + 2] = parseInt(hex.substr(i * 6 + 4, 2), 16);
-          data[(r * 256 + i) * 4 + 3] = 255;
+          row[i * 4] = parseInt(hex.substr(i * 6, 2), 16);
+          row[i * 4 + 1] = parseInt(hex.substr(i * 6 + 2, 2), 16);
+          row[i * 4 + 2] = parseInt(hex.substr(i * 6 + 4, 2), 16);
+          row[i * 4 + 3] = 255;
         }
+        return row;
       });
-      const tex = gl.createTexture()!;
-      gl.bindTexture(gl.TEXTURE_2D, tex);
-      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, rows, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      this.basePalTex = tex;
+      this.paletteRows = [...indexRows, ...this.paletteRows];
+      this.uploadPalettes();
       for (const name of Object.keys(index.bundles)) {
         this.bundles.set(name, { name, status: 'idle', pages: [], images: [], bytes: 0, lastUsed: 0 });
       }
@@ -143,6 +140,109 @@ export class HdAssets {
     return this.ready && this.enabled;
   }
 
+  private uploadPalettes(): void {
+    const gl = this.gl;
+    if (!gl || this.paletteRows.length === 0) return;
+    const rows = this.paletteRows.length;
+    const data = new Uint8Array(256 * rows * 4);
+    this.paletteRows.forEach((r, i) => data.set(r, i * 1024));
+    if (!this.basePalTex) {
+      this.basePalTex = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_2D, this.basePalTex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    }
+    gl.bindTexture(gl.TEXTURE_2D, this.basePalTex);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, rows, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+  }
+
+  /**
+   * Adds a base palette for artwork made at run time (768 bytes RGB); returns its row. Rows keep their numbers when the
+   * installed artwork's index loads later (its rows are then placed first, see init()).
+   */
+  addBasePalette(rgb: Uint8Array): number {
+    const row = new Uint8Array(1024);
+    for (let i = 0; i < 256; i++) row.set([rgb[i * 3], rgb[i * 3 + 1], rgb[i * 3 + 2], 255], i * 4);
+    this.paletteRows.push(row);
+    this.uploadPalettes();
+    return this.paletteRows.length - 1;
+  }
+
+  /** GL context the artwork lives in (null before init). */
+  get context(): WebGL2RenderingContext | null {
+    return this.gl;
+  }
+
+  /**
+   * HD artwork made at run time for the sprites with the fingerprint `hash` (see pixelHash) of size w x h: a `fw` x `fh`
+   * rectangle of `page` at (x, y) covering the sprite plus `pad` native pixels on each side, colored against base
+   * palette row `palette`.
+   */
+  registerSprite(hash: string, page: HdTexture, x: number, y: number, fw: number, fh: number, pad: number, palette: number): void {
+    const entry: HdEntry = {
+      hash, bundle: 'runtime', kind: 'fighter', page: 0, x, y, w: fw, h: fh, tx: 0, ty: 0, fw, fh, pad, palette, files: [],
+      recolor: 'player',
+    };
+    this.runtime.set(hash, { entry, page });
+  }
+
+  /** HD artwork made at run time for a background (and its widescreen canvas). */
+  registerBackground(hash: string, image: HdTexture, wide: HdTexture | undefined, palette: number): void {
+    const entry: HdEntry = { hash, bundle: 'runtime', kind: 'background', palette, files: [], image: 0, wide: wide ? 1 : undefined };
+    this.runtime.set(hash, { entry, image, wide });
+  }
+
+  /** Loads an image as an artwork texture (at the artwork resolution setting); w x h is its logical size. */
+  async loadImage(url: string, w: number, h: number, mips = true): Promise<HdTexture> {
+    const gl = this.gl!;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+    const opts: ImageBitmapOptions = { premultiplyAlpha: 'premultiply', colorSpaceConversion: 'none' };
+    if (this.textureScale < 1) {
+      opts.resizeWidth = Math.max(1, Math.round(w * this.textureScale));
+      opts.resizeHeight = Math.max(1, Math.round(h * this.textureScale));
+      opts.resizeQuality = 'high';
+    }
+    const bmp = await createImageBitmap(await res.blob(), opts);
+    const tex = gl.createTexture()!;
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, bmp);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    if (mips) {
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    } else {
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    }
+    bmp.close();
+    return { tex, w, h };
+  }
+
+  /** Forgets run-time artwork (its textures are about to be freed). */
+  unregister(hash: string): void {
+    this.runtime.delete(hash);
+  }
+
+  /** Whether an image has run-time artwork. */
+  hasRuntime(hash: string): boolean {
+    return this.runtime.has(hash);
+  }
+
+  /** The pixel fingerprint of a surface (cached until its pixels change). */
+  private hashOf(surf: Surface): string {
+    let h = this.surfHash.get(surf);
+    if (!h || h.version !== surf.version) {
+      h = { version: surf.version, hash: pixelHash(surf.w, surf.h, surf.data.subarray(0, surf.w * surf.h)) };
+      this.surfHash.set(surf, h);
+    }
+    return h.hash;
+  }
+
   /** Number of bundles currently loading (for diagnostics / loading screens). */
   get pending(): number {
     return this.loadingCount;
@@ -154,13 +254,12 @@ export class HdAssets {
 
   /** The HD image for a surface, or null (not remastered, or its bundle is still loading — then it starts loading). */
   lookup(surf: Surface): HdImage | null {
-    if (!this.active) return null;
-    let h = this.surfHash.get(surf);
-    if (!h || h.version !== surf.version) {
-      h = { version: surf.version, hash: pixelHash(surf.w, surf.h, surf.data.subarray(0, surf.w * surf.h)) };
-      this.surfHash.set(surf, h);
-    }
-    const list = this.byHash.get(h.hash);
+    if (!this.enabled || (!this.ready && this.runtime.size === 0)) return null;
+    const hash = this.hashOf(surf);
+    const rt = this.runtime.get(hash);
+    if (rt) return rt;
+    if (!this.ready) return null;
+    const list = this.byHash.get(hash);
     if (!list) return null;
     let entry = list[0];
     if (list.length > 1) {

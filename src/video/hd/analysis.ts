@@ -46,6 +46,48 @@ export function fitRemaps(pal: Palette, remaps: RemapTables): RemapFit {
   return { a, b };
 }
 
+/**
+ * Least-squares fit of one remap table as an affine color transform, dst' = M * dst + o (M 3x3): unlike the scalar fit
+ * above it keeps tints, e.g. brightness turned into shades of blue. Returns 12 numbers, row-major [M | o] per output
+ * channel.
+ */
+export function fitRemapMatrix(pal: Palette, table: Uint8Array): Float32Array {
+  const c = pal.colors;
+  // Normal equations (X^T X) W = X^T T with X = [r g b 1] per palette color, a little ridge for stability.
+  const xtx = new Float64Array(16);
+  const xtt = new Float64Array(12);
+  for (let i = 1; i < 256; i++) {
+    const x = [c[i * 3] / 255, c[i * 3 + 1] / 255, c[i * 3 + 2] / 255, 1];
+    const j = table[i];
+    const t = [c[j * 3] / 255, c[j * 3 + 1] / 255, c[j * 3 + 2] / 255];
+    for (let r = 0; r < 4; r++) {
+      for (let k = 0; k < 4; k++) xtx[r * 4 + k] += x[r] * x[k];
+      for (let ch = 0; ch < 3; ch++) xtt[r * 3 + ch] += x[r] * t[ch];
+    }
+  }
+  for (let r = 0; r < 4; r++) xtx[r * 4 + r] += 1e-3;
+  // Gauss-Jordan elimination on [X^T X | X^T T].
+  const m = Array.from({ length: 4 }, (_, r) => [...xtx.subarray(r * 4, r * 4 + 4), ...xtt.subarray(r * 3, r * 3 + 3)]);
+  for (let col = 0; col < 4; col++) {
+    let piv = col;
+    for (let r = col + 1; r < 4; r++) if (Math.abs(m[r][col]) > Math.abs(m[piv][col])) piv = r;
+    [m[col], m[piv]] = [m[piv], m[col]];
+    const d = m[col][col] || 1e-9;
+    for (let k = col; k < 7; k++) m[col][k] /= d;
+    for (let r = 0; r < 4; r++) {
+      if (r === col) continue;
+      const f = m[r][col];
+      for (let k = col; k < 7; k++) m[r][k] -= f * m[col][k];
+    }
+  }
+  // Row r of the solution holds the weight of input r for each output channel.
+  const out = new Float32Array(12);
+  for (let ch = 0; ch < 3; ch++) {
+    for (let r = 0; r < 4; r++) out[ch * 4 + r] = m[r][4 + ch];
+  }
+  return out;
+}
+
 export function paletteHash(pal: Palette): number {
   let h = 2166136261;
   const c = pal.colors;

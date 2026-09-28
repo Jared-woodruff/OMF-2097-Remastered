@@ -12,7 +12,8 @@ interface Entry extends AtlasRect {
   frame: number;
 }
 
-const PAD = 2;
+/** Border around each surface: the HD filters read up to two texels outside it, text halos four. */
+const PAD = 4;
 
 /**
  * Texture atlas of indexed surfaces (R8UI). Simple shelf packer; when it fills up, it is

@@ -8,6 +8,12 @@ export const EXT_MAX = 128;
 
 const cache = new WeakMap<Surface, { version: number; surf: Surface }>();
 
+/** Uses a ready-made widescreen version of a background (EXT_MAX more columns on each side) instead of mirroring. */
+export function setExtendedBackground(bg: Surface, wide: Surface): void {
+  if (wide.w !== bg.w + EXT_MAX * 2 || wide.h !== bg.h) return;
+  cache.set(bg, { version: bg.version, surf: wide });
+}
+
 export function extendedBackground(bg: Surface): Surface {
   const hit = cache.get(bg);
   if (hit && hit.version === bg.version) return hit.surf;

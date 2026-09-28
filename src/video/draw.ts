@@ -46,6 +46,33 @@ export interface DrawCmd {
   /** Unrounded position including motion interpolation (remastered renderer). */
   fx: number;
   fy: number;
+  /** Progress bar this command draws a part of: its index in `drawList.bars` on the first part, -2 on the others, -1 none. */
+  bar: number;
+}
+
+/**
+ * A progress bar (health, endurance, pilot stats). Its surfaces are in the draw list as usual; the remastered
+ * renderer can draw this description instead, as smooth vector graphics.
+ */
+export interface HudBar {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Current value and the value of the trailing "recent damage" part (>= value), 0..1. */
+  value: number;
+  trail: number;
+  /** 0: filled from the left end, 1: from the right end. */
+  dir: number;
+  /** Palette indices of the theme: frame top-left, frame bottom-right, track, flashing track, fill top-left, fill bottom-right, fill. */
+  colors: number[];
+  /** Palette index offset of the fill colors (highlighted bars). */
+  palOffset: number;
+  /** The track is see-through (its color is the transparent index). */
+  clearTrack: boolean;
+  /** Warning pulses, 0..1: flashing track (low endurance), fill (low health). */
+  flash: number;
+  low: number;
 }
 
 function modeFor(options: number, remapRounds: number): BlendMode {
@@ -69,6 +96,8 @@ export const WIDE_MIRROR = 1;
 class DrawList {
   cmds: DrawCmd[] = [];
   count = 0;
+  bars: HudBar[] = [];
+  barCount = 0;
   framebufferOptions = 0;
   /** Screen translation (screen shake), in native pixels. */
   targetMoveX = 0;
@@ -85,6 +114,7 @@ class DrawList {
 
   begin(): void {
     this.count = 0;
+    this.barCount = 0;
     this.framebufferOptions = 0;
     this.wideStyle = WIDE_AMBIENT;
     this.interpAlpha = -1;
@@ -102,7 +132,7 @@ class DrawList {
     if (!c) {
       c = {
         surf, x, y, w, h, remapOffset, remapRounds, palOffset, palLimit, opacity, flip, options,
-        mode: BlendMode.SET, tag: 0, fx: x, fy: y,
+        mode: BlendMode.SET, tag: 0, fx: x, fy: y, bar: -1,
       };
       this.cmds[this.count] = c;
     }
@@ -122,7 +152,20 @@ class DrawList {
     c.options = options;
     c.mode = modeFor(options, remapRounds);
     c.tag = this.currentTag;
+    c.bar = -1;
     this.count++;
+  }
+
+  /** Describes the commands pushed since `first` as one progress bar; returns the record to fill in. */
+  pushBar(first: number): HudBar {
+    let b = this.bars[this.barCount];
+    if (!b) {
+      b = { x: 0, y: 0, w: 0, h: 0, value: 0, trail: 0, dir: 0, colors: [0, 0, 0, 0, 0, 0, 0], palOffset: 0, clearTrack: false, flash: 0, low: 0 };
+      this.bars[this.barCount] = b;
+    }
+    for (let i = first; i < this.count; i++) this.cmds[i].bar = i === first ? this.barCount : -2;
+    this.barCount++;
+    return b;
   }
 }
 

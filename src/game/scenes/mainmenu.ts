@@ -15,6 +15,7 @@ import { activeMenu } from './mainmenu/common';
 import { helpOverlayOpen } from '../gui/helpOverlay';
 import { menuMainCreate } from './mainmenu/menuMain';
 import { PresskeyMenu } from './mainmenu/menuPresskey';
+import { arenaCount } from '../roster';
 
 /** keyboard_binds_key(): whether a key is one of the keyboard controller's bindings. */
 function keyboardBindsKey(ctrl: KeyboardController, code: string): boolean {
@@ -62,7 +63,7 @@ export class MainMenuScene extends Scene {
       player.score.reset(true);
       player.score.resetWins();
     }
-    gs.arena = globalRandom.int(5);
+    gs.arena = globalRandom.int(arenaCount());
     gs.reconfigureControllers();
     gs.playMusic('MENU.PSM');
 
