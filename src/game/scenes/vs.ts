@@ -8,7 +8,7 @@ import type { Sprite } from '../../formats/sprite';
 import { Animation, RSprite } from '../../resources/animation';
 import { bkGetInfo, harPicture, langGet, loadBk } from '../../resources/resources';
 import { GEN_ARENAS } from '../../gen/scene/arenas';
-import { arenaCount, arenaDescription, arenaName, extraArenasEnabled } from '../roster';
+import { arenaCount, arenaDescription, arenaName, extraArenasEnabled, EXTRA_HAR_IDS, extraRobotsEnabled } from '../roster';
 import { MOVE } from '../../gen/fighter/moveset';
 import { globalRandom } from '../../util/random';
 import { TAG_MENU, video } from '../../video/draw';
@@ -250,11 +250,13 @@ export class VsScene extends Scene {
       // generate a new HAR trade list based on your HAR's value and your money
       // TODO (reference) figure out how this really works, but this'll do for now
       const tradeValue = calculateTradeValue(player1.pilot);
-      const trades: number[] = new Array(11).fill(-1);
+      // (the remaster's robots too, when they are turned on)
+      const tradeable = [...Array.from({ length: 11 }, (_, i) => i), ...(extraRobotsEnabled() ? EXTRA_HAR_IDS : [])];
+      const trades: number[] = new Array(tradeable.length).fill(-1);
       let tradecount = 0;
 
       // collect all the HARs we can afford that are not the current model
-      for (let i = 0; i < 11; i++) {
+      for (const i of tradeable) {
         if (i === player1.pilot.harId) continue; // don't trade for the current HAR
         if (harPrice(i) < tradeValue + player1.pilot.money) {
           trades[tradecount] = i;
@@ -385,8 +387,8 @@ export class VsScene extends Scene {
       // force arena 0 when fighting Kreissack in 1 player mode
       gs.arena = 0;
     } else if (gs.isTournament() || gs.isDemoplay()) {
-      // pick random arenas (the tournament keeps to the original five)
-      gs.arena = globalRandom.int(gs.isTournament() ? 5 : arenaCount());
+      // pick random arenas (the remaster's arenas too when they are turned on)
+      gs.arena = globalRandom.int(arenaCount());
     } else if (isSpectator(gs)) {
       this.arenaName = createArenaText(arenaName(gs.arena), 211 - 74, 6);
       this.arenaDesc = createArenaText(arenaDescription(gs.arena), 211 - 74, 50);
@@ -395,7 +397,7 @@ export class VsScene extends Scene {
     }
 
     // Insults
-    const easyKreissack = p2Pilot !== null && p2Pilot.pilotId === PilotId.KREISSACK && settings().gameplay.difficulty < 2;
+    const easyKreissack = p2Pilot !== null && p2Pilot.pilotId === PilotId.KREISSACK && settings().gameplay.difficulty < 2 && !gs.modeRun;
     if (easyKreissack) {
       // kreissack, but not on Veteran or higher
       this.insults = [null, createInsultText(lang(747), 170, 60)];
@@ -653,7 +655,7 @@ export class VsScene extends Scene {
           this.tooPatheticDialog.event(i.action, i.source);
         } else if (this.quitDialog.isVisible()) {
           this.quitDialog.event(i.action, i.source);
-        } else if (gs.isSingleplayer() && player1.spWins !== 0 && !player1.chr) {
+        } else if (gs.isSingleplayer() && (player1.spWins !== 0 || gs.modeRun) && !player1.chr) {
           // there's an active singleplayer campaign, confirm quitting
           this.quitDialog.show(true);
         } else if (player1.chr) {
@@ -736,8 +738,13 @@ export class VsScene extends Scene {
   }
 
   private quitDialogClicked(dlg: Dialog, result: DialogResult): void {
-    if (result === DialogResult.YES_OK) this.gs.setNext(SceneId.MELEE);
-    else dlg.show(false);
+    if (result === DialogResult.YES_OK) {
+      // A run (arcade, survival, time attack) ends: back to EXTRAS.
+      if (this.gs.modeRun) this.gs.menuReturn = 'extras';
+      this.gs.setNext(this.gs.modeRun ? SceneId.MENU : SceneId.MELEE);
+    } else {
+      dlg.show(false);
+    }
   }
 
   private tooPatheticDialogClicked(_dlg: Dialog, _result: DialogResult): void {

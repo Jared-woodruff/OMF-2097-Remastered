@@ -16,8 +16,19 @@ export const GEN_ROBOTS: GenRobot[] = [GLACIER, TEMPEST, HELIX, SPECTRE];
 /** First HAR id of the generated robots. */
 export const FIRST_GEN_HAR = 11;
 
+/** Robots built in the workshop while the game runs (gen/workshop.ts), by HAR id. */
+const workshop = new Map<number, GenRobot>();
+
+export function registerGenRobot(r: GenRobot): void {
+  workshop.set(r.id, r);
+}
+
+export function unregisterGenRobot(harId: number): void {
+  workshop.delete(harId);
+}
+
 export function genRobot(harId: number): GenRobot | undefined {
-  return GEN_ROBOTS.find((r) => r.id === harId);
+  return GEN_ROBOTS.find((r) => r.id === harId) ?? workshop.get(harId);
 }
 
 /** Every move of a generated robot, ready for buildFighter(). */

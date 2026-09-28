@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { setKeyState } from '../controller/input';
 import type { Pilot } from '../formats/pilot';
-import { CtrlType, HarId, PilotId, SceneId } from '../game/constants';
+import { CtrlType, HarId, ORIGINAL_HAR_TYPES, PilotId, SceneId } from '../game/constants';
 import type { GameState } from '../game/gameState';
 import { settings } from '../game/settings';
 import type { ChrFile } from '../game/tournament/chr';
@@ -9,7 +9,8 @@ import { PLUG_WIN_BIG, playerPilot, type VsScene } from '../game/scenes/vs';
 import { langGet, loadBk, loadPic } from '../resources/resources';
 import { drawList } from '../video/draw';
 import { createGame, hasGameData, HeadlessRunner } from './harness';
-import { arenaCount, randomHarPool } from '../game/roster';
+import { arenaCount, EXTRA_HAR_IDS, randomHarPool } from '../game/roster';
+import { globalRandom } from '../util/random';
 
 const lang = (id: number) => langGet(id).replace(/\n$/, '');
 const held = new Set<string>();
@@ -202,6 +203,34 @@ describe.skipIf(!hasGameData)('vs (headless)', () => {
     press(run, 'Enter');
     expect(gs.nextId).toBe(SceneId.MECHLAB);
     expect(playerPilot(gs.getPlayer(1))).toBeNull();
+  });
+
+  it('Plug offers the remaster\'s robots only when they are on', () => {
+    const offers = (extras: boolean): number => {
+      settings().gameplay.extraRobots = extras;
+      let all = 0;
+      for (let seed = 1; seed <= 12; seed++) {
+        globalRandom.setSeed(seed);
+        const { gs } = openVs((g) => {
+          const p1 = g.getPlayer(0);
+          p1.pilot.money = 60000;
+          p1.chr = fakeChr(p1.pilot, null);
+          (g.getPlayer(1) as unknown as { pilot: Pilot | null }).pilot = null;
+        });
+        const trades = gs.getPlayer(0).pilot.harTrades;
+        expect(trades & (1 << HarId.JAGUAR)).toBe(0);
+        all |= trades;
+      }
+      return all;
+    };
+    try {
+      expect(offers(false) >>> ORIGINAL_HAR_TYPES).toBe(0);
+      const all = offers(true);
+      expect(all >>> 15).toBe(0);
+      expect(EXTRA_HAR_IDS.some((id) => all & (1 << id))).toBe(true);
+    } finally {
+      settings().gameplay.extraRobots = false;
+    }
   });
 
   it('tournament plug screen goes to the newsroom when a challenger waits', () => {

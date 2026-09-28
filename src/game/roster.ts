@@ -5,6 +5,7 @@ import { hasGenerated } from '../resources/generated';
 import { hasFighter, langGet } from '../resources/resources';
 import { ARENA_COUNT, HarId, ORIGINAL_ARENAS, ORIGINAL_HAR_TYPES } from './constants';
 import { settings } from './settings';
+import { workshopReady } from './workshop/registry';
 
 export const EXTRA_HAR_IDS = [HarId.GLACIER, HarId.TEMPEST, HarId.HELIX, HarId.SPECTRE];
 
@@ -25,10 +26,11 @@ export function randomHarPool(includeNova = false): number[] {
   return ids;
 }
 
-/** A HAR id limited to what can be picked (the new robots fall back to JAGUAR when turned off). */
+/** A HAR id limited to what can be picked (the new robots fall back to JAGUAR when turned off; the workshop's robots are there once built). */
 export function allowedHar(harId: number): number {
   if (harId < 0) return 0;
   if (harId < ORIGINAL_HAR_TYPES) return harId;
+  if (workshopReady(harId)) return harId;
   return extraRobotsEnabled() && EXTRA_HAR_IDS.includes(harId) ? harId : 0;
 }
 

@@ -9,6 +9,7 @@ import { parentMenu } from './common';
 import { menuConfigurationCreate } from './menuConfiguration';
 import { menuGameplayCreate } from './menuGameplay';
 import { menuHelpCreate } from './menuHelp';
+import { menuMoreCreate } from './menuMore';
 import { menuTrainingCreate } from './menuTraining';
 
 /**
@@ -17,7 +18,7 @@ import { menuTrainingCreate } from './menuTraining';
  * is not connected right now (browsers only expose a pad after one of its buttons is pressed; the controller picks it
  * up then). Only a gamepad setting without a pad index falls back to the keyboard.
  */
-function setupPlayerInput(gs: GameState, player: number): void {
+export function setupPlayerInput(gs: GameState, player: number): void {
   const k = settings().keys;
   const type = player === 0 ? k.ctrlType1 : k.ctrlType2;
   const pad = player === 0 ? k.gamepad1 : k.gamepad2;
@@ -74,6 +75,8 @@ function mainmenuMechlab(s: MainMenuScene): void {
 
 export function menuMainCreate(s: MainMenuScene): Menu {
   const menu = new Menu();
+  // Eleven entries (the remaster adds EXTRAS): a little closer together than the original's ten.
+  menu.padding = 2;
   menu.attach(new Button('ONE PLAYER GAME', null, false, false, () => mainmenu1v1(s)));
   menu.attach(new Button('TWO PLAYER GAME', null, false, false, () => mainmenu1v2(s)));
   menu.attach(new Button('TOURNAMENT PLAY', null, false, false, () => mainmenuMechlab(s)));
@@ -81,6 +84,7 @@ export function menuMainCreate(s: MainMenuScene): Menu {
   menu.attach(new Button('TRAINING', null, false, false, (b) => parentMenu(b).setSubmenu(menuTrainingCreate(s))));
   menu.attach(new Button('CONFIGURATION', null, false, false, (b) => parentMenu(b).setSubmenu(menuConfigurationCreate(s))));
   menu.attach(new Button('GAMEPLAY', null, false, false, (b) => parentMenu(b).setSubmenu(menuGameplayCreate(s))));
+  menu.attach(new Button('EXTRAS', null, false, false, (b) => parentMenu(b).setSubmenu(menuMoreCreate(s))));
   menu.attach(new Button('HELP', null, false, false, (b) => parentMenu(b).setSubmenu(menuHelpCreate(s))));
   menu.attach(new Button('DEMO', null, false, false, () => mainmenuDemo(s)));
   menu.attach(new Button('SCOREBOARD', null, false, false, () => mainmenuScoreboard(s)));

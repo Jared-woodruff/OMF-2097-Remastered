@@ -70,6 +70,8 @@ interface FightResult {
   /** Attack counts per player keyed by kind (basic/special/jump/throw) */
   attacks: [Map<string, number>, Map<string, number>];
   scene: SceneId;
+  /** Where the victory screen goes on to (when `scene` is the victory screen). */
+  after: SceneId | null;
   /** simulated ms of the last knockout (DEFEAT event), -1 if none */
   koMs: number;
 }
@@ -86,7 +88,7 @@ function startFight(spec: FightSpec): { gs: GameState; result: FightResult } {
   const id = SceneId.ARENA0 + spec.arena;
   gs.swapScene(id);
   const result: FightResult = {
-    ms: -1, winner: -1, finish: 0, events: [new Map(), new Map()], attacks: [new Map(), new Map()], scene: id, koMs: -1,
+    ms: -1, winner: -1, finish: 0, events: [new Map(), new Map()], attacks: [new Map(), new Map()], scene: id, after: null, koMs: -1,
   };
   const inc = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) ?? 0) + 1);
   for (let i = 0; i < 2; i++) {
@@ -111,6 +113,7 @@ function fight(spec: FightSpec, maxMs = 300000): FightResult {
   result.winner = result.ms >= 0 ? gs.fightStats.winner : -1;
   result.finish = gs.fightStats.finish;
   result.scene = gs.nextId;
+  result.after = gs.victoryNext;
   return result;
 }
 
@@ -405,7 +408,8 @@ describe.skipIf(!hasGameData)('AI controller (headless fights)', () => {
         const r = fight({ arena: (d + k) % 5, hars: [(d * 3 + k) % 11, (d * 5 + k * 4) % 11], pilots: [k, (d + k) % 10], players: ['idle', d], seed: 300 + d * 10 + k });
         expect(r.ms, `difficulty ${d} fight ${k} did not finish`).toBeGreaterThan(0);
         expect(r.winner, `difficulty ${d} fight ${k}: idle player won`).toBe(1);
-        expect(r.scene).toBe(SceneId.NEWSROOM); // single player continues to the newsroom
+        // single player continues to the newsroom (after the remaster's victory screen)
+        expect(r.scene === SceneId.VICTORY ? r.after : r.scene).toBe(SceneId.NEWSROOM);
         expect(sum(r.events[1], 'LAND_HIT') + sum(r.events[1], 'LAND_HIT_PROJECTILE')).toBeGreaterThan(0);
         expect(r.koMs).toBeGreaterThan(0);
         times.push(r.koMs / 1000);

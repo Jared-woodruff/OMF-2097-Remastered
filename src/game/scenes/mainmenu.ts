@@ -8,12 +8,13 @@ import { TAG_MENU, video } from '../../video/draw';
 import { pulseMenuColors } from '../../video/vga';
 import { CtrlType, SceneId } from '../constants';
 import { registerScene, type GameState } from '../gameState';
-import { GuiFrame, mainMenuTheme, Menu } from '../gui/widgets';
+import { Button, GuiFrame, mainMenuTheme, Menu } from '../gui/widgets';
 import { Scene } from '../scene';
 import { saveSettings, settings, type KeyBindings } from '../settings';
 import { activeMenu } from './mainmenu/common';
 import { helpOverlayOpen } from '../gui/helpOverlay';
 import { menuMainCreate } from './mainmenu/menuMain';
+import { menuMoreCreate } from './mainmenu/menuMore';
 import { PresskeyMenu } from './mainmenu/menuPresskey';
 import { arenaCount } from '../roster';
 
@@ -37,6 +38,8 @@ export class MainMenuScene extends Scene {
     super(gs, SceneId.MENU);
     gs.matchSettingsReset();
     gs.training = false;
+    gs.modeRun = null;
+    gs.modeLabel = null;
     const player1 = gs.getPlayer(0);
     // Back from a tournament: drop the tournament character and start with a fresh pilot.
     if (player1.chr) {
@@ -53,8 +56,18 @@ export class MainMenuScene extends Scene {
     gs.setSpeed(settings().gameplay.speed + 5);
 
     this.frame = new GuiFrame(mainMenuTheme(), 165, 5, 151, 119);
-    this.frame.setRoot(menuMainCreate(this));
+    const root = menuMainCreate(this);
+    this.frame.setRoot(root);
     this.frame.layout();
+    // Back from a screen of EXTRAS (a replay): EXTRAS is open again.
+    if (gs.menuReturn === 'extras') {
+      const extras = root.items.find((c) => c instanceof Button && c.text.str === 'EXTRAS');
+      if (extras) {
+        root.select(extras);
+        root.setSubmenu(menuMoreCreate(this));
+      }
+    }
+    gs.menuReturn = null;
 
     for (let i = 0; i < 2; i++) {
       const player = gs.getPlayer(i);

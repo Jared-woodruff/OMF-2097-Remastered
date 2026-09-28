@@ -6,9 +6,10 @@ import { keyName } from './keyNames';
 
 /** Binding slots in the order of the custom keyboard menu (reference menu_get_key keynum 0..9). */
 export const KEY_ACTIONS: readonly (keyof KeyBindings)[] = [
-  'jumpUp', 'jumpRight', 'walkRight', 'duckForward', 'duck', 'duckBack', 'walkBack', 'jumpLeft', 'punch', 'kick',
+  'jumpUp', 'jumpRight', 'walkRight', 'duckForward', 'duck', 'duckBack', 'walkBack', 'jumpLeft', 'punch', 'kick', 'special',
 ];
-const ACTION_NAMES = ['jump up', 'jump right', 'walk right', 'duck forward', 'duck', 'duck back', 'walk back', 'jump left', 'punch', 'kick'];
+const ACTION_NAMES = ['jump up', 'jump right', 'walk right', 'duck forward', 'duck', 'duck back', 'walk back', 'jump left', 'punch', 'kick',
+  'special'];
 
 const COLOR_WARNING = 0xf6;
 const WAIT_TICKS = 20;
@@ -28,7 +29,7 @@ export function isKeyBound(code: string): string | null {
   for (const player of [1, 2]) {
     const keys = playerKeys(player);
     for (let i = 0; i < KEY_ACTIONS.length; i++) {
-      if (keys[KEY_ACTIONS[i]].includes(code)) return `${keyName(code)} bound to P${player} ${ACTION_NAMES[i]}.`;
+      if ((keys[KEY_ACTIONS[i]] ?? []).includes(code)) return `${keyName(code)} bound to P${player} ${ACTION_NAMES[i]}.`;
     }
   }
   return null;
@@ -84,7 +85,7 @@ export class PresskeyMenu extends Menu {
     const keys = playerKeys(this.player);
     const slot = KEY_ACTIONS[this.slotIndex];
     const bound = isKeyBound(code);
-    if (bound !== null && !keys[slot].includes(code)) {
+    if (bound !== null && !(keys[slot] ?? []).includes(code)) {
       this.text[2].setText(bound);
       for (const l of this.text) l.overrideColor = COLOR_WARNING;
       this.warnTimeout = WARN_TICKS;

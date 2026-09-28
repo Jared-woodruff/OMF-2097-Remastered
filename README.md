@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/TypeScript-7-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript 7">
   <img src="https://img.shields.io/badge/WebGL2-990000?style=for-the-badge&logo=webgl&logoColor=white" alt="WebGL2">
   <img src="https://img.shields.io/badge/Tauri-2-24c8db?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri 2">
-  <img src="https://img.shields.io/badge/tests-197%20passing-2ea44f?style=for-the-badge" alt="197 tests passing">
+  <img src="https://img.shields.io/badge/tests-222%20passing-2ea44f?style=for-the-badge" alt="222 tests passing">
 </p>
 
 <p align="center">
@@ -56,9 +56,9 @@ engine in TypeScript and WebGL2 that plays the **original game data**, runs in a
     </td>
     <td width="33%" valign="top">
       <h3>🕹️ Modern</h3>
-      Any window size up to 4K and beyond, fullscreen, gamepads with rumble, mouse in every menu, rebindable keys,
-      training mode with an input display, move lists, F1 help, saves that just work, and a browser version that
-      works offline.
+      Replays and clips, a training lab with frame data and combo trials, a robot workshop, arcade, survival and time
+      attack modes, custom tournaments, gamepads with rumble, touch controls, one-button specials, and a browser
+      version that works offline.
     </td>
   </tr>
 </table>
@@ -88,7 +88,7 @@ The whole game is here, playing the original data files:
 ### New for the remaster: four robots, four arenas
 
 Built for this remaster in the spirit of the originals. They are **off by default**, so the game plays exactly like the
-original until you opt in: turn them on in **Gameplay › Extras** (robots and arenas separately).
+original until you opt in: turn them on in **Gameplay › New content** (robots and arenas separately).
 
 <p align="center">
   <img src="docs/media/new-robots.jpg" alt="The new robots on the VS screen: GLACIER, TEMPEST, HELIX and SPECTRE" width="100%">
@@ -105,8 +105,9 @@ They are built like the originals: faceted armor over slim, ribbed joints, in th
 original way (the armor, the joints, a few signature accents), and shaded like the originals' 1994 renders in the
 classic sprites and as polished metal in the HD artwork, which is rendered from the same 3D models. Each has the full
 basic move set, a throw, a scrap and a destruction finisher, CPU tactics for its specials and names in the pause
-menu's move list. Turned on, they sit in a third row of the robot select screen (move down past the second row) and
-join the CPU opponents.
+menu's move list. Turned on, they sit in a third row of the robot select screen (move down past the second row), join
+the CPU opponents, and turn up among the robots Plug offers to trade in tournaments, with their own turning model and
+select buttons in the mechlab.
 
 <p align="center">
   <img src="docs/media/new-arenas.jpg" alt="The new arenas: Orbital, Ice Cave, Rooftop and Abyss" width="100%">
@@ -120,7 +121,7 @@ join the CPU opponents.
   over the skyline and the neon sign flickers.
 - **Abyss**: a glass dome on the sea floor. Bubbles rise, caustics ripple over the floor and light falls from above.
 
-Turned on, they join the arena rotation of one and two player games. All four have true widescreen backgrounds (not
+Turned on, they join the arena rotation of one and two player games and tournaments. All four have true widescreen backgrounds (not
 mirrored edges), HD versions, their own acoustics and music. The new
 robots bring their own effects too: frost and ice shards, whirlwinds, drill sparks and shavings, laser glow and a
 phase-shift shimmer. Everything new is original and generated from source code in [`src/gen`](src/gen): the robots
@@ -216,10 +217,82 @@ Remastered fights get a layer of modern effects, driven by what actually happens
   <img src="docs/media/training.gif" alt="Training mode: hitting a dummy with a damage and combo readout" width="100%">
 </p>
 
-- **Training mode** (main menu, where network play used to be): pick your robot, pilot, opponent and arena, then
-  practice against a dummy that stands, crouches, jumps, blocks high or low, or fights back. Nobody gets knocked out,
-  health refills after every combo, a readout shows the last hit and combo damage, and an **input display** lists
-  your recent inputs with how long each was held.
+Everything below is new, and none of it changes how the original game plays unless you use it.
+
+#### Training lab
+
+**Training** (main menu, where network play used to be) puts you against a dummy with nobody getting knocked out and
+health refilling after every combo. The pause menu's **Training lab** adds the tools of modern fighting games:
+
+<p align="center">
+  <img src="docs/media/lab-frames.jpg" alt="Training lab: the frame meter and frame data over a fight, hit points and outlines shown" width="49%">
+  <img src="docs/media/lab-trials.jpg" alt="Combo trials: the moves of a trial in a row, the landed ones in green" width="49%">
+</p>
+
+- **Frame data**: a frame meter for both robots (startup, active, recovery, hit and block stun) and the startup,
+  active and recovery frames of your last move with the advantage after it hit or was blocked. <kbd>F8</kbd>
+- **Hitboxes**: what can be hit (outlined) and the hit points of attacks. Hits in this game are pixel exact: a hit
+  lands where a hit point touches the other robot. <kbd>F9</kbd>
+- **Record the dummy**: take control of the dummy and record what it should do (up to 25 seconds), then let it play
+  it back over and over, or once. <kbd>F5</kbd> / <kbd>F6</kbd>
+- **Reversals**: the dummy answers the moment it can act after a hit, a block or a knockdown, with a jump, your
+  recording, or any of its special moves and throws, on the first possible frame.
+- **Combo trials** for every robot: its special moves, then combos found by a search of the game itself (every timing
+  of two and three moves tried against a standing dummy; each trial is checked against all eleven robots as the
+  dummy, and a test replays them all). Each trial has a demo. <kbd>F4</kbd> resets.
+- The **input display** lists your recent inputs with how long each was held.
+
+#### Replays and clips
+
+**Every fight is saved** (Extras › Replays keeps the last 40, plus any you mark to keep). Watch them again at any
+speed from ¼ to 4×, pause, step one frame at a time, jump anywhere on the timeline, and share the fights as `.rec`
+files (the original game's recording format). Mark a clip and save it as an **MP4 video** with the game's sound or
+as an **animated GIF**.
+
+<p align="center">
+  <img src="docs/media/replay.jpg" alt="Watching a replay: the playback bar with the timeline and the clip marks" width="100%">
+</p>
+
+#### Arcade, survival, time attack
+
+- **Arcade**: eight fights, the computer better and better, Kreissack last.
+- **Survival**: one round against one opponent after another with the health you have left.
+- **Time attack**: five fights against the clock.
+- **Records**: statistics, the best results of each mode and 20 achievements (for bragging rights: nothing is
+  locked behind them).
+
+#### Robot workshop
+
+Build your own robots from the new robots' parts: the frame of one, the head of another, the special moves and
+finishers of a third, a size, a weight class and three colors, with a live picture as you go. The game builds a full
+fighter from it on the spot (every sprite, move and hit point, and the HD artwork), ready to try in training or
+against the computer. Robots are shared as small `.omfbot` files.
+
+<p align="center">
+  <img src="docs/media/workshop.jpg" alt="The robot workshop: a GLACIER frame with a SPECTRE head and TEMPEST's moves" width="100%">
+</p>
+
+#### Custom tournaments
+
+Make your own tournaments from the installed ones: fewer opponents (spread over the ranks, the champion always among
+them), their robots as they were or on the new robots, more or less prize money. They show up in **Tournament play**
+like the others and are shared as `.omftrn` files. The new arenas join the tournament's arenas too when they are on.
+
+#### Presentation
+
+- **Announcer**: a synthesized robot voice calls the rounds, "Fight!", knockouts, perfects, scraps and destructions,
+  and the winners. The lines are plain MP3 files in [`public/audio/announcer`](public/audio/announcer): replace any of
+  them with your own recording.
+- **Victory screens**: the winner's portrait and robot with a line of theirs after one and two player fights.
+- **Fight camera** (optional, remastered graphics): the view comes closer when the robots are close and follows the
+  fight, while the HUD stays put.
+
+<p align="center">
+  <img src="docs/media/victory.jpg" alt="A victory screen: the winner's portrait, robot and a line of theirs" width="100%">
+</p>
+
+#### And also
+
 - **Move lists** in the pause menu: the special moves, throws and finishing moves of both robots, read from the
   game's own move tables and shown with direction arrows.
 - **The advanced options the original promised**: *Defensive throws*, *Knock down* and *Block damage* were listed in
@@ -316,6 +389,7 @@ Prerequisites and details for every platform are in [docs/BUILDING.md](docs/BUIL
 | Move / jump / duck | Arrow keys, Home / PgUp / End / PgDn for diagonals (or the numpad) | Q W E / A D / Z X C |
 | Punch | Enter | Left Ctrl or F |
 | Kick | Right Shift | Left Shift or G |
+| Special (one press) | / or numpad − | H |
 
 <kbd>Esc</kbd> pause menu &nbsp;·&nbsp; <kbd>F1</kbd> help &nbsp;·&nbsp; <kbd>F2</kbd> classic / remastered &nbsp;·&nbsp;
 <kbd>F3</kbd> next song (your own music) &nbsp;·&nbsp; <kbd>F11</kbd> or <kbd>Alt</kbd>+<kbd>Enter</kbd> fullscreen.
@@ -325,8 +399,20 @@ Prerequisites and details for every platform are in [docs/BUILDING.md](docs/BUIL
   can be rebound in **Configuration › Input**.
 - **Xbox controllers** (and other standard gamepads) work out of the box, even alongside the keyboard: X / Y / RB
   punch and A / B / RT kick in the modern layout, or the original's two-button scheme in the classic one.
-- **Sound effects and music volume** are in **Configuration › Audio** and the pause menu. **My music** plays your own
-  songs in fights or everywhere: drop audio files onto the window (or pick them in the Audio menu).
+- **One-button specials** (**Configuration › Special button**, on by default): the special button with no
+  direction, forward, back, down or up does the robot's first to fifth special move, and its air special in a jump;
+  the move list shows which is which. The original inputs work as always. On a controller it is LT (and LB or RT).
+- **Touch controls** for phones and tablets: a stick that appears under your left thumb, punch, kick and special
+  buttons and a pause button. They show up once the screen is touched (**Configuration › Touch pad**).
+- **Training**: <kbd>F4</kbd> reset positions, <kbd>F5</kbd> record the dummy, <kbd>F6</kbd> play the recording (or a
+  trial's demo), <kbd>F8</kbd> frame data, <kbd>F9</kbd> hitboxes.
+- **Replays**: <kbd>Space</kbd> pause, <kbd>←</kbd> <kbd>→</kbd> step (or skip five seconds while playing),
+  <kbd>↑</kbd> <kbd>↓</kbd> speed, <kbd>R</kbd> restart, <kbd>I</kbd> / <kbd>O</kbd> clip start and end, <kbd>V</kbd>
+  save a video, <kbd>G</kbd> save a GIF, <kbd>K</kbd> keep, <kbd>H</kbd> hide the bar. The desktop app saves clips and
+  files in *Downloads\OMF 2097 Remastered*.
+- **Sound effects and music volume** are in **Configuration › Audio** and the pause menu, with the **announcer**.
+  **My music** plays your own songs in fights or everywhere: drop audio files onto the window (or pick them in the
+  Audio menu).
 
 <br>
 
@@ -351,7 +437,7 @@ flowchart LR
 | Rendering | WebGL2: classic VGA pipeline, HD reconstruction, particle, lighting and post-processing passes |
 | Audio | Web Audio with an AudioWorklet mixer and a port of the MASI PSM music driver |
 | Desktop | Tauri 2 (WebView2), a portable exe and an installer |
-| Tests | Vitest, 190+ tests running the real game logic headlessly against the original data |
+| Tests | Vitest, 220+ tests running the real game logic headlessly against the original data |
 
 - The remastered renderer measures its GPU time and lowers its internal resolution when a GPU can't keep up. With
   every effect on, a frame takes about 8 ms of GPU time at 1920 × 1200 on an RTX 4080.

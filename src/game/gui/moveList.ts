@@ -7,6 +7,8 @@ import { ACT_ESC, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, CAT_CLOSE, CAT_DESTR
 import type { Af } from '../../resources/resources';
 import { genRobot } from '../../gen/roster';
 import { drawDir, ICON_SIZE } from './inputIcons';
+import { settings } from '../settings';
+import { SPECIAL_SLOTS } from '../../controller/special';
 import { FontSize, GLYPH_SHADOW_BOTTOM, GLYPH_SHADOW_RIGHT, Text } from './text';
 import { Component, Label, Menu, playMenuSound } from './widgets';
 
@@ -19,6 +21,8 @@ export interface MoveListEntry {
   inputs: string[];
   button: 'P' | 'K';
   category: number;
+  /** The move table's input string (button, then the directions most recent first). */
+  moveString: string;
 }
 
 const KINDS: [number[], string][] = [
@@ -58,7 +62,7 @@ export function harMoveList(af: Af): MoveListEntry[] {
       const n = moveNotation(m.moveString);
       if (!n) continue;
       if (out.some((e) => e.kind === kind && e.button === n.button && e.inputs.join() === n.inputs.join())) continue;
-      out.push({ label: name ?? kind, kind, ...n, category: m.category });
+      out.push({ label: name ?? kind, kind, ...n, category: m.category, moveString: m.moveString });
     }
   }
   return out;
@@ -72,6 +76,7 @@ const COLOR_NEUTRAL = 0xd8;
 const COLOR_SHADOW = 0xd1;
 const COLOR_PUNCH = 0xf2;
 const COLOR_KICK = 0xe7;
+const COLOR_SPECIAL = 0xa6;
 const KIND_COLORS: Record<string, number> = { THROW: 0xc7, SPECIAL: 0xe6, AIR: 0xe4, SCRAP: 0xf2, DESTRUCT: 0xf0 };
 
 /** The list itself (one selectable component: left/right switch robots, punch/kick/esc go back). */
@@ -83,7 +88,7 @@ class MoveListView extends Component {
   constructor(private onSwitch: () => void, private onDone: () => void) {
     super();
     this.setHelp('Directions as if facing right: enter them in order, then punch (P) or kick (K); a dot means releasing ' +
-      'the direction. Left or right shows the other robot.');
+      'the direction. S: the special button does it in one press. Left or right shows the other robot.');
   }
 
   private label(e: MoveListEntry): Text {
@@ -99,10 +104,21 @@ class MoveListView extends Component {
     return t;
   }
 
+  /** The special button's direction for an entry (SPECIAL_SLOTS, or '' in the air), or null when it has none. */
+  private specialSlot(e: MoveListEntry): string | null {
+    if (!settings().keys.specialButton) return null;
+    if (e.kind === 'AIR') return this.entries.find((x) => x.kind === 'AIR') === e ? '' : null;
+    if (e.kind !== 'SPECIAL') return null;
+    const i = this.entries.filter((x) => x.kind === 'SPECIAL').indexOf(e);
+    return i >= 0 && i < SPECIAL_SLOTS.length ? SPECIAL_SLOTS[i] : null;
+  }
+
   override render(): void {
     const widest = Math.max(1, ...this.entries.map((e) => e.inputs.length));
     const labelW = Math.max(LABEL_W, ...this.entries.map((e) => this.label(e).width() + 6));
-    const x0 = this.x + Math.max(4, (this.w - (labelW + widest * STEP + 10)) >> 1);
+    const spW = settings().keys.specialButton ? STEP + 14 : 0;
+    const x0 = this.x + Math.max(4, (this.w - (labelW + widest * STEP + 10 + spW)) >> 1);
+    const spX = x0 + labelW + widest * STEP + 14;
     this.entries.forEach((e, i) => {
       const y = this.y + i * ROW_H;
       this.label(e).draw(x0, y + 1);
@@ -112,6 +128,12 @@ class MoveListView extends Component {
         x += STEP;
       }
       this.text(this.buttons, e.button, FontSize.BIG, e.button === 'P' ? COLOR_PUNCH : COLOR_KICK).draw(x + 1, y);
+      // The special button: its direction (none in the air) and S.
+      const slot = this.specialSlot(e);
+      if (slot !== null) {
+        if (slot && slot !== '5') drawDir(slot, spX, y, COLOR_ARROW, COLOR_SHADOW);
+        this.text(this.buttons, 'S', FontSize.BIG, COLOR_SPECIAL).draw(spX + STEP + 1, y);
+      }
     });
   }
 

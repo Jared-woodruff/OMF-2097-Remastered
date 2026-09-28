@@ -20,7 +20,7 @@ const C = {
   bodyDark: 0x60, body: 0x61, bodyLight: 0x62, outline: 0x63, stickDark: 0x64, stick: 0x65,
   a: 0x66, b: 0x67, x: 0x68, y: 0x69, white: 0x6a, lightGrey: 0x6b, grey: 0x6c,
   keyP1: 0x6d, keyP2: 0x6e, keyFace: 0x6f, keyEdge: 0x70, keyTop: 0x71, punch: 0x72, kick: 0x73, dim: 0x74,
-  bright: 0x75, p1: 0x76, p2: 0x77, shadow: 0x78,
+  bright: 0x75, p1: 0x76, p2: 0x77, shadow: 0x78, special: 0x79,
 };
 const COLORS: [number, number, number, number][] = [
   [C.bodyDark, 0x1c, 0x1f, 0x25], [C.body, 0x31, 0x36, 0x40], [C.bodyLight, 0x4a, 0x51, 0x5e], [C.outline, 0x08, 0x09, 0x0c],
@@ -29,7 +29,7 @@ const COLORS: [number, number, number, number][] = [
   [C.grey, 0x6b, 0x73, 0x7f], [C.keyP1, 0x23, 0x5e, 0xa3], [C.keyP2, 0xb0, 0x5a, 0x1c], [C.keyFace, 0x2c, 0x30, 0x38],
   [C.keyEdge, 0x12, 0x14, 0x18], [C.keyTop, 0x3d, 0x42, 0x4c], [C.punch, 0xff, 0xb0, 0x30], [C.kick, 0x55, 0xdc, 0xff],
   [C.dim, 0x7c, 0x86, 0x94], [C.bright, 0xdd, 0xe9, 0xff], [C.p1, 0x7c, 0xbe, 0xff], [C.p2, 0xff, 0xa8, 0x5c],
-  [C.shadow, 0x05, 0x06, 0x08],
+  [C.shadow, 0x05, 0x06, 0x08], [C.special, 0x6e, 0xe8, 0x74],
 ];
 
 const TEXT_TITLE = 0xfd;
@@ -89,7 +89,7 @@ function keyboardKeys(): KeyCap[] {
 /** Actions and the icon a key shows for them: a direction (numpad notation, as seen facing right) or P / K. */
 const ACTIONS: [keyof KeyBindings, string][] = [
   ['jumpUp', '8'], ['jumpRight', '9'], ['walkRight', '6'], ['duckForward', '3'], ['duck', '2'], ['duckBack', '1'],
-  ['walkBack', '4'], ['jumpLeft', '7'], ['punch', 'P'], ['kick', 'K'],
+  ['walkBack', '4'], ['jumpLeft', '7'], ['punch', 'P'], ['kick', 'K'], ['special', 'S'],
 ];
 
 const KB_UNIT = 12;
@@ -144,7 +144,7 @@ export class ControlsMenu extends Menu {
     this.keyboardUses.clear();
     [k.p1, k.p2].forEach((b, player) => {
       for (const [act, icon] of ACTIONS) {
-        for (const code of b[act]) if (!this.keyboardUses.has(code)) this.keyboardUses.set(code, { player, icon });
+        for (const code of b[act] ?? []) if (!this.keyboardUses.has(code)) this.keyboardUses.set(code, { player, icon });
       }
     });
     const w = 23 * KB_UNIT, h = 5 * KB_UNIT;
@@ -171,8 +171,9 @@ export class ControlsMenu extends Menu {
       const cx = x + (cap.w * KB_UNIT - 1) / 2, cy = y + (cap.h * KB_UNIT - 1) / 2;
       const use = this.keyboardUses.get(cap.code);
       if (use) {
-        if (use.icon === 'P' || use.icon === 'K') {
-          this.drawCentered('kb', use.icon, cx, Math.round(cy - 3), FontSize.SMALL, use.icon === 'P' ? C.punch : C.kick);
+        if (use.icon === 'P' || use.icon === 'K' || use.icon === 'S') {
+          const color = use.icon === 'P' ? C.punch : use.icon === 'K' ? C.kick : C.special;
+          this.drawCentered('kb', use.icon, cx, Math.round(cy - 3), FontSize.SMALL, color);
         } else {
           drawDir(use.icon, Math.round(cx - 3.5), Math.round(cy - 3.5), C.white, C.shadow);
         }
@@ -184,7 +185,8 @@ export class ControlsMenu extends Menu {
     const k = settings().keys;
     const short = (code: string | undefined) => keyName(code).replace('PAGE UP', 'PGUP').replace('PAGE DOWN', 'PGDN')
       .replace('KEYPAD ', 'KP').replace('RIGHT ', 'R.').replace('LEFT ', 'L.');
-    const names = (codes: string[]) => codes.slice(0, 2).map(short).join(' / ') || '-';
+    // (a key named "/" reads badly between the " / " separators)
+    const names = (codes: string[]) => codes.slice(0, 2).map((c) => (c === 'Slash' ? 'SLASH' : short(c))).join(' / ') || '-';
     const rows: [string, (b: KeyBindings) => string][] = [
       ['JUMP', (b) => names(b.jumpUp)],
       ['WALK', (b) => `${short(b.walkBack[0])}  ${short(b.walkRight[0])}`],
@@ -193,13 +195,14 @@ export class ControlsMenu extends Menu {
         : 'TWO KEYS AT ONCE')],
       ['PUNCH', (b) => names(b.punch)],
       ['KICK', (b) => names(b.kick)],
+      ['SPECIAL', (b) => (settings().keys.specialButton ? names(b.special ?? []) : 'OFF')],
     ];
     const y0 = 104;
     this.t('h', 'PLAYER 1', FontSize.SMALL, C.p1).draw(84, y0);
     this.t('h', 'PLAYER 2', FontSize.SMALL, C.p2).draw(200, y0);
     rows.forEach(([label, f], i) => {
       const y = y0 + 10 + i * 8;
-      const color = label === 'PUNCH' ? C.punch : label === 'KICK' ? C.kick : C.lightGrey;
+      const color = label === 'PUNCH' ? C.punch : label === 'KICK' ? C.kick : label === 'SPECIAL' ? C.special : C.lightGrey;
       this.t('l', label, FontSize.SMALL, color).draw(22, y);
       this.t('v', f(k.p1).slice(0, 18), FontSize.SMALL, C.white).draw(84, y);
       this.t('v', f(k.p2).slice(0, 16), FontSize.SMALL, C.white).draw(200, y);
@@ -285,6 +288,7 @@ export class ControlsMenu extends Menu {
       ['MOVE', 'D-PAD / LEFT STICK', C.lightGrey],
       ['PUNCH', modern ? 'X  Y  RB' : 'A  X  LB', C.punch],
       ['KICK', modern ? 'A  B  RT' : 'B  Y  RB', C.kick],
+      ['SPECIAL', settings().keys.specialButton ? (modern ? 'LT  LB' : 'LT  RT') : 'OFF', C.special],
       ['PAUSE', 'MENU BUTTON', C.lightGrey],
       ['MENUS', 'A SELECT  B BACK', C.lightGrey],
     ];

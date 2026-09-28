@@ -8,7 +8,7 @@ import { paletteDarken, vga } from '../../video/vga';
 import { defaultSoundOpts } from '../../audio/soundOpts';
 import { Surface } from '../../video/surface';
 import {
-  ACT_ESC, ANIM_DAMAGE, ANIM_DEFEAT, ANIM_SCRAP_METAL, ANIM_VICTORY, ARENA_FLOOR, ARENA_LEFT_WALL, ARENA_RIGHT_WALL, CtrlType,
+  ACT_DOWN, ACT_ESC, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_UP, ANIM_DAMAGE, ANIM_DEFEAT, ANIM_SCRAP_METAL, ANIM_VICTORY, ARENA_FLOOR, ARENA_LEFT_WALL, ARENA_RIGHT_WALL, CtrlType,
   GROUP_ANNOUNCEMENT, GROUP_HAZARD, GROUP_PROJECTILE, GROUP_SCRAP, HarEventType, HarId, HarState, LAYER_HAR, LAYER_HAZARD,
   LAYER_SCRAP, OBJECT_FACE_LEFT, OBJECT_FACE_RIGHT, PilotId, RENDER_LAYER_BOTTOM, RENDER_LAYER_MIDDLE, RENDER_LAYER_TOP, SceneId,
 } from '../constants';
@@ -40,6 +40,17 @@ import type { Af } from '../../resources/resources';
 import { arenaScreengrabWinner, harScreencapsCompress, harScreencapsReset, SCREENCAP_BLOW, SCREENCAP_POSE } from '../harScreencap';
 import { GEN_ARENAS } from '../../gen/scene/arenas';
 import { arenaCount } from '../roster';
+import { recSerialize } from '../../formats/rec';
+import { Recorder } from '../replay/recorder';
+import { ReplayHud } from '../replay/hud';
+import { storeFight, type ReplayMeta } from '../replay/store';
+import { app } from '../../app';
+import type { PointerKind } from '../../controller/mouse';
+import { TrainingLab } from '../training/session';
+import { winLine } from '../../audio/announcer';
+import { recordFight } from '../records/records';
+import { formatMs } from '../modes/run';
+import { AiController } from '../../controller/ai';
 
 const HAR1_START_POS = 110;
 const HAR2_START_POS = 210;
@@ -83,6 +94,18 @@ export class ArenaScene extends Scene implements ArenaLike {
   private trnText: Text | null = null;
   /** Training: player 1's recent inputs. */
   private inputDisplay: InputDisplay | null = null;
+  /** Training: frame data, hitboxes, recording the dummy, reversals (see training/session.ts). */
+  lab: TrainingLab | null = null;
+  /** Game time fought (arcade, survival, time attack) and the run's line under the scores. */
+  private runMs = 0;
+  private runText: Text | null = null;
+  /** Hits of each player's combo under way, and their longest combo (the records). */
+  private comboHits = [0, 0];
+  private bestCombo = [0, 0];
+  /** The fight's recording (saved as a replay when the fight is over). */
+  private recorder: Recorder | null = null;
+  /** Watching a replay: its controls. */
+  private replayHud: ReplayHud | null = null;
 
   constructor(gs: GameState, id: SceneId) {
     super(gs, id);
@@ -96,14 +119,16 @@ export class ArenaScene extends Scene implements ArenaLike {
     if (music[bk.fileId]) gs.playMusic(music[bk.fileId]);
     this.rounds = [1, 3, 5, 7][gs.matchSettings.rounds] ?? 1;
     let palIndex = 0;
-    if (bk.fileId === 128 && gs.isTournament()) palIndex = globalRandom.int(bk.palettes.length);
+    // A replay uses the recorded palette (the desert's time of day in tournaments).
+    if (gs.replay) palIndex = gs.replay.rec.arenaPalette;
+    else if (bk.fileId === 128 && gs.isTournament()) palIndex = globalRandom.int(bk.palettes.length);
     if (palIndex > 0 && palIndex < bk.palettes.length) vga.setBasePaletteRange(bk.palettes[palIndex], 0x60, 0x60, 0x40);
 
     const pos = [HAR1_START_POS, HAR2_START_POS];
     const dir = [OBJECT_FACE_RIGHT, OBJECT_FACE_LEFT];
     for (let i = 0; i < 2; i++) {
       const player = gs.getPlayer(i);
-      if (i === 0 && player.chr) {
+      if (i === 0 && (player.chr || gs.replay?.tournament)) {
         this.rounds = 1;
         this.tournament = true;
       }
@@ -194,7 +219,25 @@ export class ArenaScene extends Scene implements ArenaLike {
       this.inputDisplay = new InputDisplay();
       this.trnText = hudText('', 0xe7, 0xf8, 320, 6).setHAlign(HAlign.CENTER);
       for (let i = 0; i < 2; i++) this.trnHealth[i] = harData(this.harObj(i)).health;
+      this.lab = new TrainingLab(gs, {
+        harObj: (i) => this.harObj(i),
+        resetTrainingPositions: () => this.resetTrainingPositions(),
+        setTrainingDummy: (m) => this.setTrainingDummy(m),
+        trainingDummy: () => this.trainingDummy(),
+      });
     }
+    // Survival: player 1 starts with the health left from the fight before.
+    const run = gs.modeRun;
+    if (run) {
+      this.runText = hudText('', 0xe7, 0xf8, 320, 6).setHAlign(HAlign.CENTER);
+      if (run.kind === 'survival' && run.health < 100) {
+        const h = harData(this.harObj(0));
+        h.health = Math.max(1, (h.healthMax * run.health) / 100);
+      }
+    }
+    // Last, like the reference (arena_create records the random seed when the fight is ready).
+    if (gs.replay) this.replayHud = new ReplayHud(gs.replay);
+    else if (!this.training && !gs.isDemoplay() && settings().gameplay.saveReplays) this.recorder = new Recorder(gs, id - SceneId.ARENA0, palIndex);
   }
 
   // ---- ArenaLike ---------------------------------------------------------------
@@ -237,9 +280,17 @@ export class ArenaScene extends Scene implements ArenaLike {
 
   private createRoundstartAnim(): void {
     const readyDone = (parent: GameObject) => {
-      this.tickTimer.add(10, () => this.addAnnouncement(10, RENDER_LAYER_TOP));
+      this.tickTimer.add(10, () => {
+        this.addAnnouncement(10, RENDER_LAYER_TOP);
+        this.gs.announce('fight');
+      });
       parent.setFinished(true);
     };
+    // The announcer: the round (the last possible one is the final round), or the arcade's last fight.
+    const run = this.gs.modeRun;
+    if (run?.kind === 'arcade' && run.total !== null && run.fight === run.total && this.round === 0) this.gs.announce('finalfight');
+    else if (this.rounds === 1) this.gs.announce('ready');
+    else this.gs.announce(this.round === this.rounds - 1 ? 'final' : `round${this.round + 1}`);
     if (this.rounds === 1) {
       const o = this.addAnnouncement(11, RENDER_LAYER_TOP, readyDone);
       if (o) o.group = GROUP_ANNOUNCEMENT;
@@ -255,7 +306,17 @@ export class ArenaScene extends Scene implements ArenaLike {
     }
   }
 
+  /** The announcer after a round: "you win" / "you lose" against the computer, else the winning robot. */
+  private announceWinner(): void {
+    const gs = this.gs;
+    const winnerId = gs.fightStats.winner;
+    const vsCpu = gs.getPlayer(0).ctrl.type !== CtrlType.AI && gs.getPlayer(1).ctrl.type === CtrlType.AI;
+    if (vsCpu) gs.announce(winnerId === 0 ? 'youwin' : 'youlose');
+    else gs.announce(winLine(gs.getPlayer(winnerId).pilot.harId));
+  }
+
   private youWinStart(): void {
+    this.announceWinner();
     this.addAnnouncement(9, RENDER_LAYER_MIDDLE, (p) => {
       p.setFinished(true);
       this.winState = WinState.DONE;
@@ -263,6 +324,7 @@ export class ArenaScene extends Scene implements ArenaLike {
   }
 
   private youLoseStart(): void {
+    this.announceWinner();
     this.addAnnouncement(8, RENDER_LAYER_MIDDLE, (p) => {
       p.setFinished(true);
       this.winState = WinState.DONE;
@@ -307,6 +369,11 @@ export class ArenaScene extends Scene implements ArenaLike {
     if (this.ended) return;
     this.ended = true;
     const gs = this.gs;
+    // A replay stops at the end of the fight (no results, no next screen).
+    if (gs.replay) {
+      gs.replay.finish();
+      return;
+    }
     const fs = gs.fightStats;
     const f32 = Math.fround;
     const winnerId = this.winner;
@@ -316,6 +383,14 @@ export class ArenaScene extends Scene implements ArenaLike {
     const winnerHar = harData(this.harObj(winnerId));
     fs.hp = winnerHar.health;
     fs.maxHp = winnerHar.healthMax;
+    this.recordResult();
+    // Arcade, survival, time attack: the run goes on (or ends) instead of the one player game's news.
+    if (gs.modeRun) {
+      const p1 = harData(this.harObj(0));
+      gs.modeRun.fightOver(gs, winnerId === 0, this.runMs, Math.round((Math.max(0, p1.health) / p1.healthMax) * 100));
+      this.victoryScreen();
+      return;
+    }
 
     if (gs.isTournament() && this.winner === 0) {
       // tournament player won
@@ -438,6 +513,17 @@ export class ArenaScene extends Scene implements ArenaLike {
       gs.arena++;
       if (gs.arena >= arenaCount()) gs.arena = 0;
     }
+    this.victoryScreen();
+  }
+
+  /** The victory screen (scenes/victory.ts) comes first, then what was set to come next. */
+  private victoryScreen(): void {
+    const gs = this.gs;
+    if (!settings().gameplay.victoryScreens || gs.isTournament() || gs.isDemoplay() || this.training) return;
+    if (gs.getPlayer(0).ctrl.type === CtrlType.AI && gs.getPlayer(1).ctrl.type === CtrlType.AI) return;
+    if (gs.nextId === gs.thisId || gs.nextId === SceneId.VICTORY) return;
+    gs.victoryNext = gs.nextId;
+    gs.nextId = SceneId.VICTORY;
   }
 
   /** game_menu_quit(): quit (or forfeit a tournament fight: Plug then calls you a chicken on the VS screen). */
@@ -490,6 +576,7 @@ export class ArenaScene extends Scene implements ArenaLike {
     }
     player.ctrl.harObjId = player.harObjId;
     player.ctrl.setRepeat(1);
+    this.lab?.configureDummy();
   }
 
   /** Puts both robots back at their start positions with full health. */
@@ -536,10 +623,19 @@ export class ArenaScene extends Scene implements ArenaLike {
     const d = this.trnLastHit[1];
     const mode = DUMMY_MODE_NAMES[this.trainingDummy()] ?? '';
     this.trnText?.set(`DUMMY: ${mode}    LAST HIT: ${d}    COMBO: ${this.trnCombo[1]}`);
+    this.lab?.tick(objs);
   }
 
   // ---- HAR event hooks ------------------------------------------------------------
   private harHook(event: HarEvent): void {
+    this.lab?.onHarEvent(event);
+    // Combos, as the game counts them: hits until the victim recovers.
+    if (event.type === HarEventType.LAND_HIT) this.comboHits[event.playerId]++;
+    if (event.type === HarEventType.RECOVER) {
+      const a = event.playerId ? 0 : 1;
+      this.bestCombo[a] = Math.max(this.bestCombo[a], this.comboHits[a]);
+      this.comboHits[a] = 0;
+    }
     const gs = this.gs;
     const fs = gs.fightStats;
     const score = gs.getPlayer(event.playerId).score;
@@ -576,10 +672,12 @@ export class ArenaScene extends Scene implements ArenaLike {
       case HarEventType.SCRAP:
         fs.finish = 1;
         score.setScrap();
+        gs.announce('scrap');
         break;
       case HarEventType.DESTRUCTION:
         fs.finish = 2;
         score.setDestruction();
+        gs.announce('destruction');
         break;
       case HarEventType.DONE:
         score.setDone();
@@ -693,6 +791,7 @@ export class ArenaScene extends Scene implements ArenaLike {
     const loser = this.harObj(loserId);
     const wh = harData(winner);
     gs.fightStats.winner = winnerId;
+    gs.announce(wh.health >= wh.healthMax ? 'perfect' : 'ko');
     const score = pw.score;
     if (gs.isDemoplay()) this.winState = WinState.YOULOSE;
     else if (!gs.isSingleplayer()) this.winState = WinState.YOUWIN;
@@ -809,6 +908,7 @@ export class ArenaScene extends Scene implements ArenaLike {
       this.enduranceBars[i].tick();
     }
     if (this.training) this.trainingTick(objs);
+    if (gs.modeRun && this.state === ARENA_STATE_FIGHTING) this.runMs += gs.msPerDyntick();
     if (this.state === ARENA_STATE_FIGHTING) {
       if (gs.matchSettings.hazards) this.spawnHazards();
     } else if (this.state === ARENA_STATE_STARTING) {
@@ -876,6 +976,99 @@ export class ArenaScene extends Scene implements ArenaLike {
 
   override staticTick(): void {
     this.pauseMenu.tick();
+    if (this.gs.replay) this.replayControls();
+  }
+
+  /** Watching a replay: the menu keys and pad buttons control the playback (see replay/hud.ts). */
+  private replayControls(): void {
+    const s = this.gs.replay!;
+    const ev: CtrlEvent[] = [];
+    this.gs.menuPoll(ev);
+    for (const e of ev) {
+      if (e.type !== 'action') continue;
+      if (s.exporting) {
+        // Saving a clip: pause / go on, or cancel.
+        if (e.action & ACT_ESC) app.cancelExport();
+        else if (e.action & ACT_PUNCH && !s.ended) s.setPaused(!s.paused);
+        continue;
+      }
+      if (e.action & ACT_ESC) {
+        s.exit();
+        return;
+      }
+      if (e.action & ACT_PUNCH) this.replayToggle();
+      if (e.action & ACT_KICK) s.hud = !s.hud;
+      if (e.action & ACT_UP) s.changeSpeed(1);
+      if (e.action & ACT_DOWN) s.changeSpeed(-1);
+      if (e.action & (ACT_LEFT | ACT_RIGHT)) this.replayMove(e.action & ACT_RIGHT ? 1 : -1);
+    }
+  }
+
+  private replayToggle(): void {
+    const s = this.gs.replay!;
+    if (s.ended) s.restart();
+    else s.setPaused(!s.paused);
+  }
+
+  /** Paused: one tick forward or back. Playing: five seconds. */
+  private replayMove(dir: 1 | -1): void {
+    const s = this.gs.replay!;
+    if (s.paused) {
+      if (dir > 0) s.step();
+      else s.seek(this.gs.tick - 1);
+    } else {
+      s.seek(this.gs.tick + dir * 300);
+    }
+  }
+
+  override keyEvent(code: string, e: KeyboardEvent): boolean {
+    if (this.lab && e.type === 'keydown' && !e.repeat && !this.menuVisible && this.lab.keyEvent(code)) return true;
+    const s = this.gs.replay;
+    if (!s || e.type !== 'keydown' || e.repeat) return false;
+    const tick = this.gs.tick;
+    if (s.exporting) {
+      if (code === 'Space' && !s.ended) s.setPaused(!s.paused);
+      return true;
+    }
+    switch (code) {
+      case 'Space':
+        this.replayToggle();
+        return true;
+      case 'KeyR':
+        s.restart();
+        return true;
+      case 'KeyH':
+        s.hud = !s.hud;
+        return true;
+      case 'KeyI':
+        s.markIn = tick;
+        if (s.markOut >= 0 && s.markOut <= tick) s.markOut = -1;
+        this.replayHud?.flash('CLIP START');
+        return true;
+      case 'KeyO':
+        s.markOut = tick;
+        if (s.markIn >= tick) s.markIn = -1;
+        this.replayHud?.flash('CLIP END');
+        return true;
+      case 'KeyC':
+        s.markIn = s.markOut = -1;
+        return true;
+      case 'KeyV':
+        app.exportReplay('video');
+        return true;
+      case 'KeyG':
+        app.exportReplay('gif');
+        return true;
+      case 'KeyK':
+        void s.keep().then((kept) => this.replayHud?.flash(kept ? 'KEPT' : 'NOT KEPT'));
+        return true;
+    }
+    return false;
+  }
+
+  override pointer(x: number, y: number, kind: PointerKind): boolean {
+    if (this.gs.replay?.exporting) return true;
+    return this.replayHud?.pointer(x, y, kind) ?? false;
   }
 
   override inputPoll(): void {
@@ -887,14 +1080,25 @@ export class ArenaScene extends Scene implements ArenaLike {
         player.ctrl.poll(ev);
         const har = gs.findObject(player.harObjId);
         for (const e of ev) {
-          if (e.type === 'action') har?.act(e.action);
-          else if (e.type === 'close') gs.setNext(SceneId.MENU);
+          if (e.type === 'action') {
+            har?.act(e.action);
+            this.recorder?.record(gs.tick, i, e.action);
+          } else if (e.type === 'close') {
+            // The recorded inputs ran out: the replay is over.
+            if (gs.replay) gs.replay.finish();
+            else gs.setNext(SceneId.MENU);
+          }
         }
-        if (i === 0 && this.inputDisplay) {
-          this.inputDisplay.record(ev.filter((e) => e.type === 'action').map((e) => e.action), har?.direction === OBJECT_FACE_LEFT);
+        const actions = this.training ? ev.filter((e) => e.type === 'action').map((e) => e.action) : [];
+        this.lab?.record(i, actions);
+        // The player's inputs (on the dummy's robot while recording it).
+        if (i === (this.lab?.recording ? 1 : 0) && this.inputDisplay) {
+          this.inputDisplay.record(actions, har?.direction === OBJECT_FACE_LEFT);
         }
       }
     }
+    // A replay's controls are polled by the static tick (they keep their pace at any playback speed).
+    if (gs.replay) return;
     const menuEv: CtrlEvent[] = [];
     // In a running fight the pads' buttons belong to the players; the Menu button pauses (and resumes).
     gs.menuPoll(menuEv, { playerScene: !this.menuVisible, startIsEsc: true });
@@ -904,6 +1108,9 @@ export class ArenaScene extends Scene implements ArenaLike {
         gs.setNext(SceneId.MENU);
       } else if (e.action === ACT_ESC && this.menuVisible && this.pauseMenu.back()) {
         // ESC on a page of the pause menu (the move list) goes back to the menu.
+      } else if (e.action === ACT_ESC && this.lab?.recording) {
+        // Pause stops recording the dummy first.
+        this.lab.stopRecording();
       } else if (e.action === ACT_ESC) {
         this.menuVisible = !this.menuVisible;
         gs.paused = this.menuVisible;
@@ -924,7 +1131,12 @@ export class ArenaScene extends Scene implements ArenaLike {
   /** Pauses a running fight when the player switches away (not demos, which just keep playing). */
   override focusLost(): void {
     const gs = this.gs;
+    if (gs.replay) {
+      gs.replay.setPaused(true);
+      return;
+    }
     if (this.menuVisible || gs.isDemoplay() || this.over) return;
+    this.lab?.stopRecording();
     this.menuVisible = true;
     gs.paused = true;
     this.pauseMenu.open();
@@ -944,6 +1156,7 @@ export class ArenaScene extends Scene implements ArenaLike {
   override renderOverlay(): void {
     const gs = this.gs;
     if (gs.hideUi) return;
+    this.lab?.renderWorld();
     for (let i = 0; i < 2; i++) {
       this.healthBars[i].render();
       this.enduranceBars[i].render();
@@ -955,12 +1168,69 @@ export class ArenaScene extends Scene implements ArenaLike {
     gs.getPlayer(0).score.render(gs.getPlayer(0).selectable);
     gs.getPlayer(1).score.render(gs.getPlayer(1).selectable);
     if (this.trnText && !this.menuVisible) this.trnText.draw(0, 191);
-    if (this.inputDisplay && settings().training.inputDisplay) this.inputDisplay.render(4, 44);
+    const run = gs.modeRun;
+    if (run && this.runText) {
+      const of = run.total ? `/${run.total}` : '';
+      const time = run.kind === 'timeattack' ? `   ${formatMs(run.ms + this.runMs)}` : '';
+      const wins = run.kind === 'survival' ? `WINS ${run.wins}` : run.kind === 'exhibition' ? 'TEST FIGHT' : `FIGHT ${run.fight}${of}`;
+      this.runText.set(`${run.label}   ${wins}${time}`);
+      this.runText.draw(0, 34);
+    }
+    // (below the frame meter when it shows)
+    if (this.inputDisplay && settings().training.inputDisplay) this.inputDisplay.render(4, settings().training.frameData ? 60 : 44);
+    if (!this.menuVisible) this.lab?.render();
     if (this.menuVisible) this.pauseMenu.render();
+    this.replayHud?.render();
+  }
+
+  /** The fight in the player's records (not training, demos or replays). */
+  private recordResult(): void {
+    const gs = this.gs;
+    if (this.training || gs.isDemoplay() || gs.replay) return;
+    const p1 = gs.getPlayer(0), p2 = gs.getPlayer(1);
+    const won = this.winner === 0;
+    const winnerHar = harData(this.harObj(this.winner));
+    const finish = gs.fightStats.finish;
+    recordFight({
+      human: p1.ctrl.type !== CtrlType.AI,
+      versus: p2.ctrl.type !== CtrlType.AI,
+      won,
+      harId: p1.pilot.harId,
+      cpuDifficulty: p2.ctrl instanceof AiController ? p2.ctrl.difficulty : -1,
+      perfect: winnerHar.health >= winnerHar.healthMax,
+      finish: finish === 1 ? 'scrap' : finish === 2 ? 'destruction' : 'none',
+      bestCombo: Math.max(this.bestCombo[0], this.comboHits[0]),
+      ticks: gs.tick,
+    });
+  }
+
+  /** Stores the finished fight's recording as a replay (fights shorter than a second are not kept). */
+  private saveRecording(): void {
+    const rec = this.recorder;
+    const gs = this.gs;
+    this.recorder = null;
+    if (!rec || gs.tick < 60) return;
+    // The pilots as they started the fight (tournament screens may have dropped player 2's by now).
+    const player = (i: number) => {
+      const p = rec.rec.pilots[i].info;
+      return { name: p.name.trim() || `PLAYER ${i + 1}`, harId: p.harId, pilotId: p.pilotId };
+    };
+    const meta: ReplayMeta = {
+      created: Date.now(),
+      mode: gs.modeLabel ?? (gs.isTournament() ? 'TOURNAMENT' : gs.isSingleplayer() ? 'ONE PLAYER' : 'TWO PLAYER'),
+      players: [player(0), player(1)],
+      arena: this.id - SceneId.ARENA0,
+      winner: this.over ? this.winner : -1,
+      rounds: [gs.getPlayer(0).score.rounds, gs.getPlayer(1).score.rounds],
+      ticks: gs.tick,
+      kept: false,
+    };
+    storeFight(meta, recSerialize(rec.finish(gs.tick)));
   }
 
   override free(): void {
     const gs = this.gs;
+    this.saveRecording();
     gs.paused = false;
     for (let i = 0; i < 2; i++) {
       const p = gs.getPlayer(i);

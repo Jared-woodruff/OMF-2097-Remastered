@@ -111,6 +111,11 @@ export function fighterFile(harId: number): AfFile {
   return afFile(harFileName(harId));
 }
 
+/** Forgets a parsed fighter file (a workshop robot that was built again). */
+export function forgetFighter(harId: number): void {
+  afCache.delete(harFileName(harId));
+}
+
 /** Whether a robot's fighter file is available (the generated robots ship separately from the game data). */
 export function hasFighter(harId: number): boolean {
   const name = harFileName(harId);
@@ -316,10 +321,21 @@ export function loadLanguage(file = 'ENGLISH.DAT'): void {
     // Older files (e.g. GERMAN.DAT): insert placeholders so ids line up with the 1013-entry layout.
     for (const id of LANG_21_NEW_IDS) language.splice(id, 0, '');
   }
-  // The remaster's robots take the unused entries after the robot names (31 + HAR id).
+  // The remaster's robots take the unused entries after the robot names (31 + HAR id); so do the workshop's.
   GENERATED_HAR_NAMES.forEach((name, i) => {
     if (!language[42 + i]) language[42 + i] = name;
   });
+  for (const [id, name] of customHarNames) language[31 + id] = name;
+}
+
+/** Names of the workshop's robots (HAR 15..), kept over language changes. */
+const customHarNames = new Map<number, string>();
+
+/** Names a workshop robot (the language file's free entries after the robot names). */
+export function setHarName(harId: number, name: string): void {
+  const title = name.charAt(0) + name.slice(1).toLowerCase();
+  customHarNames.set(harId, title);
+  if (language.length) language[31 + harId] = title;
 }
 
 /** Names of HARs 11.. (the generated robots), in the case of the originals' ("Jaguar"; the news report prints it). */
@@ -368,6 +384,25 @@ export function loadPic(name: string): PicPhoto[] {
 }
 
 const trnCache = new Map<string, TournamentFile>();
+/** Tournaments made in the game (custom tournaments), by upper-case file name. */
+const customTrns = new Map<string, TournamentFile>();
+
+/** Adds (or replaces) a tournament made in the game; null removes it. */
+export function registerTournament(name: string, trn: TournamentFile | null): void {
+  const key = name.toUpperCase();
+  if (trn) {
+    customTrns.set(key, trn);
+    trnCache.set(key, trn);
+  } else {
+    customTrns.delete(key);
+    trnCache.delete(key);
+  }
+}
+
+/** The file names of the tournaments made in the game. */
+export function customTournamentNames(): string[] {
+  return [...customTrns.keys()].sort();
+}
 
 export function loadTournament(name: string): TournamentFile {
   const key = name.toUpperCase();

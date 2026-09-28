@@ -1,16 +1,18 @@
 // F1 help: the original game's help pages, with the game paused (the help text itself says "while playing the game,
 // you can press the F1 key at any time to bring up these instructions"). Shown full screen on the main menu backdrop
 // with the main menu's palette (text colors are palette entries, which differ from scene to scene); the scene's
-// palette is restored on close. The controls screen (controlsScreen.ts) is shown the same way.
+// palette is restored on close. The controls screen (controlsScreen.ts) and the remaster's pages (page.ts: replays,
+// records...) are shown the same way.
 import { connectedPads, isDown, readPad } from '../../controller/input';
 import type { PointerKind } from '../../controller/mouse';
 import type { Palette, RemapTables } from '../../formats/palette';
 import { loadBk, type Bk } from '../../resources/resources';
 import { drawList, TAG_BACKGROUND, TAG_MENU, video } from '../../video/draw';
 import { setMenuColors, vga } from '../../video/vga';
-import { ACT_DOWN, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_UP, CtrlType } from '../constants';
+import { ACT_DOWN, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_UP, CtrlType } from '../constants';
 import { HelpMenu } from '../scenes/mainmenu/menuHelp';
 import { ControlsMenu, setControlsColors } from './controlsScreen';
+import { Page } from './page';
 import { playMenuSound, type Menu } from './widgets';
 
 let openOverlay: HelpOverlay | null = null;
@@ -25,6 +27,9 @@ export class HelpOverlay {
   private menu: Menu | null = null;
   /** The controls screen instead of the help pages. */
   private controls = false;
+  /** A page (replays, records...) instead of the help pages. */
+  private page: Page | null = null;
+  private padKick = false;
   /** Key or pad button that closed the help: the game stays paused until it is released (it must not act in the game). */
   private releaseKey: string | null = null;
   private releasePad = false;
@@ -38,10 +43,11 @@ export class HelpOverlay {
     return this.menu !== null;
   }
 
-  open(kind: 'help' | 'controls' = 'help'): void {
+  open(kind: 'help' | 'controls' | Page = 'help'): void {
     if (this.menu) return;
+    this.page = kind instanceof Page ? kind : null;
     this.controls = kind === 'controls';
-    this.menu = this.controls ? new ControlsMenu() : new HelpMenu();
+    this.menu = this.page ?? (this.controls ? new ControlsMenu() : new HelpMenu());
     openOverlay = this;
     mainBk ??= loadBk('MAIN.BK');
     this.savedPalette = vga.base.clone();
@@ -50,8 +56,10 @@ export class HelpOverlay {
     vga.setRemaps(mainBk.remaps[0]);
     setMenuColors();
     if (this.controls) setControlsColors();
+    this.page?.setColors();
     vga.setBaseIndex(0, 0, 0, 0);
     vga.render();
+    this.page?.onOpen();
     this.releaseKey = null;
     this.releasePad = false;
     this.padPrev = { up: true, down: true, left: true, right: true, back: true, punch: true };
@@ -62,6 +70,7 @@ export class HelpOverlay {
   close(releaseKey: string | null, fromPad = false): void {
     if (!this.menu) return;
     this.menu = null;
+    this.page = null;
     openOverlay = null;
     if (this.savedPalette && this.savedRemaps) {
       vga.setBasePalette(this.savedPalette);
@@ -94,6 +103,20 @@ export class HelpOverlay {
   key(code: string): boolean {
     const m = this.menu;
     if (!m) return false;
+    const page = this.page;
+    if (page) {
+      if (code === 'F1' || code === 'Escape') {
+        if (!page.back()) this.close(code);
+      } else if (code === 'Enter' || code === 'NumpadEnter' || code === 'Space') page.action(ACT_PUNCH, CtrlType.KEYBOARD);
+      else if (code === 'ArrowUp' || code === 'Numpad8') page.action(ACT_UP, CtrlType.KEYBOARD);
+      else if (code === 'ArrowDown' || code === 'Numpad2') page.action(ACT_DOWN, CtrlType.KEYBOARD);
+      else if (code === 'ArrowLeft' || code === 'Numpad4') page.action(ACT_LEFT, CtrlType.KEYBOARD);
+      else if (code === 'ArrowRight' || code === 'Numpad6') page.action(ACT_RIGHT, CtrlType.KEYBOARD);
+      else if (code === 'ShiftRight') page.action(ACT_KICK, CtrlType.KEYBOARD);
+      else page.key(code);
+      if (page.finished) this.close(code);
+      return true;
+    }
     if (this.controls) {
       if (code === 'F1' || code === 'Escape') this.close(code);
       else if (code === 'Enter' || code === 'NumpadEnter' || code === 'Space') m.action(ACT_PUNCH, CtrlType.KEYBOARD);
@@ -115,6 +138,16 @@ export class HelpOverlay {
   pointer(kind: PointerKind, x = 0, y = 0): void {
     const m = this.menu;
     if (!m) return;
+    const page = this.page;
+    if (page) {
+      if (kind === 'rclick') {
+        if (!page.back()) this.close(null);
+      } else if (!page.pointer(x, y, kind) && (kind === 'wheelUp' || kind === 'wheelDown')) {
+        page.action(kind === 'wheelUp' ? ACT_UP : ACT_DOWN, CtrlType.KEYBOARD);
+      }
+      if (page.finished) this.close(null);
+      return;
+    }
     if (this.controls) {
       if (kind === 'rclick') this.close(null);
       else if (kind === 'wheelUp' || kind === 'wheelDown') m.action(kind === 'wheelUp' ? ACT_LEFT : ACT_RIGHT, CtrlType.KEYBOARD);
@@ -146,6 +179,21 @@ export class HelpOverlay {
       now.punch ||= p.a || p.start;
     }
     const pressed = (k: keyof typeof now) => now[k] && !this.padPrev[k];
+    const page = this.page;
+    if (page) {
+      if (pressed('up')) page.action(ACT_UP, CtrlType.GAMEPAD);
+      if (pressed('down')) page.action(ACT_DOWN, CtrlType.GAMEPAD);
+      if (pressed('left')) page.action(ACT_LEFT, CtrlType.GAMEPAD);
+      if (pressed('right')) page.action(ACT_RIGHT, CtrlType.GAMEPAD);
+      if (pressed('punch')) page.action(ACT_PUNCH, CtrlType.GAMEPAD);
+      const kick = connectedPads().some((i) => { const p = readPad(i); return !!(p && (p.x || p.y)); });
+      if (kick && !this.padKick) page.action(ACT_KICK, CtrlType.GAMEPAD);
+      this.padKick = kick;
+      this.padPrev = now;
+      if (pressed('back') && !page.back()) this.close(null, true);
+      else if (page.finished) this.close(null, true);
+      return;
+    }
     if (this.controls) {
       // Controls screen: left / right switch pages, A changes the layout, B, View or Menu close.
       if (pressed('left') || pressed('up')) this.menu.action(ACT_LEFT, CtrlType.GAMEPAD);

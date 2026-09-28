@@ -35,6 +35,8 @@ export enum SceneId {
   TRN_CUTSCENE,
   SCOREBOARD,
   LOBBY,
+  /** The remaster's victory screen (scenes/victory.ts). */
+  VICTORY,
 }
 
 export const SCENE_BK: Record<number, string> = {
@@ -58,6 +60,7 @@ export const SCENE_BK: Record<number, string> = {
   [SceneId.ARENA7]: 'ARENA7.BK',
   [SceneId.ARENA8]: 'ARENA8.BK',
   [SceneId.SCOREBOARD]: 'MAIN.BK',
+  [SceneId.VICTORY]: 'VS.BK',
 };
 
 /** The original game's arenas are 0..4; the remaster's 5..8. */

@@ -36,8 +36,56 @@ pub fn run() {
       }
       Ok(())
     })
+    .invoke_handler(tauri::generate_handler![save_file])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
+}
+
+/// Saves a file the game hands over (a replay, a video or GIF clip) in Downloads\OMF 2097
+/// Remastered, adding a number when the name is taken. The request body is the file's bytes and
+/// the `x-file-name` header its name (see `saveFile` in src/platform/files.ts). Returns the path.
+#[tauri::command]
+fn save_file(app: tauri::AppHandle, request: tauri::ipc::Request<'_>) -> Result<String, String> {
+  let tauri::ipc::InvokeBody::Raw(data) = request.body() else {
+    return Err("expected the file's bytes".into());
+  };
+  let name = request
+    .headers()
+    .get("x-file-name")
+    .and_then(|v| v.to_str().ok())
+    .map(safe_file_name)
+    .filter(|n| !n.is_empty())
+    .ok_or("missing file name")?;
+  let dir = app.path().download_dir().map_err(|e| e.to_string())?.join("OMF 2097 Remastered");
+  std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+  let path = free_path(&dir, &name);
+  std::fs::write(&path, data).map_err(|e| e.to_string())?;
+  Ok(path.to_string_lossy().into_owned())
+}
+
+/// Letters, digits, spaces, dots, dashes and underscores only (no paths), not starting with a dot.
+fn safe_file_name(name: &str) -> String {
+  let name: String = name
+    .chars()
+    .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ' '))
+    .collect();
+  name.trim_start_matches('.').trim().to_string()
+}
+
+/// `dir/name`, or `dir/name (2)`, `dir/name (3)`... when it exists.
+fn free_path(dir: &std::path::Path, name: &str) -> std::path::PathBuf {
+  let path = dir.join(name);
+  if !path.exists() {
+    return path;
+  }
+  let (stem, ext) = match name.rfind('.') {
+    Some(i) if i > 0 => (&name[..i], &name[i..]),
+    _ => (name, ""),
+  };
+  (2..)
+    .map(|n| dir.join(format!("{stem} ({n}){ext}")))
+    .find(|p| !p.exists())
+    .expect("a free file name")
 }
 
 /// Release builds: stop WebView2 from acting on browser shortcuts (F5/Ctrl+R reload, Ctrl+F/F3

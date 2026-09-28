@@ -4,7 +4,8 @@
  * On desktop this talks to Tauri through the global API that `app.withGlobalTauri` injects as
  * `window.__TAURI__` (src-tauri/tauri.conf.json), so the web bundle has no runtime npm
  * dependencies. Only the window commands allowed in src-tauri/capabilities/default.json are
- * usable: is/set fullscreen, set title and close.
+ * usable: is/set fullscreen, set title and close; and the shell's own `save_file` command
+ * (src-tauri/src/lib.rs).
  *
  * None of the functions reject. Failures (e.g. a browser refusing fullscreen outside a user
  * gesture) are logged with console.warn and otherwise ignored.
@@ -20,6 +21,9 @@ interface TauriWindow {
 
 interface TauriGlobal {
   window: { getCurrentWindow(): TauriWindow };
+  core: {
+    invoke<T>(cmd: string, args?: Record<string, unknown> | ArrayBuffer | Uint8Array, options?: { headers: Record<string, string> }): Promise<T>;
+  };
 }
 
 const tauri: TauriGlobal | undefined =
@@ -96,4 +100,13 @@ export async function quitApp(): Promise<void> {
   } catch (err) {
     warn('quitApp()', err);
   }
+}
+
+/**
+ * Desktop: saves a file in Downloads\OMF 2097 Remastered (a number is added when the name is taken) and resolves to
+ * its path. Rejects on failure, or on the web (use a download there).
+ */
+export async function saveDesktopFile(name: string, data: Uint8Array): Promise<string> {
+  if (!tauri) throw new Error('not the desktop app');
+  return tauri.core.invoke<string>('save_file', data, { headers: { 'x-file-name': name } });
 }

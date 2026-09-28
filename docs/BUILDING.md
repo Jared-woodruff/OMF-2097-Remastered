@@ -48,7 +48,18 @@ SKIP_ARENAS=1 npm run gen             # only the robots (ROBOT=glacier for one);
 The arenas' HD backgrounds are rendered on the GPU in the browser: start `npm run dev`, open
 http://localhost:5173/?genarenahd (or `?genarenahd=ARENA6.BK` for one arena), wait for "done", then run
 `npm run gen:hd` (Python 3 with Pillow) to pack `.captures/ARENAn-HD.png` / `-WIDE.png` into `public/gen/*.webp`.
-The robots' HD artwork needs no files: the game renders it on the GPU while it runs.
+The robots' HD artwork needs no files: the game renders it on the GPU while it runs. The HD asset pack
+(`npm run hd:export`) also includes the new robots' sprites when `public/gen` has them, so they can go through the same
+image model; imported artwork is used instead of the rendered one.
+
+### Other generated data
+
+- **Combo trials** (`src/game/training/trialData.ts`, committed): `COMBO_SEARCH=1 npx vitest run
+  src/gen/dev/comboSearch.test.ts` searches every robot's combos (about 15 minutes), then `COMBO_VERIFY=1 npx vitest run
+  src/gen/dev/trialVerify.test.ts` checks them against every robot and writes the file.
+- **Announcer** (`public/audio/announcer/*.mp3`, committed): `python tools/make-announcer.py` speaks the lines with
+  [eSpeak NG](https://github.com/espeak-ng/espeak-ng) (set `ESPEAK_NG` to its `espeak-ng.exe` when it is not on the
+  PATH) and processes them with ffmpeg. Any line can be replaced by a recording of the same name.
 
 ## Web
 

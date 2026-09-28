@@ -48,7 +48,7 @@ export function menuGameplayCreate(s: MainMenuScene): Menu {
     () => gameplay().rounds, (pos) => (gameplay().rounds = pos), ROUND_TYPE_NAMES, settingsChanged));
   menu.attach(new Button('ADVANCED OPTIONS', 'Do I really have to tell you what this is?', false, false,
     (b) => parentMenu(b).setSubmenu(menuAdvancedCreate(s))));
-  menu.attach(new Button('EXTRAS', 'The robots and arenas made for the remaster: turn them on or off.', false, false,
+  menu.attach(new Button('NEW CONTENT', 'The robots and arenas made for the remaster: turn them on or off.', false, false,
     (b) => parentMenu(b).setSubmenu(menuExtrasCreate())));
   menu.attach(new Button('DONE', 'Go back to the main menu.', false, false, menuDone));
   return menu;

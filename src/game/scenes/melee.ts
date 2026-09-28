@@ -591,6 +591,11 @@ export class MeleeScene extends Scene {
               if (novaActivated[1] && this.cursorNovaSelect(1)) player2.pilot.harId = HarId.NOVA;
               else player2.pilot.harId = this.harIndex(1);
               player2.pilot.pilotId = this.pilotIdB;
+            } else if (gs.modeRun) {
+              // Arcade, survival, time attack: the run picks the opponent.
+              gs.modeRun.setupOpponent(gs);
+              this.pilotIdB = player2.pilot.pilotId;
+              this.loadPilotColors(1);
             } else {
               if (player1.spWins === (2046 ^ (2 << player1.pilot.pilotId))) {
                 // everyone but kreissack

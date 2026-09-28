@@ -111,7 +111,7 @@ export class CustomMusicPlayer {
   /** Called when a song starts. */
   onSong: ((name: string) => void) | null = null;
 
-  constructor(private ctx: AudioContext, volume: number) {
+  constructor(private ctx: AudioContext, volume: number, out: AudioNode = ctx.destination) {
     this.el = new Audio();
     this.el.preload = 'auto';
     const src = ctx.createMediaElementSource(this.el);
@@ -119,7 +119,7 @@ export class CustomMusicPlayer {
     this.gain.gain.value = volume;
     this.targetVolume = volume;
     src.connect(this.gain);
-    this.gain.connect(ctx.destination);
+    this.gain.connect(out);
     this.el.addEventListener('ended', () => void this.next());
     this.el.addEventListener('error', () => {
       if (!this.active) return;

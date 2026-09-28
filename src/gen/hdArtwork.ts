@@ -133,7 +133,8 @@ export class GeneratedArtwork {
         const sp = am.animation.sprites[i];
         if (!sp || sp.isEmpty() || (!gs.pose && !gs.props?.length)) return;
         const hash = pixelHash(sp.width, sp.height, sp.pixels());
-        if (have.has(hash)) return;
+        // Installed artwork (the HD asset pack) is used instead: no need to render it.
+        if (have.has(hash) || this.hd.hasInstalled(hash)) return;
         have.add(hash);
         art.jobs.push({
           hash,

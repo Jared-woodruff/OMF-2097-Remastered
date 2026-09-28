@@ -12,15 +12,19 @@ export const enum HarUpgrade {
   N_UPGRADES,
 }
 
-export const MAX_ARM_SPEED = [6, 8, 4, 6, 9, 7, 8, 6, 9, 6, 7];
-export const MAX_LEG_SPEED = [8, 9, 5, 6, 8, 8, 7, 6, 7, 5, 6];
-export const MAX_ARM_POWER = [5, 5, 9, 8, 4, 6, 6, 5, 5, 6, 7];
-export const MAX_LEG_POWER = [6, 6, 8, 4, 5, 7, 5, 7, 6, 7, 7];
-export const MAX_STUN_RES = [8, 6, 8, 6, 7, 6, 6, 7, 7, 7, 6];
-export const MAX_ARMOR = [5, 7, 7, 8, 6, 8, 6, 9, 6, 6, 7];
+// The original eleven robots, then the remaster's four (GLACIER heavy, TEMPEST fast, HELIX even, SPECTRE quick) and the
+// workshop's eight (even), so tournaments can field them too.
+const WORKSHOP = (v: number) => new Array<number>(8).fill(v);
+export const MAX_ARM_SPEED = [6, 8, 4, 6, 9, 7, 8, 6, 9, 6, 7, 5, 9, 7, 8, ...WORKSHOP(7)];
+export const MAX_LEG_SPEED = [8, 9, 5, 6, 8, 8, 7, 6, 7, 5, 6, 5, 9, 7, 8, ...WORKSHOP(7)];
+export const MAX_ARM_POWER = [5, 5, 9, 8, 4, 6, 6, 5, 5, 6, 7, 9, 5, 7, 6, ...WORKSHOP(7)];
+export const MAX_LEG_POWER = [6, 6, 8, 4, 5, 7, 5, 7, 6, 7, 7, 8, 6, 7, 6, ...WORKSHOP(7)];
+export const MAX_STUN_RES = [8, 6, 8, 6, 7, 6, 6, 7, 7, 7, 6, 8, 6, 7, 6, ...WORKSHOP(7)];
+export const MAX_ARMOR = [5, 7, 7, 8, 6, 8, 6, 9, 6, 6, 7, 9, 5, 7, 6, ...WORKSHOP(7)];
 
-export const HAR_PRICES = [20000, 36000, 26000, 28000, 29000, 32000, 25000, 30000, 24000, 22000, 75000];
-export const HAR_UPGRADE_PRICE = [380, 400, 350, 400, 500, 330, 420, 370, 450, 360, 700];
+export const HAR_PRICES = [20000, 36000, 26000, 28000, 29000, 32000, 25000, 30000, 24000, 22000, 75000, 34000, 31000, 30000, 33000,
+  ...WORKSHOP(30000)];
+export const HAR_UPGRADE_PRICE = [380, 400, 350, 400, 500, 330, 420, 370, 450, 360, 700, 420, 390, 400, 410, ...WORKSHOP(400)];
 export const UPGRADE_LEVEL_MULTIPLIER = [0, 1, 3, 7, 12, 18, 30, 50, 75, 120];
 
 export const ARM_LEG_MULTIPLIER = 2;

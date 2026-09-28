@@ -511,6 +511,46 @@ describe.skipIf(!hasGameData)('tournament: mechlab', () => {
     expect(sc.mech!.curAnimation!.id).toBe(15 + HarId.PYROS);
   });
 
+  it('trades for one of the remaster\'s robots when they are on', () => {
+    settings().gameplay.extraRobots = true;
+    try {
+      const chr0 = newTournamentChr('TRADER');
+      chr0.pilot.money = 30000;
+      chr0.pilot.harTrades = (1 << HarId.SHADOW) | (1 << HarId.GLACIER);
+      storage.write(sgFileName('TRADER'), chrSave(chr0));
+      settings().tournament.lastName = 'TRADER';
+      const { gs, run, sc } = openMechlab();
+      const p1 = gs.getPlayer(0);
+      const chr = p1.chr!;
+      clickButton(run, sc, 2); // BUY
+      waitMenuReady(run, sc);
+      clickButton(run, sc, 9); // TRADE ROBOT
+      let menu = waitMenuReady(run, sc);
+      // SHADOW's button from MECHLAB.BK, GLACIER's made from its robot select picture
+      expect(menu.objs.length).toBe(2);
+      const button = menu.objs[1] as unknown as { img: { w: number; h: number } | null };
+      expect([button.img?.w, button.img?.h]).toEqual([55, 41]);
+      press(run, 'ArrowRight');
+      expect(p1.pilot.harId).toBe(HarId.GLACIER);
+      // the turning robot comes from the generator; the moves from its definition
+      expect(sc.mech!.curAnimation!.id).toBe(15 + HarId.GLACIER);
+      expect(sc.mech!.curAnimation!.sprites.length).toBe(20);
+      expect(sc.dw.harMoves!.text.str).toBe('SPECIAL MOVES:\n\nIce Lance\n\nGlacial Ram\n\nFrost Spikes');
+      press(run, 'Enter');
+      menu = waitMenuReady(run, sc);
+      const tradeValue = calculateTradeValue(chr.pilot);
+      const label = menu.objs[2] as unknown as { text: { str: string } };
+      expect(label.text.str).toContain(langGet(31 + HarId.GLACIER));
+      press(run, 'Enter'); // YES
+      expect(waitFor(run, () => activeMenu(sc) !== menu)).toBe(true);
+      expect(chr.pilot.harId).toBe(HarId.GLACIER);
+      expect(chr.pilot.money).toBe(30000 + tradeValue - HAR_PRICES[HarId.GLACIER]);
+      expect(sc.mech!.curAnimation!.id).toBe(15 + HarId.GLACIER);
+    } finally {
+      settings().gameplay.extraRobots = false;
+    }
+  });
+
   it('shows popups when there is nothing to load or delete', () => {
     const { run, sc } = openMechlab();
     clickButton(run, sc, 4); // LOAD

@@ -1,6 +1,6 @@
 // Control layouts: the original keyboard layout, a modern one, and the gamepad button layouts (see controller/input.ts).
 import { setPadLayout } from '../controller/input';
-import { defaultSettings, settings, type KeyBindings } from './settings';
+import { defaultSettings, MODERN_SPECIAL_KEYS, settings, type KeyBindings } from './settings';
 
 export type KeyLayout = 'classic' | 'modern';
 
@@ -8,16 +8,16 @@ const none: string[] = [];
 
 /**
  * The modern keyboard layout: WASD and J / K for player 1 (F / G too, for two players on one keyboard), the arrow keys
- * and , / . for player 2. Diagonal jumps and ducks are two keys at once (W + D jumps forward when facing right).
+ * and , / . for player 2; L / H and / are the special buttons. Diagonal jumps and ducks are two keys at once (W + D jumps forward when facing right).
  */
 const MODERN: { p1: KeyBindings; p2: KeyBindings } = {
   p1: {
     jumpUp: ['KeyW'], jumpRight: none, walkRight: ['KeyD'], duckForward: none, duck: ['KeyS'], duckBack: none,
-    walkBack: ['KeyA'], jumpLeft: none, punch: ['KeyJ', 'KeyF'], kick: ['KeyK', 'KeyG'],
+    walkBack: ['KeyA'], jumpLeft: none, punch: ['KeyJ', 'KeyF'], kick: ['KeyK', 'KeyG'], special: MODERN_SPECIAL_KEYS.p1,
   },
   p2: {
     jumpUp: ['ArrowUp'], jumpRight: none, walkRight: ['ArrowRight'], duckForward: none, duck: ['ArrowDown'], duckBack: none,
-    walkBack: ['ArrowLeft'], jumpLeft: none, punch: ['Comma', 'Numpad1'], kick: ['Period', 'Numpad2'],
+    walkBack: ['ArrowLeft'], jumpLeft: none, punch: ['Comma', 'Numpad1'], kick: ['Period', 'Numpad2'], special: MODERN_SPECIAL_KEYS.p2,
   },
 };
 

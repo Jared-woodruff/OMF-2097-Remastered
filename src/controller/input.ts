@@ -106,6 +106,8 @@ export interface PadState {
   y: boolean;
   start: boolean;
   back: boolean;
+  /** The one-button special: LT, and LB (modern layout) or RT (classic layout). */
+  special: boolean;
 }
 
 /** Stick deflection below which it counts as centered. */
@@ -141,6 +143,7 @@ export function readPad(index: number, layout: PadLayout = padLayout): PadState 
     y: b(PadButton.Y),
     start: b(PadButton.MENU),
     back: b(PadButton.VIEW),
+    special: b(PadButton.LT) || (modern ? b(PadButton.LB) : b(PadButton.RT)),
   };
 }
 

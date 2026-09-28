@@ -146,7 +146,7 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     gs = createGame(SceneId.MENU);
     run = new HeadlessRunner(gs);
     run.advance(400);
-    press('ArrowDown', 7);
+    press('ArrowDown', 8);
     expect(selectedText()).toBe('DEMO');
     press('Enter');
     expect(gs.nextId).toBe(SceneId.VS);
@@ -455,6 +455,8 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
 
   it('HELP shows the language file pages and turns pages', () => {
     press('ArrowDown', 6);
+    expect(selectedText()).toBe('EXTRAS');
+    press('ArrowDown');
     expect(selectedText()).toBe('HELP');
     press('Enter');
     const help = current() as HelpMenu;

@@ -225,6 +225,27 @@ export const FIGHTERS: Record<string, FighterInfo> = {
     description: "Major Kreissack's massive super-robot: bulky angular blue armor blocks, a wide swept gold horn crest across its head and shoulders, red accents, and gold square grenade-launcher fists and missile launchers",
     specials: ['Mini Grenade', 'Missile Launcher', 'Earthquake Smash'],
   },
+  // The remaster's robots (made by the game's generator in the style of the originals' 1994 renders).
+  GLACIER: {
+    name: 'Glacier',
+    description: 'a heavy ice juggernaut: faceted low-polygon armor plates over a slim frame, broad shoulders crowned with ice crystals, a glowing crystal core in the chest, heavy gauntlets and boots',
+    specials: ['Ice Lance', 'Glacial Ram', 'Frost Spikes'],
+  },
+  TEMPEST: {
+    name: 'Tempest',
+    description: 'a lean, fast storm robot: slim faceted limbs, swept wind fins on its head, shoulders and calves, a turbine in the chest',
+    specials: ['Gale Blast', 'Cyclone Kick', 'Sky Dive'],
+  },
+  HELIX: {
+    name: 'Helix',
+    description: 'a stocky driller robot: ribbed segmented limbs, drill bits on its forearms, a round armored head with a slit visor',
+    specials: ['Drill Rush', 'Corkscrew', 'Drill Bit'],
+  },
+  SPECTRE: {
+    name: 'Spectre',
+    description: 'a tall, thin stealth robot: sharp angular armor, long blade fins, a narrow head with a single glowing eye',
+    specials: ['Photon Beam', 'Phase Shift', 'Shadow Strike'],
+  },
 };
 
 /** Readable description of a fighter animation folder name (e.g. 'm11_idle' -> 'idle fighting stance'). */

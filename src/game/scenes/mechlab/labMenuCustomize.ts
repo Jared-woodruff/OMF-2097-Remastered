@@ -209,7 +209,7 @@ export function labMenuCustomizeTrade(c: SpriteButton, s: MechlabScene): void {
 function affordableTrades(pilot: Pilot): number[] {
   const tradeValue = calculateTradeValue(pilot);
   const trades: number[] = [];
-  for (let i = 0; i < 11; i++) {
+  for (let i = 0; i < 15; i++) {
     if (i === pilot.harId) continue; // don't trade for the current HAR
     if ((pilot.harTrades >>> i) & 1 && HAR_PRICES[i] < tradeValue + pilot.money) trades.push(i);
   }

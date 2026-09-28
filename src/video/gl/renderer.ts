@@ -23,7 +23,7 @@ out vec4 o_color;
 void main() {
   o_color = vec4(clamp(u_m * texture(u_src, uv).rgb + u_o, 0.0, 1.0), 1.0);
 }`;
-import { DELTA_FS, PRESENT_FS, RESOLVE_FS, SPRITE_FS, SPRITE_VS } from './shaders';
+import { DELTA_FS, PRESENT_FS, RESOLVE_FS, SPRITE_FS, SPRITE_VS, CAMERA_FS } from './shaders';
 
 const MAX_QUADS = 4096;
 const VERTEX_BYTES = 32;
@@ -155,6 +155,13 @@ export class GLRenderer {
   private fxPasses: FxPasses;
   /** This frame's remastered effects (set by the host before render()), or null. */
   fx: FxFrame | null = null;
+  /**
+   * The fight camera (remastered fights, video/camera.ts): the world (not the HUD) is shown `zoom` times closer, around
+   * native point (x, y). Zoom 1 is the original view.
+   */
+  camera = { zoom: 1, x: 160, y: 100 };
+  private camTarget: RenderTarget | null = null;
+  private camProg: Program;
   /** Remastered text: 0 smooth (reconstructed like the sprites), 1 crisp pixel font. */
   textStyle = 0;
   private bgCacheKey = '';
@@ -202,6 +209,7 @@ export class GLRenderer {
     this.hdAssetProg = new Program(gl, HD_ASSET_VS, HD_ASSET_FS, 'hdAsset');
     this.hdBgArtProg = new Program(gl, HD_SPRITE_VS, HD_BGART_FS, 'hdBgArt');
     this.hudBarProg = new Program(gl, HUD_BAR_VS, HUD_BAR_FS, 'hudBar');
+    this.camProg = new Program(gl, FULLSCREEN_VS, CAMERA_FS, 'camera');
     this.frostProg = new Program(gl, FULLSCREEN_VS, FROST_FS, 'frost');
     this.atlas = new IndexAtlas(gl, 4096);
     this.fxPasses = new FxPasses(gl);
@@ -1459,6 +1467,8 @@ export class GLRenderer {
         bloomStrength = 0;
         shaftStrength = 0;
       }
+      // The fight camera: the finished world, closer (the overlay stays as it is).
+      if (this.camera.zoom > 1.001) scene = this.zoomWorld(scene, vp);
       // Remap effects of the overlay (the menu shading) are applied exactly like the glows of the world: computed with
       // the original pipeline and added after the overlay's sprites (the delta is zero where later sprites cover them).
       const overlayDelta = this.renderRemapDelta(count, bgIndex, extRect, deltaExt,
@@ -1491,6 +1501,32 @@ export class GLRenderer {
       gl.endQuery(this.timerExt!.TIME_ELAPSED_EXT);
       this.pendingQuery = timing;
     }
+  }
+
+  /** The world image `zoom` times closer around the camera's point, kept inside the image (a copy the overlay goes on). */
+  private zoomWorld(scene: RenderTarget, vp: Viewport): RenderTarget {
+    const gl = this.gl;
+    if (!this.camTarget || this.camTarget.w !== scene.w || this.camTarget.h !== scene.h) {
+      this.camTarget?.dispose();
+      this.camTarget = new RenderTarget(gl, scene.w, scene.h, [{ internalFormat: gl.RGBA8, format: gl.RGBA, type: gl.UNSIGNED_BYTE, filter: gl.LINEAR }]);
+    }
+    const cam = this.camera;
+    const size = 1 / cam.zoom;
+    // Native point to the image's coordinates (0..1, y up; the image spans the widescreen sides too).
+    const u = (cam.x + vp.ext) / (NATIVE_W + 2 * vp.ext);
+    const v = 1 - cam.y / NATIVE_H;
+    const x = Math.max(0, Math.min(1 - size, u - size / 2));
+    const y = Math.max(0, Math.min(1 - size, v - size / 2));
+    const out = this.camTarget;
+    out.bind();
+    gl.disable(gl.BLEND);
+    const p = this.camProg;
+    p.use();
+    this.bindTex(0, scene.textures[0], p, 'u_src');
+    p.f4('u_rect', x, y, size, size);
+    gl.bindVertexArray(this.emptyVao);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    return out;
   }
 
   /** Current remastered render scale relative to the display (1 = full resolution), for diagnostics. */

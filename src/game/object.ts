@@ -963,6 +963,26 @@ export class GameObject {
     return { surf, x, y, w, h };
   }
 
+  /** Draws a surface of the current sprite's size where the sprite is drawn (e.g. its outline, training hitbox view). */
+  renderOver(surf: Surface, palOffset: number): void {
+    const b = this.renderBounds();
+    if (!b) return;
+    let flip = this.spriteState.flipmode;
+    if (this.direction === OBJECT_FACE_LEFT) flip ^= FLIP_HORIZONTAL;
+    this.setInterpolationOffset(true);
+    video.drawFull(surf, Math.trunc(b.x), Math.trunc(b.y), b.w, b.h, 0, 0, palOffset, 255, 255, flip, 0);
+    drawList.subX = 0;
+    drawList.subY = 0;
+  }
+
+  /** Draws with this object's motion interpolation (things placed at its position, e.g. its hit points). */
+  renderAt(draw: () => void): void {
+    this.setInterpolationOffset(true);
+    draw();
+    drawList.subX = 0;
+    drawList.subY = 0;
+  }
+
   renderShadow(): void {
     if (this.curSpriteId < 0 || !this.castShadow || !this.curAnimation) return;
     const sp = this.curAnimation.getSprite(this.curSpriteId);

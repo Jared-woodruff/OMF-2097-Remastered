@@ -1,5 +1,7 @@
 // Mechlab dashboards: the pilot/HAR stats dashboard (also used while picking a photo / difficulty and while
 // browsing save games) and the SIM opponent dashboard. Port of the reference mechlab/lab_dash_main.c.
+import { genRobot } from '../../../gen/roster';
+import { ORIGINAL_HAR_TYPES } from '../../constants';
 import { createAiController } from '../../../controller/ai';
 import type { Pilot } from '../../../formats/pilot';
 import { langGet } from '../../../resources/resources';
@@ -399,6 +401,14 @@ export function labDashSimCreate(s: MechlabScene, dw: DashboardWidgets): XYSizer
   return labDashMainCreateGauges(xy, dw, dw.pilot!);
 }
 
+/** The robot's special moves as the dashboard lists them (the remaster's robots name theirs in their definitions). */
+function harMovesText(harId: number): string {
+  if (harId < ORIGINAL_HAR_TYPES) return langGet(492 + harId);
+  // (in the originals' style: "Ice Lance")
+  const names = Object.values(genRobot(harId)?.specialNames ?? {}).map((n) => n.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()));
+  return `SPECIAL MOVES:\n\n${names.join('\n\n')}`;
+}
+
 /** lab_dash_main_create_gauges(): pilot stats (small gauges) and HAR upgrades (big gauges, sized per HAR). */
 export function labDashMainCreateGauges(xy: XYSizer, dw: DashboardWidgets, pilot: Pilot): XYSizer {
   const power = smallLabel('POWER', MECHLAB_DARK_GREEN);
@@ -459,7 +469,7 @@ export function labDashMainUpdate(s: MechlabScene, dw: DashboardWidgets): void {
   dw.money!.setText(`MONEY: $ ${scoreFormat(pilot.money)}K`);
 
   dw.harName!.setText(langGet(31 + pilot.harId));
-  dw.harMoves!.setText(langGet(492 + pilot.harId));
+  dw.harMoves!.setText(harMovesText(pilot.harId));
 
   // Tournament and player name
   dw.name!.setText(pilot.name);

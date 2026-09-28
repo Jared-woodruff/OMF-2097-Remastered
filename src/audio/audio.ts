@@ -71,6 +71,9 @@ export function impulseResponse(ctx: Pick<BaseAudioContext, 'sampleRate' | 'crea
 export class AudioSystem {
   private ctx: AudioContext | null = null;
   private node: AudioWorkletNode | null = null;
+  /** Everything the game plays goes through this node to the speakers (and to a clip recording, captureStream). */
+  private out: GainNode | null = null;
+  private capture: MediaStreamAudioDestinationNode | null = null;
   private pending: { msg: unknown; transfer?: Transferable[] }[] = [];
   private channels: ChannelState[] = [];
   private nextGuid = 1;
@@ -106,15 +109,17 @@ export class AudioSystem {
       this.ctx = new AudioContext({ latencyHint: 'interactive' });
       await this.ctx.audioWorklet.addModule(workletUrl);
       this.node = new AudioWorkletNode(this.ctx, 'omf-audio', { numberOfInputs: 0, numberOfOutputs: 2, outputChannelCount: [2, 2] });
-      this.node.connect(this.ctx.destination, 0);
+      this.out = this.ctx.createGain();
+      this.out.connect(this.ctx.destination);
+      this.node.connect(this.out, 0);
       this.convolver = this.ctx.createConvolver();
       this.wet = this.ctx.createGain();
       this.wet.gain.value = 0;
       this.node.connect(this.convolver, 1);
       this.convolver.connect(this.wet);
-      this.wet.connect(this.ctx.destination);
+      this.wet.connect(this.out);
       this.applyRoom();
-      this.custom = new CustomMusicPlayer(this.ctx, this.musicVolume);
+      this.custom = new CustomMusicPlayer(this.ctx, this.musicVolume, this.out);
       this.custom.onSong = (name) => this.onSong?.(name);
       void this.custom.refresh().then(() => this.refreshMusic());
       this.node.port.onmessage = (e) => {
@@ -145,6 +150,46 @@ export class AudioSystem {
     if (this.ctx && this.ctx.state !== 'running') void this.ctx.resume();
     this.custom?.resume();
     this.started = true;
+  }
+
+  /** Decodes a compressed sound file (null without audio or when it cannot be read). */
+  async decode(data: ArrayBuffer): Promise<AudioBuffer | null> {
+    if (!this.ctx) return null;
+    try {
+      return await this.ctx.decodeAudioData(data);
+    } catch {
+      return null;
+    }
+  }
+
+  /** Plays a decoded sound once at the given volume (0..1), with the game's other sounds (the announcer). */
+  playBuffer(buffer: AudioBuffer, volume: number): void {
+    if (!this.ctx || !this.out) return;
+    const src = this.ctx.createBufferSource();
+    src.buffer = buffer;
+    const gain = this.ctx.createGain();
+    gain.gain.value = Math.max(0, Math.min(1, volume));
+    src.connect(gain);
+    gain.connect(this.out);
+    src.onended = () => gain.disconnect();
+    src.start();
+  }
+
+  /** The game's sound as a stream, for recording a clip (null without audio); releaseCapture() ends it. */
+  captureStream(): MediaStream | null {
+    if (!this.ctx || !this.out) return null;
+    this.capture ??= this.ctx.createMediaStreamDestination();
+    this.out.connect(this.capture);
+    return this.capture.stream;
+  }
+
+  releaseCapture(): void {
+    if (!this.out || !this.capture) return;
+    try {
+      this.out.disconnect(this.capture);
+    } catch {
+      // not connected
+    }
   }
 
   get isRunning(): boolean {

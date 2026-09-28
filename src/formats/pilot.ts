@@ -290,4 +290,14 @@ export class Pilot {
     for (let m = 0; m < PILOT_QUOTE_COUNT; m++) p.quotes[m] = r.paddedStr();
     return p;
   }
+
+  /** Writes the XOR-obfuscated pilot block and the quote strings (the inverse of loadTrnPilot; sd_pilot_save). */
+  saveTrnPilot(w: BinaryWriter): void {
+    const pw = new BinaryWriter(PILOT_BLOCK_LENGTH);
+    this.saveFull(pw);
+    const block = new Uint8Array(PILOT_BLOCK_LENGTH);
+    block.set(pw.toBytes().subarray(0, PILOT_BLOCK_LENGTH));
+    w.bytes(xorDecode(block, PILOT_BLOCK_LENGTH & 0xff));
+    for (let m = 0; m < PILOT_QUOTE_COUNT; m++) w.paddedStr(this.quotes[m] ?? '');
+  }
 }

@@ -17,6 +17,22 @@ export const SPRITE_PAD = 4;
 export const WIDE_EXT = 128;
 
 export const HAR_NAMES = ['JAGUAR', 'SHADOW', 'THORN', 'PYROS', 'ELECTRA', 'KATANA', 'SHREDDER', 'FLAIL', 'GARGOYLE', 'CHRONOS', 'NOVA'];
+/** The remaster's robots (HARs 11..14): their fighter files are made by `npm run gen` into public/gen. */
+export const GEN_HAR_NAMES = ['GLACIER', 'TEMPEST', 'HELIX', 'SPECTRE'];
+/** Every robot by HAR id. */
+export const ALL_HAR_NAMES = [...HAR_NAMES, ...GEN_HAR_NAMES];
+
+/** The robots' fighter files: the original ones, and the remaster's when they have been generated. */
+export function fighterFiles(gameDir: string): { id: number; name: string; data: Uint8Array }[] {
+  const genDir = path.resolve(gameDir, '..', 'gen');
+  const out = HAR_NAMES.map((name, id) => ({ id, name, data: read(gameDir, `FIGHTR${id}.AF`) }));
+  GEN_HAR_NAMES.forEach((name, i) => {
+    const id = HAR_NAMES.length + i;
+    const f = path.join(genDir, `FIGHTR${id}.AF`);
+    if (fs.existsSync(f)) out.push({ id, name, data: new Uint8Array(fs.readFileSync(f)) });
+  });
+  return out;
+}
 
 /**
  * Player-color ramps used to render fighter sources (ALTPALS palette 0 ramp numbers). Fighters are recolored in
@@ -389,7 +405,8 @@ export function buildCatalog(gameDir: string): Catalog {
   const pal = fighterPal.colors;
   // First pass: which images appear in more than one fighter file (debris, explosions, sparks...)?
   const perHash = new Map<string, Set<number>>();
-  const afs = HAR_NAMES.map((_, h) => parseAF(read(gameDir, `FIGHTR${h}.AF`)));
+  const fighters = fighterFiles(gameDir);
+  const afs = fighters.map((f) => parseAF(f.data));
   afs.forEach((af, h) => af.moves.forEach((m) => m?.animation.sprites.forEach((s) => {
     if (s.isEmpty()) return;
     const k = contentHash(s.width, s.height, s.pixels(), pal, 0);
@@ -397,9 +414,9 @@ export function buildCatalog(gameDir: string): Catalog {
     perHash.get(k)!.add(h);
   })));
   const shared = new Map<string, ImageItem>();
-  afs.forEach((af, h) => {
-    const har = HAR_NAMES[h];
-    const f = `FIGHTR${h}.AF`;
+  afs.forEach((af, k) => {
+    const har = fighters[k].name;
+    const f = `FIGHTR${fighters[k].id}.AF`;
     const seen = new Map<string, ImageItem>();
     af.moves.forEach((m, moveId) => {
       if (!m) return;

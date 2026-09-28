@@ -1,6 +1,7 @@
 // Newsroom: the post-fight news report of single player and tournament games. Two report screens (win/lose texts
 // picked by the remaining health) with fight photos, then the next opponent / ending / continue dialog, or the
 // tournament's challenger and new champion reports. Port of the reference newsroom scene.
+import { unlock } from '../records/records';
 import { createAiController } from '../../controller/ai';
 import type { CtrlEvent } from '../../controller/controller';
 import type { Pilot } from '../../formats/pilot';
@@ -350,12 +351,16 @@ export class NewsroomScene extends Scene {
               setPilot(p2, null);
               p2.spWins = 0;
             } else if (p1.spWins === (ALL_PILOTS_BEATEN ^ (2 << p1.pilot.pilotId))) {
+              unlock('campaign');
               gs.setNext(SceneId.END);
             } else {
               this.nextOpponent(p1, p2);
             }
             // (after SceneId.END was set, this second request is ignored by setNext)
-            if (p1.chr && this.champion) gs.setNext(SceneId.TRN_CUTSCENE);
+            if (p1.chr && this.champion) {
+              unlock('tournament');
+              gs.setNext(SceneId.TRN_CUTSCENE);
+            }
             else gs.setNext(SceneId.VS);
           } else {
             this.continueDialog.show(true);

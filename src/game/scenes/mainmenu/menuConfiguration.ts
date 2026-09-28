@@ -1,6 +1,6 @@
 // Configuration menu (port of the reference mainmenu/menu_configuration.c).
 import { app } from '../../../app';
-import { Button, Filler, Label, Menu, TextSelector } from '../../gui/widgets';
+import { Button, Label, Menu, TextSelector } from '../../gui/widgets';
 import { settings } from '../../settings';
 import type { MainMenuScene } from '../mainmenu';
 import { menuDone, parentMenu, settingsChanged } from './common';
@@ -11,8 +11,9 @@ import { menuVideoCreate } from './menuVideo';
 
 export function menuConfigurationCreate(s: MainMenuScene): Menu {
   const menu = new Menu();
+  // The remaster's three entries (special button, touch controls) take the spacer under the title.
+  menu.padding = 2;
   menu.attach(Label.title('CONFIGURATION'));
-  menu.attach(new Filler());
   menu.attach(new Button('LANGUAGE', 'Forstar du ikke engelsk?', false, false,
     (b) => parentMenu(b).setSubmenu(menuLanguageCreate(s))));
   menu.attach(new Button('PLAYER 1 INPUT', 'Choose the control for player 1: keyboard or joystick.', false, false,
@@ -28,6 +29,13 @@ export function menuConfigurationCreate(s: MainMenuScene): Menu {
     (b) => parentMenu(b).setSubmenu(menuAudioCreate(s))));
   menu.attach(new TextSelector('RUMBLE', 'Gamepad vibration when robots are hit, blocked, thrown or slammed into walls.',
     () => (settings().keys.rumble ? 1 : 0), (pos) => (settings().keys.rumble = pos === 1), ['OFF', 'ON'], settingsChanged));
+  menu.attach(new TextSelector('SPECIAL BUTTON', 'Special moves in one press: the special button with no direction, forward, ' +
+    'back, down or up does the first to fifth special of the robot (the move list shows them). The original inputs still work.',
+  () => (settings().keys.specialButton ? 1 : 0), (pos) => (settings().keys.specialButton = pos === 1), ['OFF', 'ON'], settingsChanged));
+  const touchModes = ['auto', 'on', 'off'] as const;
+  menu.attach(new TextSelector('TOUCH PAD', 'On-screen stick and buttons for phones and tablets: AUTO shows them once the ' +
+    'screen is touched.', () => touchModes.indexOf(settings().keys.touch), (pos) => (settings().keys.touch = touchModes[pos]),
+  ['AUTO', 'ON', 'OFF'], settingsChanged));
   menu.attach(new Button('DONE', 'Leave configuration.', false, false, menuDone));
   return menu;
 }

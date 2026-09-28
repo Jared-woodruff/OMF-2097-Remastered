@@ -3,12 +3,12 @@
 // (the CHR code clones the enemy pilots it keeps).
 import type { TournamentFile } from '../formats/tournament';
 import { listFiles } from './files';
-import { loadTournament } from './resources';
+import { customTournamentNames, loadTournament } from './resources';
 
 /** trnlist_init(): every *.TRN resource that parses, sorted by ascending registration fee. */
 export function trnlistInit(): TournamentFile[] {
   const list: TournamentFile[] = [];
-  for (const name of listFiles('.TRN')) {
+  for (const name of [...listFiles('.TRN'), ...customTournamentNames()]) {
     try {
       list.push(loadTournament(name));
     } catch (e) {

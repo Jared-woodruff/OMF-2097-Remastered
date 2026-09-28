@@ -45,8 +45,15 @@ export function onFx(fn: FxListener): () => void {
   };
 }
 
+let muted = false;
+
+/** Stops effect events (a replay jumping to a moment runs the fight without effects). */
+export function setFxMuted(m: boolean): void {
+  muted = m;
+}
+
 export function emitFx(type: FxType, x: number, y: number, power: number, dir: number, playerId: number, sceneId: number): void {
-  if (listeners.length === 0) return;
+  if (listeners.length === 0 || muted) return;
   const e: FxEvent = { type, x, y, power, dir, playerId, sceneId };
   for (const l of listeners) {
     try {

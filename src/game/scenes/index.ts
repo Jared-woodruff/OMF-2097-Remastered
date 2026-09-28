@@ -9,3 +9,4 @@ import './cutscene';
 import './credits';
 import './scoreboard';
 import './mechlab';
+import './victory';

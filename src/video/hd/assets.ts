@@ -69,7 +69,8 @@ export interface HdImage {
   sub?: { surf: Surface; x: number; y: number; gray: boolean };
 }
 
-export const HAR_BUNDLES = ['JAGUAR', 'SHADOW', 'THORN', 'PYROS', 'ELECTRA', 'KATANA', 'SHREDDER', 'FLAIL', 'GARGOYLE', 'CHRONOS', 'NOVA'];
+export const HAR_BUNDLES = ['JAGUAR', 'SHADOW', 'THORN', 'PYROS', 'ELECTRA', 'KATANA', 'SHREDDER', 'FLAIL', 'GARGOYLE', 'CHRONOS', 'NOVA',
+  'GLACIER', 'TEMPEST', 'HELIX', 'SPECTRE'];
 
 /** GPU memory the loaded bundles may use before unused ones are released. */
 const BUDGET_BYTES = 1200 * 1024 * 1024;
@@ -256,11 +257,21 @@ export class HdAssets {
   lookup(surf: Surface): HdImage | null {
     if (!this.enabled || (!this.ready && this.runtime.size === 0)) return null;
     const hash = this.hashOf(surf);
-    const rt = this.runtime.get(hash);
-    if (rt) return rt;
-    if (!this.ready) return null;
-    const list = this.byHash.get(hash);
-    if (!list) return null;
+    // Installed artwork comes first (e.g. the new robots run through an image AI); run-time renderings fill in, also
+    // while an installed bundle loads.
+    const rt = this.runtime.get(hash) ?? null;
+    const list = this.ready ? this.byHash.get(hash) : undefined;
+    if (!list) return rt;
+    const installed = this.installed(surf, list);
+    return installed ?? rt;
+  }
+
+  /** Whether installed artwork exists for an image (by its fingerprint). */
+  hasInstalled(hash: string): boolean {
+    return this.byHash.has(hash);
+  }
+
+  private installed(surf: Surface, list: HdEntry[]): HdImage | null {
     let entry = list[0];
     if (list.length > 1) {
       // Identical pixels drawn with different palettes: prefer the image made for this surface's file.

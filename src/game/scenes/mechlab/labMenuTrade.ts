@@ -11,6 +11,8 @@ import { spriteButtonFromDetails, type ButtonDetails } from './buttonDetails';
 import { cFormat } from './common';
 import { calculateTradeValue, harPrice } from './harEconomy';
 import { labMenuConfirmCreate } from './labMenuConfirm';
+import { mechButton } from '../../../gen/mechlabModel';
+import { RSprite } from '../../../resources/animation';
 
 /** lab_menu_trade_done(): restores the player's pilot if the trade was abandoned. */
 export function labMenuTradeDone(_menu: TrnMenu, submenu: TrnMenu): void {
@@ -84,8 +86,8 @@ function tradeForFocus(focused: boolean, s: MechlabScene, harId: number): void {
   }
 }
 
-/** lab_menu_trade_for_jaguar_focus() ... lab_menu_trade_for_nova_focus(): preview HAR i on the temporary pilot. */
-const FOCUS_CBS = Array.from({ length: 11 }, (_, i) => (_c: SpriteButton, focused: boolean, s: MechlabScene) => tradeForFocus(focused, s, i));
+/** lab_menu_trade_for_jaguar_focus() ... lab_menu_trade_for_nova_focus(): preview HAR i on the temporary pilot (and the remaster's). */
+const FOCUS_CBS = Array.from({ length: 15 }, (_, i) => (_c: SpriteButton, focused: boolean, s: MechlabScene) => tradeForFocus(focused, s, i));
 
 const DETAILS: ButtonDetails<MechlabScene> = {
   cb: labMenuTrade, text: null, dir: TextDirection.HORIZONTAL, halign: HAlign.CENTER, valign: VAlign.TOP,
@@ -112,10 +114,13 @@ export function labMenuTradeCreate(s: MechlabScene): TrnMenu {
   // Initialize menu (no button sheet)
   const menu = new TrnMenu(null, x, y, false);
 
-  // Init GUI buttons with locations from the "select" button sprites
-  for (let i = 0; i < mainButtons.spriteCount(); i++) {
+  // Init GUI buttons with locations from the "select" button sprites (the remaster's robots bring their own)
+  for (let i = 0; i < 15; i++) {
     if (i === pilot.harId || ((pilot.harTrades >>> i) & 1) === 0) continue;
-    const buttonSprite = mainButtons.getSprite(i)!;
+    const original = i < mainButtons.spriteCount() ? mainButtons.getSprite(i) : null;
+    const extra = original ? null : mechButton(i, mainButtons.getSprite(0)?.surface ?? null, s.bk.palettes[0] ?? null);
+    const buttonSprite = original ?? (extra ? new RSprite(i, 2, 2, extra) : null);
+    if (!buttonSprite) continue;
     const button = spriteButtonFromDetails(DETAILS, null, buttonSprite.surface, s);
     button.setFont(FontSize.SMALL);
     button.setTextColor(TEXT_TRN_BLUE);

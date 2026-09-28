@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { GAMEDATA_DIR, hasGameData, loadGameData } from '../../src/test/harness';
 import { langGet } from '../../src/resources/resources';
-import { buildCatalog, FIGHTER_RAMPS, HAR_NAMES, SCALE_X, SCALE_Y, SPRITE_PAD, WIDE_EXT, type AnimGroup, type ImageItem, type Recolor } from './catalog';
+import { ALL_HAR_NAMES, buildCatalog, FIGHTER_RAMPS, HAR_NAMES, SCALE_X, SCALE_Y, SPRITE_PAD, WIDE_EXT, type AnimGroup, type ImageItem, type Recolor } from './catalog';
 import { blit, encodePng, fill, indexedToRgba, newImage, pad, resizeCubic, scaleNearest, type Rgba } from './image';
 import { describeMove, FIGHTERS, GAME_CONTEXT, NEGATIVE, NEGATIVE_BG_UI, NEGATIVE_SPRITE, SCENES, STYLE } from './prompts';
 import { animNote, NEGATIVE_TEXT_SPRITE } from './notes';
@@ -241,7 +241,7 @@ it.skipIf(!hasGameData || !OUT)('export HD asset pack', () => {
     const notes: string[] = [];
     const effectAnim = g.kind === 'fighter' && ([7, 8, 12, 13, 14, 55, 56, 57].includes(g.anim) || g.name.includes('_projectile'));
     if (effectAnim) {
-      const har = HAR_NAMES[Number(g.file.replace(/\D/g, ''))];
+      const har = ALL_HAR_NAMES[Number(g.file.replace(/\D/g, ''))];
       const info = FIGHTERS[har];
       const move = describeMove(g.name);
       const projectile = g.name.includes('_projectile');
@@ -258,7 +258,7 @@ it.skipIf(!hasGameData || !OUT)('export HD asset pack', () => {
         `Sources have a transparent margin of ${SPRITE_PAD} native pixels; keep it transparent.`,
       );
     } else if (g.kind === 'fighter') {
-      const har = HAR_NAMES[Number(g.file.replace(/\D/g, ''))];
+      const har = ALL_HAR_NAMES[Number(g.file.replace(/\D/g, ''))];
       const info = FIGHTERS[har];
       const move = describeMove(g.name);
       title = `${info.name} — ${move} (${g.file} move ${g.anim})`;
@@ -403,7 +403,9 @@ it.skipIf(!hasGameData || !OUT)('export HD asset pack', () => {
   }
 
   // ---- Fighter reference sheets + per-fighter README ---------------------------------------------------------
-  HAR_NAMES.forEach((har, h) => {
+  ALL_HAR_NAMES.forEach((har, h) => {
+    // (the remaster's robots only when their fighter files were generated)
+    if (!cat.groups.some((g) => g.kind === 'fighter' && g.file === `FIGHTR${h}.AF`)) return;
     const info = FIGHTERS[har];
     const refs = (fighterRefs.get(har) ?? []).sort((a, b) => a.order - b.order).map((r) => r.img);
     if (refs.length) {
@@ -437,7 +439,7 @@ it.skipIf(!hasGameData || !OUT)('export HD asset pack', () => {
   // ---- Docs, manifest, job lists -----------------------------------------------------------------------------
   writeDocs(OUT!, {
     jobs, excluded: cat.excluded, context: GAME_CONTEXT, style: STYLE, negative: NEGATIVE,
-    negativeSprite: NEGATIVE_SPRITE, fighters: HAR_NAMES.map((h) => ({ dir: h, ...FIGHTERS[h] })),
+    negativeSprite: NEGATIVE_SPRITE, fighters: ALL_HAR_NAMES.filter((h, id) => cat.groups.some((g) => g.kind === 'fighter' && g.file === `FIGHTR${id}.AF`)).map((h) => ({ dir: h, ...FIGHTERS[h] })),
     scenes: SCENES, pilots: Array.from({ length: 11 }, (_, i) => langGet(20 + i)),
   });
   const tierCounts = [1, 2, 3].map((t) => jobs.filter((j) => j.tier === t).length);

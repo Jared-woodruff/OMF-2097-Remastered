@@ -1,5 +1,5 @@
 // The remaster's new content in the game: the generated arenas' files and backgrounds, the robot select screen's
-// third row, the EXTRAS toggles (off by default: the player opts in), and the new robots' named moves.
+// third row, the NEW CONTENT toggles (off by default: the player opts in), and the new robots' named moves.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { setKeyState } from '../controller/input';
 import { ARENA_COUNT, HarId, ORIGINAL_ARENAS, SceneId } from '../game/constants';

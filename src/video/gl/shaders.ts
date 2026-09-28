@@ -236,3 +236,14 @@ void main() {
   }
   o_color = vec4(c, 1.0);
 }`;
+
+/** The fight camera: a part of the world image (u_rect: x, y, width, height in texture coordinates) over the frame. */
+export const CAMERA_FS = `#version 300 es
+precision highp float;
+in vec2 uv;
+uniform sampler2D u_src;
+uniform vec4 u_rect;
+out vec4 o_color;
+void main() {
+  o_color = texture(u_src, u_rect.xy + uv * u_rect.zw);
+}`;

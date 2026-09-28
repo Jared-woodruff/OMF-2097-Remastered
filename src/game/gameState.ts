@@ -1,5 +1,6 @@
 // Central game state: object list, scene switching, ticking, rendering (port of the reference game_state).
 import { audio } from '../audio/audio';
+import { announce } from '../audio/announcer';
 import type { SoundOpts } from '../audio/soundOpts';
 import { Controller, type CtrlEvent } from '../controller/controller';
 import { KeyboardController, GamepadController, menuPoll, type MenuPollOptions } from '../controller/keyboard';
@@ -21,6 +22,7 @@ import { settings } from './settings';
 import { randomHarPool } from './roster';
 import { ChrScore } from './score';
 import type { ChrFile } from './tournament/chr';
+import type { ReplaySession } from './replay/playback';
 import { HarScreencaps } from './harScreencap';
 
 export interface MatchSettings {
@@ -160,6 +162,18 @@ export class GameState {
   warpSpeed = false;
   /** Training mode: no knockouts, health refills, a dummy opponent (see the arena and the TRAINING menu). */
   training = false;
+  /** Watching a saved fight (see replay/playback.ts). */
+  replay: ReplaySession | null = null;
+  /** The game mode's name in the replay list, for modes the players' controllers do not tell apart (e.g. SURVIVAL). */
+  modeLabel: string | null = null;
+  /** Sound effects are not played (a replay jumping to a moment runs the fight silently). */
+  silent = false;
+  /** The main menu opens this submenu when it comes back (e.g. EXTRAS after watching a replay). */
+  menuReturn: 'extras' | null = null;
+  /** Where the victory screen goes on to (scenes/victory.ts). */
+  victoryNext: SceneId | null = null;
+  /** Arcade, survival or time attack under way (see modes/run.ts). */
+  modeRun: import('./modes/run').ModeRun | null = null;
   sc!: Scene;
   objects: RenderObj[] = [];
   players: [GamePlayer, GamePlayer];
@@ -280,7 +294,8 @@ export class GameState {
     return this.players[1].ctrl.type === CtrlType.AI;
   }
   isTournament(): boolean {
-    return this.players[0].chr !== null;
+    // A replayed tournament fight follows the tournament rules (damage, robot stats) without the character.
+    return this.players[0].chr !== null || this.replay?.tournament === true;
   }
   isDemoplay(): boolean {
     return this.players[0].ctrl.type === CtrlType.AI && this.players[1].ctrl.type === CtrlType.AI;
@@ -389,7 +404,8 @@ export class GameState {
   msPerDyntick(): number {
     if (isArenaScene(this.thisId)) {
       if (this.warpSpeed) return 1;
-      return Math.trunc(8 + MS_PER_OMF_TICK_SLOWEST - (this.speed / 15) * MS_PER_OMF_TICK_SLOWEST);
+      const ms = Math.trunc(8 + MS_PER_OMF_TICK_SLOWEST - (this.speed / 15) * MS_PER_OMF_TICK_SLOWEST);
+      return this.replay ? this.replay.scaleTickMs(ms) : ms;
     }
     return STATIC_TICKS;
   }
@@ -553,8 +569,13 @@ export class GameState {
   }
 
   // ---- audio ----------------------------------------------------------------------
+  /** The announcer says a line (see audio/announcer.ts), unless the game runs silently. */
+  announce(line: string): void {
+    if (!this.silent) announce(line);
+  }
+
   playSound(soundId: number, opts: SoundOpts): void {
-    if (soundId < 0 || soundId > 299) return;
+    if (soundId < 0 || soundId > 299 || this.silent) return;
     const handle = audio.playSound(soundId, opts);
     if (!handle) return;
     const durationMs = audio.soundDurationMs(soundId, opts.pitch);

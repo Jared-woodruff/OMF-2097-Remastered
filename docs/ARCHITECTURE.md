@@ -22,6 +22,11 @@ OpenOMF project (MIT, https://github.com/omf2097/openomf); rendering and platfor
 | `src/resources/sgmanager.ts`, `trnmanager.ts` | Save games (CHR files in localStorage through a small `SaveStorage` interface) and the tournament list. |
 | `src/gen/` | The remaster's own content: the new robots and arenas, generated from 3D models (see below). |
 | `src/fx/` | Remastered effects: the director (fight events → particles, lights, camera), per-arena ambience and weather, the new robots' special move effects. |
+| `src/game/replay/` | Replays: recording every fight (REC format), the replay store (IndexedDB), playback with seeking, the controls bar and the replay list. |
+| `src/game/training/` | The training lab: frame meter and hitboxes (`lab.ts`), the lab session (recording the dummy, reversals, hotkeys), combo trials and their data. |
+| `src/game/modes/`, `src/game/records/` | Arcade, survival, time attack and the workshop's test fight (`run.ts`), their results page; statistics and achievements. |
+| `src/game/workshop/`, `src/gen/workshop.ts` | The robot workshop: robot descriptions, building them into fighters at run time, the editor page. |
+| `src/game/tournament/custom*.ts` | Custom tournaments made from the installed ones, and their page. |
 
 ## Porting conventions (C reference → TypeScript)
 
@@ -166,8 +171,44 @@ own file formats, so the engine runs them like the originals.
   artwork) from the
   same poses (a few per frame, as scenes need them) and registered in `hd/assets.ts` by pixel fingerprint, like
   installed artwork; the arenas' HD backgrounds load from `public/gen/*.webp`.
-- **In the game**: `game/roster.ts` (which robots and arenas can be picked: the GAMEPLAY › EXTRAS toggles, off by
+- **In the game**: `game/roster.ts` (which robots and arenas can be picked: the GAMEPLAY › NEW CONTENT toggles, off by
   default; settings saved before they became opt-in load with them off, see `loadSettings`), the robot select
   screen's third row (`melee.ts`), VS images and arena previews (`vs.ts`), CPU tactics (`controller/ai.ts`), move
-  names (`gui/moveList.ts`), arena ambience (`fx/arenas.ts`) and special move effects (`fx/robotFx.ts`).
+  names (`gui/moveList.ts`), arena ambience (`fx/arenas.ts`) and special move effects (`fx/robotFx.ts`). In
+  tournaments Plug offers them in trades (`vs.ts`); the mechlab's turning robot and select buttons for them are
+  rendered by `gen/mechlabModel.ts` (the buttons in the originals' grays inside an original button's frame, with
+  remastered artwork made on the spot).
 
+## Remaster modes and tools
+
+- **Replays** (`game/replay/`): the arena records every fight like the reference's REC recorder (`recorder.ts`: the
+  pilots, match settings and random seed, then every input), except that the computer's inputs are all written (it
+  does not send one every tick, so repeating the last one would change the fight) and a tick with several inputs of a
+  human player (the special button) is written whole. `playback.ts` drives both robots with `controller/rec.ts`;
+  jumping to a moment plays the fight again from the start without sound or effects (`GameState.silent`,
+  `fx.setFxMuted`). `src/test/replay.test.ts` checks that fights play back tick for tick. Clips are saved by
+  `platform/clipExport.ts` (MediaRecorder for MP4/WebM with the game's sound through `AudioSystem.captureStream`, and
+  a GIF encoder in a worker, `platform/gif.ts`: changed pixels only, per-frame palettes, LZW).
+- **Training lab** (`game/training/`): the frame meter classifies each tick of both robots (startup until the move's
+  first frame with hit points, active, recovery until it can act; hit and block stun) from the HAR state and the ATTACK
+  events; hitboxes draw the outline of a sprite's hittable pixels (index < 96, as `intersect.ts` tests them) and the
+  current frame's hit points. The dummy (`controller/dummy.ts`) plays recordings and answers with reversals by sending
+  a move's whole input in the tick it can act. Combo trials come from `src/gen/dev/comboSearch.test.ts`
+  (`COMBO_SEARCH=1`: every timing of two and three moves against a standing dummy, with `src/test/comboSim.ts`),
+  checked against every robot by `trialVerify.test.ts` (`COMBO_VERIFY=1`) into `trialData.ts`;
+  `src/test/trials.test.ts` replays them all.
+- **Special button** (`controller/special.ts`): the keyboard and gamepad controllers send the chosen special's whole
+  input in one tick.
+- **Modes and records** (`game/modes/run.ts`): a run set on `GameState.modeRun` picks the opponents (on the robot
+  select screen), shows its line in the fight and decides what follows each fight (`arena.ts`); records and
+  achievements are in `game/records/`.
+- **Workshop** (`gen/workshop.ts`): a robot description picks a frame, a head, the moves of the generated robots, a
+  size, a weight and colors; `workshopRobot` makes a `GenRobot` of it and `buildWorkshopFighter` a fighter file, which
+  `game/workshop/registry.ts` provides as `FIGHTR15.AF`.. (HARs 15 to 22, named in the language file's free entries)
+  and registers with `gen/roster` (move names, remastered artwork).
+- **Custom tournaments** (`game/tournament/custom.ts`): a `TournamentFile` derived from an installed one, registered
+  with `resources.registerTournament` so the tournament list and saved characters find it.
+- **Presentation**: the announcer (`audio/announcer.ts`, lines made by `tools/make-announcer.py`), the victory screen
+  (`scenes/victory.ts`, a scene on the VS backdrop between the fight and what follows it) and the fight camera
+  (`video/camera.ts`; the HD renderer zooms the finished world image before the overlay is drawn).
+- **Touch controls** (`platform/touch.ts`): DOM controls read by player 1's keyboard controller like a gamepad.

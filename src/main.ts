@@ -34,6 +34,23 @@ import { applyPadSettings } from './game/controls';
 import { addTracks, audioFiles } from './audio/customMusic';
 import { toast } from './platform/toast';
 import { ACT_ESC, ACT_PUNCH } from './game/constants';
+import { ReplaysPage } from './game/replay/replaysPage';
+import { RunResultsPage } from './game/modes/resultsPage';
+import { RecordsPage } from './game/records/recordsPage';
+import { MS_PER_OMF_TICK_SLOWEST } from './game/constants';
+import { ReplaySession } from './game/replay/playback';
+import { ClipExporter } from './platform/clipExport';
+import { TouchControls } from './platform/touch';
+import { WorkshopPage, type WorkshopHost } from './game/workshop/workshopPage';
+import { buildWorkshopInBackground, ensureWorkshopRobot, harIdOf, isWorkshopHar } from './game/workshop/registry';
+import { hasFighter } from './resources/resources';
+import { CustomTournamentsPage } from './game/tournament/customPage';
+import { registerCustomTournaments } from './game/tournament/custom';
+import { ModeRun } from './game/modes/run';
+import { setupPlayerInput } from './game/scenes/mainmenu/menuMain';
+import { FightCamera } from './video/camera';
+import { loadAnnouncer } from './audio/announcer';
+import { CtrlType } from './game/constants';
 
 const boot = document.getElementById('boot')!;
 const canvas = document.getElementById('screen') as HTMLCanvasElement;
@@ -117,7 +134,10 @@ async function main(): Promise<void> {
     await renderArenaHd(renderer.gl, (s) => (boot.textContent = s), params.get('genarenahd') || undefined);
     return;
   }
-  if (!params.has('noaudio')) await audio.init(soundBank(), (name) => getFile(name));
+  if (!params.has('noaudio')) {
+    await audio.init(soundBank(), (name) => getFile(name));
+    loadAnnouncer();
+  }
   const s = settings();
   audio.setSoundVolume(s.sound.soundVol / 10);
   audio.setMusicVolume(s.sound.musicVol / 10);
@@ -167,7 +187,16 @@ async function main(): Promise<void> {
     hdAssets.preload(artworkFor());
     wantGenerated();
     audio.setRoom(gs.sc.isArena() ? gs.thisId - SceneId.ARENA0 : -1);
+    // Back from trying a workshop robot: the workshop opens again.
+    if (workshopAfter && gs.thisId === SceneId.MENU) {
+      workshopAfter = false;
+      onMenu = () => app.showWorkshop();
+    }
   };
+  let workshopAfter = false;
+  // Pages that open once the main menu is back and has faded in (the replay list after watching a replay, the results
+  // of an arcade, survival or time attack run).
+  let onMenu: (() => void) | null = null;
   audio.setRoom(gs.sc.isArena() ? gs.thisId - SceneId.ARENA0 : -1);
   wantGenerated();
   // The first screen waits (briefly) for its artwork so it does not pop in.
@@ -176,8 +205,17 @@ async function main(): Promise<void> {
 
   // Remastered effects follow the game clock (dynamic ticks), so they pause and slow down with the game.
   const fxDirector = new FxDirector();
+  const camera = new FightCamera();
   // F1: the original help pages over the paused game.
   const help = new HelpOverlay((paused) => (engine.paused = paused));
+  // Touch controls: in fights (not replays, demos or the pause menu) and on the robot select screen.
+  const touch = new TouchControls();
+  const touchWanted = () => {
+    if (help.isOpen()) return false;
+    if (gs.thisId === SceneId.MELEE) return true;
+    const menuOpen = (gs.sc as { menuVisible?: boolean }).menuVisible;
+    return gs.sc.isArena() && !gs.replay && !gs.isDemoplay() && !menuOpen && gs.getPlayer(0).ctrl.type !== CtrlType.AI;
+  };
   // Mouse: menus take hovers and clicks first (topmost frame first), then the scene; other clicks mean "continue"
   // (left) or "back" (right) on screens without menus. Fights ignore the mouse (except their pause menu).
   initMouse(canvas, (px, py) => renderer.canvasToNative(px, py));
@@ -199,13 +237,21 @@ async function main(): Promise<void> {
   };
   const engine = new Engine(gs, {
     render: () => {
+      if (onMenu && gs.thisId === SceneId.MENU && gs.nextId === SceneId.MENU && gs.thisWaitTicks === 0 && !help.isOpen()) {
+        const open = onMenu;
+        onMenu = null;
+        open();
+      }
       dispatchPointer();
+      touch.update(settings().keys.touch, touchWanted());
       help.update();
       help.render();
       fxDirector.update(gs, engine.ticks + engine.alpha, renderer.options.mode === 'remastered');
       renderer.fx = fxDirector.frame;
+      renderer.camera = camera.update(gs, performance.now(), settings().gameplay.fightCamera && renderer.options.mode === 'remastered');
       if (renderer.options.mode === 'remastered' && hdAssets.enabled) genArt.pump(4);
       renderer.render();
+      clips.frame();
     },
   });
   // Impact bass: a low thump under heavy hits, slams and knockouts (the original sounds stay as they are).
@@ -306,6 +352,72 @@ async function main(): Promise<void> {
   };
   gs.onQuit = () => app.quit();
   app.showControls = () => help.open('controls');
+  // Replays: the list (EXTRAS > REPLAYS) over the menu; watching a fight, and saving clips of it.
+  app.showReplays = () => help.open(new ReplaysPage((record) => {
+    // A fight with a workshop robot needs it built (and still there).
+    for (const p of record.meta.players) {
+      if (isWorkshopHar(p.harId)) ensureWorkshopRobot(p.harId - harIdOf(0));
+      if (!hasFighter(p.harId)) {
+        toast('This fight was played with a robot that is not in the workshop any more.', 4000);
+        return;
+      }
+    }
+    new ReplaySession(gs, record, () => {
+      clips.cancel();
+      onMenu = () => app.showReplays();
+      gs.menuReturn = 'extras';
+      gs.setNext(SceneId.MENU);
+    }).start();
+  }, () => gs.speed));
+  app.showRunResults = (result) => (onMenu = () => help.open(new RunResultsPage(result)));
+  // The robot workshop: trying a robot in training or in a fight against the computer.
+  const workshopHost: WorkshopHost = {
+    train(slot, spec) {
+      settings().training.har = harIdOf(slot);
+      startTraining(gs);
+      const c = spec.colors;
+      setPilotColors(gs.getPlayer(0).pilot, c[0], c[1], c[2]);
+      gs.menuReturn = 'extras';
+      workshopAfter = true;
+    },
+    fight(slot, spec) {
+      setupPlayerInput(gs, 0);
+      gs.setupAi(1);
+      gs.matchSettingsReset();
+      const p1 = gs.getPlayer(0);
+      const info = PILOT_INFO[settings().training.pilot] ?? PILOT_INFO[0];
+      p1.pilot.pilotId = settings().training.pilot;
+      p1.pilot.harId = harIdOf(slot);
+      p1.pilot.power = info.power;
+      p1.pilot.agility = info.agility;
+      p1.pilot.endurance = info.endurance;
+      p1.pilot.name = langGet(20 + p1.pilot.pilotId);
+      p1.pilot.photo = null;
+      setPilotColors(p1.pilot, spec.colors[0], spec.colors[1], spec.colors[2]);
+      gs.modeRun = new ModeRun('exhibition');
+      gs.modeRun.setupOpponent(gs);
+      gs.setNext(SceneId.VS);
+    },
+  };
+  app.showWorkshop = () => {
+    const open = () => help.open(new WorkshopPage(workshopHost));
+    if (gs.thisId === SceneId.MENU && gs.nextId === SceneId.MENU) open();
+    else onMenu = open;
+  };
+  buildWorkshopInBackground();
+  app.showTournaments = () => help.open(new CustomTournamentsPage());
+  registerCustomTournaments();
+  app.showRecords = () => help.open(new RecordsPage(() => Math.trunc(8 + MS_PER_OMF_TICK_SLOWEST - ((settings().gameplay.speed + 5) / 15) * MS_PER_OMF_TICK_SLOWEST)));
+  const clips = new ClipExporter({
+    canvas,
+    viewport: () => renderer.viewport(),
+    audioStream: () => audio.captureStream(),
+    releaseAudio: () => audio.releaseCapture(),
+  });
+  app.exportReplay = (kind) => {
+    if (gs.replay) clips.start(gs.replay, kind);
+  };
+  app.cancelExport = () => clips.cancel();
   // Global hotkeys: F2 swaps classic/remastered graphics, F11 / Alt+Enter toggle fullscreen.
   onKey((code, e) => {
     if (code === 'F1' && !help.isOpen()) {
@@ -362,6 +474,8 @@ async function main(): Promise<void> {
   (window as unknown as { __omf: unknown }).__omf = {
     gs,
     engine,
+    /** The host hooks (show the replay list, records...). */
+    app,
     renderer,
     /** The app's draw list (dynamic imports from the console may get a different module instance after HMR). */
     drawList,

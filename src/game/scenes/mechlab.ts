@@ -2,6 +2,8 @@
 // choice, SIM opponents), the lower half the current tournament menu; the pilot's HAR spins in between.
 // New pilots go through name -> photo -> difficulty -> tournament; the character is saved to a CHR save game.
 // Port of the reference scenes/mechlab.c (menus and dashboards are in ./mechlab/).
+import { ORIGINAL_HAR_TYPES } from '../constants';
+import { mechAnimation } from '../../gen/mechlabModel';
 import type { CtrlEvent } from '../../controller/controller';
 import { isDown } from '../../controller/input';
 import { KeyboardController } from '../../controller/keyboard';
@@ -152,12 +154,12 @@ export class MechlabScene extends Scene {
     return this.frame.root as TrnMenu;
   }
 
-  /** A spinning HAR preview (BK animation 15 + HAR id), ticked and drawn by the scene. */
+  /** A spinning HAR preview (BK animation 15 + HAR id; rendered by the generator for the remaster's robots), ticked and drawn by the scene. */
   private createMech(harId: number): GameObject | null {
-    const info = bkGetInfo(this.bk, 15 + harId);
-    if (!info) return null;
+    const ani = harId < ORIGINAL_HAR_TYPES ? bkGetInfo(this.bk, 15 + harId)?.ani : mechAnimation(harId);
+    if (!ani) return null;
     const obj = new GameObject(this.gs, 0, 0);
-    obj.setAnimation(info.ani);
+    obj.setAnimation(ani);
     obj.setRepeat(true);
     obj.dynamicTick();
     return obj;

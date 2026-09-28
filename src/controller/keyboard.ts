@@ -3,6 +3,23 @@ import type { GameState } from '../game/gameState';
 import type { KeyBindings } from '../game/settings';
 import { Controller, type CtrlEvent } from './controller';
 import { anyDown, connectedPads, isDown, readPad, rumble } from './input';
+import { specialButtonActions } from './special';
+import { touchPad } from '../platform/touch';
+import { settings } from '../game/settings';
+
+/**
+ * The special button went down: the special move's whole input follows the tick's action, one event per input, so the
+ * robot takes them in this tick (see controller/special.ts).
+ */
+function pushSpecial(ctrl: Controller, pressed: boolean, wasPressed: boolean, action: number, ev: CtrlEvent[]): void {
+  if (!pressed || wasPressed) return;
+  const actions = specialButtonActions(ctrl.gs, ctrl.harObjId, action);
+  if (!actions) return;
+  for (const a of actions) {
+    ctrl.current |= a;
+    ev.push({ type: 'action', action: a, source: ctrl.type });
+  }
+}
 
 /** Converts a set of pressed directions/buttons to an action exactly like the reference keyboard poll. */
 function resolveAction(
@@ -37,6 +54,7 @@ export class KeyboardController extends Controller {
   /** Which free gamepad this player also reads (-1: none), and the pads that are not free. */
   padSlot = -1;
   reservedPads: () => number[] = () => [];
+  private specialHeld = false;
 
   constructor(gs: GameState, public keys: KeyBindings) {
     super(gs);
@@ -60,7 +78,13 @@ export class KeyboardController extends Controller {
   override poll(ev: CtrlEvent[]): number {
     this.current = 0;
     const padIndex = this.pad();
-    const p = padIndex >= 0 ? readPad(padIndex) : null;
+    const pad = padIndex >= 0 ? readPad(padIndex) : null;
+    // Player 1 also plays with the touch controls.
+    const touch = this.keys === settings().keys.p1 ? touchPad() : null;
+    const p = touch ? {
+      up: touch.up || !!pad?.up, down: touch.down || !!pad?.down, left: touch.left || !!pad?.left, right: touch.right || !!pad?.right,
+      punch: touch.punch || !!pad?.punch, kick: touch.kick || !!pad?.kick, special: touch.special || !!pad?.special,
+    } : pad;
     const pu = !!p?.up, pd = !!p?.down, pl = !!p?.left, pr = !!p?.right;
     const action = resolveAction(
       this.held((k) => k.jumpLeft) || (pu && pl), this.held((k) => k.duckBack) || (pd && pl),
@@ -69,6 +93,9 @@ export class KeyboardController extends Controller {
       this.held((k) => k.duck) || pd, this.held((k) => k.punch) || !!p?.punch, this.held((k) => k.kick) || !!p?.kick,
     );
     this.cmd(action === 0 ? ACT_STOP : action, ev);
+    const special = this.held((k) => k.special ?? []) || !!p?.special;
+    pushSpecial(this, special, this.specialHeld, action, ev);
+    this.specialHeld = special;
     this.last = this.current;
     return 0;
   }
@@ -81,6 +108,8 @@ export class KeyboardController extends Controller {
 }
 
 export class GamepadController extends Controller {
+  private specialHeld = false;
+
   constructor(gs: GameState, public padIndex: number) {
     super(gs);
     this.type = CtrlType.GAMEPAD;
@@ -96,6 +125,9 @@ export class GamepadController extends Controller {
       action = resolveAction(upLeft, downLeft, upRight, downRight, p.left, p.right, p.up, p.down, p.punch, p.kick);
     }
     this.cmd(action === 0 ? ACT_STOP : action, ev);
+    const special = !!p?.special;
+    pushSpecial(this, special, this.specialHeld, action, ev);
+    this.specialHeld = special;
     this.last = this.current;
     return 0;
   }

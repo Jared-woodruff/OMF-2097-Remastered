@@ -12,7 +12,12 @@ export interface KeyBindings {
   jumpLeft: string[];
   punch: string[];
   kick: string[];
+  /** The one-button special (CONFIGURATION > SPECIAL BUTTON; not in the original game). */
+  special: string[];
 }
+
+/** The special button of the modern keyboard layout (controls.ts), for settings saved before it existed. */
+export const MODERN_SPECIAL_KEYS = { p1: ['KeyL', 'KeyH'], p2: ['Slash', 'Numpad3'] };
 
 export type GraphicsMode = 'classic' | 'remastered';
 
@@ -58,6 +63,8 @@ export interface Settings {
     impactBass: boolean;
     /** Where the player's own music replaces the soundtrack: nowhere, in fights, or everywhere. */
     myMusic: 'off' | 'fights' | 'always';
+    /** The announcer's voice (audio/announcer.ts). */
+    announcer: boolean;
   };
   gameplay: {
     speed: number; // 0..10
@@ -71,6 +78,12 @@ export interface Settings {
     extraRobots: boolean;
     /** The remaster's four new arenas are part of the arena rotation (opt-in). */
     extraArenas: boolean;
+    /** Every fight is recorded and kept in the replay list. */
+    saveReplays: boolean;
+    /** The winner's portrait and a line of theirs after one and two player fights (scenes/victory.ts). */
+    victoryScreens: boolean;
+    /** Remastered graphics: the view follows the fight, closer when the robots are close (video/camera.ts). */
+    fightCamera: boolean;
   };
   advanced: {
     rehitMode: boolean;
@@ -95,6 +108,10 @@ export interface Settings {
     layout: 'classic' | 'modern' | 'custom';
     /** Gamepad buttons: 'modern' (X/Y punch, A/B kick) or 'classic' (A/X punch, B/Y kick). */
     padLayout: 'modern' | 'classic';
+    /** The special button does special moves in one press (see controller/special.ts). */
+    specialButton: boolean;
+    /** Touch controls (platform/touch.ts): shown on touch screens once touched, always, or never. */
+    touch: 'auto' | 'on' | 'off';
     p1: KeyBindings;
     p2: KeyBindings;
   };
@@ -111,6 +128,15 @@ export interface Settings {
     dummy: number;
     /** Show the player's recent inputs. */
     inputDisplay: boolean;
+    /** Training lab: the frame meter and frame data, the hitbox view. */
+    frameData: boolean;
+    hitboxes: boolean;
+    /** The dummy's reversal: 'off', 'jump', 'tape' or 'move:<move string>'. */
+    reversal: string;
+    /** Combo trials completed, as '<robot id>:<trial index>'. */
+    trialsDone: string[];
+    /** The dummy's recording (see controller/dummy.ts DummyTape), kept between sessions. */
+    tape: { frames: number[][]; facing: number } | null;
   };
   /** Language file of the original game (ENGLISH.DAT or GERMAN.DAT). */
   language: string;
@@ -144,8 +170,8 @@ export function defaultSettings(): Settings {
       fxImpact: true,
       fxAtmosphere: true,
     },
-    sound: { soundVol: 7, musicVol: 6, enhancedMusic: true, acoustics: true, impactBass: true, myMusic: 'fights' },
-    gameplay: { speed: 5, fightMode: 0, power1: 5, power2: 5, hazards: true, difficulty: 1, rounds: 1, extraRobots: false, extraArenas: false },
+    sound: { soundVol: 7, musicVol: 6, enhancedMusic: true, acoustics: true, impactBass: true, myMusic: 'fights', announcer: true },
+    gameplay: { speed: 5, fightMode: 0, power1: 5, power2: 5, hazards: true, difficulty: 1, rounds: 1, extraRobots: false, extraArenas: false, saveReplays: true, victoryScreens: true, fightCamera: false },
     advanced: {
       rehitMode: false,
       defensiveThrows: false,
@@ -165,6 +191,8 @@ export function defaultSettings(): Settings {
       autoPads: true,
       layout: 'classic',
       padLayout: 'modern',
+      specialButton: true,
+      touch: 'auto',
       // KeyboardEvent.code values. Player 1: arrows / numpad, Enter + Right Shift (like the reference defaults).
       p1: {
         jumpUp: ['ArrowUp', 'Numpad8'],
@@ -177,6 +205,7 @@ export function defaultSettings(): Settings {
         jumpLeft: ['Home', 'Numpad7'],
         punch: ['Enter', 'NumpadEnter', 'Numpad0'],
         kick: ['ShiftRight', 'NumpadDecimal', 'NumpadAdd'],
+        special: ['Slash', 'NumpadSubtract'],
       },
       // Player 2: QWE/AD/ZXC block, Left Ctrl + Left Shift.
       p2: {
@@ -190,10 +219,14 @@ export function defaultSettings(): Settings {
         jumpLeft: ['KeyQ'],
         punch: ['ControlLeft', 'KeyF'],
         kick: ['ShiftLeft', 'KeyG'],
+        special: ['KeyH'],
       },
     },
     tournament: { lastName: '' },
-    training: { har: 0, pilot: 0, opponent: 5, arena: 0, dummy: 0, inputDisplay: true },
+    training: {
+      har: 0, pilot: 0, opponent: 5, arena: 0, dummy: 0, inputDisplay: true, frameData: true, hitboxes: false, reversal: 'off',
+      trialsDone: [], tape: null,
+    },
     language: 'ENGLISH.DAT',
     revision: REVISION,
   };
@@ -222,6 +255,11 @@ export function loadSettings(): Settings {
     if (raw) {
       const saved = JSON.parse(raw) as Partial<Settings> | null;
       current = merge(defaultSettings(), saved);
+      // Saved before the special button: the modern layout gets its own special keys (else the classic ones).
+      if (saved?.keys && !saved.keys.p1?.special && saved.keys.layout === 'modern') {
+        current.keys.p1.special = [...MODERN_SPECIAL_KEYS.p1];
+        current.keys.p2.special = [...MODERN_SPECIAL_KEYS.p2];
+      }
       if (!((saved?.revision ?? 0) >= 2)) {
         current.gameplay.extraRobots = false;
         current.gameplay.extraArenas = false;

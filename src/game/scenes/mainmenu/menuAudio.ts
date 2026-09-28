@@ -25,7 +25,8 @@ function libraryHelp(): string {
 
 export function menuAudioCreate(_s: MainMenuScene): Menu {
   const menu = new Menu();
-  // Nine entries: no spacer row under the title.
+  // Ten entries: no spacer row under the title, and rows a little closer.
+  menu.padding = 2;
   menu.attach(Label.title('AUDIO'));
   // menu_audio_sound_slide
   const volume = new TextSlider('SOUND', 'Raise or lower the volume of all sound effects. Press right or left to change.', 10, true,
@@ -59,6 +60,8 @@ export function menuAudioCreate(_s: MainMenuScene): Menu {
       audio.setImpactBass(pos === 1);
       settingsChanged();
     }));
+  menu.attach(new TextSelector('ANNOUNCER', 'A voice that calls the rounds, the knockouts and the winners.',
+    () => (sound().announcer ? 1 : 0), (pos) => (sound().announcer = pos === 1), ['OFF', 'ON'], settingsChanged));
   menu.attach(new TextSelector('MY MUSIC',
     'Play your own songs instead of the original soundtrack: OFF, in FIGHTS (a new song every fight) or ALWAYS. F3 skips to another song.',
     () => Math.max(0, MY_MUSIC.indexOf(sound().myMusic)), (pos) => (sound().myMusic = MY_MUSIC[pos]), ['OFF', 'FIGHTS', 'ALWAYS'],

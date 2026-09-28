@@ -1,5 +1,5 @@
-// GAMEPLAY > EXTRAS (not in the original game): the robots and arenas made for the remaster, off until the player
-// turns them on.
+// GAMEPLAY > NEW CONTENT (not in the original game): the robots and arenas made for the remaster, off until the
+// player turns them on.
 import { EXTRA_HAR_IDS } from '../../roster';
 import { hasFighter } from '../../../resources/resources';
 import { Button, Filler, Label, Menu, TextSelector } from '../../gui/widgets';
@@ -9,7 +9,7 @@ import { menuDone, settingsChanged } from './common';
 export function menuExtrasCreate(): Menu {
   const g = settings().gameplay;
   const menu = new Menu();
-  menu.attach(Label.title('EXTRAS'));
+  menu.attach(Label.title('NEW CONTENT'));
   menu.attach(new Filler());
   const robots = new TextSelector('NEW ROBOTS',
     'GLACIER, TEMPEST, HELIX and SPECTRE: four robots built for the remaster, with their own special moves and ' +
@@ -21,6 +21,12 @@ export function menuExtrasCreate(): Menu {
   menu.attach(new TextSelector('NEW ARENAS',
     'Four arenas built for the remaster join the arena rotation of two player and one player games.',
     () => (g.extraArenas ? 1 : 0), (pos) => (g.extraArenas = pos === 1), ['OFF', 'ON'], settingsChanged));
+  menu.attach(new TextSelector('VICTORY SCREENS',
+    'After a one or two player fight (and in the arcade, survival and time attack modes) the winner is shown with a line of theirs.',
+    () => (g.victoryScreens ? 1 : 0), (pos) => (g.victoryScreens = pos === 1), ['OFF', 'ON'], settingsChanged));
+  menu.attach(new TextSelector('FIGHT CAMERA',
+    'Remastered graphics: the view follows the fight and comes closer when the robots are close.',
+    () => (g.fightCamera ? 1 : 0), (pos) => (g.fightCamera = pos === 1), ['OFF', 'ON'], settingsChanged));
   menu.attach(new Button('DONE', 'Go back to the gameplay menu.', false, false, menuDone));
   return menu;
 }
