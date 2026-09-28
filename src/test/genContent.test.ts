@@ -66,10 +66,7 @@ describe.skipIf(!hasGameData)('generated arenas', () => {
       const bk = loadBk(a.file);
       expect(bk.fileId).toBe(a.fileId);
       // Only the arena's own colors and the shared ones: never the robots' (0x00-0x5F) or the menu's.
-      for (const v of bk.background.data) {
-        expect(v).toBeGreaterThanOrEqual(0x60);
-        expect(v).toBeLessThanOrEqual(0xf9);
-      }
+      expect(bk.background.data.filter((v) => v < 0x60 || v > 0xf9).length).toBe(0);
       // The shared parts come from the first original arena.
       for (const id of [6, 7, 8, 9, 10, 11, 24, 25, 26, 27]) expect(bk.infos.has(id), `${a.name} anim ${id}`).toBe(true);
       for (let i = 0xa0; i < 0xfa; i++) expect(bk.palettes[0].r(i)).toBe(ref.palettes[0].r(i));

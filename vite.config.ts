@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig, type Plugin } from 'vite';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -43,5 +44,9 @@ export default defineConfig({
     outDir: 'dist',
     assetsInlineLimit: 0,
     chunkSizeWarningLimit: 2000,
+  },
+  test: {
+    // The game logic runs against the real data: CI machines can be several times slower than a desktop.
+    testTimeout: 15000,
   },
 });
