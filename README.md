@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/TypeScript-7-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript 7">
   <img src="https://img.shields.io/badge/WebGL2-990000?style=for-the-badge&logo=webgl&logoColor=white" alt="WebGL2">
   <img src="https://img.shields.io/badge/Tauri-2-24c8db?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri 2">
-  <img src="https://img.shields.io/badge/tests-230%20passing-2ea44f?style=for-the-badge" alt="230 tests passing">
+  <img src="https://img.shields.io/badge/tests-232%20passing-2ea44f?style=for-the-badge" alt="232 tests passing">
 </p>
 
 <p align="center">
@@ -288,9 +288,17 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
   the fight in numbers (rounds, time, hits, accuracy, best combo, perfects and finishers).
 - **Fight camera** (optional, remastered graphics): the view comes closer when the robots are close and follows the
   fight, while the HUD stays put.
+- **Remaster credits** (Extras › Credits): the people and projects behind the remaster as animated end titles over a
+  starfield and a neon grid, to the game's ending theme.
+- **Achievements** announce themselves with a banner the moment they are earned.
 
 <p align="center">
   <img src="docs/media/victory.jpg" alt="A victory screen: the winner's portrait, robot, a line of theirs and the fight's numbers" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/media/credits-hero.jpg" alt="The remaster's credits: the chrome 2097 title over a starfield and a neon grid" width="49%">
+  <img src="docs/media/credits.jpg" alt="The remaster's credits: the human coder, the AI coder and the AI image rendering" width="49%">
 </p>
 
 #### And also
@@ -302,6 +310,8 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
 - **Gamepad rumble** on hits, blocks, throws, wall slams and knockouts.
 - **Mouse support** in every menu: hover to select, click to activate, scroll to change values, right click to go back.
 - **F1 help at any time**, as the original help pages promised, with the game paused behind it.
+- **The German texts as written**: umlauts in the remastered typeface, the help pages' highlighted words in their
+  colors on the same line, and pages longer than the screen continued over more pages.
 - **Auto pause**: switching to another window or tab pauses a fight.
 
 <br>
@@ -396,7 +406,9 @@ Prerequisites and details for every platform are in [docs/BUILDING.md](docs/BUIL
 | Special (one press) | / or numpad − | H |
 
 <kbd>Esc</kbd> pause menu &nbsp;·&nbsp; <kbd>F1</kbd> help &nbsp;·&nbsp; <kbd>F2</kbd> classic / remastered &nbsp;·&nbsp;
-<kbd>F3</kbd> next song (your own music) &nbsp;·&nbsp; <kbd>F11</kbd> or <kbd>Alt</kbd>+<kbd>Enter</kbd> fullscreen.
+<kbd>F3</kbd> next song (your own music) &nbsp;·&nbsp; <kbd>F11</kbd> or <kbd>Alt</kbd>+<kbd>Enter</kbd> fullscreen
+&nbsp;·&nbsp; <kbd>Print Screen</kbd> (or <kbd>F12</kbd> in the desktop app) saves a screenshot at your display's
+resolution.
 
 - **Configuration › Controls** (also in the pause menu) shows the keyboard and the Xbox controller with every action
   on its key or button. The keyboard has the classic layout above and a **modern** one (WASD for player 1), and keys
@@ -454,12 +466,17 @@ flowchart LR
 <a id="credits"></a>
 <p align="center"><a href="#credits"><img src="docs/media/banner-credits.jpg" alt="09 · Credits and legal" width="100%"></a></p>
 
+- **The remaster**: [Jared Woodruff](https://github.com/Jared-woodruff) (human coder), Claude Opus 5.5 in Max Mode (AI
+  coder), OpenAI GPT6-ASTRA in Ultra Mode (AI image rendering of the HD artwork).
 - ***One Must Fall 2097*** © 1994 Diversions Entertainment, published by Epic MegaGames, freeware since 1999. All
   trademarks belong to their owners. This is an unofficial fan project, not affiliated with or endorsed by the
   original authors.
 - **[OpenOMF](https://github.com/omf2097/openomf)** (MIT license): the open-source reimplementation whose reverse
   engineering this port follows.
 - **Hyllian's xBR-lv2 shader** (MIT license): adapted for the remastered sprite reconstruction.
+- **[eSpeak NG](https://github.com/espeak-ng/espeak-ng)** (GPL-3.0) and **FFmpeg** (LGPL/GPL): used as tools to make the
+  announcer's voice lines; neither is part of the game.
+- **[Tauri](https://tauri.app)** (MIT / Apache-2.0): the desktop app. Built with Vite, TypeScript and Vitest.
 - **[Orbitron](https://github.com/theleagueof/orbitron)** by Matt McInerney and The League of Moveable Type
   ([SIL Open Font License 1.1](public/fonts/Orbitron-OFL.txt)): the remastered text.
 - The app icon and installer artwork are original designs; the HD artwork was generated from the original images.

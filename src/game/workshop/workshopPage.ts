@@ -86,7 +86,8 @@ export class WorkshopPage extends Page {
     this.preview = new Surface(t.w, t.h, data, 0);
     this.preview.source = { kind: 'generated', key: `workshop/preview/${key}` };
     // Remastered graphics: the picture rendered in HD from the same shapes.
-    generatedArtwork()?.renderPicture(data, t.w, t.h, t.shapes, t.x, t.y, t.scale, previewIndex);
+    generatedArtwork()?.renderPictures('workshop', [{ pixels: data, w: t.w, h: t.h, shapes: t.shapes, x: t.x, y: t.y, scale: t.scale }],
+      previewIndex);
   }
 
   // ---- input ----

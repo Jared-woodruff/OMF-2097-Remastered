@@ -12,6 +12,7 @@ import * as P from './fighter/poses';
 import { traceShapes, ROW_H } from './raster';
 import { jointTransforms, placeShapes } from './robot';
 import { genRobot } from './roster';
+import { generatedArtwork, type GenPicture } from './hdArtwork';
 
 const FRAMES = 20;
 /** Where the originals' turntable robots stand (their feet), and how tall they are drawn. */
@@ -20,10 +21,14 @@ const FLOOR_Y = 92;
 const HEIGHT = 86;
 
 const cache = new Map<number, Animation>();
+const pictures = new Map<number, GenPicture[]>();
 
 export function mechAnimation(harId: number): Animation | null {
   const cached = cache.get(harId);
-  if (cached) return cached;
+  if (cached) {
+    mechArtwork(harId);
+    return cached;
+  }
   const r = genRobot(harId);
   if (!r) return null;
   const b = measure(r.model, r.style);
@@ -33,17 +38,28 @@ export function mechAnimation(harId: number): Animation | null {
   const scale = HEIGHT / Math.max(1, probe.h);
   const ani = new Animation(15 + harId);
   const letters: string[] = [];
+  const pics: GenPicture[] = [];
   for (let k = 0; k < FRAMES; k++) {
     const model = { ...r.model, turn: -90 + (k * 360) / FRAMES };
-    const t = traceShapes(placeShapes(model, pose, boundingRadius), 1 / scale, ROW_H / scale);
+    const shapes = placeShapes(model, pose, boundingRadius);
+    const t = traceShapes(shapes, 1 / scale, ROW_H / scale);
     const surf = new Surface(t.w, t.h, t.data, 0);
     surf.source = { kind: 'generated', key: `mech/${harId}/${k}` };
     ani.sprites.push(new RSprite(k, CENTER_X + t.x, FLOOR_Y + t.y, surf));
     letters.push(`${String.fromCharCode(65 + k)}4`);
+    pics.push({ pixels: t.data, w: t.w, h: t.h, shapes, x: t.x, y: t.y, scale });
   }
   ani.animationString = letters.join('-');
   cache.set(harId, ani);
+  pictures.set(harId, pics);
+  mechArtwork(harId);
   return ani;
+}
+
+/** Remastered artwork of the turning robot (rendered from the same shapes). */
+function mechArtwork(harId: number): void {
+  const pics = pictures.get(harId);
+  if (pics) generatedArtwork()?.renderPictures(`mech/${harId}`, pics);
 }
 
 /** MECHLAB.BK's select buttons: the robot in seven grays (white .. 0x5A) on 0x5B, in a beveled frame two pixels wide. */

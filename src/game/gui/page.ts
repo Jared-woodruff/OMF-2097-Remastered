@@ -38,8 +38,14 @@ export abstract class Page extends Menu {
     for (const [i, r, g, b] of PAGE_COLORS) vga.setBaseIndex(i, r, g, b);
   }
 
+  /** The page covers the whole screen (drawn in HTML over the game): the game under it need not be drawn. */
+  readonly opaque: boolean = false;
+
   /** Called when the page is shown. */
   onOpen(): void {}
+
+  /** Called when the page is closed. */
+  onClose(): void {}
 
   /** ESC / B: return true when the page handled it (e.g. cancelled a question); otherwise the page closes. */
   back(): boolean {

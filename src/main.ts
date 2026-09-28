@@ -35,6 +35,7 @@ import { startTraining } from './game/scenes/mainmenu/menuTraining';
 import { applyPadSettings } from './game/controls';
 import { addTracks, audioFiles } from './audio/customMusic';
 import { toast } from './platform/toast';
+import { saveFile } from './platform/files';
 import { ACT_ESC, ACT_PUNCH } from './game/constants';
 import { ReplaysPage } from './game/replay/replaysPage';
 import { RunResultsPage } from './game/modes/resultsPage';
@@ -47,6 +48,7 @@ import { WorkshopPage, type WorkshopHost } from './game/workshop/workshopPage';
 import { buildWorkshopInBackground, ensureWorkshopRobot, harIdOf, isWorkshopHar } from './game/workshop/registry';
 import { hasFighter } from './resources/resources';
 import { CustomTournamentsPage } from './game/tournament/customPage';
+import { RemasterCreditsPage } from './game/credits/creditsPage';
 import { registerCustomTournaments } from './game/tournament/custom';
 import { ModeRun } from './game/modes/run';
 import { setupPlayerInput } from './game/scenes/mainmenu/menuMain';
@@ -55,6 +57,14 @@ import { loadAnnouncer } from './audio/announcer';
 import { CtrlType } from './game/constants';
 
 const boot = document.getElementById('boot')!;
+/** The loading screen's line (and its bar, 0..1). */
+function bootStatus(text: string, progress?: number): void {
+  const line = boot.querySelector<HTMLElement>('.text');
+  if (line) line.textContent = text;
+  else boot.textContent = text;
+  const fill = boot.querySelector<HTMLElement>('.fill');
+  if (fill && progress !== undefined) fill.style.width = `${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%`;
+}
 const canvas = document.getElementById('screen') as HTMLCanvasElement;
 
 /** Hides the mouse pointer over the game after a moment without movement (the game is keyboard / pad driven). */
@@ -107,12 +117,13 @@ async function main(): Promise<void> {
   // The original game data: from the server (npm run extract, the desktop app), else imported earlier in this
   // browser, else the player provides it now (web version).
   const fromServer = await preloadAll((loaded, total) => {
-    boot.textContent = `Loading game data… ${Math.round((loaded / total) * 100)}%`;
+    bootStatus(`LOADING GAME DATA  ${Math.round((loaded / total) * 100)}%`, (loaded / total) * 0.8);
   });
   if (!fromServer && !(await loadStoredGameFiles())) {
-    boot.textContent = '';
+    boot.style.display = 'none';
     provideGameFiles(await showImportScreen());
-    boot.textContent = 'Loading…';
+    boot.style.display = '';
+    bootStatus('LOADING…', 0.8);
   }
   // The remaster's own content (the new robots), shipped with the app.
   await loadGenerated();
@@ -139,7 +150,7 @@ async function main(): Promise<void> {
   // Development: render the generated arenas' HD backgrounds (see gen/dev/arenaHd.ts).
   if (import.meta.env.DEV && params.has('genarenahd')) {
     const { renderArenaHd } = await import('./gen/dev/arenaHd');
-    await renderArenaHd(renderer.gl, (s) => (boot.textContent = s), params.get('genarenahd') || undefined);
+    await renderArenaHd(renderer.gl, (s) => bootStatus(s), params.get('genarenahd') || undefined);
     return;
   }
   if (!params.has('noaudio')) {
@@ -220,8 +231,9 @@ async function main(): Promise<void> {
   audio.setRoom(gs.sc.isArena() ? gs.thisId - SceneId.ARENA0 : -1);
   wantGenerated();
   // The first screen waits (briefly) for its artwork so it does not pop in.
-  boot.textContent = 'Loading artwork…';
+  bootStatus('LOADING ARTWORK…', 0.9);
   await hdAssets.whenReady(artworkFor(), 4000);
+  bootStatus('', 1);
 
   // Remastered effects follow the game clock (dynamic ticks), so they pause and slow down with the game.
   const fxDirector = new FxDirector();
@@ -271,7 +283,8 @@ async function main(): Promise<void> {
       renderer.fx = fxDirector.frame;
       renderer.camera = camera.update(gs, performance.now(), settings().gameplay.fightCamera && renderer.options.mode === 'remastered');
       if (renderer.options.mode === 'remastered' && hdAssets.enabled) genArt.pump(4);
-      renderer.render();
+      // (a page covering the screen: nothing of the game shows)
+      if (!help.coversScreen()) renderer.render();
       clips.frame();
     },
   });
@@ -455,6 +468,7 @@ async function main(): Promise<void> {
   };
   buildWorkshopInBackground();
   app.showTournaments = () => help.open(new CustomTournamentsPage());
+  app.showCredits = () => help.open(new RemasterCreditsPage(!isDesktop));
   registerCustomTournaments();
   app.showRecords = () => help.open(new RecordsPage(() => Math.trunc(8 + MS_PER_OMF_TICK_SLOWEST - ((settings().gameplay.speed + 5) / 15) * MS_PER_OMF_TICK_SLOWEST)));
   const clips = new ClipExporter({
@@ -467,8 +481,31 @@ async function main(): Promise<void> {
     if (gs.replay) clips.start(gs.replay, kind);
   };
   app.cancelExport = () => clips.cancel();
+  // Screenshots (PRINT SCREEN; F12 in the desktop app): the frame at the display's resolution, saved as a PNG where
+  // replays and clips go.
+  const screenshot = () => {
+    if (help.coversScreen()) return;
+    engine.frame(performance.now());
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const d = new Date();
+      const p = (n: number) => String(n).padStart(2, '0');
+      const name = `OMF 2097 ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}.png`;
+      saveFile(name, blob, 'image/png')
+        .then((where) => toast(`Screenshot saved${where === name ? '' : `: ${where}`}`, 3500))
+        .catch(() => toast('The screenshot could not be saved.', 3500));
+    }, 'image/png');
+  };
+  // (Windows gives PRINT SCREEN to the page only as a key release)
+  window.addEventListener('keyup', (e) => {
+    if (e.code === 'PrintScreen') screenshot();
+  });
   // Global hotkeys: F2 swaps classic/remastered graphics, F11 / Alt+Enter toggle fullscreen.
   onKey((code, e) => {
+    if (code === 'F12' && isDesktop) {
+      if (!e.repeat) screenshot();
+      return;
+    }
     if (code === 'F1' && !help.isOpen()) {
       if (!e.repeat) help.open();
       return;
@@ -518,6 +555,8 @@ async function main(): Promise<void> {
 
   boot.style.display = 'none';
   engine.start();
+  // Development: ?credits opens the remaster's credits (=n: at the n-th card or section).
+  if (import.meta.env.DEV && params.has('credits')) help.open(new RemasterCreditsPage(!isDesktop, Number(params.get('credits')) || 0));
 
   // Debug hooks for automated testing (also usable from the dev console).
   (window as unknown as { __omf: unknown }).__omf = {
@@ -584,5 +623,6 @@ if (import.meta.env.PROD && !isDesktop && 'serviceWorker' in navigator && locati
 
 main().catch((err) => {
   console.error(err);
-  boot.textContent = String(err?.message ?? err);
+  boot.style.display = '';
+  bootStatus(String(err?.message ?? err));
 });

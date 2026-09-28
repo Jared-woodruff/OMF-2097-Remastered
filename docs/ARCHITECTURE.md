@@ -108,7 +108,8 @@ pixels in one of two ways, switchable at any time (F2, pause menu, VIDEO options
   the cell, the capital I gets the original's serifs) and stores them as signed distance fields in one atlas; the
   sprite shader draws such glyph quads (flag 0x200) from it, so the layout of every text is the original's. SMOOTH
   draws the original letters as clean shapes in the TEXT part of `HD_SPRITE_FS`: ink pixels become squares with
-  rounded outward corners and diagonal neighbors are joined by strokes, evaluated as a signed distance. PIXEL keeps
+  rounded outward corners and diagonal neighbors are joined by strokes, evaluated as a signed distance (the typeface
+  also has the accented letters of code page 437, which the German texts use). PIXEL keeps
   the square pixels, anti-aliased per screen pixel. Each run of letters first gets a soft dark halo (`u_textPass`),
   so the halo never covers a letter's own shadow. Darkened panels (`menushade`
   surfaces drawn through a remap table) get a frosted background: the frame so far is blurred at quarter resolution
@@ -133,6 +134,10 @@ pixels in one of two ways, switchable at any time (F2, pause menu, VIDEO options
 
 ## Menus, text and input additions
 
+- Help pages (`menuHelp.ts`, `gui/text.ts` `textDocument`): the English texts change styles only at line starts (one
+  block per piece, as in the reference); the German texts change colors mid-sentence ({COLOR:WHITE}, {COLOR:PURPLE}),
+  which are laid out on shared lines (`flowTexts`, texts placed with `docX` / `docAdvance`). Pages taller than the
+  panel are broken over more sheets between lines (`Text.lines`), under the page's title, headings kept with their text.
 - Mouse (`src/controller/mouse.ts`): pointer events are converted to native coordinates (`GLRenderer.canvasToNative`)
   and dispatched once per frame in `main.ts`: to the GUI frames drawn that frame, topmost first (`renderedFrames`,
   `Component.pointer`: `Menu` hovers/clicks/scrolls entries, `TrnMenu` moves the mechlab hand), then to the scene
@@ -221,11 +226,19 @@ own file formats, so the engine runs them like the originals.
   size, a weight and colors; `workshopRobot` makes a `GenRobot` of it and `buildWorkshopFighter` a fighter file, which
   `game/workshop/registry.ts` provides as `FIGHTR15.AF`.. (HARs 15 to 22, named in the language file's free entries)
   and registers with `gen/roster` (move names, remastered artwork). The editor's picture is rendered in HD from the same
-  shapes by `GeneratedArtwork.renderPicture`, against a palette row that moves the robot's color ramps to the page's
+  shapes by `GeneratedArtwork.renderPictures` (also the mechlab's turning new robots), against a palette row that moves the robot's color ramps to the page's
   palette entries.
 - **Custom tournaments** (`game/tournament/custom.ts`): a `TournamentFile` derived from an installed one, registered
   with `resources.registerTournament` so the tournament list and saved characters find it.
 - **Presentation**: the announcer (`audio/announcer.ts`, lines made by `tools/make-announcer.py`), the victory screen
   (`scenes/victory.ts`, a scene on the VS backdrop between the fight and what follows it) and the fight camera
   (`video/camera.ts`; the HD renderer zooms the finished world image before the overlay is drawn).
+- **Remaster credits** (`game/credits/`): EXTRAS › CREDITS opens a page of the help overlay (input, pause) that shows
+  itself in HTML over the game (`creditsView.ts`: the titles, CSS effects, a canvas backdrop with stars, nebula, neon
+  grid and sparks, auto-scrolling, END.PSM playing). Pages that cover the screen (`Page.opaque`) stop the game's
+  rendering while open (`HelpOverlay.coversScreen`); `Page.onClose` removes their HTML. Dev: `?credits=n`.
+- **HTML over the game**: notices (`platform/toast.ts`), achievement banners (`platform/achievementBanner.ts`, queued,
+  from `records.unlock`) and the loading screen (`index.html`, `bootStatus` in `main.ts`) use the remaster's typeface
+  (`platform/uiFont.ts`). Screenshots: PRINT SCREEN (key release; F12 in the desktop app) renders a frame and saves the
+  canvas as a PNG through `platform/files.ts`.
 - **Touch controls** (`platform/touch.ts`): DOM controls read by player 1's keyboard controller like a gamepad.

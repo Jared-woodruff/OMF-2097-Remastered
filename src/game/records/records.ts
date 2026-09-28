@@ -1,7 +1,7 @@
 // The player's records (EXTRAS > RECORDS): fight statistics, the best results of the arcade, survival and time attack
 // modes, and achievements. They are kept in the browser's storage (like the settings) and only track what was done:
 // nothing is locked behind them.
-import { toast } from '../../platform/toast';
+import { showAchievement } from '../../platform/achievementBanner';
 import { HAR_NAMES } from '../constants';
 import { settings } from '../settings';
 
@@ -99,7 +99,7 @@ export const ACHIEVEMENTS: Achievement[] = [
 ];
 
 /** Notified when an achievement is earned (the game shows a notice). */
-let onUnlock: (a: Achievement) => void = (a) => toast(`ACHIEVEMENT: ${a.title}  -  ${a.text}`, 4500);
+let onUnlock: (a: Achievement) => void = (a) => showAchievement(a.title, a.text);
 
 export function setUnlockHandler(fn: (a: Achievement) => void): void {
   onUnlock = fn;

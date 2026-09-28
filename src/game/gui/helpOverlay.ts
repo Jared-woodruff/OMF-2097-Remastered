@@ -43,6 +43,11 @@ export class HelpOverlay {
     return this.menu !== null;
   }
 
+  /** A page covering the whole screen is open (the game under it need not be drawn). */
+  coversScreen(): boolean {
+    return this.page?.opaque ?? false;
+  }
+
   open(kind: 'help' | 'controls' | Page = 'help'): void {
     if (this.menu) return;
     this.page = kind instanceof Page ? kind : null;
@@ -69,6 +74,7 @@ export class HelpOverlay {
 
   close(releaseKey: string | null, fromPad = false): void {
     if (!this.menu) return;
+    this.page?.onClose();
     this.menu = null;
     this.page = null;
     openOverlay = null;

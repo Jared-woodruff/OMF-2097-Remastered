@@ -132,5 +132,15 @@ describe.skipIf(!hasGameData)('the game fonts', () => {
     }
     for (const ch of 'abcxyz') expect(typefaceChar(f.small, ch.charCodeAt(0) - 32)).toBe(ch.toUpperCase());
     for (const ch of 'abcxyz') expect(typefaceChar(f.big, ch.charCodeAt(0) - 32)).toBe(ch);
+    // The German texts' letters (code page 437): umlauts and ß in the typeface too.
+    const cp = (c: number) => c - 32;
+    expect(typefaceChar(f.big, cp(0x81))).toBe('ü');
+    expect(typefaceChar(f.big, cp(0x84))).toBe('ä');
+    expect(typefaceChar(f.big, cp(0x94))).toBe('ö');
+    expect(typefaceChar(f.big, cp(0x9a))).toBe('Ü');
+    expect(typefaceChar(f.big, cp(0xe1))).toBe('ß');
+    // (box drawing and Greek stay the original's)
+    expect(typefaceChar(f.big, cp(0xc4))).toBeNull();
+    expect(typefaceChar(f.big, cp(0xe0))).toBeNull();
   });
 });

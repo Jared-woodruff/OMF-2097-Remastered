@@ -81,18 +81,41 @@ export function inkColumns(glyph: Uint8Array, size: number): [number, number] | 
 }
 
 /**
- * The characters the typeface draws: printable ASCII (the rest keeps the original's reconstruction), except '|', which
- * both fonts draw as a dither pattern (the empty steps of the menus' sliders).
+ * The game's texts are in DOS code page 437 (the German texts' umlauts and ß are bytes 0x80..0xFF): its upper half,
+ * and the letters of it the typeface has.
+ */
+const CP437_HIGH =
+  'ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ ';
+const TYPEFACE_EXTRA = new Set('ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£áíóúñÑ¿¡ß°');
+
+/** The character of a font's glyph (code: character code - 32) in Unicode. */
+function unicodeOf(code: number): string {
+  const c = code + 32;
+  return c < 128 ? String.fromCharCode(c) : CP437_HIGH[c - 128];
+}
+
+/** A Unicode character's glyph code in the fonts (character code - 32), or -1. */
+function codeOf(ch: string): number {
+  const c = ch.charCodeAt(0);
+  if (c < 128) return c - 32;
+  const k = CP437_HIGH.indexOf(ch);
+  return k < 0 ? -1 : k + 128 - 32;
+}
+
+/**
+ * The characters the typeface draws: printable ASCII and the accented letters (the rest keeps the original's
+ * reconstruction), except '|', which both fonts draw as a dither pattern (the empty steps of the menus' sliders).
  */
 export function typefaceChar(font: BitmapFont, code: number): string | null {
-  const ch = String.fromCharCode(code + 32);
-  if (code + 32 < 33 || code + 32 > 126 || ch === '|') return null;
+  const c = code + 32;
+  const ch = unicodeOf(code);
+  if (c < 33 || c === 127 || ch === '|' || (c > 127 && !TYPEFACE_EXTRA.has(ch))) return null;
   const glyph = font.glyphs[code];
   if (!glyph || !inkColumns(glyph, font.size)) return null;
   // Fonts without lowercase letters (the small one) repeat the capitals there.
   const upper = ch.toUpperCase();
-  if (upper !== ch) {
-    const cap = font.glyphs[upper.charCodeAt(0) - 32];
+  if (upper !== ch && upper.length === 1) {
+    const cap = font.glyphs[codeOf(upper)];
     if (cap && cap.every((v, i) => v === glyph[i])) return upper;
   }
   return ch;
@@ -192,13 +215,16 @@ export function buildGlyphAtlas(family: string, fonts: { small: BitmapFont; big:
       sx = Math.max(0.25, (target - stem) / (gw - stem));
       smear = stem * (1 - sx);
     }
-    // Lowercase letters as high as the original's (its x-height is lower than the typeface's).
+    // Letters as high as the original's: lowercase (its x-height is lower than the typeface's), and accented letters
+    // (their accents stay inside the cell: lines are only a pixel apart).
     let kyUp = 1;
-    if (/[a-z]/.test(job.ch)) {
+    if (/\p{L}/u.test(job.ch) && ascent > 0) {
       let top = f.size;
       for (let k = 0; k < glyph.length; k++) if (glyph[k]) { top = Math.floor(k / f.size); break; }
       const height = (m.base - top) * GLYPH_TEXELS;
-      if (ascent > 0) kyUp = Math.max(0.8, Math.min(1.05, height / ascent));
+      kyUp = Math.max(0.7, Math.min(1.05, height / ascent));
+      // (capitals keep the cap height: their original's top row may be a serif or accent-free)
+      if (job.ch === job.ch.toUpperCase() && !TYPEFACE_EXTRA.has(job.ch)) kyUp = 1;
     }
     // Placement: the ink centered where the original's is, the baseline on the original's.
     const cx = tx + (GLYPH_MARGIN + (ink[0] + ink[1]) / 2) * GLYPH_TEXELS;

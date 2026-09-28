@@ -83,7 +83,7 @@ export function startViewer(renderer: GLRenderer): void {
     renderer.render();
     const mvs = mv ? `${moveIdx} "${mv.moveString}" ${mv.animation.animString.slice(0, 60)}` : '-';
     hud.textContent = `${BKS[bkIdx]} | FIGHTR${harIdx}.AF move ${mvs}`;
-    hud.style.cssText = 'position:fixed;left:8px;top:8px;right:auto;bottom:auto;display:block;color:#fff;font:12px monospace;text-shadow:1px 1px #000;pointer-events:none';
+    hud.style.cssText = 'position:fixed;left:8px;top:8px;right:auto;bottom:auto;display:block;background:none;color:#fff;font:12px monospace;text-shadow:1px 1px #000;pointer-events:none';
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);

@@ -20,8 +20,21 @@ const PAD = 2;
 const REFERENCE_RAMPS = [4, 1, 0];
 /** Robots kept rendered while not wanted, before their pages are freed. */
 const KEEP_ROBOTS = 3;
+/** Groups of run time pictures kept (see renderPictures). */
+const KEEP_PICTURES = 6;
 /** Sprites rendered per frame at most. */
 const MAX_PER_FRAME = 3;
+
+/** A picture made at run time from a generated robot: its pixels, and the shapes and placement they were traced from. */
+export interface GenPicture {
+  pixels: Uint8Array;
+  w: number;
+  h: number;
+  shapes: PlacedShape[];
+  x: number;
+  y: number;
+  scale: number;
+}
 
 interface Job {
   hash: string;
@@ -252,21 +265,27 @@ export class GeneratedArtwork {
     this.hd.registerSprite(j.hash, { tex: rect.page.tex, w: rect.page.w, h: rect.page.h }, rect.x, rect.y, fw, fh, PAD, palette);
   }
 
-  /** The last picture rendered by renderPicture, and the palette rows made for its color mappings. */
-  private picture: { hash: string; pages: HdPageSet } | null = null;
+  /** Pictures rendered by renderPictures, by group (the most recent last), and the palette rows of their color mappings. */
+  private pictures = new Map<string, { hashes: string[]; pages: HdPageSet }>();
   private pictureRows = new Map<string, number>();
 
   /**
-   * HD artwork of a picture made at run time from a generated robot (the workshop's preview): its shapes rendered now
-   * and registered for `pixels` (w x h, placed at x, y at `scale` like a fighter sprite), whose robot colors use the
-   * palette entries `index(1..47)` instead of the ramps. Replaces the previous picture.
+   * HD artwork of pictures made at run time from a generated robot (the workshop's preview, the mechlab's turning robot):
+   * their shapes rendered now and registered for their pixels (w x h, placed at x, y at `scale` like a fighter sprite),
+   * whose robot colors use the palette entries `index(1..47)` instead of the ramps. Replaces the group's earlier pictures;
+   * the least recent groups are freed beyond a few.
    */
-  renderPicture(pixels: Uint8Array, w: number, h: number, shapes: PlacedShape[], x: number, y: number, scale: number,
-    index: (i: number) => number): void {
-    if (!this.ensureRenderer()) return;
-    const hash = pixelHash(w, h, pixels);
-    if (this.picture?.hash === hash || this.hd.hasRuntime(hash)) return;
-    // The reference palette with the robot's ramps moved where the picture has them (once per mapping).
+  renderPictures(group: string, pictures: GenPicture[], index: (i: number) => number = (i) => i): void {
+    if (!this.ensureRenderer() || pictures.length === 0) return;
+    const hashes = pictures.map((p) => pixelHash(p.w, p.h, p.pixels));
+    const old = this.pictures.get(group);
+    if (old && hashes.every((h, i) => old.hashes[i] === h) && hashes.every((h) => this.hd.hasRuntime(h))) {
+      // (still there: now the most recent)
+      this.pictures.delete(group);
+      this.pictures.set(group, old);
+      return;
+    }
+    // The reference palette with the robot's ramps moved where the pictures have them (once per mapping).
     const mapKey = Array.from({ length: 47 }, (_, i) => index(i + 1)).join(',');
     let row = this.pictureRows.get(mapKey);
     if (row === undefined) {
@@ -276,19 +295,25 @@ export class GeneratedArtwork {
       row = this.hd.addBasePalette(rgb);
       this.pictureRows.set(mapKey, row);
     }
-    if (this.picture) {
-      this.hd.unregister(this.picture.hash);
-      this.picture.pages.dispose();
-    }
-    const pages = new HdPageSet(this.gl, 1024);
+    if (old) this.dropPictures(group);
+    const pages = new HdPageSet(this.gl, 2048);
     const saved = saveState(this.gl);
     try {
-      this.renderInto(pages, { hash, moveId: -1, shapes, x, y, w, h, scale }, row);
+      pictures.forEach((p, i) => this.renderInto(pages, { hash: hashes[i], moveId: -1, shapes: p.shapes, x: p.x, y: p.y, w: p.w, h: p.h, scale: p.scale }, row));
       pages.finish();
     } finally {
       restoreState(this.gl, saved);
     }
-    this.picture = { hash, pages };
+    this.pictures.set(group, { hashes, pages });
+    while (this.pictures.size > KEEP_PICTURES) this.dropPictures(this.pictures.keys().next().value!);
+  }
+
+  private dropPictures(group: string): void {
+    const g = this.pictures.get(group);
+    if (!g) return;
+    for (const h of g.hashes) this.hd.unregister(h);
+    g.pages.dispose();
+    this.pictures.delete(group);
   }
 
   /** Frees the pages of robots nobody wanted for a while, keeping a few. */

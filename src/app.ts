@@ -24,6 +24,8 @@ export const app = {
   showWorkshop(): void {},
   /** Shows the custom tournaments. */
   showTournaments(): void {},
+  /** Shows the remaster's credits. */
+  showCredits(): void {},
   /** Notified whenever settings change so the host can apply them. */
   settingsChanged(): void {},
 };
