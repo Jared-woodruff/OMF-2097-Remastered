@@ -1,6 +1,6 @@
 [package]
 name = "omf2097-remastered"
-version = "0.1.0"
+version = "0.1.1"
 description = "One Must Fall 2097 Remastered (desktop shell)"
 edition = "2021"
 rust-version = "1.77.2"
