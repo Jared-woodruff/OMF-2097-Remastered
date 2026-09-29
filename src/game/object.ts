@@ -477,12 +477,14 @@ export class GameObject {
           this.direction = this.posX > enemy.posX ? OBJECT_FACE_LEFT : OBJECT_FACE_RIGHT;
           destination = Math.max(ARENA_LEFT_WALL, Math.min(ARENA_RIGHT_WALL, destination));
         } else if (frame.has(Tag.CF)) {
-          destination = enemy.direction === OBJECT_FACE_RIGHT ? ARENA_RIGHT_WALL : ARENA_LEFT_WALL;
-          destination += transX;
-          // Deviation: clamped like the branch above. Unclamped (as in the reference) the target can lie past a
-          // wall (e.g. both HARs facing right after a wall slam), the HAR never arrives and the arena never ends.
-          destination = Math.max(ARENA_LEFT_WALL, Math.min(ARENA_RIGHT_WALL, destination));
-          this.direction = enemy.direction;
+          // Deviation: the X offset counts from the wall the enemy faces into the arena, and the HAR walks towards
+          // it (it turns to the enemy on arrival, see harMove). The reference adds the offset in the HAR's facing
+          // direction, which points into the arena only when the HAR faces the enemy's front: otherwise the target
+          // lay past the wall and the HAR never arrived (the arena never ended), and once there, turned around, it
+          // computed the target on the other side and walked off again (Shadow's scrap with the enemy at a wall).
+          const wall = enemy.direction === OBJECT_FACE_RIGHT ? ARENA_RIGHT_WALL : ARENA_LEFT_WALL;
+          destination = wall - Math.abs(transX) * enemy.direction;
+          this.direction = destination < this.posX ? OBJECT_FACE_LEFT : OBJECT_FACE_RIGHT;
           this.animationState.shadowCornerHack = true;
         } else {
           destination = -1;

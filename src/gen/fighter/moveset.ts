@@ -218,16 +218,20 @@ export interface FinisherSpec {
 }
 
 /**
- * Scrap: walk up to the beaten robot, lift it overhead and slam it down behind (the victim's reaction is scripted by
- * the footer, as in the originals). Destruction (from the slam, a jf2 window): the robot's power blow and the victim
- * blows apart.
+ * Scrap: walk up to the beaten robot, grab it, lift it overhead and slam it down in front, where it lies.
+ * Destruction (from the slam, a jf2 window): the wreck rises in front of the robot into its power blow and blows
+ * apart. The victim's part is its footer, as in the originals: the robot's `ua` frames hand it over, each restarting
+ * it at the robot's own tick, so the footer runs on the robot's timeline (its first frame only fills the ticks before
+ * the first `ua`), and every frame places the victim with `e` (on the robot, facing it) plus an offset: `x-` is in
+ * front of the robot. (`e` must not follow `a`, `b`, `p`, `s` or `u` directly: `ue` and the like are other tags.)
  */
 export function finisherMoves(b: Body, f: FinisherSpec): GenMove[] {
   return [
     {
       id: MOVE.SCRAP, category: CAT.SCRAP, moveString: f.scrap, points: 7, extraStringSelector: 2,
-      anim: 'bm10amebewx+30A1-bewA3-bewB4-bewC4-bewD14-uabewE6-uabejf2wF30-uabewG4-uabewH8',
-      footer: 'uey-84X6-uex+18y-48L2-uex+28y-16fL2-ex+32gsp13s4l60bb8m56m12mi14N3-ex+32O4000',
+      // A stance, B reach, C grab (and the slam), D lift, E overhead, G crouched over the wreck (F: the throw's).
+      anim: 'bm10amebewx+30A1-bewA3-uabewB4-uabewC4-uabewD6-uabewE14-uabewC4-uabejf2wG30-uabewH8',
+      footer: 'O4-egx-30A4-egx-26y-18C4-ex-12y-52P6-ex+2y-84X14-ex-24y-40L2-ex-32gsp13s4l60bb8m56m12mi14N2-ex-32O4000',
       sprites: [
         sp(P.fight(b)), sp(P.throwPose(b, 0)), sp(P.throwPose(b, 1)), sp(P.throwPose(b, 2)), sp(P.throwPose(b, 3)),
         sp(P.throwPose(b, 4)), sp(P.crouch(b)), sp(P.victory(b, 4)),
@@ -236,7 +240,8 @@ export function finisherMoves(b: Body, f: FinisherSpec): GenMove[] {
     {
       id: MOVE.DESTRUCTION, category: CAT.DESTRUCTION, moveString: f.destruction, points: 100, extraStringSelector: 2,
       anim: `uabewA4-uabewB8-${f.strikeTags ?? ''}s29l63sp20uabewbb8C6-uabewD30-uabegwE40`,
-      footer: 'uex+32O6-m56my-12N6-bb6m55my-24N6-m57my-20m12mi24N4-s29l63bb10m55my-26N2-Z4000',
+      footer: 'ex-32O4-ex-33y-10P3-ex-34y-20P3-ex-35y-26P2-ex-38y-26m55my-30m12mi24F2-ex-46y-30m56my-20J2-' +
+        'ex-56y-34m57my-24bb10K2-m55my-26m12mi20Z4000',
       sprites: [sp(f.power(0)), sp(f.power(1)), sp(f.power(2)), sp(f.power(3)), sp(P.victory(b, 6))],
     },
   ];

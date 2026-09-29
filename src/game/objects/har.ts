@@ -383,13 +383,18 @@ function harMove(obj: GameObject): void {
   if (h.walkDestination > 0 && h.walkDoneAnim &&
     ((obj.posX >= h.walkDestination && obj.direction === OBJECT_FACE_RIGHT) || (obj.posX <= h.walkDestination && obj.direction === OBJECT_FACE_LEFT))) {
     obj.posX = h.walkDestination;
-    if (obj.animationState.shadowCornerHack) obj.direction *= -1;
+    // Deviation: the corner walk (see the CF tag in GameObject.playerRunApply) ends facing the enemy; the reference
+    // turns the HAR around, which assumed it had walked away from the enemy.
+    if (obj.animationState.shadowCornerHack) harFaceEnemy(obj, enemyObj);
     obj.setVel(0, 0);
-    harSetAni(obj, h.walkDoneAnim, false);
-    obj.animationState.reader.seek(h.walkDoneTick);
+    // Deviation: the walk is over before the move resumes (the reference clears it afterwards, which also cleared
+    // a walk the resumed frame started, leaving the HAR walking with no destination).
+    const anim = h.walkDoneAnim, tick = h.walkDoneTick;
     h.walkDestination = -1;
     h.walkDoneAnim = 0;
     h.walkDoneTick = 0;
+    harSetAni(obj, anim, false);
+    if (h.walkDestination < 0) obj.animationState.reader.seek(tick);
     return;
   }
   if (obj.posX <= ARENA_LEFT_WALL || obj.posX >= ARENA_RIGHT_WALL) {
@@ -1165,6 +1170,11 @@ function harTick(obj: GameObject): void {
       px = rightBound;
       wall = 1;
       obj.wallCollision = true;
+    } else if (obj.wallCollision && px > 160) {
+      // Deviation: clamped at the right wall by its animation (a thrown or carried HAR, see GameObject.playerRunApply).
+      // The reference reports it as the left wall, and the arena's wall slam moved the HAR across the arena to it
+      // (Flail's finishers, which drive the enemy into the wall, then continued 240 px away from it).
+      wall = 1;
     }
     if (distance !== 0 && (h.state === HarState.BLOCKSTUN || h.state === HarState.RECOIL)) harCornerpush(obj, enemyObj, distance);
     const move = afGetMove(h.afData, obj.curAnimation!.id);
