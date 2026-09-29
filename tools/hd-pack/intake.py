@@ -165,10 +165,15 @@ def main():
     index = {'format': 'omf2097-hd-assets', 'version': 1, 'scale': meta['scale'], 'palettes': meta['palettes'],
              'bundles': {}, 'entries': []}
     prev = None
+    # (the bundles of the last import: their folders are the importer's to replace or remove)
+    old_bundles = set(json.load(open(index_path, encoding='utf-8'))['bundles']) if os.path.exists(index_path) else set()
     if os.path.exists(index_path) and not args.force:
         prev = json.load(open(index_path, encoding='utf-8'))
         if prev.get('palettes') != meta['palettes']:
             prev = None  # palette table changed: entry palette ids are not comparable, rebuild everything
+    if only and prev is None:
+        # (the bundles not named would be dropped)
+        sys.exit('--bundles needs the previous import with the same palette table: import everything (without --bundles)')
 
     by_bundle = {}
     for e in meta['entries']:
@@ -315,9 +320,9 @@ def main():
                   f"{binfo['pixels'] / 1e6:6.1f} MP  ({time.time() - t0:.0f}s)", flush=True)
     with open(index_path, 'w', encoding='utf-8') as f:
         json.dump(index, f, separators=(',', ':'))
-    # Bundles that no longer exist in the pack.
-    for name in os.listdir(out):
-        if os.path.isdir(os.path.join(out, name)) and name not in index['bundles']:
+    # Bundles that no longer exist in the pack (other folders, e.g. the main menu's layers, are not the importer's).
+    for name in old_bundles - set(index['bundles']):
+        if os.path.isdir(os.path.join(out, name)):
             shutil.rmtree(os.path.join(out, name))
     print(f'done: {len(index["entries"])} entries in {len(index["bundles"])} bundles, {total_bytes / 1e6:.1f} MB, {time.time() - t0:.0f}s')
 

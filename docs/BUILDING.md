@@ -63,15 +63,37 @@ this). After changing their definitions:
 
 ```sh
 npm run gen                           # robots (FIGHTR11-14.AF) and arenas (ARENA5-8.BK/.WID); the arenas need public/gamedata
-SKIP_ARENAS=1 npm run gen             # only the robots (ROBOT=glacier for one); SKIP_ROBOTS=1 / ARENA=ORBITAL likewise
+SKIP_ARENAS=1 npm run gen             # only the robots (ROBOT=glacier for one); SKIP_ROBOTS=1 / ARENA=ORBITAL,ARENA7 likewise
 ```
 
 The arenas' HD backgrounds are rendered on the GPU in the browser: start `npm run dev`, open
 http://localhost:5173/?genarenahd (or `?genarenahd=ARENA6.BK` for one arena), wait for "done", then run
-`npm run gen:hd` (Python 3 with Pillow) to pack `.captures/ARENAn-HD.png` / `-WIDE.png` into `public/gen/*.webp`.
-The robots' HD artwork needs no files: the game renders it on the GPU while it runs. The HD asset pack
-(`npm run hd:export`) also includes the new robots' sprites when `public/gen` has them, so they can go through the same
-image model; imported artwork is used instead of the rendered one.
+`npm run gen:hd` (Python 3 with Pillow) to pack `.captures/ARENAn-HD.png` / `-WIDE.png` into `public/gen/*.webp`
+(arenas painted by an image model, see below, keep their paintings unless `-- --force`). The robots' HD artwork needs
+no files: the game renders it on the GPU while it runs, unless artwork from an image model is installed.
+
+### The new robots' and arenas' artwork
+
+The generator's robots and arenas are plainer than the originals' HD artwork. `npm run newart:export` writes a pack for
+an image generation model to `newart-pack/` (and `newart-pack.zip`): each arena as one widescreen painting to redo
+(2880 × 1200, with the current painting as its guide and a layout image of the lines to keep: the floor, the fighting
+area, the 4:3 screen), and each robot as a design sheet (its fighting stance, to settle its detailed look) followed by
+every frame of its animations, redrawn from it. Reference sheets set the originals' HD artwork (from `hd-pack/`) next
+to the new content as the game shows it now; the pack's README, OUTPUT_SPEC and STYLE_GUIDE explain the rest. Once the
+model has made the `*.hd.png` files:
+
+```sh
+npm run newart:import                 # reads newart-pack/ (Python 3 with numpy and Pillow)
+npm run newart:import -- path/to/pack # or another pack folder
+```
+
+An arena's painting becomes its HD backgrounds (`public/gen/ARENAn-HD.webp` / `-WIDE.webp`) and, at the native
+576 × 200, `src/gen/scene/art/ARENAn.png`, which `npm run gen` indexes in place of the rendering (the import runs it):
+the classic graphics, and the colors the painting is recolored through. The robots' frames are clipped to their
+silhouettes, copied into `hd-pack/` (their jobs added to its `jobs.jsonl`) and imported into `public/hd/` with the
+originals' artwork, so a later `npm run hd:import` keeps them. Anything not delivered keeps its current artwork;
+`newart-pack/import_report.txt` lists deliveries worth a look (no transparency, drawn outside the silhouette, a moved
+composition).
 
 ### Other generated data
 

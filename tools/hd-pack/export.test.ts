@@ -10,10 +10,17 @@ import { blit, encodePng, fill, indexedToRgba, newImage, pad, resizeCubic, scale
 import { describeMove, FIGHTERS, GAME_CONTEXT, NEGATIVE, NEGATIVE_BG_UI, NEGATIVE_SPRITE, SCENES, STYLE } from './prompts';
 import { animNote, NEGATIVE_TEXT_SPRITE } from './notes';
 import { writeDocs } from './docs';
+import {
+  ARENA_H, ARENA_W, arenaPrompt, designPrompt, effectPrompt, framePrompt, NEW_ARENAS, NEW_ROBOT_FILES, NEW_ROBOTS,
+  NEWART_NEGATIVE_ARENA, NEWART_NEGATIVE_ROBOT, writeArenaPrompt, writeNewArtDocs,
+} from './newart';
 
 const OUT = process.env.OMF_HDPACK_OUT;
+/** The new-art pack (`npm run newart:export`): only the remaster's robots, redrawn with new detail, and its arenas. */
+const NEWART = process.env.OMF_HDPACK_NEWART === '1';
+const NEW_FILES = new Set(Object.values(NEW_ROBOT_FILES));
 
-type Mode = 'recreate' | 'upscale' | 'outpaint';
+type Mode = 'recreate' | 'upscale' | 'outpaint' | 'design' | 'redraw';
 
 export interface Job {
   id: string;
@@ -71,6 +78,8 @@ const MODE_TEXT: Record<Mode, string> = {
   upscale: 'faithful upscale — low creativity (img2img denoise ≈ 0.2–0.35 or a dedicated AI upscaler)',
   recreate: 're-create in high resolution — medium creativity, composition locked (img2img denoise ≈ 0.35–0.55 or reference-guided generation)',
   outpaint: 'outpaint the masked sides only',
+  design: 'design — high creativity for detail, silhouette and color zones locked (img2img denoise ≈ 0.6–0.75 from `guide.png`, or reference-guided generation)',
+  redraw: 'redraw with new detail — pose, silhouette and color zones locked (img2img denoise ≈ 0.45–0.6 from the enlarged source with the design sheet as reference image, or reference-guided generation)',
 };
 
 const SPRITE_OUTPUT = 'one `fNNN.hd.png` next to each `fNNN.png` in this folder (exact sizes in `frames.csv`), PNG with transparent background';
@@ -131,7 +140,7 @@ it.skipIf(!hasGameData || !OUT)('export HD asset pack', () => {
 
   // ---- Tier 1: backgrounds (+ widescreen extensions of the arenas) -------------------------------------------
   const arenaNames = ['ARENA0', 'ARENA1', 'ARENA2', 'ARENA3', 'ARENA4'];
-  for (const { item, name } of cat.backgrounds) {
+  for (const { item, name } of NEWART ? [] : cat.backgrounds) {
     const info = SCENES[name] ?? { title: name, description: `Background of the ${name} scene.` };
     const img = itemImage(item);
     writePng(rel(item.dir, 'source.png'), img, true);
@@ -195,7 +204,7 @@ it.skipIf(!hasGameData || !OUT)('export HD asset pack', () => {
   }
 
   // ---- Tier 1: portraits -------------------------------------------------------------------------------------
-  for (const item of cat.items.filter((i) => i.kind === 'portrait')) {
+  for (const item of cat.items.filter((i) => !NEWART && i.kind === 'portrait')) {
     const img = itemImage(item);
     writePng(rel(item.dir, 'source.png'), img);
     const guide = guideFor(img);
@@ -231,6 +240,7 @@ it.skipIf(!hasGameData || !OUT)('export HD asset pack', () => {
   const fighterRefs = new Map<string, { order: number; img: Rgba }[]>();
   const REF_ORDER = [11, 10, 1, 4, 48];
   for (const g of cat.groups) {
+    if (NEWART && !NEW_FILES.has(g.file)) continue;
     const sheet = animationSheet(g);
     writePng(rel(g.dir, 'sheet.png'), sheet);
     writePng(rel(g.dir, 'sheet_preview.png'), resizeCubic(sheet, Math.round((sheet.w * SCALE_X) / 2), Math.round((sheet.h * SCALE_Y) / 2)));
@@ -311,6 +321,23 @@ it.skipIf(!hasGameData || !OUT)('export HD asset pack', () => {
         `Sources have a transparent margin of ${SPRITE_PAD} native pixels; keep it transparent.`,
       );
       if (fs.existsSync(path.join(OUT!, 'tier1_backgrounds', scene))) notes.push(`Matching background: \`tier1_backgrounds/${scene}/guide.png\`.`);
+    }
+    if (NEWART && g.kind === 'fighter') {
+      // The remaster's robots: every frame redrawn with new detail, from the robot's design sheet.
+      const har = ALL_HAR_NAMES[Number(g.file.replace(/\D/g, ''))];
+      const move = describeMove(g.name);
+      groupPrompt = effectAnim ? effectPrompt(har, g.name.includes('_projectile') ? 'its projectile' : move) : framePrompt(har, move);
+      negative = NEWART_NEGATIVE_ROBOT;
+      mode = effectAnim ? 'recreate' : 'redraw';
+      notes.length = 0;
+      notes.push(
+        `${n} frame(s) in play order: see \`sheet.png\` (native) and \`sheet_preview.png\` (correct proportions).`,
+        effectAnim
+          ? 'Keep the shape, size, position and colors of each source frame; add detail and glow.'
+          : `Every frame is the robot of \`../design/design.hd.png\`: same parts, panel layout, materials and details. Process all frames of ${NEW_ROBOTS[har].name} with the same model, settings and seed, with the design sheet as reference image.`,
+        'The game recolors the steel blue / red / gold zones (players pick the colors): keep them exactly where the source has them, in their hue families.',
+        `Stay inside the source's outline (enlarged): it has a transparent margin of ${SPRITE_PAD} native pixels; keep it transparent.`,
+      );
     }
     if (/(^|[-a-z])bt/.test(g.animString)) notes.push('In game these frames are also drawn as translucent "shadow" copies of the robot — nothing special to do.');
 
@@ -404,8 +431,9 @@ it.skipIf(!hasGameData || !OUT)('export HD asset pack', () => {
 
   // ---- Fighter reference sheets + per-fighter README ---------------------------------------------------------
   ALL_HAR_NAMES.forEach((har, h) => {
-    // (the remaster's robots only when their fighter files were generated)
+    // (the remaster's robots only when their fighter files were generated; only they in the new-art pack)
     if (!cat.groups.some((g) => g.kind === 'fighter' && g.file === `FIGHTR${h}.AF`)) return;
+    if (NEWART && !NEW_ROBOT_FILES[har]) return;
     const info = FIGHTERS[har];
     const refs = (fighterRefs.get(har) ?? []).sort((a, b) => a.order - b.order).map((r) => r.img);
     if (refs.length) {
@@ -421,6 +449,49 @@ it.skipIf(!hasGameData || !OUT)('export HD asset pack', () => {
     }
     const moves = cat.groups.filter((g) => g.kind === 'fighter' && g.file === `FIGHTR${h}.AF`).length;
     const frames = jobs.filter((j) => j.source.startsWith(`tier2_fighters/${har}/`)).length;
+    if (NEWART) {
+      // The design sheet: the fighting stance (the idle animation's middle frame) at twice the frame scale.
+      const idle = cat.groups.find((g) => g.kind === 'fighter' && g.file === `FIGHTR${h}.AF` && g.anim === 11)!;
+      const f = idle.frames[Math.floor((idle.frames.length - 1) / 2)];
+      const src = pad(itemImage(f.item), SPRITE_PAD);
+      const dir = rel('tier2_fighters', har, 'design');
+      writePng(rel(dir, 'source.png'), src);
+      const guide = resizeCubic(src, src.w * SCALE_X * 2, src.h * SCALE_Y * 2);
+      writePng(rel(dir, 'guide.png'), guide);
+      const r = NEW_ROBOTS[har];
+      const job: Job = {
+        id: `design/${har}`, tier: 2, kind: 'design', title: `${r.name} — design sheet`, source: rel(dir, 'source.png'),
+        guide: rel(dir, 'guide.png'), mask: null, output: rel(dir, 'design.hd.png'), width: guide.w, height: guide.h,
+        transparent: true, mode: 'design', prompt: designPrompt(har), negativePrompt: NEWART_NEGATIVE_ROBOT, promptFile: rel(dir, 'prompt.md'),
+        group: null, consistencyGroup: `tier2_fighters/${har}`, frameIndex: null, frameCount: null,
+        native: { w: f.item.w, h: f.item.h, posX: f.item.posX, posY: f.item.posY, pad: SPRITE_PAD }, recolor: f.item.recolor,
+        hash: f.item.hash, usages: [],
+      };
+      writeText(job.promptFile, promptDoc(job.title, `\`design.hd.png\` — ${guide.w} × ${guide.h} px, PNG with transparency`, 'design',
+        job.prompt, job.negativePrompt, [
+          `Do this before the frames: it fixes ${r.name}'s detailed look, and every frame is redrawn from it.`,
+          '`guide.png` is the source enlarged to the output size (the pose and silhouette to keep); `../reference_sheet.png` shows the key poses.',
+          'Keep the silhouette, the pose, the facing direction and the color zones; everything else is yours to detail.',
+          "Not used in the game: a reference for the frames (and for the game's author to approve).",
+        ]));
+      jobs.push(job);
+      writeText(rel('tier2_fighters', har, 'README.md'), [
+        `# ${r.name} (FIGHTR${h}.AF)`,
+        '',
+        r.concept,
+        '',
+        `Special moves: ${info.specials.join(', ')}.`,
+        '',
+        '1. `design/`: the design sheet (`design.hd.png`), first.',
+        `2. ${moves} animations, ${frames} frames: each move folder has its own \`prompt.md\`, \`sheet.png\`, \`sheet_preview.png\` and \`frames.csv\`. Redraw every frame as the robot of the design sheet.`,
+        '',
+        `- Steel blue: ${r.zones.blue}. Red: ${r.zones.red}. Gold: ${r.zones.gold}. White, grey, black and effect colors are fixed.`,
+        '- `reference_sheet.png`: key poses at the correct proportions (idle, walk, jump, crouch, victory).',
+        '- Consistency: every frame the same machine, the same model, settings and seed for the whole robot.',
+        '',
+      ].join('\n'));
+      return;
+    }
     writeText(rel('tier2_fighters', har, 'README.md'), [
       `# ${info.name} (FIGHTR${h}.AF)`,
       '',
@@ -436,8 +507,28 @@ it.skipIf(!hasGameData || !OUT)('export HD asset pack', () => {
     ].join('\n'));
   });
 
+  // ---- The new-art pack's arenas, docs and job order -----------------------------------------------------------
+  if (NEWART) {
+    for (const a of NEW_ARENAS) {
+      // (guide.png and layout.png: tools/newart/prepare.py, from the arena's current painting)
+      jobs.push({
+        id: `arena/${a.dir}`, tier: 1, kind: 'arena', title: `${a.title} (${a.file})`, source: rel('arenas', a.dir, 'guide.png'),
+        guide: rel('arenas', a.dir, 'guide.png'), mask: null, output: rel('arenas', a.dir, 'arena.hd.png'), width: ARENA_W, height: ARENA_H,
+        transparent: false, mode: 'recreate', prompt: arenaPrompt(a), negativePrompt: NEWART_NEGATIVE_ARENA, promptFile: rel('arenas', a.dir, 'prompt.md'),
+        group: null, consistencyGroup: 'arenas', frameIndex: null, frameCount: null,
+        native: { w: 576, h: 200, posX: -128, posY: 0, pad: 0 }, recolor: 'none', hash: '', usages: [],
+      });
+      writeArenaPrompt(OUT!, a);
+    }
+    const rank = (j: Job) => (j.kind === 'arena' ? 0 : j.kind === 'design' ? 1 : 2);
+    jobs.sort((a, b) => rank(a) - rank(b));
+    const frames = Object.fromEntries(Object.keys(NEW_ROBOT_FILES).map((h) => [h, jobs.filter((j) => j.source.startsWith(`tier2_fighters/${h}/m`)).length]));
+    const px = jobs.filter((j) => j.kind === 'fighter').reduce((a, j) => a + j.width * j.height, 0);
+    writeNewArtDocs(OUT!, { frames, frameMegapixels: px / 1e6 });
+  }
+
   // ---- Docs, manifest, job lists -----------------------------------------------------------------------------
-  writeDocs(OUT!, {
+  if (!NEWART) writeDocs(OUT!, {
     jobs, excluded: cat.excluded, context: GAME_CONTEXT, style: STYLE, negative: NEGATIVE,
     negativeSprite: NEGATIVE_SPRITE, fighters: ALL_HAR_NAMES.filter((h, id) => cat.groups.some((g) => g.kind === 'fighter' && g.file === `FIGHTR${id}.AF`)).map((h) => ({ dir: h, ...FIGHTERS[h] })),
     scenes: SCENES, pilots: Array.from({ length: 11 }, (_, i) => langGet(20 + i)),
@@ -446,6 +537,7 @@ it.skipIf(!hasGameData || !OUT)('export HD asset pack', () => {
   const manifest = {
     format: 'omf2097-hd-asset-pack',
     version: 1,
+    pack: NEWART ? 'new-art' : 'originals',
     generated: new Date().toISOString().slice(0, 10),
     game: 'One Must Fall 2097',
     scale: { x: SCALE_X, y: SCALE_Y, note: 'native pixels are 1.2x taller than wide (320x200 shown at 4:3); outputs use square pixels at 5x wide, 6x tall' },

@@ -197,7 +197,9 @@ own file formats, so the engine runs them like the originals.
   (`scene/render.ts`), quantized to the arena's 64 own colors plus the 90 every arena shares (`scene/palette.ts`, which
   also derives the 19 remap tables from the reference arena's), into `ARENAn.BK` plus a native widescreen background
   (`ARENAn.WID`, used instead of the mirrored extension). Their HD backgrounds come from the GPU twin
-  (`scene/gpu.ts`) through a dev-server tool (`?genarenahd`, then `npm run gen:hd`).
+  (`scene/gpu.ts`) through a dev-server tool (`?genarenahd`, then `npm run gen:hd`), or from an image model
+  (`npm run newart:export` / `newart:import`, `tools/newart/`): its painting also replaces the rendering the scene
+  file is indexed from (`scene/art/ARENAn.png`).
 - **Loading** (`resources/generated.ts`, `resources.ts`): the generated files hold only their own content; the parts
   every robot or arena shares (sparks, scrap metal, blasts; the round announcements, shared palette entries, the
   robots' remap rows, sounds) are copied from the player's FIGHTR0.AF / ARENA0.BK when loaded.
@@ -205,7 +207,8 @@ own file formats, so the engine runs them like the originals.
   smooth polished metal: rounded facets and rims, a reflected studio, contact shadows, like the originals' HD
   artwork) from the
   same poses (a few per frame, as scenes need them) and registered in `hd/assets.ts` by pixel fingerprint, like
-  installed artwork; the arenas' HD backgrounds load from `public/gen/*.webp`.
+  installed artwork, which comes first where it exists (frames redrawn by an image model through the new-art pack);
+  the arenas' HD backgrounds load from `public/gen/*.webp`.
 - **In the game**: `game/roster.ts` (which robots and arenas can be picked: the GAMEPLAY › NEW CONTENT toggles, off by
   default; settings saved before they became opt-in load with them off, see `loadSettings`), the robot select
   screen's third row (`melee.ts`), VS images and arena previews (`vs.ts`), CPU tactics (`controller/ai.ts`), move

@@ -1,6 +1,8 @@
 // HD asset import, step 1: game-side metadata for every job of the pack (pixel fingerprints of the original images,
 // the palettes their sources were rendered with, bundles) plus the images the game derives from others (background
 // pieces, the dimmed pilot portraits). Writes <pack>/intake_meta.json for tools/hd-pack/intake.py.
+// Images without delivered artwork (no job in the pack, or no *.hd.png yet: e.g. the remaster's robots until their
+// frames come back from the new-art pack) are left out; the game upscales or renders those itself.
 // Run with `npm run hd:import` (sets OMF_HDPACK_DIR).
 import { it } from 'vitest';
 import fs from 'node:fs';
@@ -100,9 +102,15 @@ it.skipIf(!hasGameData || !PACK)('HD asset import metadata', () => {
   };
 
   const entries: MetaEntry[] = [];
+  const delivered = (output: string) => fs.existsSync(path.join(PACK!, output));
+  /** Images without artwork, by bundle. */
+  const missing = new Map<string, number>();
   const add = (item: ImageItem) => {
     const job = jobs.get(item.id);
-    if (!job) throw new Error(`No job for ${item.id}`);
+    if (!job || !delivered(job.output)) {
+      missing.set(bundleOf(item.dir), (missing.get(bundleOf(item.dir)) ?? 0) + 1);
+      return;
+    }
     const e: MetaEntry = {
       job: item.id,
       hash: pixelHash(item.w, item.h, item.pixels),
@@ -119,7 +127,7 @@ it.skipIf(!hasGameData || !PACK)('HD asset import metadata', () => {
     };
     if (item.kind === 'background') {
       const wide = jobs.get(`bgwide/${item.dir.split('/')[1]}`);
-      if (wide) e.wide = { output: wide.output, width: wide.width, height: wide.height };
+      if (wide && delivered(wide.output)) e.wide = { output: wide.output, width: wide.width, height: wide.height };
     }
     entries.push(e);
   };
@@ -161,6 +169,7 @@ it.skipIf(!hasGameData || !PACK)('HD asset import metadata', () => {
     const s = bk(ex.file).anims[ex.anim]!.animation.sprites[ex.sprite];
     const px = s.pixels();
     const bgItem = cat.backgrounds.find((b) => b.item.file === ex.file)!.item;
+    if (!byJob.has(bgItem.id)) continue;
     derived.push({
       hash: pixelHash(s.width, s.height, px),
       bundle: bundleOf(bgItem.dir),
@@ -183,10 +192,13 @@ it.skipIf(!hasGameData || !PACK)('HD asset import metadata', () => {
     const gpx = g.pixels();
     const parts: { job: string; x: number; y: number }[] = [];
     let covered = 0, matched = 0;
+    // (only when every portrait has its artwork)
+    let complete = true;
     faces.sprites.forEach((s, si) => {
       if (s.isEmpty()) return;
       const item = cat.items.find((it2) => it2.kind === 'scene' && it2.usages.some((u) => u.file === 'MELEE.BK' && u.anim === 3 && u.sprite === si));
       if (!item) return;
+      if (!byJob.has(item.id)) complete = false;
       const ox = s.posX + faces.startX - (g.posX + grid.startX);
       const oy = s.posY + faces.startY - (g.posY + grid.startY);
       const px = s.pixels();
@@ -201,7 +213,9 @@ it.skipIf(!hasGameData || !PACK)('HD asset import metadata', () => {
       }
       parts.push({ job: item.id, x: ox, y: oy });
     });
-    if (covered > 0 && matched / covered > 0.9) {
+    if (!complete) {
+      // (left to the game's upscaling)
+    } else if (covered > 0 && matched / covered > 0.9) {
       // Base palette: the MELEE palette with 1..0x5F holding the (undimmed) colors of 0xA1..0xFF.
       const pal = bk('MELEE.BK').palettes[0].colors.slice();
       for (let i = 1; i < 0x60; i++) pal.set(pal.subarray((i + 0xa0) * 3, (i + 0xa0) * 3 + 3), i * 3);
@@ -232,4 +246,5 @@ it.skipIf(!hasGameData || !PACK)('HD asset import metadata', () => {
   };
   fs.writeFileSync(path.join(PACK!, 'intake_meta.json'), JSON.stringify(meta));
   console.log(`intake meta: ${entries.length} entries, ${derived.length} derived, ${palettes.length} palettes, ${collisions.length} pixel-identical groups`);
+  if (missing.size) console.log(`no artwork (left to the game): ${[...missing].map(([b, n]) => `${b} ${n}`).join(', ')}`);
 }, 10 * 60 * 1000);

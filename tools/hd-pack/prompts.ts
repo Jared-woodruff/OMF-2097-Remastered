@@ -228,22 +228,22 @@ export const FIGHTERS: Record<string, FighterInfo> = {
   // The remaster's robots (made by the game's generator in the style of the originals' 1994 renders).
   GLACIER: {
     name: 'Glacier',
-    description: 'a heavy ice juggernaut: faceted low-polygon armor plates over a slim frame, broad shoulders crowned with ice crystals, a glowing crystal core in the chest, heavy gauntlets and boots',
+    description: 'a heavy ice juggernaut: faceted armor plates over a slim frame, broad shoulders crowned with ice crystals, a glowing crystal core in the chest, heavy gauntlets and boots',
     specials: ['Ice Lance', 'Glacial Ram', 'Frost Spikes'],
   },
   TEMPEST: {
     name: 'Tempest',
-    description: 'a lean, fast storm robot: slim faceted limbs, swept wind fins on its head, shoulders and calves, a turbine in the chest',
+    description: 'a slender aerial robot built around wind turbines: a narrow V-shaped torso with a turbine intake, two swept wing blades on its back, a finned helmet, forearm fins and jet boosters on its calves',
     specials: ['Gale Blast', 'Cyclone Kick', 'Sky Dive'],
   },
   HELIX: {
     name: 'Helix',
-    description: 'a stocky driller robot: ribbed segmented limbs, drill bits on its forearms, a round armored head with a slit visor',
+    description: 'an industrial drilling robot: a barrel chest with a grille and twin exhaust stacks, a squat faceted head with a single round eye and an antenna, a giant spiral drill for its right hand and a three-fingered claw on the left, hydraulic pistons on its limbs and heavy tread boots',
     specials: ['Drill Rush', 'Corkscrew', 'Drill Bit'],
   },
   SPECTRE: {
     name: 'Spectre',
-    description: 'a tall, thin stealth robot: sharp angular armor, long blade fins, a narrow head with a single glowing eye',
+    description: 'a phantom-like laser robot: skeletal limbs, a narrow V-shaped torso with a glowing emblem, a pointed hood with a visor slit, a cloak of long blades hanging from its back, forearm blades with laser emitters and pointed feet',
     specials: ['Photon Beam', 'Phase Shift', 'Shadow Strike'],
   },
 };

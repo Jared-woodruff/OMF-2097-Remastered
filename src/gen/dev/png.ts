@@ -38,6 +38,54 @@ export function writePng(file: string, w: number, h: number, rgba: Uint8Array): 
   fs.writeFileSync(file, Buffer.concat(parts));
 }
 
+/** Decodes a PNG file with 8-bit RGB or RGBA pixels (not interlaced) to RGBA. */
+export function readPng(file: string): { w: number; h: number; rgba: Uint8Array } {
+  const buf = fs.readFileSync(file);
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  let w = 0, h = 0, channels = 0;
+  const idat: Uint8Array[] = [];
+  for (let p = 8; p < buf.length;) {
+    const len = dv.getUint32(p);
+    const type = buf.toString('latin1', p + 4, p + 8);
+    const data = buf.subarray(p + 8, p + 8 + len);
+    if (type === 'IHDR') {
+      w = dv.getUint32(p + 8);
+      h = dv.getUint32(p + 12);
+      const [depth, color, , , interlace] = data.subarray(8, 13);
+      channels = color === 2 ? 3 : color === 6 ? 4 : 0;
+      if (depth !== 8 || !channels || interlace) throw new Error(`${file}: only 8-bit RGB / RGBA PNGs without interlacing`);
+    } else if (type === 'IDAT') {
+      idat.push(data);
+    }
+    p += 12 + len;
+  }
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const stride = w * channels;
+  const px = new Uint8Array(stride * h);
+  for (let y = 0; y < h; y++) {
+    const filter = raw[y * (stride + 1)];
+    const line = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
+    for (let i = 0; i < stride; i++) {
+      const a = i >= channels ? px[y * stride + i - channels] : 0;
+      const b = y > 0 ? px[(y - 1) * stride + i] : 0;
+      const c = i >= channels && y > 0 ? px[(y - 1) * stride + i - channels] : 0;
+      let v = line[i];
+      if (filter === 1) v += a;
+      else if (filter === 2) v += b;
+      else if (filter === 3) v += (a + b) >> 1;
+      else if (filter === 4) {
+        const q = a + b - c, pa = Math.abs(q - a), pb = Math.abs(q - b), pc = Math.abs(q - c);
+        v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+      }
+      px[y * stride + i] = v;
+    }
+  }
+  if (channels === 4) return { w, h, rgba: px };
+  const rgba = new Uint8Array(w * h * 4);
+  for (let i = 0; i < w * h; i++) rgba.set([px[i * 3], px[i * 3 + 1], px[i * 3 + 2], 255], i * 4);
+  return { w, h, rgba };
+}
+
 /** Preview colors: ramp 0 steel blue, ramp 1 grey, ramp 2 orange (dark to light), other indices magenta. */
 export function previewColor(i: number): [number, number, number] {
   if (i === 0) return [0, 0, 0];

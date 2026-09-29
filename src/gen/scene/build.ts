@@ -1,5 +1,6 @@
 // Builds a generated arena's scene file (BK, the format of the original arenas) and its native widescreen background:
-// the scene rendered 576 columns wide (the classic screen is its middle 320), indexed with the arena's own 64 colors.
+// the scene rendered 576 columns wide (the classic screen is its middle 320), or its painting (the image AI's, at that
+// size: src/gen/scene/art), indexed with the arena's own 64 colors.
 // Only the arena's own content is stored; the game adds the parts every arena shares when it loads the file
 // (resources.ts: the shared palette entries, the robots' remap rows, the round and fight announcements, sounds).
 import type { BkFile } from '../../formats/bk';
@@ -22,9 +23,13 @@ export interface BuiltArena {
   image: RenderedImage;
 }
 
-/** Renders, quantizes and assembles an arena; `ref` is the reference arena (ARENA0) for the shared colors and tables. */
-export function buildArena(a: GenArena, ref: BkFile, ss = 2): BuiltArena {
-  const image = renderScene(a.scene(), -WIDE_EXTRA, 320 + 2 * WIDE_EXTRA, 200, ss);
+/**
+ * Renders (or takes its `painting`), quantizes and assembles an arena; `ref` is the reference arena (ARENA0) for the
+ * shared colors and tables.
+ */
+export function buildArena(a: GenArena, ref: BkFile, ss = 2, painting?: RenderedImage): BuiltArena {
+  if (painting && (painting.w !== 320 + 2 * WIDE_EXTRA || painting.h !== 200)) throw new Error(`${a.file}: the painting must be 576 x 200`);
+  const image = painting ?? renderScene(a.scene(), -WIDE_EXTRA, 320 + 2 * WIDE_EXTRA, 200, ss);
   const pal = choosePalette([image], ref.palettes[0]);
   const wide = indexImage(image, pal);
   const background = new Uint8Array(320 * 200);
