@@ -6,7 +6,8 @@
   tools/brand/sidebar.html    installer welcome / finish page image (164x314)
   tools/brand/header.html     installer page header image (150x57)
 
-Outputs: src-tauri/icons/* (via `npx tauri icon`, then a hand-built icon.ico with a crisp image per size),
+Outputs: src-tauri/icons/* (via `npx tauri icon`, keeping the desktop icons, then a hand-built icon.ico with a crisp
+image per size),
 src-tauri/installer/sidebar.bmp and header.bmp, public/favicon.png and the web app icons (public/icon-*.png).
 
 Everything is rendered at 1024 px (or 4x) with Microsoft Edge (or Chrome) in headless mode and scaled down with
@@ -81,6 +82,13 @@ def main() -> None:
     big.save(ICONS / 'source.png')
     npx = 'npx.cmd' if os.name == 'nt' else 'npx'
     subprocess.run([npx, 'tauri', 'icon', str(ICONS / 'source.png')], cwd=ROOT, check=True)
+    # (tauri icon also makes Windows Store, Android and iOS icons: no build uses them)
+    for extra in ['android', 'ios', 'StoreLogo.png', '64x64.png', *(f.name for f in ICONS.glob('Square*Logo.png'))]:
+        target = ICONS / extra
+        if target.is_dir():
+            shutil.rmtree(target)
+        elif target.exists():
+            target.unlink()
     frames = {s: scaled(small, s, sharpen=True) for s in (16, 20, 24, 32, 40)}
     frames.update({s: scaled(big, s, sharpen=s <= 64) for s in (48, 64, 96, 128, 256)})
     frames[256].save(ICONS / 'icon.ico', format='ICO', sizes=[(s, s) for s in frames],

@@ -4,7 +4,7 @@ import { provideFile } from '../resources/files';
 import { done, openDb } from './db';
 
 /** Files the engine needs at runtime (same set as tools/extract-gamedata.mjs). */
-const WANTED = /\.(AF|BK|PSM|PIC|TRN|ICO)$|^(ALTPALS|CHARSMAL|GRAPHCHR|ENGLISH|GERMAN|SOUNDS|RANDOM)\.DAT$|^SETUP\.CFG$/i;
+const WANTED = /\.(AF|BK|PSM|PIC|TRN)$|^(ALTPALS|CHARSMAL|GRAPHCHR|ENGLISH|GERMAN|SOUNDS)\.DAT$/i;
 /** Proof that a file set is One Must Fall 2097's. */
 const REQUIRED = ['FIGHTR0.AF', 'MAIN.BK', 'SOUNDS.DAT', 'ENGLISH.DAT'];
 

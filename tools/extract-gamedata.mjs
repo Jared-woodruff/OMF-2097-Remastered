@@ -15,7 +15,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.join(root, 'public', 'gamedata');
 
 // Files the engine needs at runtime (matched case-insensitively).
-const WANTED = /\.(AF|BK|PSM|PIC|TRN|ICO)$|^(ALTPALS|CHARSMAL|GRAPHCHR|ENGLISH|GERMAN|SOUNDS|RANDOM)\.DAT$|^SETUP\.CFG$/i;
+const WANTED = /\.(AF|BK|PSM|PIC|TRN)$|^(ALTPALS|CHARSMAL|GRAPHCHR|ENGLISH|GERMAN|SOUNDS)\.DAT$/i;
 
 function readZipEntries(buf) {
   // Locate the End Of Central Directory record (scan backwards).
