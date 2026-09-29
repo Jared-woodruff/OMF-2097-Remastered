@@ -18,6 +18,8 @@ CAPS = os.path.join(ROOT, '.captures', 'trailer2')
 os.makedirs(IMG, exist_ok=True)
 
 ROBOTS = ['jaguar', 'shadow', 'thorn', 'pyros', 'electra', 'katana', 'shredder', 'flail', 'gargoyle', 'chronos', 'nova']
+# The remaster's robots (their artwork painted by an image model through the new-art pack, in hd-pack/ with the rest).
+NEW_ROBOTS = ['glacier', 'tempest', 'helix', 'spectre']
 
 
 def save_jpg(img, name, width=None, q=84):
@@ -89,6 +91,11 @@ def main():
             fig = Image.open(os.path.join(PACK, 'tier3_scenes', 'MELEE', f'a{18 + i}', 'f000.hd.png')).convert('RGBA')
         fig = fig.crop(fig.getbbox())
         save_jpg(on_panel(fig, 600, 820), f'robot-{name}.jpg', q=86)
+    # The new robots from their fighter frames too (the fighting stance, like the select screen shows them).
+    for name in NEW_ROBOTS:
+        fig = Image.open(os.path.join(PACK, 'tier2_fighters', name.upper(), 'm11_idle', 'f000.hd.png')).convert('RGBA')
+        fig = fig.crop(fig.getbbox())
+        save_jpg(on_panel(fig, 600, 820), f'robot-{name}.jpg', q=86)
 
     # The select screen's robot close-ups (a 5 x 2 sheet).
     sheet = Image.open(os.path.join(PACK, 'tier3_scenes', 'MELEE', 'a01', 'f000.hd.png')).convert('RGBA')
@@ -123,9 +130,9 @@ def main():
     shots = {
         'shot-desert': 'desert_0100', 'shot-knockout': 'desert_0197', 'shot-powerplant': 'powerplant_0150',
         'shot-firepit': 'firepit_0120', 'shot-danger': 'danger_0160', 'shot-stadium': 'stadium_0120',
-        'shot-orbital': 'orbital_0170', 'shot-icecave': 'icecave_0150', 'shot-rooftop': 'rooftop_0170', 'shot-abyss': 'abyss_0180',
+        'shot-icecave': 'icecave_0150',
         'shot-classic': 'wipe_c_0120', 'shot-remastered': 'wipe_0120', 'shot-menu': 'menulive_0120', 'shot-select': 'select_0120',
-        'shot-vs': 'selectvs_0060', 'shot-training': 'training_0120', 'shot-replays': 'replays_0080', 'shot-replay': 'replayplay_0100',
+        'shot-vs': 'selectvs_0060', 'shot-training': 'training_0120', 'shot-replay': 'replayplay_0003',
         'shot-workshop': 'workshop_0027', 'shot-menus': 'menus_0200',
         # (the fought credits, from .captures/stills2: the scratchpad's rec/stills2.mjs)
         'shot-credits': '../stills2/credits_won2',

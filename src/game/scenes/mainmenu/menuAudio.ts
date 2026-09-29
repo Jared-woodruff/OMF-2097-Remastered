@@ -62,7 +62,7 @@ export function menuAudioCreate(_s: MainMenuScene): Menu {
       audio.setImpactBass(pos === 1);
       settingsChanged();
     }));
-  menu.attach(new TextSelector('ANNOUNCER', 'The voice that calls the rounds, the knockouts and the winners: a man or a woman.',
+  menu.attach(new TextSelector('ANNOUNCER', 'The voice that calls the rounds, the knockouts and the winners, and reads the news after fights: a man or a woman.',
     () => Math.max(0, ANNOUNCERS.indexOf(sound().announcer)), (pos) => (sound().announcer = ANNOUNCERS[pos]), ['OFF', 'MALE', 'FEMALE'],
     (pos) => {
       previewAnnouncer(ANNOUNCERS[pos]);

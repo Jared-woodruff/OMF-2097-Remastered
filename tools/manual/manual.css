@@ -102,9 +102,16 @@ tr:nth-child(even) td { background: rgba(0,0,0,.035); }
 .robot h2 { font-size: 15pt; margin: 0 0 1pt; color: var(--ink); }
 .robot .class { font: 700 6pt Verdana, sans-serif; letter-spacing: .16em; color: var(--red); text-transform: uppercase; margin-bottom: 4pt; }
 .robot p { font-size: 7.5pt; line-height: 1.34; }
-.moves { width: 100%; border-collapse: collapse; margin: 3pt 0 0; }
-.moves td { font-size: 6.9pt; padding: 1.5pt 2pt; border-bottom: .5pt dotted rgba(0,0,0,.35); }
-.moves td:first-child { font: 700 5.8pt Verdana, sans-serif; letter-spacing: .08em; color: var(--steel); width: 38%; }
+/* The new challengers: a band each. */
+.newbot { display: grid; grid-template-columns: 1in 1fr; gap: .13in; padding: .05in 0; }
+.newbot + .newbot { border-top: 1pt dashed rgba(0,0,0,.4); }
+.newbot img { width: 100%; height: 1.34in; object-fit: cover; border: 1pt solid var(--ink); }
+.newbot h2 { font-size: 10.5pt; margin: 0 0 1pt; color: var(--ink); }
+.newbot .class { font: 700 5.6pt Verdana, sans-serif; letter-spacing: .16em; color: var(--red); text-transform: uppercase; margin-bottom: 1.5pt; }
+.newbot p { font-size: 7pt; line-height: 1.26; margin-bottom: 2pt; }
+.newbot .cmds { grid-template-columns: 1fr 1fr 1fr; margin-top: 0; }
+.newbot .cmds div { padding: 1pt 0 1pt; }
+.newbot .cmds span.k { line-height: 1.2; margin-bottom: 0; }
 .cmds { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8pt; margin-top: 2pt; }
 .cmds div { border-bottom: .5pt dotted rgba(0,0,0,.35); padding: 2pt 0 1.5pt; white-space: nowrap; }
 .cmds span.k { display: block; font: 700 5.2pt Verdana, sans-serif; letter-spacing: .08em; color: var(--steel); text-transform: uppercase; margin-bottom: .5pt; }

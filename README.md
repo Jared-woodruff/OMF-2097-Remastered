@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/TypeScript-7-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript 7">
   <img src="https://img.shields.io/badge/WebGL2-990000?style=for-the-badge&logo=webgl&logoColor=white" alt="WebGL2">
   <img src="https://img.shields.io/badge/Tauri-2-24c8db?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri 2">
-  <img src="https://img.shields.io/badge/tests-238%20passing-2ea44f?style=for-the-badge" alt="238 tests passing">
+  <img src="https://img.shields.io/badge/tests-260%20passing-2ea44f?style=for-the-badge" alt="260 tests passing">
 </p>
 
 <p align="center">
@@ -123,12 +123,13 @@ original until you opt in: turn them on in **Gameplay › New content** (robots 
 | **SPECTRE** | Phantom with forearm lasers and a cloak of blades | **Photon Beam** ↓↘→ P, **Phase Shift** ↓↙← K, **Shadow Strike** ↓↘→ K |
 
 They are built like the originals: faceted armor over slim, ribbed joints, in the player's three colors used the
-original way (the armor, the joints, a few signature accents), and shaded like the originals' 1994 renders in the
-classic sprites and as polished metal in the HD artwork, which is rendered from the same 3D models. Each has the full
-basic move set, a throw, a scrap and a destruction finisher, CPU tactics for its specials and names in the pause
-menu's move list. Turned on, they sit in a third row of the robot select screen (move down past the second row), join
-the CPU opponents, and turn up among the robots Plug offers to trade in tournaments, with their own turning model and
-select buttons in the mechlab.
+original way (the armor, the joints, a few signature accents). Their classic sprites are rendered from 3D models and
+shaded like the originals' 1994 renders; their HD artwork, every frame of their animations, was painted over those
+renders by an image generation model, held to each sprite's outline and color zones so it takes the players' colors
+like the originals' artwork. Each has the full basic move set, a throw, a scrap and a destruction finisher, CPU
+tactics for its specials and names in the pause menu's move list. Turned on, they sit in a third row of the robot
+select screen (move down past the second row), join the CPU opponents, and turn up among the robots Plug offers to
+trade in tournaments, with their own turning model and select buttons in the mechlab.
 
 <p align="center">
   <img src="docs/media/new-arenas.jpg" alt="The new arenas: Orbital, Ice Cave, Rooftop and Abyss" width="100%">
@@ -149,8 +150,9 @@ select buttons in the mechlab.
 Turned on, they join the arena rotation of one and two player games and tournaments. All four have true widescreen backgrounds (not
 mirrored edges), HD versions, their own acoustics and music. The new
 robots bring their own effects too: frost and ice shards, whirlwinds, drill sparks and shavings, laser glow and a
-phase-shift shimmer. Everything new is original and generated from source code in [`src/gen`](src/gen): the robots
-and arenas are 3D models ray traced into the game's own formats (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)).
+phase-shift shimmer. Everything new is original: the robots and arenas are 3D models in [`src/gen`](src/gen), ray
+traced into the game's own formats, and an image generation model painted their HD artwork and the arenas' backgrounds
+over those renders (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/BUILDING.md](docs/BUILDING.md)).
 
 <br>
 
@@ -407,7 +409,7 @@ flowchart LR
     A["Original game data"] -->|npm run extract| B["public/gamedata"]
     B -->|npm run hd:export| C["hd-pack/<br/>3,200+ images, prompts,<br/>guides and specs"]
     C -->|image model| D["*.hd.png"]
-    D -->|npm run hd:import| E["public/hd/<br/>34 WebP atlas bundles"]
+    D -->|npm run hd:import| E["public/hd/<br/>38 WebP atlas bundles"]
     E -->|runtime| F["Palette transfer shader:<br/>player colors, fades, flashes"]
 ```
 
@@ -415,6 +417,9 @@ flowchart LR
 - **Live colors**: each HD pixel is mapped through the palette change of the original pixel it belongs to, so the
   artwork follows player color choices, fades, flashes and tints exactly like the original sprites.
 - **Streaming**: bundles per scene, robot and shared effects load on demand, and scene changes preload the next ones.
+- **The new robots and arenas** have a pack of their own (`npm run newart:export` / `newart:import`): each arena is
+  painted again as one widescreen picture, and each robot gets a design sheet and then every frame redrawn from it,
+  clipped to the sprite's outline when imported.
 
 The imported artwork is part of this repository (`public/hd/`, shared on the game's freeware terms, see
 [NOTICE.md](NOTICE.md)); the pack's working files are not. See [docs/BUILDING.md](docs/BUILDING.md) to make and import
@@ -509,7 +514,7 @@ flowchart LR
 | Rendering | WebGL2: classic VGA pipeline, HD reconstruction, particle, lighting and post-processing passes |
 | Audio | Web Audio with an AudioWorklet mixer and a port of the MASI PSM music driver |
 | Desktop | Tauri 2 (WebView2), a portable exe and an installer |
-| Tests | Vitest, 220+ tests running the real game logic headlessly against the original data |
+| Tests | Vitest, 260 tests running the real game logic headlessly against the original data |
 
 - The remastered renderer measures its GPU time and lowers its internal resolution when a GPU can't keep up. With
   every effect on, a frame takes about 8 ms of GPU time at 1920 × 1200 on an RTX 4080.
@@ -537,7 +542,8 @@ flowchart LR
 - **[Tauri](https://tauri.app)** (MIT / Apache-2.0): the desktop app. Built with Vite, TypeScript and Vitest.
 - **[Orbitron](https://github.com/theleagueof/orbitron)** by Matt McInerney and The League of Moveable Type
   ([SIL Open Font License 1.1](public/fonts/Orbitron-OFL.txt)): the remastered text.
-- The app icon and installer artwork are original designs; the HD artwork was generated from the original images.
+- The app icon and installer artwork are original designs; the HD artwork was generated from the original images,
+  and the new robots' and arenas' from the remaster's own renders.
 
 The source code in this repository is released under the [MIT license](LICENSE). The original game's data files and
 the remastered artwork made from them are included on the game's freeware terms, not under the MIT license: free of

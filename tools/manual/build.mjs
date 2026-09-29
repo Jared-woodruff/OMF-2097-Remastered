@@ -405,27 +405,34 @@ for (let i = 0; i < 11; i += 2) {
     against Raven's Katana, the wall spikes waiting.</figcaption></figure>`));
 }
 
-// 19. New challengers.
+// 19. New challengers: a band each (the painted robot, its style, its commands with the specials by name).
 const NEW = [
-  ['GLACIER', 'Heavy ice juggernaut: slow, strong, tough. Crystal-crowned shoulders, heavy gauntlets and boots.', 'shot-orbital.jpg', 11],
-  ['TEMPEST', 'Light and fast wind robot with high, floaty jumps. Hits from above before you see it coming.', 'shot-icecave.jpg', 12],
-  ['HELIX', 'Industrial driller with a spiral drill and a claw, built to break armor and dig in.', 'shot-abyss.jpg', 13],
-  ['SPECTRE', 'Phantom with forearm lasers and a cloak of blades. Phase shifts through attacks.', 'shot-rooftop.jpg', 14],
+  ['glacier', 11, 'Heavyweight', 'A heavy ice juggernaut, slow, strong and hard to put down, crowned with red ice crystals. It throws spears of ice, charges shoulder first on a slide of ice and stomps frost spikes out of the floor.'],
+  ['tempest', 12, 'Aerial', 'Light and fast, a wind robot with swept fins streaming back from its head. Its jumps are high and floaty: it throws whirlwinds, rises in a spinning kick that hits again and again, and dives out of the sky before you see it coming.'],
+  ['helix', 13, 'Armor breaker', 'An industrial driller with a spiral drill for one arm and a claw for the other, built to break armor and dig in. It charges drill first, drives up in a corkscrew uppercut and fires its drill head across the arena like a missile.'],
+  ['spectre', 14, 'Phantom', 'A phantom in a hood and a cloak of blades, with lasers built into its forearms. It fires bolts of light, fades out to reappear behind its opponent and dashes in on a kick that trails afterimages.'],
 ];
+function newBlock([id, har, cls, text]) {
+  const label = (m) => (m.kind === 'SPECIAL' || m.kind === 'AIR'
+    ? m.label.charAt(0) + m.label.slice(1).toLowerCase() + (m.kind === 'AIR' ? ' (air)' : '')
+    : KIND[m.kind] ?? m.kind);
+  const moves = (facts.moves[har] ?? []).map((m) => `<div><span class="k">${esc(label(m))}</span>${cmd(m.inputs, m.button)}</div>`).join('');
+  return `<div class="newbot">
+    <img src="${img(`robot-${id}.jpg`)}">
+    <div>
+      <h2>${esc(L[31 + har])}</h2>
+      <div class="class">${cls}</div>
+      <p>${text}</p>
+      <div class="cmds">${moves}</div>
+    </div>
+  </div>`;
+}
 page('New challengers', `
   ${title('Chapter 7', 'New challengers')}
-  <p>Built for the Remastered Edition in the spirit of the originals: faceted armor over ribbed joints, in the pilot's
-  colors. Turn them on in <b>Gameplay &rsaquo; New content</b>; they appear in a third row of the robot select screen, join
-  the computer's opponents and turn up among the robots Plug offers to trade.</p>
-  <div class="two" style="gap:.12in">
-    ${NEW.map(([name, text, shot, har]) => {
-      const moves = (facts.moves[har] ?? []).filter((m) => m.kind === 'SPECIAL' || m.kind === 'AIR')
-        .map((m) => `<tr><td>${esc(m.label.charAt(0) + m.label.slice(1).toLowerCase())}</td><td>${cmd(m.inputs, m.button)}</td></tr>`).join('');
-      return `<div><figure style="margin-bottom:4pt"><img src="${img(shot)}" style="height:1.05in; object-fit:cover"></figure>
-        <h3 style="color:var(--ink); font-size:8pt">${name}</h3><p class="small" style="text-align:left">${text}</p>
-        <table class="moves">${moves}</table></div>`;
-    }).join('')}
-  </div>
+  <p>Built for the Remastered Edition in the spirit of the originals, and painted in HD like them. Turn them on in
+  <b>Gameplay &rsaquo; New content</b>: they join the robot select screen (a third row), the computer's opponents and the
+  robots Plug offers to trade.</p>
+  ${NEW.map(newBlock).join('')}
 `);
 
 // 20-21. Pilots.
@@ -495,7 +502,8 @@ page('Tournament play', `
     <p>Plug, the mech lab's salesman, will trade your robot for another, for a price. Every robot of the circuit can be
     yours. With the new robots turned on, he sells those too.</p>
     <h2>The news</h2>
-    <p>After every fight, the WRDE news tells the world what happened in the arena, and what they think of you.</p>
+    <p>After every fight, the WRDE news tells the world what happened in the arena, and what they think of you. The
+    newsreader reads each report aloud in the voice of the announcer you chose.</p>
   </div>
 `);
 page('Tournament play', `
@@ -592,6 +600,8 @@ page('The remastered look', `
   floodlights, snow, rain, bubbles). They never change the fight itself. Each group can be switched off in
   <b>Configuration &rsaquo; Video options &rsaquo; Remastered options</b>, along with bloom, the fight camera, the HUD
   style and the typeface.</p>
+  <p>In widescreen the arena reaches past the original screen, but the fight stays inside it: faint <b>energy
+  curtains</b> mark its edges, glowing where a robot is held against them and rippling when one is slammed into them.</p>
   <div class="tip" data-label="SLOW COMPUTER?">
     <p>The game lowers its resolution by itself when the graphics card struggles. For the fastest game, press ${key('F2')}:
     the classic look runs on anything.</p>

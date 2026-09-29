@@ -9,7 +9,9 @@ players to modify and distribute it as they please, as long as they do not charg
 They are included here under those terms: free of charge, with this notice. They are not covered by the MIT license.
 
 **The remastered artwork** in [`public/hd/`](public/hd) was made from the original game's images (with OpenAI
-GPT6-ASTRA) and is shared on the same terms as the game: free of charge, never sold.
+GPT6-ASTRA) and is shared on the same terms as the game: free of charge, never sold. The new robots' frames there,
+like the new arenas' paintings in [`public/gen/`](public/gen) and [`src/gen/scene/art/`](src/gen/scene/art), were
+painted by an image generation model over the remaster's own renders.
 
 **Never charge for this game** or for builds of it, in any form.
 

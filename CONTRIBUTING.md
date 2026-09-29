@@ -49,5 +49,6 @@ and `capture(name, w, h)` (writes a PNG to `.captures/`). See [docs/ARCHITECTURE
 ## What not to commit
 
 The original game's files are included on its freeware terms ([NOTICE.md](NOTICE.md)): nothing here may ever be sold
-or put behind a charge. Keep other copyrighted material out, and the HD asset pack's working files (`hd-pack/`, source
-images and prompts) too: only the imported artwork in `public/hd/` belongs in the repository.
+or put behind a charge. Keep other copyrighted material out, and the artwork packs' working files (`hd-pack/`,
+`newart-pack/`, source images and prompts) too: only the imported artwork (`public/hd/`, and the new arenas' paintings
+in `public/gen/` and `src/gen/scene/art/`) belongs in the repository.
