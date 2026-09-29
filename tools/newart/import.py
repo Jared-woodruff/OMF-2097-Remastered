@@ -5,8 +5,9 @@
   (src/gen/scene/art/ARENAn.png: `npm run gen` rebuilds ARENAn.BK and .WID from it, the classic graphics and the
   colors the HD painting is recolored through).
 - Robots (tier2_fighters/<ROBOT>/mNN_<move>/fNNN.hd.png): each frame at its size and clipped to its source's
-  silhouette (one native pixel of slack), copied into the HD asset pack (./hd-pack, whose jobs.jsonl gets their jobs),
-  to be imported with it.
+  silhouette (one native pixel of slack), the spine's core drawn in behind it where the sprite shows the torso apart
+  from the hips (<pack>/spine_cores.json, from src/gen/dev/spineCore.test.ts), copied into the HD asset pack
+  (./hd-pack, whose jobs.jsonl gets their jobs), to be imported with it.
 
 Partial deliveries work: whatever is missing keeps its current artwork. Writes <pack>/import.json (what was imported,
 for tools/newart/import.mjs) and <pack>/import_report.txt (deliveries worth a look).
@@ -53,12 +54,75 @@ def import_arena(pack: Path, job: dict, report: list) -> str:
     return file
 
 
-def import_frame(pack: Path, job: dict, report: list) -> None:
+PADDING = 4  # the pack's pictures of the robots: the sprite with 4 transparent pixels around it (tools/hd-pack/newart.ts)
+
+
+def load_spine_cores(pack: Path):
+    """The robots' spine cores (src/gen/dev/spineCore.test.ts, written by import.mjs), or None."""
+    path = pack / 'spine_cores.json'
+    if not path.exists():
+        return None
+    data = json.loads(path.read_text(encoding='utf-8'))
+
+    def unpack(hexs, w, h):
+        nibbles = np.array([int(c, 16) for c in hexs], np.uint8)
+        bits = np.unpackbits(nibbles[:, None], axis=1)[:, 4:].reshape(-1)[:w * h]
+        return bits.reshape(h, w) > 0
+
+    def shades(core):
+        return np.frombuffer(bytes.fromhex(core['shades']), np.uint8).reshape(core['h'], core['w'])
+
+    return {name: {int(mid): [(unpack(s['mask'], s['w'], s['h']), s['core'], shades(s['core'])) for s in sprites]
+                   for mid, sprites in moves.items()} for name, moves in data['robots'].items()}
+
+
+# The core's metal: its shades (0 dark .. 15 lit) from near black to a cool highlight, like the paintings' spines.
+STEEL_DARK = np.array([13, 14, 19], np.float32)
+STEEL_LIT = np.array([150, 160, 178], np.float32)
+
+
+def fill_spine(rgba: np.ndarray, source: np.ndarray, job: dict, cores) -> int:
+    """Draws the robot's spine core in behind the painting (src/gen/dev/spineCore.test.ts): it shows where the painting
+    leaves a gap at the waist, so the torso no longer floats over the hips. Returns the number of pixels it changed."""
+    _, robot, move, _ = job['id'].split('/')
+    sprites = cores.get(robot, {}).get(int(move[1:3]))
+    if not sprites:
+        return 0
+    mask = (source[..., 3] > 0)[PADDING:-PADDING, PADDING:-PADDING]
+    hit = next(((core, shade) for m, core, shade in sprites if m.shape == mask.shape and (m == mask).all()), None)
+    if hit is None:
+        return 0
+    core, shade = hit
+    H, W = rgba.shape[:2]
+    # The core at twice the painting's size, in place (its position counts from the sprite's corner).
+    layer = np.zeros((2 * H, 2 * W, 4), np.float32)
+    x0, y0 = core['x'] + 2 * SX * PADDING, core['y'] + 2 * SY * PADDING
+    t = np.clip((shade.astype(np.float32) - 1) / 15, 0, 1) ** 1.5
+    rgb = STEEL_DARK + (STEEL_LIT - STEEL_DARK) * t[..., None]
+    a = (shade > 0).astype(np.float32)
+    ys, xs = slice(max(0, y0), min(2 * H, y0 + core['h'])), slice(max(0, x0), min(2 * W, x0 + core['w']))
+    cy, cx = slice(ys.start - y0, ys.stop - y0), slice(xs.start - x0, xs.stop - x0)
+    layer[ys, xs, :3] = rgb[cy, cx] * a[cy, cx, None]
+    layer[ys, xs, 3] = a[cy, cx]
+    # Down to the painting's size (premultiplied: smooth edges), and the painting over it.
+    layer = layer.reshape(H, 2, W, 2, 4).mean((1, 3))
+    ca = layer[..., 3]
+    top = rgba[..., 3].astype(np.float32) / 255
+    out_a = top + ca * (1 - top)
+    out_rgb = (rgba[..., :3] * top[..., None] + layer[..., :3] * (1 - top[..., None])) / np.maximum(out_a[..., None], 1e-4)
+    changed = int(((ca > 0.02) & (top < 0.98)).sum())
+    rgba[..., :3] = np.round(np.clip(out_rgb, 0, 255)).astype(np.uint8)
+    rgba[..., 3] = np.round(out_a * 255).astype(np.uint8)
+    return changed
+
+
+def import_frame(pack: Path, job: dict, report: list, cores=None) -> None:
     w, h = job['width'], job['height']
     img = Image.open(pack / job['output']).convert('RGBA')
     if img.size != (w, h):
         img = img.resize((w, h), Image.LANCZOS)
-    native = Image.open(pack / job['source']).convert('RGBA').getchannel('A').point(lambda a: 255 if a else 0)
+    source = Image.open(pack / job['source']).convert('RGBA')
+    native = source.getchannel('A').point(lambda a: 255 if a else 0)
     # The silhouette at the HD size, and with one native pixel of slack and a soft edge.
     exact = np.asarray(native.resize((w, h), Image.NEAREST)) > 0
     slack = native.filter(ImageFilter.MaxFilter(3)).resize((w, h), Image.NEAREST).filter(ImageFilter.GaussianBlur(2))
@@ -78,6 +142,8 @@ def import_frame(pack: Path, job: dict, report: list) -> None:
     if problems:
         report.append(f"{job['output']}: {'; '.join(problems)}")
     rgba[..., 3] = np.round(alpha * keep * 255).astype(np.uint8)
+    if cores and job['id'].startswith('fighter/'):
+        fill_spine(rgba, np.asarray(source), job, cores)
     dst = HD_PACK / job['output']
     dst.parent.mkdir(parents=True, exist_ok=True)
     Image.fromarray(rgba, 'RGBA').save(dst)
@@ -109,8 +175,9 @@ def main():
     if frames:
         if not (HD_PACK / 'jobs.jsonl').exists():
             sys.exit(f'the robots are imported with the HD asset pack: {HD_PACK} not found')
+        cores = load_spine_cores(pack)
         for k, (_, job) in enumerate(frames):
-            import_frame(pack, job, report)
+            import_frame(pack, job, report, cores)
             b = bundle_of(job['output'])
             bundles[b] = bundles.get(b, 0) + 1
             if (k + 1) % 100 == 0:

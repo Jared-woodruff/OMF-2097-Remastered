@@ -90,8 +90,10 @@ npm run newart:import -- path/to/pack # or another pack folder
 An arena's painting becomes its HD backgrounds (`public/gen/ARENAn-HD.webp` / `-WIDE.webp`) and, at the native
 576 × 200, `src/gen/scene/art/ARENAn.png`, which `npm run gen` indexes in place of the rendering (the import runs it):
 the classic graphics, and the colors the painting is recolored through. The robots' frames are clipped to their
-silhouettes, copied into `hd-pack/` (their jobs added to its `jobs.jsonl`) and imported into `public/hd/` with the
-originals' artwork, so a later `npm run hd:import` keeps them. Anything not delivered keeps its current artwork;
+silhouettes, get a steel core drawn in behind them through the waist (where a sprite's spine rings part in a leaning
+pose, the painting showed the torso floating over the hips; `src/gen/dev/spineCore.test.ts` renders the core, the
+import runs it), are copied into `hd-pack/` (their jobs added to its `jobs.jsonl`) and imported into `public/hd/` with
+the originals' artwork, so a later `npm run hd:import` keeps them. Anything not delivered keeps its current artwork;
 `newart-pack/import_report.txt` lists deliveries worth a look (no transparency, drawn outside the silhouette, a moved
 composition).
 

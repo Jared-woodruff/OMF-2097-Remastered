@@ -190,25 +190,46 @@ export class RobotFx {
             kind: ParticleKind.SHARD, x: tail + rnd(0, b.w * 0.5) * dir, y: cy + rnd(-4, 4), vx: -dir * rnd(0.2, 1), vy: rnd(-0.5, 0.5), gravity: 0.05,
             life: rnd(8, 16), size0: 0.8, size1: 0.2, stretch: 1, c0: ICE, c1: ICE_END,
           }));
-        } else if (anim === MOVE.FX2 || anim === MOVE.FX3) {
-          // Shattering ice / spikes bursting from the floor.
+        } else if (anim === MOVE.FX2) {
+          // The lance shattering.
           this.once(o, () => {
-            const spikes = anim === MOVE.FX3;
-            for (let i = 0; i < (spikes ? 26 : 22); i++) {
-              const a = spikes ? rnd(-Math.PI * 0.95, -Math.PI * 0.05) : Math.random() * Math.PI * 2;
-              const s = rnd(1.2, spikes ? 4.2 : 3.5);
+            for (let i = 0; i < 22; i++) {
+              const a = Math.random() * Math.PI * 2;
+              const s = rnd(1.2, 3.5);
               ps.spawn({
-                kind: ParticleKind.SHARD, x: cx, y: spikes ? b.y + b.h - 3 : cy, vx: Math.cos(a) * s, vy: Math.sin(a) * s, gravity: 0.16, drag: 0.94,
+                kind: ParticleKind.SHARD, x: cx, y: cy, vx: Math.cos(a) * s, vy: Math.sin(a) * s, gravity: 0.16, drag: 0.94,
                 life: rnd(14, 28), size0: rnd(0.9, 1.5), size1: 0.3, stretch: 1.3, c0: ICE, c1: ICE_END, floor: 193, bounce: 0.3,
               });
             }
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 4; i++) {
               ps.spawn({
-                kind: ParticleKind.SMOKE, x: cx + rnd(-8, 8), y: (spikes ? b.y + b.h - 6 : cy) + rnd(-5, 5), vx: rnd(-0.4, 0.4), vy: rnd(-0.4, 0),
-                drag: 0.96, life: rnd(30, 50), size0: 4, size1: 14, fadeIn: 0.1, c0: [0.8, 0.92, 1, 0.3], c1: FROST_END,
+                kind: ParticleKind.SMOKE, x: cx + rnd(-8, 8), y: cy + rnd(-5, 5), vx: rnd(-0.4, 0.4), vy: rnd(-0.4, 0),
+                drag: 0.96, life: rnd(30, 50), size0: 4, size1: 12, fadeIn: 0.1, c0: [0.8, 0.92, 1, 0.2], c1: FROST_END,
               });
             }
             light(cx, cy, 90, 0.25, 0.45, 0.6, 12);
+          });
+        } else if (anim === MOVE.FX3) {
+          // Spikes bursting from the floor: ice chips thrown up from their base and frost mist spreading low along
+          // the floor, so the spikes themselves stay in view (a fog on them washed them out on bright floors).
+          this.once(o, () => {
+            const base = b.y + b.h - 2;
+            for (let i = 0; i < 26; i++) {
+              const a = rnd(-Math.PI * 0.95, -Math.PI * 0.05);
+              const s = rnd(1.2, 4.2);
+              ps.spawn({
+                kind: ParticleKind.SHARD, x: cx + rnd(-b.w * 0.4, b.w * 0.4), y: base - 1, vx: Math.cos(a) * s, vy: Math.sin(a) * s, gravity: 0.16,
+                drag: 0.94, life: rnd(14, 28), size0: rnd(0.9, 1.5), size1: 0.3, stretch: 1.3, c0: ICE, c1: ICE_END, floor: 193, bounce: 0.3,
+              });
+            }
+            for (let i = 0; i < 6; i++) {
+              const side = i % 2 ? 1 : -1;
+              ps.spawn({
+                kind: ParticleKind.SMOKE, x: cx + side * rnd(b.w * 0.2, b.w * 0.55), y: base + rnd(-1, 1), vx: side * rnd(0.25, 0.6), vy: rnd(-0.06, 0),
+                drag: 0.97, life: rnd(34, 56), size0: 3, size1: rnd(9, 13), fadeIn: 0.2, c0: [0.82, 0.93, 1, 0.14], c1: FROST_END,
+              });
+            }
+            light(cx, base - 10, 70, 0.12, 0.24, 0.32, 10);
           });
         }
         break;

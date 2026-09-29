@@ -163,6 +163,18 @@ const DESERT: ArenaFx = {
 };
 
 // ---- The remaster's arenas ---------------------------------------------------------------------------------------
+// Their backgrounds are paintings (public/gen/ARENAn-WIDE.webp): what twinkles, blinks and glows sits on what the
+// painting shows there (positions measured on the paintings: native x = painting x / 5 - 128, y = painting y / 6).
+
+/** Stars of the Orbital's painting, in the window above the Earth. */
+const ORBITAL_STARS: readonly (readonly [number, number])[] = [
+  [57, 85], [189, 67], [57, 73], [98, 63], [53, 78], [47, 84], [39, 62], [179, 78], [113, 85], [276, 73], [215, 82],
+  [136, 82], [122, 62], [175, 74], [247, 78], [106, 79], [109, 81], [81, 71], [255, 77], [58, 64], [98, 66], [241, 84],
+  [144, 88], [243, 81], [79, 63], [256, 68], [145, 64], [193, 74], [76, 81], [248, 67], [181, 62], [67, 98], [140, 68],
+  [195, 81], [47, 60], [212, 64], [209, 64], [103, 88], [241, 87], [169, 90], [281, 68], [165, 85], [50, 65], [213, 90],
+  [128, 70], [132, 77], [242, 70], [136, 88], [204, 75], [220, 61], [149, 60], [176, 67], [113, 91], [257, 60],
+  [220, 79], [41, 89],
+];
 
 // ---- Orbital: a station's hangar deck, the Earth in the window; sparks and debris float in the low gravity.
 const ORBITAL: ArenaFx = {
@@ -187,16 +199,18 @@ const ORBITAL: ArenaFx = {
         life: rnd(200, 420), size0: s, size1: s, fadeIn: 0.3, c0: [0.7, 0.8, 1, 0.55], c1: [0.6, 0.7, 1, 0],
       });
     });
-    // ... and stars twinkling through the window.
-    emit(0.06, dt, () => {
-      const s = rnd(1.2, 2.2);
-      ps.spawn({ kind: ParticleKind.FLARE, x: rnd(35, 285), y: rnd(55, 110), life: rnd(10, 22), size0: s, size1: s * 0.4, c0: [0.85, 0.9, 1, 0.9], c1: [0.6, 0.7, 1, 0] });
+    // ... and the painting's stars twinkling through the window.
+    emit(0.1, dt, () => {
+      const [x, y] = ORBITAL_STARS[Math.floor(Math.random() * ORBITAL_STARS.length)];
+      const s = rnd(1, 2);
+      ps.spawn({ kind: ParticleKind.FLARE, x, y, life: rnd(10, 22), size0: s, size1: s * 0.4, c0: [0.85, 0.9, 1, 0.9], c1: [0.6, 0.7, 1, 0] });
     });
   },
 };
 
 // ---- Ice Cave: snow blowing in through the cave mouth, frost mist on the ice, crystals sparkling, the aurora's glow.
-const CRYSTALS: readonly (readonly [number, number])[] = [[49, 144], [271, 144], [8, 122], [312, 122]];
+/** The painting's glowing ice pillars: x, top, bottom. */
+const CRYSTALS: readonly (readonly [number, number, number])[] = [[87, 50, 148], [139, 114, 148], [237, 66, 148]];
 const ICE_CAVE: ArenaFx = {
   dust: [0.82, 0.9, 0.97],
   barrier: [0.5, 1, 0.82],
@@ -205,10 +219,10 @@ const ICE_CAVE: ArenaFx = {
     // The aurora's shimmer on the robots.
     const a = 0.75 + 0.25 * Math.sin(t * 0.021) * Math.sin(t * 0.013 + 1);
     out.push({ x: 160, y: -30, radius: 300, r: 0.05 * a, g: 0.2 * a, b: 0.14 * a, objectsOnly: true });
-    // The crystals' glow, breathing slowly.
-    CRYSTALS.forEach(([x, y], i) => {
+    // The pillars' glow, breathing slowly.
+    CRYSTALS.forEach(([x, top, bottom], i) => {
       const k = 0.7 + 0.3 * Math.sin(t * 0.04 + i * 1.9);
-      out.push({ x, y, radius: 70, r: 0.04 * k, g: 0.2 * k, b: 0.28 * k, objectsOnly: false });
+      out.push({ x, y: (top + bottom) / 2, radius: 30 + (bottom - top) * 0.6, r: 0.04 * k, g: 0.2 * k, b: 0.28 * k, objectsOnly: false });
     });
   },
   haze: [],
@@ -229,16 +243,25 @@ const ICE_CAVE: ArenaFx = {
         life: rnd(160, 260), size0: rnd(8, 14), size1: rnd(18, 28), fadeIn: 0.35, c0: [0.75, 0.88, 1, 0.12], c1: [0.7, 0.85, 1, 0],
       });
     });
-    // Sparkles on the crystals.
-    emit(0.12, dt, () => {
-      const [x, y] = CRYSTALS[Math.floor(Math.random() * CRYSTALS.length)];
-      const s = rnd(1, 2);
-      ps.spawn({ kind: ParticleKind.FLARE, x: x + rnd(-10, 10), y: y + rnd(-22, 4), life: rnd(8, 14), size0: s, size1: 0.3, c0: [0.8, 1, 1, 1], c1: [0.4, 0.8, 1, 0] });
+    // Sparkles running over the pillars.
+    emit(0.16, dt, () => {
+      const [x, top, bottom] = CRYSTALS[Math.floor(Math.random() * CRYSTALS.length)];
+      const s = rnd(1.5, 2.6);
+      ps.spawn({ kind: ParticleKind.FLARE, x: x + rnd(-3, 3), y: rnd(top + 2, bottom - 2), life: rnd(8, 14), size0: s, size1: 0.3, c0: [0.8, 1, 1, 1], c1: [0.4, 0.8, 1, 0] });
     });
   },
 };
 
 // ---- Rooftop: rain and its splashes on the wet roof, the neon sign flickering, lightning over the city.
+/** The painting's red beacons on the towers and the antenna mast. */
+const BEACONS: readonly (readonly [number, number])[] = [
+  [184, 3], [238, 32], [359, 38], [338, 38], [332, 40], [314, 42], [303, 46], [68, 47], [236, 56], [191, 76],
+];
+/** A beacon's blink: its period in ticks and how far into it (0..1) it is at time `t`. */
+function beaconPhase(t: number, i: number): { period: number; ph: number } {
+  const period = 64 + (i % 4) * 7;
+  return { period, ph: ((t + i * 37) % period) / period };
+}
 const ROOFTOP: ArenaFx = {
   dust: [0.45, 0.5, 0.62],
   barrier: [1, 0.36, 0.82],
@@ -251,10 +274,23 @@ const ROOFTOP: ArenaFx = {
     out.push({ x: 317, y: 91, radius: 90, r: 0.2 * on, g: 0.03 * on, b: 0.16 * on, objectsOnly: false });
     // A cyan lamp over the roof on the left.
     out.push({ x: 12, y: 57, radius: 190, r: 0.05, g: 0.22, b: 0.28, objectsOnly: true });
+    // The beacons blinking, each tower on its own beat.
+    BEACONS.forEach(([x, y], i) => {
+      const { ph } = beaconPhase(t, i);
+      const k = ph < 0.3 ? Math.sin((ph / 0.3) * Math.PI) : 0;
+      if (k > 0.02) out.push({ x, y, radius: 10, r: 0.85 * k, g: 0.1 * k, b: 0.08 * k, objectsOnly: false });
+    });
   },
   haze: [],
   shafts: [],
-  ambient(ps, dt) {
+  ambient(ps, dt, t) {
+    // A glint as each beacon flashes.
+    BEACONS.forEach(([x, y], i) => {
+      const { period, ph } = beaconPhase(t, i);
+      if (ph * period < dt) {
+        ps.spawn({ kind: ParticleKind.FLARE, x, y, life: 14, size0: 1.6, size1: 0.6, c0: [1, 0.35, 0.3, 0.95], c1: [1, 0.1, 0.05, 0] });
+      }
+    });
     // Rain streaks...
     emit(5, dt, () => {
       const vx = rnd(1.1, 1.6), vy = rnd(7.5, 9.5);
@@ -294,6 +330,11 @@ const ROOFTOP: ArenaFx = {
 };
 
 // ---- Abyss: bubbles rising, marine snow, caustics dancing over the floor, the water's gentle distortion.
+/** The painting's lamps on the dome's ribs and at their feet. */
+const LAMPS: readonly (readonly [number, number])[] = [
+  [-12, 4], [42, 25], [-65, 58], [13, 74], [1, 140], [88, 133], [232, 133], [-97, 170], [281, 25], [307, 74], [318, 139],
+  [336, 4], [385, 58], [417, 168],
+];
 const ABYSS: ArenaFx = {
   dust: [0.32, 0.46, 0.5],
   barrier: [0.26, 0.9, 1],
@@ -307,6 +348,12 @@ const ABYSS: ArenaFx = {
       out.push({ x, y, radius: 55, r: 0.05 * k, g: 0.2 * k, b: 0.2 * k, objectsOnly: false });
     }
     out.push({ x: 160, y: -60, radius: 300, r: 0.03, g: 0.12, b: 0.15, objectsOnly: true });
+    // The dome's lamps, their glow shimmering with the water; an old one stutters now and then.
+    LAMPS.forEach(([x, y], i) => {
+      let k = 0.85 + 0.15 * Math.sin(t * 0.05 + i * 2.3);
+      if (i === 9 && flicker(t * 0.7, 5.1) > 0.78) k *= flicker(t * 6.1, 1.3) > 0.5 ? 1 : 0.2;
+      out.push({ x, y, radius: 12, r: 0.3 * k, g: 0.24 * k, b: 0.1 * k, objectsOnly: false });
+    });
   },
   haze: [{ x0: -80, y0: 0, x1: 400, y1: 200, strength: 0.28 }],
   shafts: [{ x: 160, y: 8, strength: 0.3 }],
