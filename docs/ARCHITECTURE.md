@@ -243,15 +243,23 @@ own file formats, so the engine runs them like the originals.
   palette entries.
 - **Custom tournaments** (`game/tournament/custom.ts`): a `TournamentFile` derived from an installed one, registered
   with `resources.registerTournament` so the tournament list and saved characters find it.
-- **Presentation**: the announcer (`audio/announcer.ts`, lines made by `tools/make-announcer.py`), the victory screen
+- **Presentation**: the announcers (`audio/announcer.ts`, a male and a female voice, lines made by
+  `tools/make-announcer.py`; while one is on, the arena's announcements play without the original game's voice), the
+  victory screen
   (`scenes/victory.ts`, a scene on the VS backdrop between the fight and what follows it) and the fight camera
   (`video/camera.ts`; the HD renderer zooms the finished world image before the overlay is drawn).
-- **Remaster credits** (`game/credits/`): EXTRAS › CREDITS opens a page of the help overlay (input, pause) that shows
-  itself in HTML over the game (`creditsView.ts`: the titles, CSS effects, a canvas backdrop with stars, nebula, neon
-  grid and sparks, auto-scrolling). The credits' song plays through `AudioSystem.playTrack` (a media element at the
-  music volume, with an analyser: the equalizers, the grid and horizon follow the low end, sparks fly on the beats;
-  END.PSM when it cannot be played). Pages that cover the screen (`Page.opaque`) stop the game's
-  rendering while open (`HelpOverlay.coversScreen`); `Page.onClose` removes their HTML. Dev: `?credits=n`.
+- **Remaster credits** (`game/credits/`): EXTRAS › CREDITS runs the credits as fights (`battles.ts`: every credit, its
+  robot, colors, opponent, arena and seed). `creditsRun.ts` goes from fight to fight through `GameState.credits`, the
+  hooks the arena asks: the fight is set up as its arena opens (`CREDITS_RULES`: both robots the computer's at
+  ULTIMATE, HYPER mode, SPEED 7, a single round, POWER tilted toward the credit; the seeds), so it plays out the same
+  every time and the credit wins (`test/creditsBattles.test.ts` plays them all; `gen/dev/creditsSeeds.test.ts` picks the
+  seeds for quick fights and reports their finishing moves); the round starts late and a won fight lingers
+  (`readyTick`, `endTicks`); the arena's end hands over to `fightOver`. `creditsView.ts` is the HTML over the game: the
+  title and the end titles over a canvas backdrop (`backdrop.ts`: stars, nebula, neon grid, sparks), the VS card and
+  the credit's card, which follow the arena's state and ticks. The credits' song plays through `AudioSystem.playTrack`
+  (a media element at the music volume, with an analyser for the equalizer and the backdrop; END.PSM when it cannot be
+  played). While the titles cover the screen the game is paused and not drawn. Dev: `?credits=n` (the n-th fight;
+  8: the end titles).
 - **HTML over the game**: notices (`platform/toast.ts`), achievement banners (`platform/achievementBanner.ts`, queued,
   from `records.unlock`) and the loading screen (`index.html`, `bootStatus` in `main.ts`) use the remaster's typeface
   (`platform/uiFont.ts`). Screenshots: PRINT SCREEN (key release; F12 in the desktop app) renders a frame and saves the

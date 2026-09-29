@@ -38,9 +38,10 @@
 </p>
 
 <p align="center">
-  <sub>A minute of the whole remaster: the painted main menu, the five arenas, the four new robots and arenas, the
-  training lab, replays, the robot workshop and the manual, cut to Hadal Static's <i>Twenty Ninety-Seven (Remix)</i>
-  (turn the sound on). <a href="docs/media/trailer.mp4">Watch it in 1080p60</a>.</sub>
+  <sub>Every feature in 90 seconds, cut to the bars of the original main menu theme (played by this port's music
+  engine) with a voice-over by the new male announcer: the classic look and the HD one, every arena, the new robots and
+  arenas, the training lab, replays, the workshop, the modes, the controls, the announcers and the manual (turn the
+  sound on). <a href="docs/media/trailer.mp4">Watch it in 1080p60</a>.</sub>
 </p>
 
 <br>
@@ -308,16 +309,23 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
 - **Main menu** (remastered graphics): the robot on its stage is a parallax scene of painted layers under a slowly
   drifting camera that leans toward the mouse, lit live like the original: the spotlight sweeps over the robot and the
   tower's top, its beam hangs in the haze, searchlights cross the sky and cameras flash in the crowd.
-- **Announcer**: a synthesized robot voice calls the rounds, "Fight!", knockouts, perfects, scraps and destructions,
-  and the winners. The lines are plain MP3 files in [`public/audio/announcer`](public/audio/announcer): replace any of
-  them with your own recording.
+- **Two announcers**: a male and a female voice (**Configuration › Audio › Announcer**) call the rounds, "Fight!",
+  knockouts, perfects, scraps and destructions, and the winners: Victor, deep and ominous, and Kristen, icy and
+  commanding (voices from the [ElevenLabs](https://elevenlabs.io) library, performed with Eleven v4 and directed line
+  by line). While one of them speaks, the original game's own announcer ("Ready", "Round", "Fight") stays quiet; turn
+  the announcer off to hear it again. The lines are plain MP3 files in
+  [`public/audio/announcer`](public/audio/announcer) (one folder per voice): replace any of them with your own recording.
 - **Victory screens**: after one and two player fights, the winner's portrait and robot with a line of theirs and
   the fight in numbers (rounds, time, hits, accuracy, best combo, perfects and finishers).
 - **Fight camera** (optional, remastered graphics): the view comes closer when the robots are close and follows the
   fight, while the HUD stays put.
-- **Remaster credits** (Extras › Credits): the people and projects behind the remaster as animated end titles over a
-  starfield and a neon grid, to [*Twenty Ninety-Seven (Remix)*](https://www.hadalstatic.com/releases/twenty-ninety-seven/)
-  by Hadal Static, a song about *One Must Fall 2097*: the grid, the horizon and the sparks move to the music.
+- **Remaster credits** (Extras › Credits): the credits are fought out. Every credit pilots one of the original robots
+  in its own colors (Claude's coral and cream, OpenAI's black, white and green...) and wins a quick, brutal fight in one
+  of the original arenas against something the remaster had to beat: tech debt, spaghetti code, pixel noise, dead air,
+  silence, a black box and time itself. The computer fights both sides at ULTIMATE in HYPER mode, and every fight ends
+  with a SCRAP or a DESTRUCTION. Each opens on a VS card and ends on the winner's card, then come the end titles, all to
+  [*Twenty Ninety-Seven (Remix)*](https://www.hadalstatic.com/releases/twenty-ninety-seven/) by Hadal Static, a song about
+  *One Must Fall 2097*. ENTER skips ahead, ESC goes back.
 - **Achievements** announce themselves with a banner the moment they are earned.
 - **The game manual**: a [32-page PDF booklet](docs/manual/OMF-2097-Remastered-Manual.pdf) in the style of the
   1990s (see [above](#manual)); the F1 help's pointers to the DOS-era manual now lead to it.
@@ -331,8 +339,8 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
 </p>
 
 <p align="center">
-  <img src="docs/media/credits-hero.jpg" alt="The remaster's credits: the chrome 2097 title over a starfield and a neon grid" width="49%">
-  <img src="docs/media/credits.jpg" alt="The remaster's credits: the human coder, the AI coder and the AI image rendering" width="49%">
+  <img src="docs/media/credits-hero.jpg" alt="The credits' fights: Claude Opus 5.5 against Spaghetti Code, on a VS card over the arena" width="49%">
+  <img src="docs/media/credits.jpg" alt="The credits' fights: the human coder's winning card as the Jaguar lifts Tech Debt for the finish" width="49%">
 </p>
 
 #### And also
@@ -514,8 +522,8 @@ flowchart LR
 - **[OpenOMF](https://github.com/omf2097/openomf)** (MIT license): the open-source reimplementation whose reverse
   engineering this port follows.
 - **Hyllian's xBR-lv2 shader** (MIT license): adapted for the remastered sprite reconstruction.
-- **[eSpeak NG](https://github.com/espeak-ng/espeak-ng)** (GPL-3.0) and **FFmpeg** (LGPL/GPL): used as tools to make the
-  announcer's voice lines; neither is part of the game.
+- **The announcers' voices**: made with [ElevenLabs](https://elevenlabs.io) Eleven v4 text to speech (the voices Victor
+  and Kristen from its voice library) and finished with **FFmpeg** (LGPL/GPL, used as a tool, not part of the game).
 - **[Tauri](https://tauri.app)** (MIT / Apache-2.0): the desktop app. Built with Vite, TypeScript and Vitest.
 - **[Orbitron](https://github.com/theleagueof/orbitron)** by Matt McInerney and The League of Moveable Type
   ([SIL Open Font License 1.1](public/fonts/Orbitron-OFL.txt)): the remastered text.

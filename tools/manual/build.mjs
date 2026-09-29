@@ -193,7 +193,7 @@ page('The year 2097', `
     <li><b>Replays</b> of every fight, saved as video or animated GIF clips.</li>
     <li><b>Arcade, survival and time attack</b> modes, records and 20 achievements.</li>
     <li><b>A robot workshop</b> to build your own HARs, and <b>custom tournaments</b>.</li>
-    <li>Gamepads with rumble, a modern keyboard layout, touch controls, one-button specials, your own music, a robot announcer.</li>
+    <li>Gamepads with rumble, a modern keyboard layout, touch controls, one-button specials, your own music, two announcers (a male and a female voice).</li>
   </ul>
   <div class="dark">
     <h3>A word from the remaster team</h3>
@@ -252,7 +252,7 @@ page('The main menu', `
     <tr><td><b>Two player game</b></td><td>Two pilots, one keyboard (or pads). The loser buys the pizza.</td></tr>
     <tr><td><b>Tournament play</b></td><td>The career: create a pilot, win prize money, upgrade your robot, climb the circuit (page 23).</td></tr>
     <tr><td><b>Training</b></td><td>The training lab: a dummy to practice on, with frame data and combo trials (page 26).</td></tr>
-    <tr><td><b>Configuration</b></td><td>Language, controls for both players, video and audio options, rumble, touch controls.</td></tr>
+    <tr><td><b>Configuration</b></td><td>Language, controls for both players, video and audio options (the announcer's voice too), rumble, touch controls.</td></tr>
     <tr><td><b>Gameplay</b></td><td>Game speed, the number of rounds, the computer's skill, advanced rules, the new robots and arenas.</td></tr>
     <tr><td><b>Extras</b></td><td>Replays, arcade, survival and time attack, records, the robot workshop, custom tournaments and the credits.</td></tr>
     <tr><td><b>Help</b></td><td>The game's help pages (also ${key('F1')}, anywhere).</td></tr>
@@ -664,10 +664,11 @@ page('Credits', `
     <tr><td><b>AI coder</b></td><td>Claude Opus 5.5 (Max Mode)</td></tr>
     <tr><td><b>AI image rendering</b></td><td>OpenAI GPT6-ASTRA (Ultra Mode)</td></tr>
     <tr><td><b>Credits theme</b></td><td><i>Twenty Ninety-Seven (Remix)</i> by Hadal Static</td></tr>
+    <tr><td><b>Announcers</b></td><td>Victor and Kristen, from the ElevenLabs voice library</td></tr>
   </table>
   <h2>Built with</h2>
   <p class="small">The reverse engineering of the <b>OpenOMF</b> project; <b>Orbitron</b> by Matt McInerney and The League
-  of Moveable Type; Hyllian's <b>xBR</b> shader; <b>eSpeak NG</b> and <b>FFmpeg</b> for the announcer; <b>Tauri</b>,
+  of Moveable Type; Hyllian's <b>xBR</b> shader; <b>ElevenLabs</b> for the announcers' voices, <b>FFmpeg</b>; <b>Tauri</b>,
   <b>Vite</b>, <b>TypeScript</b> and <b>Vitest</b>. The full list is in the game: <b>Extras &rsaquo; Credits</b>.</p>
   <div class="warn" style="margin-top:8pt">
     <h3>NEVER PAY FOR THIS GAME</h3>
@@ -678,7 +679,8 @@ page('Credits', `
   </div>
   <p class="center small" style="margin-top:8pt"><i>github.com/Jared-woodruff/OMF-2097-Remastered</i></p>
   <figure style="margin-top:6pt"><img src="${img('shot-credits.jpg')}" style="height:1.55in; object-fit:cover; object-position:center 42%">
-  <figcaption><b>EXTRAS &rsaquo; CREDITS</b> &nbsp;The remaster's own credits, to Hadal Static's <i>Twenty Ninety-Seven (Remix)</i>.</figcaption></figure>
+  <figcaption><b>EXTRAS &rsaquo; CREDITS</b> &nbsp;The remaster's credits are fought out: every credit pilots a robot in its own
+  colors and wins a quick, brutal fight, to Hadal Static's <i>Twenty Ninety-Seven (Remix)</i>.</figcaption></figure>
 `);
 
 // 32. Back cover.
@@ -766,5 +768,14 @@ await send('IO.close', { handle: pdf.result.stream });
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, Buffer.concat(chunks));
 ws.close();
-edge.kill();
+// Close the browser itself (the process we started may already have handed over to another one), then make sure.
+try {
+  const { webSocketDebuggerUrl } = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
+  const bws = new WebSocket(webSocketDebuggerUrl);
+  await new Promise((res, rej) => { bws.onopen = res; bws.onerror = rej; });
+  bws.send(JSON.stringify({ id: 1, method: 'Browser.close' }));
+  await sleep(800);
+} catch {}
+if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(edge.pid), '/T', '/F'], { stdio: 'ignore' });
+else edge.kill();
 console.log(`manual: ${path.relative(ROOT, OUT)} (${Math.round(fs.statSync(OUT).size / 1024)} KB)`);

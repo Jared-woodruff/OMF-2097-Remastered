@@ -126,7 +126,9 @@ def main():
         'shot-orbital': 'orbital_0170', 'shot-icecave': 'icecave_0150', 'shot-rooftop': 'rooftop_0170', 'shot-abyss': 'abyss_0180',
         'shot-classic': 'wipe_c_0120', 'shot-remastered': 'wipe_0120', 'shot-menu': 'menulive_0120', 'shot-select': 'select_0120',
         'shot-vs': 'selectvs_0060', 'shot-training': 'training_0120', 'shot-replays': 'replays_0080', 'shot-replay': 'replayplay_0100',
-        'shot-workshop': 'workshop_0027', 'shot-menus': 'menus_0200', 'shot-credits': 'credits2_0060',
+        'shot-workshop': 'workshop_0027', 'shot-menus': 'menus_0200',
+        # (the fought credits, from .captures/stills2: the scratchpad's rec/stills2.mjs)
+        'shot-credits': '../stills2/credits_won2',
     }
     for name, frame in shots.items():
         p = os.path.join(CAPS, frame + '.jpg')
