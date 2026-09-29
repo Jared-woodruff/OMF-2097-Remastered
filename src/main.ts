@@ -48,7 +48,7 @@ import { WorkshopPage, type WorkshopHost } from './game/workshop/workshopPage';
 import { buildWorkshopInBackground, ensureWorkshopRobot, harIdOf, isWorkshopHar } from './game/workshop/registry';
 import { hasFighter } from './resources/resources';
 import { CustomTournamentsPage } from './game/tournament/customPage';
-import { RemasterCreditsPage } from './game/credits/creditsPage';
+import { CreditsRun, startCredits } from './game/credits/creditsRun';
 import { registerCustomTournaments } from './game/tournament/custom';
 import { ModeRun } from './game/modes/run';
 import { setupPlayerInput } from './game/scenes/mainmenu/menuMain';
@@ -339,8 +339,8 @@ async function main(): Promise<void> {
       renderer.backdrop = menuBackdrop();
       renderer.camera = camera.update(gs, performance.now(), settings().gameplay.fightCamera && renderer.options.mode === 'remastered');
       if (renderer.options.mode === 'remastered' && hdAssets.enabled) genArt.pump(4);
-      // (a page covering the screen: nothing of the game shows)
-      if (!help.coversScreen()) renderer.render();
+      // (a page or the credits' titles covering the screen: nothing of the game shows)
+      if (!help.coversScreen() && !(gs.credits instanceof CreditsRun && gs.credits.coversScreen())) renderer.render();
       clips.frame();
     },
   });
@@ -524,7 +524,7 @@ async function main(): Promise<void> {
   };
   buildWorkshopInBackground();
   app.showTournaments = () => help.open(new CustomTournamentsPage());
-  app.showCredits = () => help.open(new RemasterCreditsPage(!isDesktop));
+  app.showCredits = () => startCredits(gs, { links: !isDesktop });
   registerCustomTournaments();
   app.showRecords = () => help.open(new RecordsPage(() => Math.trunc(8 + MS_PER_OMF_TICK_SLOWEST - ((settings().gameplay.speed + 5) / 15) * MS_PER_OMF_TICK_SLOWEST)));
   const clips = new ClipExporter({
@@ -611,8 +611,8 @@ async function main(): Promise<void> {
 
   boot.style.display = 'none';
   engine.start();
-  // Development: ?credits opens the remaster's credits (=n: at the n-th card or section).
-  if (import.meta.env.DEV && params.has('credits')) help.open(new RemasterCreditsPage(!isDesktop, Number(params.get('credits')) || 0));
+  // Development: ?credits starts the remaster's credits (=n: at the n-th fight; past the last: the end titles).
+  if (import.meta.env.DEV && params.has('credits')) startCredits(gs, { links: !isDesktop, start: Number(params.get('credits')) || 0 });
 
   // Debug hooks for automated testing (also usable from the dev console).
   (window as unknown as { __omf: unknown }).__omf = {

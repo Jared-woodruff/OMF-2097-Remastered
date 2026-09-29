@@ -40,6 +40,7 @@ export class MainMenuScene extends Scene {
     gs.training = false;
     gs.modeRun = null;
     gs.modeLabel = null;
+    gs.credits = null;
     const player1 = gs.getPlayer(0);
     // Back from a tournament: drop the tournament character and start with a fresh pilot.
     if (player1.chr) {

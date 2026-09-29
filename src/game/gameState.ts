@@ -189,6 +189,8 @@ export class GameState {
   victoryStats: VictoryStats | null = null;
   /** Arcade, survival or time attack under way (see modes/run.ts). */
   modeRun: import('./modes/run').ModeRun | null = null;
+  /** The credits' fights under way (EXTRAS > CREDITS, see credits/creditsRun.ts). */
+  credits: import('./credits/creditsRun').CreditsHooks | null = null;
   sc!: Scene;
   objects: RenderObj[] = [];
   players: [GamePlayer, GamePlayer];

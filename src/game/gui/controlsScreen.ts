@@ -95,7 +95,56 @@ const ACTIONS: [keyof KeyBindings, string][] = [
 const KB_UNIT = 12;
 const KB_X = 22;
 const KB_Y = 38;
-const S = 4;
+/** Painter pixels per native pixel (sharp at 1440p; the classic renderer samples them down). */
+const S = 8;
+/** Where a label's glyphs sit in the small font: the visible center is this far below the drawing position. */
+const GLYPH_MID_Y = 2.95;
+
+/** A key's face (the top of the cap, above its thicker front edge), in native pixels from the key's corner. */
+function keyFace(cap: KeyCap): { x: number; y: number; w: number; h: number; cx: number; cy: number } {
+  const w = cap.w * KB_UNIT - 1, h = cap.h * KB_UNIT - 1;
+  const face = { x: 0.75, y: 0.5, w: w - 1.5, h: h - 2.25 };
+  return { ...face, cx: face.x + face.w / 2, cy: face.y + face.h / 2 };
+}
+
+// ---- Controller (native pixels, from the image's corner) --------------------------------------------------------------
+
+const PAD_X = 14;
+const PAD_Y = 42;
+const PAD_W = 150;
+const PAD_H = 100;
+/** An Xbox controller's outline, clockwise from the top middle (smoothed). */
+const PAD_BODY: [number, number][] = (() => {
+  const right: [number, number][] = [[96, 15.5], [116, 16.5], [131, 20], [140, 27], [145, 38], [147.5, 52], [148, 66], [146.5, 80],
+    [142, 92], [134, 98], [124, 98.5], [116, 93], [110, 83], [103, 72], [92, 66.5]];
+  const left = right.map(([x, y]) => [150 - x, y] as [number, number]).reverse();
+  return [[75, 15.5], ...right, [75, 65], ...left];
+})();
+/** The lighter band along the top of the body. */
+const PAD_BEVEL: [number, number][] = [[75, 18], [115, 19], [131, 23], [139.5, 31], [135, 38], [110, 39.5], [75, 40], [40, 39.5], [15, 38],
+  [10.5, 31], [19, 23], [35, 19]];
+const PAD = {
+  leftStick: [33, 37] as [number, number],
+  rightStick: [95, 55] as [number, number],
+  dpad: [55, 55] as [number, number],
+  view: [64.5, 37] as [number, number],
+  menu: [85.5, 37] as [number, number],
+  share: [75, 46] as [number, number],
+  guide: [75, 27] as [number, number],
+  /** The face buttons: name, center. */
+  face: [['Y', 117, 27.7], ['X', 107.7, 37], ['B', 126.3, 37], ['A', 117, 46.3]] as [string, number, number][],
+  /** Centers of the visible parts of the bumpers and the triggers (their labels). */
+  bumpers: [[37, 12.5], [113, 12.5]] as [number, number][],
+  triggers: [[37, 5], [113, 5]] as [number, number][],
+};
+
+/** An arrow (numpad notation: 6 right, 9 up and right...) as a polygon around (0, 0), in native pixels. */
+function arrowPoints(dir: string): [number, number][] {
+  const angle = { '6': 0, '9': -45, '8': -90, '7': -135, '4': 180, '1': 135, '2': 90, '3': 45 }[dir] ?? 0;
+  const shape: [number, number][] = [[-3.1, -0.95], [0.15, -0.95], [0.15, -2.75], [3.2, 0], [0.15, 2.75], [0.15, 0.95], [-3.1, 0.95]];
+  const a = (angle * Math.PI) / 180, c = Math.cos(a), sn = Math.sin(a);
+  return shape.map(([x, y]) => [x * c - y * sn, x * sn + y * c]);
+}
 
 // ---- Screen ------------------------------------------------------------------------------------------------------------
 
@@ -129,9 +178,10 @@ export class ControlsMenu extends Menu {
     return v;
   }
 
-  private drawCentered(key: string, str: string, cx: number, y: number, font = FontSize.SMALL, color = C.white): void {
-    const t = this.t(key, str, font, color);
-    t.draw(Math.round(cx - t.width() / 2), y);
+  private drawCentered(key: string, str: string, cx: number, y: number, font = FontSize.SMALL, color = C.white, shadow = true): void {
+    const t = this.t(key, str, font, color, shadow);
+    // (the glyphs' advance includes a column of space after the last one)
+    t.draw(Math.round(cx - (t.width() - 1) / 2), y);
   }
 
   // ---- keyboard page ----
@@ -150,13 +200,18 @@ export class ControlsMenu extends Menu {
     const w = 23 * KB_UNIT, h = 5 * KB_UNIT;
     const p = new Painter(w * S, h * S);
     for (const cap of this.caps) {
-      const x = cap.x * KB_UNIT * S, y = cap.row * KB_UNIT * S;
-      const cw = cap.w * KB_UNIT * S - S, ch = cap.h * KB_UNIT * S - S;
+      const x = cap.x * KB_UNIT, y = cap.row * KB_UNIT;
+      const f = keyFace(cap);
       const use = this.keyboardUses.get(cap.code);
-      p.roundRect(x, y, cw, ch, 2.5 * S, C.keyEdge);
-      p.roundRect(x + S * 0.75, y + S * 0.5, cw - S * 1.5, ch - S * 1.75, 2 * S,
-        use ? (use.player === 0 ? C.keyP1 : C.keyP2) : C.keyFace);
-      if (!use) p.roundRect(x + S * 1.5, y + S * 1.0, cw - S * 3, S * 1.5, S, C.keyTop);
+      p.roundRect(x * S, y * S, (cap.w * KB_UNIT - 1) * S, (cap.h * KB_UNIT - 1) * S, 2.5 * S, C.keyEdge);
+      p.roundRect((x + f.x) * S, (y + f.y) * S, f.w * S, f.h * S, 2 * S, use ? (use.player === 0 ? C.keyP1 : C.keyP2) : C.keyFace);
+      if (!use) p.roundRect((x + f.x + 0.75) * S, (y + f.y + 0.5) * S, (f.w - 1.5) * S, 1.25 * S, 0.6 * S, C.keyTop);
+      // A direction's arrow, with a soft drop shadow, in the middle of the face.
+      if (use && /^[1-9]$/.test(use.icon)) {
+        const at = (dx: number, dy: number) => arrowPoints(use.icon).map(([ax, ay]) => [(x + f.cx + ax + dx) * S, (y + f.cy + ay + dy) * S] as [number, number]);
+        p.polygon(at(0.4, 0.5), C.shadow);
+        p.polygon(at(0, 0), C.white);
+      }
     }
     this.keyboard = p.toSurface('controls/keyboard');
     this.keyboard.renderW = w;
@@ -167,18 +222,15 @@ export class ControlsMenu extends Menu {
     this.buildKeyboard();
     video.drawSize(this.keyboard!, KB_X, KB_Y, this.keyboard!.renderW, this.keyboard!.renderH);
     for (const cap of this.caps) {
-      const x = KB_X + cap.x * KB_UNIT, y = KB_Y + cap.row * KB_UNIT;
-      const cx = x + (cap.w * KB_UNIT - 1) / 2, cy = y + (cap.h * KB_UNIT - 1) / 2;
+      const f = keyFace(cap);
+      const cx = KB_X + cap.x * KB_UNIT + f.cx, y = Math.round(KB_Y + cap.row * KB_UNIT + f.cy - GLYPH_MID_Y);
       const use = this.keyboardUses.get(cap.code);
-      if (use) {
-        if (use.icon === 'P' || use.icon === 'K' || use.icon === 'S') {
-          const color = use.icon === 'P' ? C.punch : use.icon === 'K' ? C.kick : C.special;
-          this.drawCentered('kb', use.icon, cx, Math.round(cy - 3), FontSize.SMALL, color);
-        } else {
-          drawDir(use.icon, Math.round(cx - 3.5), Math.round(cy - 3.5), C.white, C.shadow);
-        }
-      } else if (cap.label) {
-        this.drawCentered('kb', cap.label, cx, Math.round(cy - 3), FontSize.SMALL, C.dim);
+      // (the arrows are part of the keyboard's image)
+      if (use && (use.icon === 'P' || use.icon === 'K' || use.icon === 'S')) {
+        const color = use.icon === 'P' ? C.punch : use.icon === 'K' ? C.kick : C.special;
+        this.drawCentered('kb', use.icon, cx, y, FontSize.SMALL, color);
+      } else if (!use && cap.label) {
+        this.drawCentered('kbl', cap.label, cx, y, FontSize.SMALL, C.dim, false);
       }
     }
     // Legend: what each player's keys do.
@@ -215,74 +267,69 @@ export class ControlsMenu extends Menu {
     const layout = getPadLayout();
     if (this.controller && this.controllerLayout === layout) return;
     this.controllerLayout = layout;
-    const W = 150, H = 100;
-    const p = new Painter(W * S, H * S);
-    const body = (grow: number, color: number) => {
-      p.roundRect(90 - grow, 44 - grow, 420 + 2 * grow, 180 + 2 * grow, 72 + grow, color);
-      p.capsule(165, 170, 100, 330, 70 + grow, color);
-      p.capsule(435, 170, 500, 330, 70 + grow, color);
+    const p = new Painter(PAD_W * S, PAD_H * S);
+    // (all in native pixels)
+    const rr = (x: number, y: number, w: number, h: number, r: number, c: number) => p.roundRect(x * S, y * S, w * S, h * S, r * S, c);
+    const circle = (x: number, y: number, r: number, c: number) => p.circle(x * S, y * S, r * S, c);
+    const shape = (pts: [number, number][], c: number) => p.smoothShape(pts.map(([x, y]) => [x * S, y * S] as [number, number]), c);
+    // Triggers behind the bumpers, the bumpers along the top edge.
+    for (const [x] of PAD.triggers) {
+      rr(x - 13, 1, 26, 15, 5, C.outline);
+      rr(x - 12, 2, 24, 14, 4.2, C.stick);
+    }
+    for (const [x] of PAD.bumpers) {
+      rr(x - 21, 9, 42, 11, 5.5, C.outline);
+      rr(x - 20, 10, 40, 9.5, 4.8, C.bodyDark);
+    }
+    // The body, outlined, with a lighter bevel along its top.
+    shape(PAD_BODY, C.body);
+    p.outline([C.body], C.outline, Math.round(0.9 * S));
+    shape(PAD_BEVEL, C.bodyLight);
+    // Sticks, the d-pad, the middle buttons and the guide button.
+    const stick = ([x, y]: [number, number]) => {
+      circle(x, y, 10.5, C.outline);
+      circle(x, y, 9.6, C.stickDark);
+      circle(x, y, 7, C.stick);
+      p.ring(x * S, y * S, 7 * S, 0.9 * S, C.grey);
     };
-    // Triggers and bumpers behind the body.
-    p.roundRect(142, 0, 76, 34, 14, C.outline);
-    p.roundRect(146, 4, 68, 30, 11, C.stick);
-    p.roundRect(382, 0, 76, 34, 14, C.outline);
-    p.roundRect(386, 4, 68, 30, 11, C.stick);
-    p.roundRect(112, 28, 130, 36, 16, C.outline);
-    p.roundRect(116, 32, 122, 30, 13, C.bodyDark);
-    p.roundRect(358, 28, 130, 36, 16, C.outline);
-    p.roundRect(362, 32, 122, 30, 13, C.bodyDark);
-    body(6, C.outline);
-    body(0, C.body);
-    // A lighter upper face.
-    p.roundRect(118, 56, 364, 96, 60, C.bodyLight);
-    p.roundRect(118, 84, 364, 120, 60, C.body);
-    // Sticks, d-pad, middle buttons.
-    const stick = (x: number, y: number) => {
-      p.circle(x, y, 46, C.outline);
-      p.circle(x, y, 42, C.stickDark);
-      p.circle(x, y, 32, C.stick);
-      p.ring(x, y, 32, 4, C.grey);
-    };
-    stick(190, 118);
-    stick(388, 214);
-    p.circle(238, 214, 46, C.outline);
-    p.circle(238, 214, 42, C.stickDark);
-    p.roundRect(226, 180, 24, 68, 6, C.stick);
-    p.roundRect(204, 202, 68, 24, 6, C.stick);
-    p.circle(262, 122, 13, C.outline);
-    p.circle(262, 122, 10, C.stick);
-    p.circle(338, 122, 13, C.outline);
-    p.circle(338, 122, 10, C.stick);
-    p.circle(300, 78, 22, C.outline);
-    p.circle(300, 78, 18, C.lightGrey);
-    // Face buttons, ringed in the color of their action.
+    stick(PAD.leftStick);
+    stick(PAD.rightStick);
+    const [dx, dy] = PAD.dpad;
+    circle(dx, dy, 10.5, C.outline);
+    circle(dx, dy, 9.6, C.stickDark);
+    rr(dx - 2.7, dy - 8, 5.4, 16, 1.2, C.stick);
+    rr(dx - 8, dy - 2.7, 16, 5.4, 1.2, C.stick);
+    for (const [x, y] of [PAD.view, PAD.menu]) {
+      circle(x, y, 3.3, C.outline);
+      circle(x, y, 2.5, C.stick);
+    }
+    rr(PAD.share[0] - 2.6, PAD.share[1] - 1.5, 5.2, 3, 1.4, C.stick);
+    circle(PAD.guide[0], PAD.guide[1], 6, C.outline);
+    circle(PAD.guide[0], PAD.guide[1], 5.1, C.lightGrey);
+    // Face buttons, ringed in the color of their action (their letters are drawn over them).
     const modern = layout === 'modern';
     const role = (btn: string) => (modern ? (btn === 'X' || btn === 'Y' ? 'P' : 'K') : (btn === 'A' || btn === 'X' ? 'P' : 'K'));
-    const face: [string, number, number, number][] = [['Y', 420, 88, C.y], ['X', 378, 130, C.x], ['B', 462, 130, C.b], ['A', 420, 172, C.a]];
-    for (const [btn, x, y, color] of face) {
-      p.circle(x, y, 27, role(btn) === 'P' ? C.punch : C.kick);
-      p.circle(x, y, 22, C.outline);
-      p.circle(x, y, 19, color);
+    for (const [btn, x, y] of PAD.face) {
+      circle(x, y, 5.8, role(btn) === 'P' ? C.punch : C.kick);
+      circle(x, y, 4.8, C.outline);
+      circle(x, y, 4.2, C.stickDark);
     }
     this.controller = p.toSurface('controls/controller');
-    this.controller.renderW = W;
-    this.controller.renderH = H;
+    this.controller.renderW = PAD_W;
+    this.controller.renderH = PAD_H;
   }
 
   private renderControllerPage(): void {
     this.buildController();
-    const ox = 14, oy = 42;
-    video.drawSize(this.controller!, ox, oy, 150, 100);
-    // Button letters, and the shoulder buttons' names.
-    const letter = (s: string, x: number, y: number) => this.drawCentered('btn', s, ox + x / S, Math.round(oy + y / S - 3), FontSize.SMALL, C.white);
-    letter('Y', 420, 88);
-    letter('X', 378, 130);
-    letter('B', 462, 130);
-    letter('A', 420, 172);
-    letter('LB', 177, 50);
-    letter('RB', 423, 50);
-    this.drawCentered('btn', 'LT', ox + 180 / S, oy - 8, FontSize.SMALL, C.lightGrey);
-    this.drawCentered('btn', 'RT', ox + 420 / S, oy - 8, FontSize.SMALL, C.lightGrey);
+    const ox = PAD_X, oy = PAD_Y;
+    video.drawSize(this.controller!, ox, oy, PAD_W, PAD_H);
+    // The face buttons' letters in their colors, the shoulder buttons' names on them.
+    const label = (s: string, x: number, y: number, color: number) =>
+      this.drawCentered('btn', s, ox + x, Math.round(oy + y - GLYPH_MID_Y), FontSize.SMALL, color);
+    const colors: Record<string, number> = { A: C.a, B: C.b, X: C.x, Y: C.y };
+    for (const [btn, x, y] of PAD.face) label(btn, x, y, colors[btn]);
+    PAD.bumpers.forEach(([x, y], i) => label(i ? 'RB' : 'LB', x, y, C.lightGrey));
+    PAD.triggers.forEach(([x, y], i) => label(i ? 'RT' : 'LT', x, y, C.lightGrey));
     const modern = getPadLayout() === 'modern';
     const rows: [string, string, number][] = [
       ['MOVE', 'D-PAD / LEFT STICK', C.lightGrey],

@@ -58,23 +58,49 @@ export class Painter {
     });
   }
 
-  /** A convex or concave polygon (even-odd rule). */
+  /** A convex or concave polygon (even-odd rule), filled row by row (fast for large shapes with many points). */
   polygon(points: [number, number][], color: number): void {
-    const xs = points.map((p) => p[0]), ys = points.map((p) => p[1]);
-    this.fill(Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys), color, (px, py) => {
-      let inside = false;
+    const ys = points.map((p) => p[1]);
+    const y0 = Math.max(0, Math.floor(Math.min(...ys))), y1 = Math.min(this.h, Math.ceil(Math.max(...ys)));
+    const xs: number[] = [];
+    for (let y = y0; y < y1; y++) {
+      const py = y + 0.5;
+      xs.length = 0;
       for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
         const [xi, yi] = points[i], [xj, yj] = points[j];
-        if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
+        if (yi > py !== yj > py) xs.push(((xj - xi) * (py - yi)) / (yj - yi) + xi);
       }
-      return inside;
-    });
+      xs.sort((a, b) => a - b);
+      for (let k = 0; k + 1 < xs.length; k += 2) {
+        // (pixels whose centers are inside the span)
+        const a = Math.max(0, Math.ceil(xs[k] - 0.5)), b = Math.min(this.w, Math.ceil(xs[k + 1] - 0.5));
+        this.data.fill(color, y * this.w + a, y * this.w + Math.max(a, b));
+      }
+    }
+  }
+
+  /** A closed smooth shape through the given points (a Catmull-Rom curve, `steps` points per segment). */
+  smoothShape(points: [number, number][], color: number, steps = 12): void {
+    const n = points.length;
+    const out: [number, number][] = [];
+    for (let i = 0; i < n; i++) {
+      const p0 = points[(i - 1 + n) % n], p1 = points[i], p2 = points[(i + 1) % n], p3 = points[(i + 2) % n];
+      for (let s = 0; s < steps; s++) {
+        const t = s / steps, t2 = t * t, t3 = t2 * t;
+        const f = (a: number, b: number, c: number, d: number) =>
+          0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+        out.push([f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])]);
+      }
+    }
+    this.polygon(out, color);
   }
 
   /** Replaces `from` with `to` where the pixel is within `width` pixels of a different color (an inner outline). */
   outline(from: number[], to: number, width: number): void {
     const src = this.data.slice();
-    const inSet = (x: number, y: number) => x >= 0 && y >= 0 && x < this.w && y < this.h && from.includes(src[y * this.w + x]);
+    const isFrom = new Uint8Array(256);
+    for (const c of from) isFrom[c] = 1;
+    const inSet = (x: number, y: number) => x >= 0 && y >= 0 && x < this.w && y < this.h && isFrom[src[y * this.w + x]] === 1;
     for (let y = 0; y < this.h; y++) {
       for (let x = 0; x < this.w; x++) {
         if (!inSet(x, y)) continue;

@@ -57,6 +57,8 @@ const HAR2_START_POS = 210;
 const ARENA_CROSSFADE_TICKS = 30;
 const WALL_SLAM_TOLERANCE_DEFAULT = 7;
 const WALL_SLAM_TOLERANCE_POWERPLANT = 5;
+/** A sound translation table that plays nothing. */
+const SILENT_TABLE = new Uint8Array(32);
 
 const enum WinState {
   NONE = 0,
@@ -109,6 +111,8 @@ export class ArenaScene extends Scene implements ArenaLike {
 
   constructor(gs: GameState, id: SceneId) {
     super(gs, id);
+    // The credits' fights are set up as their arena opens (the same fight every time).
+    gs.credits?.setupFight();
     this.training = gs.training;
     const bk = this.bk;
     // memset(fight_stats, 0): this also clears a pending tournament challenger
@@ -116,7 +120,8 @@ export class ArenaScene extends Scene implements ArenaLike {
     gs.fightStats.arena = id - SceneId.ARENA0;
     const music: Record<number, string> = { 8: 'ARENA0.PSM', 16: 'ARENA1.PSM', 32: 'ARENA2.PSM', 64: 'ARENA3.PSM', 128: 'ARENA4.PSM' };
     for (const a of GEN_ARENAS) music[a.fileId] = a.music;
-    if (music[bk.fileId]) gs.playMusic(music[bk.fileId]);
+    // (the credits play their song)
+    if (music[bk.fileId] && !gs.credits) gs.playMusic(music[bk.fileId]);
     this.rounds = [1, 3, 5, 7][gs.matchSettings.rounds] ?? 1;
     let palIndex = 0;
     // A replay uses the recorded palette (the desert's time of day in tournaments).
@@ -183,7 +188,7 @@ export class ArenaScene extends Scene implements ArenaLike {
     for (let i = 0; i < 2; i++) {
       const p = gs.getPlayer(i);
       this.playerName.push(hudText(p.pilot.name, 0xe7, 0xf8, 155, 5));
-      this.playerHar.push(hudText(langGet(p.pilot.harId + 31), 0xe7, 0xf8, 155, 5));
+      this.playerHar.push(hudText(gs.credits?.hudLine(i) ?? langGet(p.pilot.harId + 31), 0xe7, 0xf8, 155, 5));
     }
     this.playerName[1].setHAlign(HAlign.RIGHT);
     this.playerHar[1].setHAlign(HAlign.RIGHT);
@@ -270,7 +275,9 @@ export class ArenaScene extends Scene implements ArenaLike {
     const info = bkGetInfo(this.bk, animId);
     if (!info) return null;
     const obj = new GameObject(this.gs, info.ani.startX, info.ani.startY);
-    obj.soundTranslationTable = this.bk.soundTranslationTable;
+    // The announcements (READY, ROUND, the number, FIGHT, YOU WIN, YOU LOSE) each say their word in the original game's
+    // voice; while the remaster's announcer speaks, they are silent (the two would talk over each other).
+    obj.soundTranslationTable = settings().sound.announcer === 'off' ? this.bk.soundTranslationTable : SILENT_TABLE;
     obj.setAnimation(info.ani);
     if (onFinish) obj.onFinish = onFinish;
     obj.hudLayer = true;
@@ -372,6 +379,11 @@ export class ArenaScene extends Scene implements ArenaLike {
     // A replay stops at the end of the fight (no results, no next screen).
     if (gs.replay) {
       gs.replay.finish();
+      return;
+    }
+    // The credits go on to their next fight (or their end titles).
+    if (gs.credits) {
+      gs.credits.fightOver();
       return;
     }
     const fs = gs.fightStats;
@@ -804,7 +816,9 @@ export class ArenaScene extends Scene implements ArenaLike {
     gs.fightStats.winner = winnerId;
     gs.announce(wh.health >= wh.healthMax ? 'perfect' : 'ko');
     const score = pw.score;
-    if (gs.isDemoplay()) this.winState = WinState.YOULOSE;
+    // (the credits show the winner's card instead of "you lose")
+    if (gs.credits) this.winState = WinState.DONE;
+    else if (gs.isDemoplay()) this.winState = WinState.YOULOSE;
     else if (!gs.isSingleplayer()) this.winState = WinState.YOUWIN;
     else this.winState = loserId === 1 ? WinState.YOUWIN : WinState.YOULOSE;
     const token = gs.findObject(this.playerRounds[winnerId][score.rounds] ?? 0);
@@ -923,8 +937,10 @@ export class ArenaScene extends Scene implements ArenaLike {
     if (this.state === ARENA_STATE_FIGHTING) {
       if (gs.matchSettings.hazards) this.spawnHazards();
     } else if (this.state === ARENA_STATE_STARTING) {
-      if (this.stateTicks === ARENA_CROSSFADE_TICKS) this.createRoundstartAnim();
-      else if (this.stateTicks === 90) {
+      // (the credits' fights start later: their VS card first)
+      const ready = gs.credits?.readyTick ?? ARENA_CROSSFADE_TICKS;
+      if (this.stateTicks === ready) this.createRoundstartAnim();
+      else if (this.stateTicks === ready + 60) {
         this.state = ARENA_STATE_FIGHTING;
         this.stateTicks = 0;
       }
@@ -943,10 +959,12 @@ export class ArenaScene extends Scene implements ArenaLike {
         this.winState = WinState.NONE;
       } else if (this.winState === WinState.DONE) {
         if (objs[0].frameIsSet(Tag.BE) || objs[1].frameIsSet(Tag.BE) || s1.onscreen() || s2.onscreen() || this.harIsScrapWalking(objs[0]) || this.harIsScrapWalking(objs[1])) {
-          this.stateTicks = 50;
+          // The credits' fights are DONE from the knockout on, so their long ending only waits for a finishing move
+          // to be over (some victory poses loop on a waiting frame, which would hold it forever).
+          this.stateTicks = gs.credits ? Math.min(this.stateTicks, this.endTick() - 30) : 50;
         }
       }
-      const targetEnd = 80;
+      const targetEnd = this.endTick();
       if (this.stateTicks >= targetEnd) {
         if (this.stateTicks === targetEnd) arenaScreengrabWinner(gs);
         const progress = this.stateTicks - targetEnd;
@@ -1111,11 +1129,15 @@ export class ArenaScene extends Scene implements ArenaLike {
     // A replay's controls are polled by the static tick (they keep their pace at any playback speed).
     if (gs.replay) return;
     const menuEv: CtrlEvent[] = [];
-    // In a running fight the pads' buttons belong to the players; the Menu button pauses (and resumes).
-    gs.menuPoll(menuEv, { playerScene: !this.menuVisible, startIsEsc: true });
+    // In a running fight the pads' buttons belong to the players; the Menu button pauses (and resumes). The credits'
+    // fights are the computer's: their buttons skip ahead and go back.
+    gs.menuPoll(menuEv, { playerScene: !this.menuVisible && !gs.credits, startIsEsc: true });
     for (const e of menuEv) {
       if (e.type !== 'action') continue;
-      if (e.action === ACT_ESC && gs.isDemoplay()) {
+      if (gs.credits) {
+        // (the credits take the keyboard's presses as they come: a tap may fall between two polls)
+        if (e.source === CtrlType.GAMEPAD) gs.credits.action(e.action);
+      } else if (e.action === ACT_ESC && gs.isDemoplay()) {
         gs.setNext(SceneId.MENU);
       } else if (e.action === ACT_ESC && this.menuVisible && this.pauseMenu.back()) {
         // ESC on a page of the pause menu (the move list) goes back to the menu.
@@ -1153,10 +1175,15 @@ export class ArenaScene extends Scene implements ArenaLike {
     this.pauseMenu.open();
   }
 
+  /** When a round's end fades out (the credits' fights linger on their winner). */
+  private endTick(): number {
+    return this.gs.credits?.endTicks ?? 80;
+  }
+
   override paletteTransform(): void {
     let target: number;
     if (this.state === ARENA_STATE_STARTING) target = 0;
-    else if (this.state === ARENA_STATE_ENDING) target = 80 + ARENA_CROSSFADE_TICKS;
+    else if (this.state === ARENA_STATE_ENDING) target = this.endTick() + ARENA_CROSSFADE_TICKS;
     else return;
     if (!settings().video.crossfade) return;
     const progress = Math.abs(this.stateTicks - target);
@@ -1248,7 +1275,8 @@ export class ArenaScene extends Scene implements ArenaLike {
       p.harObjId = 0;
       p.ctrl.setRepeat(0);
     }
-    gs.stopMusic();
+    // (the music the credits play goes on from fight to fight)
+    if (!gs.credits) gs.stopMusic();
   }
 }
 

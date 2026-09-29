@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { SceneId } from '../game/constants';
+import { GROUP_ANNOUNCEMENT, SceneId } from '../game/constants';
+import { settings } from '../game/settings';
 import { setKeyState } from '../controller/input';
 import { harData } from '../game/objects/har';
 import { createGame, hasGameData, HeadlessRunner } from './harness';
@@ -43,5 +44,24 @@ describe.skipIf(!hasGameData)('arena (headless)', () => {
     run.advance(100);
     expect(sc.menuVisible).toBe(false);
     expect(gs.paused).toBe(false);
+  });
+
+  it("keeps the original announcer's voice quiet while the remaster's announcer speaks", () => {
+    const heard = (announcer: 'off' | 'male') => {
+      settings().sound.announcer = announcer;
+      const gs = createGame(SceneId.MENU);
+      gs.swapScene(SceneId.ARENA0);
+      new HeadlessRunner(gs).advance(1200);
+      const ready = gs.objects.map((r) => r.obj).filter((o) => o.group === GROUP_ANNOUNCEMENT);
+      expect(ready.length).toBeGreaterThan(0);
+      // (the READY animation's sound: its word, in the original game's voice)
+      return ready.map((o) => o.soundTranslationTable![14]);
+    };
+    try {
+      expect(heard('off').every((s) => s > 0)).toBe(true);
+      expect(heard('male').every((s) => s === 0)).toBe(true);
+    } finally {
+      settings().sound.announcer = 'male';
+    }
   });
 });

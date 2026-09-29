@@ -40,7 +40,8 @@ export function menuMoreCreate(s: MainMenuScene): Menu {
     false, () => app.showWorkshop()));
   menu.attach(new Button('TOURNAMENTS', 'Make your own tournaments from the installed ones, with the new robots if you like, ' +
     'and play them from TOURNAMENT PLAY.', false, false, () => app.showTournaments()));
-  menu.attach(new Button('CREDITS', 'The people and projects behind the remaster.', false, false, () => app.showCredits()));
+  menu.attach(new Button('CREDITS', 'The people and projects behind the remaster, fought out: every credit pilots a robot in ' +
+    'its own colors and wins its fight.', false, false, () => app.showCredits()));
   menu.attach(new Button('DONE', 'Go back to the main menu.', false, false, menuDone));
   return menu;
 }
