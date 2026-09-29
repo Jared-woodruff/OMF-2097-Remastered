@@ -1,11 +1,13 @@
 // GPU passes of the remastered effects: particles, light buffers, the object mask blur, the world post pass and
 // light shafts (see hd/fxShaders.ts and src/fx/director.ts).
 import { PARTICLE_FLOATS, type FxFrame, type FxLight } from '../fx/types';
-import { FX_LIGHT_FS, FX_LIGHT_VS, FX_PARTICLE_FS, FX_PARTICLE_VS, FX_SHAFTS_FS, FX_WORLD_FS } from '../hd/fxShaders';
+import { FX_BARRIER_FS, FX_LIGHT_FS, FX_LIGHT_VS, FX_PARTICLE_FS, FX_PARTICLE_VS, FX_SHAFTS_FS, FX_WORLD_FS } from '../hd/fxShaders';
 import { HD_BLUR_FS, HD_DOWN_FS } from '../hd/shaders';
 import { createTexture, FULLSCREEN_VS, Program, RenderTarget } from './glutil';
 
 const LIGHT_FLOATS = 8;
+/** Native y the fighting area's edges stand on: the robots' feet (ARENA_FLOOR), their emitters just below. */
+const BARRIER_FLOOR = 191;
 const MAX_LIGHTS = 64;
 
 /** Where native coordinates land in a target: target pixel = native * scale + offset (top-down). */
@@ -21,6 +23,9 @@ export class FxPasses {
   private lightProg: Program;
   private worldProg: Program;
   private shaftsProg: Program;
+  private barrierProg: Program;
+  private barrierSpots = new Float32Array(8 * 4);
+  private barrierRipples = new Float32Array(8);
   private downProg: Program;
   private blurProg: Program;
   private particleVao: WebGLVertexArrayObject;
@@ -43,6 +48,7 @@ export class FxPasses {
     this.lightProg = new Program(gl, FX_LIGHT_VS, FX_LIGHT_FS, 'fxLights');
     this.worldProg = new Program(gl, FULLSCREEN_VS, FX_WORLD_FS, 'fxWorld');
     this.shaftsProg = new Program(gl, FULLSCREEN_VS, FX_SHAFTS_FS, 'fxShafts');
+    this.barrierProg = new Program(gl, FULLSCREEN_VS, FX_BARRIER_FS, 'fxBarrier');
     this.downProg = new Program(gl, FULLSCREEN_VS, HD_DOWN_FS, 'fxDown');
     this.blurProg = new Program(gl, FULLSCREEN_VS, HD_BLUR_FS, 'fxBlur');
     this.floatLights = !!gl.getExtension('EXT_color_buffer_float');
@@ -105,6 +111,43 @@ export class FxPasses {
     gl.blendEquation(gl.FUNC_ADD);
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, n);
+    gl.disable(gl.BLEND);
+    gl.bindVertexArray(null);
+  }
+
+  /**
+   * Adds the fighting area's edges (see FxBarrier) onto the bound target (w x h pixels); `fade` (0..1): how much of
+   * the view lies past them (none in the 4:3 view, where they are the screen's edges).
+   */
+  drawBarrier(fx: FxFrame, view: FxView, w: number, h: number, fade: number): void {
+    const b = fx.barrier;
+    const level = b.level * fade;
+    if (level <= 0.01) return;
+    const gl = this.gl;
+    const n = Math.min(8, b.spots.length);
+    for (let i = 0; i < n; i++) {
+      const s = b.spots[i];
+      this.barrierSpots.set([s.side, s.y, s.h, s.glow * fade], i * 4);
+      this.barrierRipples[i] = s.ripple;
+    }
+    const p = this.barrierProg;
+    p.use();
+    p.f2('u_targetSize', w, h);
+    p.f2('u_scale', view.sx, view.sy);
+    p.f2('u_offset', view.ox, view.oy);
+    p.f('u_time', fx.time);
+    gl.uniform3f(p.loc('u_color'), b.r, b.g, b.b);
+    p.f('u_level', level);
+    p.f2('u_x', b.left, b.right);
+    p.f('u_floor', BARRIER_FLOOR);
+    gl.uniform4fv(p.loc('u_spot'), this.barrierSpots);
+    gl.uniform1fv(p.loc('u_ripple'), this.barrierRipples);
+    p.i('u_spotCount', n);
+    gl.enable(gl.BLEND);
+    gl.blendEquation(gl.FUNC_ADD);
+    gl.blendFunc(gl.ONE, gl.ONE);
+    gl.bindVertexArray(this.emptyVao);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
     gl.disable(gl.BLEND);
     gl.bindVertexArray(null);
   }

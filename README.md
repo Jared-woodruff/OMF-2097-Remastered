@@ -229,6 +229,10 @@ Remastered fights get a layer of modern effects, driven by what actually happens
 | **Impact FX** | Shockwaves on heavy hits, and the knockout camera with flash and chromatic aberration. |
 | **Atmosphere** | Embers and heat haze, blowing sand, drifting dust, floodlight glow and camera flashes in the crowd; in the new arenas snow, frost mist, aurora light, rain and splashes, lightning, neon flicker, bubbles and caustics. |
 
+In widescreen the arena's painting reaches past the fighting area, whose edges are those of the original screen: they
+show as faint energy curtains in the arena's light, which glow where a robot is held against them and flare and ripple
+when one is slammed into them.
+
 > [!NOTE]
 > The effects are purely cosmetic. They never touch the game state or its random number generators, so a fight
 > plays out exactly the same with them on or off, and a test checks that. Each group can be switched off in

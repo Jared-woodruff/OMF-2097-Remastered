@@ -16,6 +16,8 @@ export interface ArenaCtx {
 export interface ArenaFx {
   /** Floor dust color (landings, slams). */
   dust: readonly [number, number, number];
+  /** Color of the energy curtains at the fighting area's edges (see FxBarrier), in the arena's light. */
+  barrier: readonly [number, number, number];
   /** Gravity of sparks and debris (1 = normal; the orbital station floats them). */
   gravity?: number;
   /** Weather events (lightning...) for `dt` ticks at time `t`. */
@@ -53,6 +55,7 @@ export function flicker(t: number, seed: number): number {
 // ---- Stadium: floodlights over a steel cage, glossy blue floor, a crowd behind the mesh.
 const STADIUM: ArenaFx = {
   dust: [0.55, 0.6, 0.75],
+  barrier: [0.62, 0.84, 1],
   rim: { x: 160, y: -140, r: 0.5, g: 0.58, b: 0.72, ambR: 1, ambG: 1, ambB: 1 },
   envLights() {},
   haze: [],
@@ -72,6 +75,7 @@ const STADIUM: ArenaFx = {
 // ---- Danger Room: a dark brick corridor under a night sky.
 const DANGER_ROOM: ArenaFx = {
   dust: [0.5, 0.46, 0.42],
+  barrier: [0.72, 0.56, 1],
   rim: { x: 170, y: -80, r: 0.34, g: 0.45, b: 0.78, ambR: 0.9, ambG: 0.92, ambB: 1 },
   envLights() {},
   haze: [],
@@ -91,6 +95,7 @@ const DANGER_ROOM: ArenaFx = {
 // ---- Power Plant: blue steel structures and electric fences under a night sky.
 const POWER_PLANT: ArenaFx = {
   dust: [0.68, 0.7, 0.76],
+  barrier: [0.42, 0.72, 1],
   rim: { x: 160, y: -100, r: 0.4, g: 0.55, b: 0.85, ambR: 0.95, ambG: 0.97, ambB: 1 },
   envLights() {},
   haze: [],
@@ -103,6 +108,7 @@ const POWER_PLANT: ArenaFx = {
 const TORCHES: readonly (readonly [number, number])[] = [[41, 58], [113, 74], [203, 74], [276, 58]];
 const FIRE_PIT: ArenaFx = {
   dust: [0.36, 0.3, 0.27],
+  barrier: [1, 0.5, 0.18],
   rim: { x: 160, y: 260, r: 0.95, g: 0.45, b: 0.15, ambR: 1, ambG: 0.95, ambB: 0.9 },
   envLights(t, out) {
     const f = 0.85 + 0.3 * (flicker(t, 0.3) - 0.5);
@@ -137,6 +143,7 @@ const FIRE_PIT: ArenaFx = {
 // ---- Desert: sunset over the dunes.
 const DESERT: ArenaFx = {
   dust: [0.86, 0.72, 0.5],
+  barrier: [1, 0.7, 0.34],
   rim: { x: 157, y: 91, r: 1.35, g: 0.78, b: 0.36, ambR: 1.03, ambG: 0.96, ambB: 0.88 },
   envLights() {},
   haze: [
@@ -160,6 +167,7 @@ const DESERT: ArenaFx = {
 // ---- Orbital: a station's hangar deck, the Earth in the window; sparks and debris float in the low gravity.
 const ORBITAL: ArenaFx = {
   dust: [0.55, 0.6, 0.7],
+  barrier: [0.38, 0.86, 1],
   gravity: 0.35,
   rim: { x: 170, y: 70, r: 0.35, g: 0.55, b: 0.95, ambR: 0.95, ambG: 0.97, ambB: 1.03 },
   envLights(t, out) {
@@ -191,6 +199,7 @@ const ORBITAL: ArenaFx = {
 const CRYSTALS: readonly (readonly [number, number])[] = [[49, 144], [271, 144], [8, 122], [312, 122]];
 const ICE_CAVE: ArenaFx = {
   dust: [0.82, 0.9, 0.97],
+  barrier: [0.5, 1, 0.82],
   rim: { x: 160, y: -60, r: 0.3, g: 0.75, b: 0.62, ambR: 0.95, ambG: 1, ambB: 1.06 },
   envLights(t, out) {
     // The aurora's shimmer on the robots.
@@ -232,6 +241,7 @@ const ICE_CAVE: ArenaFx = {
 // ---- Rooftop: rain and its splashes on the wet roof, the neon sign flickering, lightning over the city.
 const ROOFTOP: ArenaFx = {
   dust: [0.45, 0.5, 0.62],
+  barrier: [1, 0.36, 0.82],
   rim: { x: 330, y: 90, r: 0.9, g: 0.25, b: 0.75, ambR: 0.93, ambG: 0.92, ambB: 1.04 },
   envLights(t, out) {
     // The sign's magenta, with the odd dropout of an old neon tube.
@@ -286,6 +296,7 @@ const ROOFTOP: ArenaFx = {
 // ---- Abyss: bubbles rising, marine snow, caustics dancing over the floor, the water's gentle distortion.
 const ABYSS: ArenaFx = {
   dust: [0.32, 0.46, 0.5],
+  barrier: [0.26, 0.9, 1],
   rim: { x: 160, y: -80, r: 0.25, g: 0.7, b: 0.8, ambR: 0.9, ambG: 1, ambB: 1.06 },
   envLights(t, out) {
     // Caustics: bright patches drifting over the floor and the robots.

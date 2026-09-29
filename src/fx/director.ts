@@ -1,7 +1,7 @@
 // Remastered effects director: turns the fight's effect events (src/game/fx.ts) into particles, lights and camera
 // effects, adds each arena's ambience, and lights the scene from glowing objects (projectiles, fire, hazards). It only
 // reads the game state; everything it produces is cosmetic and drawn by the remastered renderer.
-import { GROUP_HAZARD, GROUP_PROJECTILE, GROUP_SCRAP, SceneId } from '../game/constants';
+import { ARENA_LEFT_WALL, ARENA_RIGHT_WALL, GROUP_HAZARD, GROUP_PROJECTILE, GROUP_SCRAP, SceneId } from '../game/constants';
 import { FxType, onFx, type FxEvent } from '../game/fx';
 import type { GameState } from '../game/gameState';
 import { isHar } from '../game/objects/har';
@@ -72,6 +72,9 @@ export class FxDirector {
   private desat = 0;
   private shake = 0;
   private zoom: { x: number; y: number; age: number } | null = null;
+  /** The fighting area's edges: each robot's glow where it is held against one, and the ripples of slams. */
+  private wallContact = [{ side: 1, y: 0, h: 0, glow: 0 }, { side: 1, y: 0, h: 0, glow: 0 }];
+  private ripples: { side: number; y: number; age: number; life: number; strength: number }[] = [];
   private dispose: () => void;
   /** The remaster robots' special move effects. */
   private robots = new RobotFx();
@@ -147,6 +150,7 @@ export class FxDirector {
     } else {
       f.rim = null;
     }
+    this.barrierFrame(gs, cfg, dt, v.fxLighting);
 
     // Camera and screen effects.
     const decay = (x: number, ticks: number) => x * Math.exp(-dt / ticks);
@@ -206,6 +210,46 @@ export class FxDirector {
     this.frame.particleCount = 0;
     this.frame.lights.length = 0;
     this.frame.shockwaves.length = 0;
+    for (const c of this.wallContact) c.glow = 0;
+    this.ripples = [];
+    this.frame.barrier.level = 0;
+    this.frame.barrier.spots.length = 0;
+  }
+
+  /**
+   * The fighting area's edges (see FxBarrier): faint curtains at the classic screen's edges, where the robots are
+   * held, glowing where one is pressed against them (and lighting it) and rippling from slams.
+   */
+  private barrierFrame(gs: GameState, cfg: ArenaFx, dt: number, lighting: boolean): void {
+    const b = this.frame.barrier;
+    b.left = ARENA_LEFT_WALL - 20;
+    b.right = ARENA_RIGHT_WALL + 20;
+    b.level = 1;
+    [b.r, b.g, b.b] = cfg.barrier;
+    b.spots.length = 0;
+    this.wallContact.forEach((c, i) => {
+      const o = gs.findObject(gs.getPlayer(i).harObjId);
+      let target = 0;
+      if (o && isHar(o) && (o.posX <= ARENA_LEFT_WALL + 0.5 || o.posX >= ARENA_RIGHT_WALL - 0.5)) {
+        const r = o.renderBounds();
+        c.side = o.posX < 160 ? -1 : 1;
+        c.y = r ? r.y + r.h * 0.5 : o.posY - 45;
+        c.h = r ? Math.max(16, r.h * 0.4) : 36;
+        target = 0.5;
+      }
+      c.glow += (target - c.glow) * (1 - Math.exp(-dt / (target > c.glow ? 2.5 : 9)));
+      if (c.glow < 0.01) return;
+      b.spots.push({ side: c.side, y: c.y, h: c.h, glow: c.glow, ripple: -1 });
+      if (lighting) {
+        const k = 0.5 * c.glow;
+        this.frame.lights.push({ x: c.side < 0 ? b.left : b.right, y: c.y, radius: 44, r: b.r * k, g: b.g * k, b: b.b * k, objectsOnly: true });
+      }
+    });
+    this.ripples = this.ripples.filter((r) => (r.age += dt) < r.life);
+    for (const r of this.ripples) {
+      const k = r.age / r.life;
+      b.spots.push({ side: r.side, y: r.y, h: 18 + 16 * k, glow: r.strength * Math.pow(1 - k, 1.4), ripple: k });
+    }
   }
 
   // ---- events ---------------------------------------------------------------------
@@ -375,6 +419,12 @@ export class FxDirector {
     this.shock(x, y, 50, 1.4, 12);
     this.shake = Math.max(this.shake, 1.2);
     if (electric) this.electric(x, y, p);
+    // The edge of the fighting area flares and ripples where the robot hit it.
+    if (this.ripples.length >= 6) this.ripples.shift();
+    const strength = clamp(0.6 + p / 60, 0.6, 1.2);
+    this.ripples.push({ side: dir, y, age: 0, life: 30, strength });
+    const [r, g, b] = cfg.barrier;
+    this.light(dir < 0 ? ARENA_LEFT_WALL - 20 : ARENA_RIGHT_WALL + 20, y, 80, r * strength, g * strength, b * strength, 16);
   }
 
   private landing(x: number, y: number, p: number, cfg: ArenaFx): void {

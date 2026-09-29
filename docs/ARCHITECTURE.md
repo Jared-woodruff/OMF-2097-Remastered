@@ -95,7 +95,9 @@ pixels in one of two ways, switchable at any time (F2, pause menu, VIDEO options
 - **Remastered effects** (fights): the fight logic reports cosmetic events (`src/game/fx.ts`: hits, blocks, slams,
   landings, knockouts). `src/fx/director.ts` turns them into particles (`src/fx/particles.ts`), lights and camera
   effects, adds each arena's ambience (`src/fx/arenas.ts`) and derives light from glowing objects (projectiles,
-  torches). The renderer (`src/video/gl/fxPasses.ts`, `hd/fxShaders.ts`) draws the world (background, robots,
+  torches). It also shows the fighting area's edges, which the widescreen view reaches past (the robots are held at
+  the classic screen's edges, `ARENA_LEFT_WALL`/`ARENA_RIGHT_WALL` ± 20): energy curtains in each arena's color
+  (`FxBarrier`, `FX_BARRIER_FS`), lit where a robot is held against them, rippling from wall slams. The renderer (`src/video/gl/fxPasses.ts`, `hd/fxShaders.ts`) draws the world (background, robots,
   particles), runs a world post pass (lighting with a robot mask and rim light, heat haze, shockwaves, zoom,
   chromatic aberration, flash), adds bloom and light shafts, and only then draws the overlay (TAG_HUD draws: HUD,
   announcements, pause menu), so the overlay is never distorted or lit. The effects never touch game state or the

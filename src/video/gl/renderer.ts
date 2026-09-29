@@ -315,8 +315,9 @@ export class GLRenderer {
       this.worldTarget = new RenderTarget(gl, w, h, [{ internalFormat: gl.RGBA8, format: gl.RGBA, type: gl.UNSIGNED_BYTE, filter: gl.LINEAR }]);
       this.maskTarget = new RenderTarget(gl, w, h, [{ internalFormat: gl.R8, format: gl.RED, type: gl.UNSIGNED_BYTE, filter: gl.LINEAR }]);
     }
-    // Particles belong to the world: lit, distorted and zoomed with it.
+    // The fighting area's edges and the particles belong to the world: lit, distorted and zoomed with it.
     target.bind();
+    this.fxPasses.drawBarrier(fx, view, w, h, Math.min(1, vp.ext / 12));
     this.fxPasses.drawParticles(fx, view, w, h);
     let mask: WebGLTexture | null = null;
     if (fx.rim || fx.lights.length > 0) {

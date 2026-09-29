@@ -306,3 +306,64 @@ void main() {
   }
   o_color = vec4(sum, 1.0);
 }`;
+
+/**
+ * The fighting area's edges (FxBarrier): at each edge a thin energy curtain, strongest at its emitter on the floor and
+ * fading upwards, a fine shimmer rising through it; spots glow where a robot is held against it, a slam flares and
+ * sends rings running up and down it. Added onto the world image.
+ */
+export const FX_BARRIER_FS = `#version 300 es
+precision highp float;
+uniform vec2 u_targetSize;
+uniform vec2 u_scale;
+uniform vec2 u_offset;
+uniform float u_time;
+uniform vec3 u_color;
+uniform float u_level;
+uniform vec2 u_x;           // the left and right curtains (native x)
+uniform float u_floor;      // native y of the floor
+uniform vec4 u_spot[8];     // side (-1 left, 1 right), y, reach, glow
+uniform float u_ripple[8];  // 0..1 as a slam's rings spread, -1: none
+uniform int u_spotCount;
+out vec4 o_color;
+` + NOISE + `
+void main() {
+  vec2 px = vec2(gl_FragCoord.x, u_targetSize.y - gl_FragCoord.y);
+  vec2 n = (px - u_offset) / u_scale;
+  float up = u_floor - n.y;
+  if (up < -2.0) discard;
+  float h = max(up, 0.0);
+  float sum = 0.0;
+  for (int s = 0; s < 2; s++) {
+    float side = s == 0 ? -1.0 : 1.0;
+    float ad = abs(n.x - (s == 0 ? u_x.x : u_x.y));
+    if (ad > 48.0) continue;
+    float core = exp(-ad * ad / 1.4);
+    float halo = exp(-ad / 5.0);
+    float rise = exp(-h / 95.0);
+    float shimmer = 0.62 + 0.38 * sin(h * 0.85 - u_time * 7.0 + (vnoise(vec2(h * 0.07, u_time * 0.8 + side * 5.0)) - 0.5) * 5.0);
+    float veil = exp(-ad / 16.0);
+    float v = u_level * ((0.32 * core + 0.1 * halo) * rise * shimmer + 0.045 * veil * rise + 0.8 * exp(-ad * ad / 5.0 - up * up / 2.5));
+    for (int i = 0; i < 8; i++) {
+      if (i >= u_spotCount) break;
+      vec4 sp = u_spot[i];
+      if (sp.x != side) continue;
+      float dy = n.y - sp.y;
+      float field = 1.1 * core + 0.55 * halo + 0.25 * exp(-ad / 14.0);
+      // Energy crawling over the lit part.
+      float cells = 0.55 + 0.45 * vnoise(vec2(n.y * 0.45 + u_time * 2.0, ad * 0.6 - u_time * 3.0 + side * 3.0));
+      float r = u_ripple[i];
+      float spot = sp.w * exp(-dy * dy / (sp.z * sp.z)) * field * cells;
+      if (r < 0.0) {
+        v += spot;
+      } else {
+        v += spot * (1.0 - r);
+        float ring = exp(-pow((abs(dy) - r * 95.0) / (3.0 + 5.0 * r), 2.0));
+        v += sp.w * ring * (core + 0.5 * halo);
+      }
+    }
+    sum += v;
+  }
+  if (sum <= 0.001) discard;
+  o_color = vec4(u_color * sum, 0.0);
+}`;

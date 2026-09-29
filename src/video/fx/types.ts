@@ -86,9 +86,41 @@ export interface FxRimLight {
   ambB: number;
 }
 
+/** A glow on the fighting area's edge: a robot held against it, or a slam (with a ripple spreading from it). */
+export interface FxBarrierSpot {
+  /** -1: the left edge, 1: the right edge. */
+  side: number;
+  /** Center height (native y) and vertical reach (native pixels). */
+  y: number;
+  h: number;
+  /** Intensity (about 1 for a hard slam). */
+  glow: number;
+  /** The ripple spreading along the edge: 0..1 as it grows, -1 for none. */
+  ripple: number;
+}
+
+/**
+ * The fighting area's edges, where the robots are held (the classic screen's edges). The remastered widescreen view
+ * shows the arena's painting past them, so they are drawn as faint energy curtains that light up where a robot is
+ * held against them and ripple when one is slammed into them.
+ */
+export interface FxBarrier {
+  /** Native x of the left and right curtains. */
+  left: number;
+  right: number;
+  /** Idle visibility (0: hidden). */
+  level: number;
+  /** Color (added light). */
+  r: number;
+  g: number;
+  b: number;
+  spots: FxBarrierSpot[];
+}
+
 export interface FxFrame {
   /** Whether this frame gets the effects at all (remastered fights with effects enabled). */
   active: boolean;
+  barrier: FxBarrier;
   /** Effect time in seconds (animated noise). */
   time: number;
   particles: Float32Array;
@@ -115,7 +147,8 @@ export interface FxFrame {
 
 export function emptyFxFrame(): FxFrame {
   return {
-    active: false, time: 0, particles: new Float32Array(MAX_PARTICLES * PARTICLE_FLOATS), particleCount: 0, lights: [],
+    active: false, barrier: { left: 0, right: 320, level: 0, r: 0, g: 0, b: 0, spots: [] },
+    time: 0, particles: new Float32Array(MAX_PARTICLES * PARTICLE_FLOATS), particleCount: 0, lights: [],
     rim: null, shockwaves: [], haze: [], shafts: [], flash: 0, chroma: 0, zoom: 1, zoomX: 160, zoomY: 100, shakeX: 0,
     shakeY: 0, desaturate: 0,
   };
