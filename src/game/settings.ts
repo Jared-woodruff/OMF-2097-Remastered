@@ -66,8 +66,8 @@ export interface Settings {
     impactBass: boolean;
     /** Where the player's own music replaces the soundtrack: nowhere, in fights, or everywhere. */
     myMusic: 'off' | 'fights' | 'always';
-    /** The announcer's voice (audio/announcer.ts). */
-    announcer: boolean;
+    /** The announcer (audio/announcer.ts): off, or its voice. */
+    announcer: 'off' | 'male' | 'female';
   };
   gameplay: {
     speed: number; // 0..10
@@ -150,9 +150,10 @@ export interface Settings {
 /**
  * Current settings revision. 2: the new robots and arenas became opt-in; settings saved before could only hold the old
  * default (on), so loading them turns both off. 3: the remastered typeface became the default font; the smooth letters
- * saved before were the old default.
+ * saved before were the old default. 4: the announcer became a choice of voice; the on / off saved before becomes the
+ * male voice / off.
  */
-const REVISION = 3;
+const REVISION = 4;
 
 export function defaultSettings(): Settings {
   return {
@@ -174,7 +175,7 @@ export function defaultSettings(): Settings {
       fxImpact: true,
       fxAtmosphere: true,
     },
-    sound: { soundVol: 7, musicVol: 6, enhancedMusic: true, acoustics: true, impactBass: true, myMusic: 'fights', announcer: true },
+    sound: { soundVol: 7, musicVol: 6, enhancedMusic: true, acoustics: true, impactBass: true, myMusic: 'fights', announcer: 'male' },
     gameplay: { speed: 5, fightMode: 0, power1: 5, power2: 5, hazards: true, difficulty: 1, rounds: 1, extraRobots: false, extraArenas: false, saveReplays: true, victoryScreens: true, fightCamera: false },
     advanced: {
       rehitMode: false,
@@ -269,6 +270,8 @@ export function loadSettings(): Settings {
         current.gameplay.extraArenas = false;
       }
       if (!((saved?.revision ?? 0) >= 3) && current.video.hdFont === 'smooth') current.video.hdFont = 'type';
+      const announcer: unknown = current.sound.announcer;
+      if (announcer !== 'off' && announcer !== 'male' && announcer !== 'female') current.sound.announcer = announcer === false ? 'off' : 'male';
       current.revision = REVISION;
     }
   } catch {

@@ -9,6 +9,7 @@ src-tauri/gen/
 /gamedata/
 
 # Local / editor
+__pycache__/
 *.log
 .DS_Store
 Thumbs.db

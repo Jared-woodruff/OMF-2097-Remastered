@@ -5,6 +5,7 @@
 // becomes ENHANCED MUSIC (classic linear resampling like the original mixer vs. high quality interpolation). ACOUSTICS
 // and IMPACT BASS are the remaster's.
 import { audio } from '../../../audio/audio';
+import { previewAnnouncer } from '../../../audio/announcer';
 import { addTracks, clearTracks, pickAudioFiles } from '../../../audio/customMusic';
 import { Button, Label, Menu, TextSelector, TextSlider } from '../../gui/widgets';
 import { settings, type Settings } from '../../settings';
@@ -16,6 +17,7 @@ function sound(): Settings['sound'] {
 }
 
 const MY_MUSIC: Settings['sound']['myMusic'][] = ['off', 'fights', 'always'];
+const ANNOUNCERS: Settings['sound']['announcer'][] = ['off', 'male', 'female'];
 
 function libraryHelp(): string {
   const n = audio.myMusicCount;
@@ -60,8 +62,12 @@ export function menuAudioCreate(_s: MainMenuScene): Menu {
       audio.setImpactBass(pos === 1);
       settingsChanged();
     }));
-  menu.attach(new TextSelector('ANNOUNCER', 'A voice that calls the rounds, the knockouts and the winners.',
-    () => (sound().announcer ? 1 : 0), (pos) => (sound().announcer = pos === 1), ['OFF', 'ON'], settingsChanged));
+  menu.attach(new TextSelector('ANNOUNCER', 'The voice that calls the rounds, the knockouts and the winners: a man or a woman.',
+    () => Math.max(0, ANNOUNCERS.indexOf(sound().announcer)), (pos) => (sound().announcer = ANNOUNCERS[pos]), ['OFF', 'MALE', 'FEMALE'],
+    (pos) => {
+      previewAnnouncer(ANNOUNCERS[pos]);
+      settingsChanged();
+    }));
   menu.attach(new TextSelector('MY MUSIC',
     'Play your own songs instead of the original soundtrack: OFF, in FIGHTS (a new song every fight) or ALWAYS. F3 skips to another song.',
     () => Math.max(0, MY_MUSIC.indexOf(sound().myMusic)), (pos) => (sound().myMusic = MY_MUSIC[pos]), ['OFF', 'FIGHTS', 'ALWAYS'],

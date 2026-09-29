@@ -78,9 +78,11 @@ image model; imported artwork is used instead of the rendered one.
 - **Combo trials** (`src/game/training/trialData.ts`, committed): `COMBO_SEARCH=1 npx vitest run
   src/gen/dev/comboSearch.test.ts` searches every robot's combos (about 15 minutes), then `COMBO_VERIFY=1 npx vitest run
   src/gen/dev/trialVerify.test.ts` checks them against every robot and writes the file.
-- **Announcer** (`public/audio/announcer/*.mp3`, committed): `python tools/make-announcer.py` speaks the lines with
-  [eSpeak NG](https://github.com/espeak-ng/espeak-ng) (set `ESPEAK_NG` to its `espeak-ng.exe` when it is not on the
-  PATH) and processes them with ffmpeg. Any line can be replaced by a recording of the same name.
+- **Announcers** (`public/audio/announcer/male|female/*.mp3`, committed): `python tools/make-announcer.py` performs
+  the lines with [ElevenLabs](https://elevenlabs.io) Eleven v4 (set `ELEVENLABS_API_KEY` to an API key with text to
+  speech access; `--voice male`, `--takes N` or a list of lines to redo some): each line is directed with audio tags,
+  generated in a few takes, the most intense one kept, and finished with ffmpeg. The round calls are kept under 1.2 s
+  (the time before "Fight!"). Any line can be replaced by a recording of the same name.
 
 ### The game manual
 
