@@ -105,6 +105,13 @@ composition).
   speech access; `--voice male`, `--takes N` or a list of lines to redo some): each line is directed with audio tags,
   generated in a few takes, the most intense one kept, and finished with ffmpeg. The round calls are kept under 1.2 s
   (the time before "Fight!"). Any line can be replaced by a recording of the same name.
+- **Newsreader** (`public/audio/news/male|female/`, committed): `npm run news:voice` writes the recording plan
+  (`src/gen/dev/newsPlan.ts`: the news texts in their pronoun versions with stand-in names, and every name in carrier
+  sentences for the places it takes) and records it with ElevenLabs (`tools/make-news.py`, `ELEVENLABS_API_KEY`;
+  `-- --voice female`, `--only t97` for some, `--force` to redo): the speech comes with character timestamps, so the
+  texts are cut tight around the names and the names out of their carriers. Recordings already made are kept, so a run
+  resumes. `-- --engine sapi --out DIR` tries the whole chain for free with Windows' speech synthesizer.
+  `src/test/newsVoice.test.ts` checks that the plan covers every report with every name.
 
 ### The game manual
 

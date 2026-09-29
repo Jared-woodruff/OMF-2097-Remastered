@@ -2,6 +2,7 @@
 // picked by the remaining health) with fight photos, then the next opponent / ending / continue dialog, or the
 // tournament's challenger and new champion reports. Port of the reference newsroom scene.
 import { unlock } from '../records/records';
+import { newsReader, type NewsReadNames } from '../../audio/newsVoice';
 import { createAiController } from '../../controller/ai';
 import type { CtrlEvent } from '../../controller/controller';
 import type { Pilot } from '../../formats/pilot';
@@ -104,6 +105,15 @@ export function newsroomFormat(template: string, n: NewsNames): string {
   return newsroomFixupCapitalization(tmp);
 }
 
+/** The names a report is read aloud with: the ones newsroomFormat fills in. */
+export function newsReadNames(n: NewsNames): NewsReadNames {
+  return {
+    pilot1: n.pilot1, pilot2: n.pilot2,
+    robot1: pronounStrip(langGet(n.har1 + LANG_STR_HAR)), robot2: pronounStrip(langGet(n.har2 + LANG_STR_HAR)),
+    arena: arenaNewsName(n.arena ?? 0), sex1: n.sex1, sex2: n.sex2,
+  };
+}
+
 /** News text id: 0..46 (even); +1 is the second screen. Wins 0..22 by health bracket, losses 24..46. */
 export function newsroomPickNewsId(won: boolean, health: number): number {
   if (health > 75 && won) return globalRandom.int(3) * 2;
@@ -197,6 +207,7 @@ export class NewsroomScene extends Scene {
     const opp = pilotOf(p2)!;
     this.setNames(p1.pilot.name, opp.name, p1.pilot.harId, opp.harId, p1.pilot.sex, opp.sex, gs.fightStats.arena);
     this.fixupStr();
+    this.speak();
 
     this.continueDialog = new Dialog(DialogStyle.YES_NO, langGet(LANG_STR_CONTINUE), 72, 60);
     this.acceptChallengeDialog = new Dialog(DialogStyle.YES_NO, langGet(LANG_STR_ACCEPT_CHALLENGE), 72, 60);
@@ -259,6 +270,12 @@ export class NewsroomScene extends Scene {
 
   fixupStr(): void {
     this.newsStr.set(newsroomFormat(langGet(this.translationId()), this.names));
+  }
+
+  /** Has the newsreader read the report on screen (in the announcer's voice), or stop once the reports are over. */
+  private speak(): void {
+    if (this.screen <= 1 || (this.champion && this.screen === 2)) newsReader.say(this.translationId(), newsReadNames(this.names));
+    else newsReader.stop();
   }
 
   private continueDialogClicked(result: DialogResult): void {
@@ -343,6 +360,7 @@ export class NewsroomScene extends Scene {
       } else if (e.action === ACT_ESC || e.action === ACT_KICK || e.action === ACT_PUNCH) {
         this.screen++;
         this.fixupStr();
+        this.speak();
         if (this.challenger) {
           if (this.screen >= 2) this.acceptChallengeDialog.show(true);
         } else if ((this.screen >= 2 && !this.champion) || this.screen >= 3) {
@@ -395,6 +413,7 @@ export class NewsroomScene extends Scene {
   }
 
   override free(): void {
+    newsReader.stop();
     this.continueDialog.free();
     this.acceptChallengeDialog.free();
   }

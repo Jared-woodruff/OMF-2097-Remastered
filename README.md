@@ -319,6 +319,10 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
   by line). While one of them speaks, the original game's own announcer ("Ready", "Round", "Fight") stays quiet; turn
   the announcer off to hear it again. The lines are plain MP3 files in
   [`public/audio/announcer`](public/audio/announcer) (one folder per voice): replace any of them with your own recording.
+- **The newsreader**: after single player and tournament fights, the TV news report is read aloud in the announcer's
+  voice, every report with its pilots, robots and arena. The game assembles each reading from recordings of the
+  report's text and of the names, each name said the way its place in the sentence needs; a name you typed in
+  yourself is read as "the challenger".
 - **Victory screens**: after one and two player fights, the winner's portrait and robot with a line of theirs and
   the fight in numbers (rounds, time, hits, accuracy, best combo, perfects and finishers).
 - **Fight camera** (optional, remastered graphics): the view comes closer when the robots are close and follows the

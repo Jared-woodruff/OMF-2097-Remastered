@@ -38,6 +38,7 @@
     "menu:import": "python tools/menu-pack/import.py",
     "newart:export": "node tools/newart/run.mjs",
     "newart:import": "node tools/newart/import.mjs",
+    "news:voice": "node tools/news-voice.mjs",
     "manual": "node tools/manual/build.mjs",
     "manual:images": "python tools/manual/prepare.py"
   },

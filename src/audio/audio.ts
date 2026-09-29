@@ -98,6 +98,10 @@ export class AudioSystem {
   private myMusicMode: MyMusicMode = 'fights';
   /** A song file playing over everything (the credits' song, see playTrack), at the music volume. */
   private trackGain: GainNode | null = null;
+  /** The mixer's output (music and sounds) and the player's own music, lowered while the newsreader speaks. */
+  private mix: GainNode | null = null;
+  /** The newsreader's report being read (see playSequence). */
+  private sequence: { gain: GainNode; sources: AudioBufferSourceNode[]; timer: ReturnType<typeof setTimeout> } | null = null;
 
   constructor() {
     for (let i = 0; i < SOUND_CHANNEL_COUNT; i++) this.channels.push({ priority: 0, soundId: 0, guid: 0, endTime: 0 });
@@ -113,7 +117,9 @@ export class AudioSystem {
       this.node = new AudioWorkletNode(this.ctx, 'omf-audio', { numberOfInputs: 0, numberOfOutputs: 2, outputChannelCount: [2, 2] });
       this.out = this.ctx.createGain();
       this.out.connect(this.ctx.destination);
-      this.node.connect(this.out, 0);
+      this.mix = this.ctx.createGain();
+      this.mix.connect(this.out);
+      this.node.connect(this.mix, 0);
       this.convolver = this.ctx.createConvolver();
       this.wet = this.ctx.createGain();
       this.wet.gain.value = 0;
@@ -121,7 +127,7 @@ export class AudioSystem {
       this.convolver.connect(this.wet);
       this.wet.connect(this.out);
       this.applyRoom();
-      this.custom = new CustomMusicPlayer(this.ctx, this.musicVolume, this.out);
+      this.custom = new CustomMusicPlayer(this.ctx, this.musicVolume, this.mix);
       this.custom.onSong = (name) => this.onSong?.(name);
       void this.custom.refresh().then(() => this.refreshMusic());
       this.node.port.onmessage = (e) => {
@@ -175,6 +181,58 @@ export class AudioSystem {
     gain.connect(this.out);
     src.onended = () => gain.disconnect();
     src.start();
+  }
+
+  /**
+   * Plays decoded sounds one after the other, `lead` seconds from now, each overlapping the one before by `join`
+   * seconds (the newsreader's stitched reports: the recordings carry their own pauses and fades). The music and
+   * sounds are lowered meanwhile. Replaces the sequence playing.
+   */
+  playSequence(buffers: AudioBuffer[], volume: number, lead: number, join: number): void {
+    if (!this.ctx || !this.out || !this.mix) return;
+    this.stopSequence();
+    const ctx = this.ctx;
+    const gain = ctx.createGain();
+    gain.gain.value = Math.max(0, Math.min(1, volume));
+    gain.connect(this.out);
+    const t0 = ctx.currentTime + lead;
+    let t = t0;
+    const sources = buffers.map((b) => {
+      const src = ctx.createBufferSource();
+      src.buffer = b;
+      src.connect(gain);
+      src.start(t);
+      t += Math.max(0, b.duration - join);
+      return src;
+    });
+    this.mix.gain.cancelScheduledValues(ctx.currentTime);
+    this.mix.gain.setTargetAtTime(0.4, Math.max(ctx.currentTime, t0 - 0.2), 0.08);
+    this.mix.gain.setTargetAtTime(1, t + 0.1, 0.25);
+    const timer = setTimeout(() => {
+      if (this.sequence?.gain === gain) this.sequence = null;
+      gain.disconnect();
+    }, (t - ctx.currentTime + 1) * 1000);
+    this.sequence = { gain, sources, timer };
+  }
+
+  /** Stops the sequence playing (a short fade), and brings the music back up. */
+  stopSequence(): void {
+    const q = this.sequence;
+    if (!q || !this.ctx || !this.mix) return;
+    this.sequence = null;
+    const now = this.ctx.currentTime;
+    q.gain.gain.setTargetAtTime(0, now, 0.03);
+    for (const s of q.sources) {
+      try {
+        s.stop(now + 0.2);
+      } catch {
+        // already stopped
+      }
+    }
+    clearTimeout(q.timer);
+    setTimeout(() => q.gain.disconnect(), 400);
+    this.mix.gain.cancelScheduledValues(now);
+    this.mix.gain.setTargetAtTime(1, now, 0.2);
   }
 
   /** The game's sound as a stream, for recording a clip (null without audio); releaseCapture() ends it. */

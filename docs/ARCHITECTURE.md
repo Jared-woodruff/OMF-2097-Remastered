@@ -250,6 +250,9 @@ own file formats, so the engine runs them like the originals.
   with `resources.registerTournament` so the tournament list and saved characters find it.
 - **Presentation**: the announcers (`audio/announcer.ts`, a male and a female voice, lines made by
   `tools/make-announcer.py`; while one is on, the arena's announcements play without the original game's voice), the
+  newsreader (`audio/newsVoice.ts`: the newsroom's reports read aloud in the announcer's voice, stitched from
+  recordings of each text's fixed pieces, one per pronoun version, and of the names in their places in a sentence;
+  `audio.playSequence` plays them back to back and lowers the music meanwhile), the
   victory screen
   (`scenes/victory.ts`, a scene on the VS backdrop between the fight and what follows it) and the fight camera
   (`video/camera.ts`; the HD renderer zooms the finished world image before the overlay is drawn).
