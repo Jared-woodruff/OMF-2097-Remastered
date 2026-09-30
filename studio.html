@@ -80,6 +80,8 @@
       .status-chip.bad { color: #fff; background: #b3160f; box-shadow: 0 0 14px rgba(255, 40, 30, .35); text-shadow: 1px 1px 0 #3a0000; }
       .status-chip.bad:hover { background: #d11d15; }
       .topbar .divider { width: 1px; align-self: stretch; margin: 12px 2px; background: var(--edge); }
+      .topbar .undo-redo { display: flex; gap: 2px; }
+      .topbar .undo-redo .btn.ghost:disabled:hover { background: none; border-color: transparent; color: var(--dim); }
 
       /* Buttons: capitals in the game's face; small ones quiet */
       .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 34px; padding: 0 15px; border-radius: var(--radius);
@@ -324,7 +326,7 @@
       .pick .tiles.wide { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
       .pick .tile .pic { height: 96px; }
       .pick .tiles.wide .tile .pic { height: auto; aspect-ratio: 16 / 10; }
-      .pick .tile .label { justify-content: center; padding: 6px 8px; font-size: 10px; }
+      .pick .tile .label { justify-content: center; padding: 6px 4px; font-size: 10px; letter-spacing: .05em; }
       .pick .tile.sel { border-color: var(--green2); background: rgba(0, 36, 8, .72); box-shadow: 0 0 0 1px var(--green2), 0 0 16px rgba(0, 255, 0, .18); }
       .pick .tile.sel .label { color: var(--green); text-shadow: 1px 1px 0 var(--green-dk); }
 
@@ -386,7 +388,9 @@
       .modal h2 { margin: 0 0 14px; font: 900 17px var(--title); letter-spacing: .1em; text-transform: uppercase; color: var(--green);
                   text-shadow: 2px 2px 0 var(--green-dk); }
       .modal p { margin: 0 0 12px; }
-      .modal .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+      /* (the buttons stay in view at the bottom of a dialog taller than the window) */
+      .modal .actions { position: sticky; bottom: -20px; z-index: 2; display: flex; gap: 10px; justify-content: flex-end; margin: 18px -22px -20px;
+                        padding: 12px 22px 18px; background: linear-gradient(180deg, rgba(4, 6, 31, .7), #04061f 45%); }
       .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px;
                background: #070b33; border: 1px solid var(--edge2); border-left: 4px solid var(--green2); padding: 11px 16px 11px 13px; border-radius: 3px;
                z-index: 200; box-shadow: 0 14px 36px rgba(0, 0, 0, .6); max-width: min(80vw, 760px); animation: rise-in .18s ease-out; }
@@ -395,6 +399,45 @@
       .toast.bad .icon { color: var(--red); }
 
       /* Test fight: the game over Studio */
+      /* the test dialog: the ways to test as cards, and what the test starts with (the fight's start, like the game) */
+      .test-modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 14px 0 16px; }
+      .test-modes .choice { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; align-items: center; padding: 10px 14px; }
+      .test-modes .choice .icon { grid-row: span 2; width: 34px; height: 34px; padding: 7px; border-radius: 50%; color: var(--green2);
+                                  background: rgba(0, 40, 0, .5); border: 1px solid rgba(0, 210, 0, .35); }
+      .test-modes .choice.sel .icon { color: var(--green); border-color: var(--green2); box-shadow: 0 0 10px rgba(0, 255, 0, .25); }
+      .test-modes .choice b { margin: 0 0 2px; font-size: 12px; }
+      .test-modes .choice span:not(.icon) { font-size: 12px; line-height: 1.35; }
+      .test-modes .choice.sel::after { top: 8px; right: 10px; font-size: 13px; }
+      .test-body { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 18px; align-items: start; }
+      .test-fields { display: flex; flex-direction: column; gap: 12px; }
+      .fight-card { position: relative; aspect-ratio: 8 / 5; overflow: hidden; border: 1px solid var(--edge2); border-radius: 3px; background: #01020c;
+                    box-shadow: 0 0 0 1px #000059, 0 12px 30px rgba(0, 0, 0, .5); }
+      .fight-card > canvas { display: block; width: 100%; height: 100%; }
+      .fight-card .side { position: absolute; top: 10px; display: flex; flex-direction: column; gap: 1px; max-width: 45%;
+                          font: 800 13px var(--title); letter-spacing: .08em; text-transform: uppercase; text-shadow: 2px 2px 0 #000, 0 0 8px #000; }
+      .fight-card .side b { color: var(--yellow); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .fight-card .side span { color: #fff; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .fight-card .side.left { left: 12px; }
+      .fight-card .side.right { right: 12px; align-items: flex-end; text-align: right; }
+      .fight-card .where { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 12px 8px; text-align: center; font: 700 10.5px var(--title);
+                           letter-spacing: .16em; text-transform: uppercase; color: var(--pale); background: linear-gradient(transparent, rgba(0, 0, 0, .75)); }
+      .fight-card.portrait { display: grid; place-items: center; background-color: #04061f; background-image: var(--grid-bg); background-size: 16px 16px; }
+      .fight-card.portrait > canvas, .fight-card.portrait > img { width: auto; height: 62%; image-rendering: pixelated; }
+      .fight-card.portrait > .icon { width: 64px; height: 64px; color: #3a4aa8; }
+      .fight-card .caption { position: absolute; left: 0; right: 0; bottom: 12px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+                             font: 800 14px var(--title); letter-spacing: .1em; text-transform: uppercase; }
+      .fight-card .caption b { color: var(--yellow); text-shadow: 2px 2px 0 #000; }
+      .fight-card .caption span { color: var(--dim); font: 400 12px var(--ui); letter-spacing: 0; text-transform: none; }
+      @media (max-width: 900px) { .test-modes { grid-template-columns: repeat(2, minmax(0, 1fr)); } .test-body { grid-template-columns: minmax(0, 1fr); } }
+      /* a stat and where it stands among the original robots' (the green band: theirs) */
+      .stat .meter { position: relative; display: block; height: 6px; margin: 3px 0 1px; border-radius: 3px; background: #070b33; border: 1px solid #1b2580; }
+      .stat .meter .band { position: absolute; top: 0; bottom: 0; background: rgba(0, 210, 0, .3); border-left: 1px solid var(--green2); border-right: 1px solid var(--green2); }
+      .stat .meter .mark { position: absolute; top: -4px; width: 4px; height: 12px; margin-left: -2px; border-radius: 1px; background: var(--yellow);
+                           box-shadow: 0 0 0 1px #000, 0 0 8px rgba(255, 255, 0, .55); transition: left .12s; }
+      .btn.listen { flex: none; min-width: 84px; }
+      .btn.listen.on { color: var(--green); border-color: var(--green2); box-shadow: 0 0 10px rgba(0, 255, 0, .2); }
+      .mv-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+      .mv-label b { color: var(--gold); font-weight: 700; letter-spacing: .02em; }
       .test-back { position: fixed; inset: 0; z-index: 150; background: #000; display: grid; grid-template-rows: 44px 1fr; animation: fade-in .15s ease-out; }
       .test-back .bar { display: flex; align-items: center; gap: 12px; padding: 0 12px 0 0; background: linear-gradient(180deg, #0b1040, #060926);
                         border-bottom: 2px solid var(--edge-hi); min-width: 0; }

@@ -14,17 +14,10 @@ import { field, fill, h, modal, select, toast } from '../dom';
 import { EXTRAS_ROBOTS, extrasPackage } from '../extras';
 import { freeContentId, hdFromPackage, type RobotDoc } from '../project';
 import { blankSprite } from '../sprites';
+import { gameAf } from '../gamePictures';
+import { copyRobot } from '../history';
 import { afPicture, pictureChoice, type PictureGroup } from '../ui';
 import { newMove } from './model';
-
-/** The game's robots' fighter files, parsed for their pictures in the copy choice (kept: the dialog opens again). */
-const originals = new Map<number, AfFile>();
-
-function originalAf(harId: number): AfFile {
-  let af = originals.get(harId);
-  if (!af) originals.set(harId, (af = parseAF(getFile(`FIGHTR${harId}.AF`))));
-  return af;
-}
 
 /** Attacks that fire a projectile (they spawn a move of the projectile kind). */
 function projectileMoves(af: AfFile): number[] {
@@ -39,6 +32,9 @@ function projectileMoves(af: AfFile): number[] {
 
 type Start = 'copy' | 'workshop' | 'blank';
 
+/** The copy choice's numbers of the mod's own robots (the game's are their HAR numbers). */
+const MINE = 100;
+
 export async function newRobotDialog(app: StudioApp): Promise<RobotDoc | null> {
   let start: Start = 'workshop';
   let copyFrom = 0;
@@ -48,26 +44,21 @@ export async function newRobotDialog(app: StudioApp): Promise<RobotDoc | null> {
   const game: PictureGroup<number> = { title: 'THE GAME\'S ROBOTS', items: Array.from({ length: 11 }, (_, i) => ({
     value: i, name: harName(i).toUpperCase() || `ROBOT ${i}`, picture: null })) };
   const extras: PictureGroup<number> = { title: 'THE NEW ROBOTS', items: EXTRAS_ROBOTS.map(([n, rname]) => ({ value: n, name: rname, picture: null })) };
-  const copies = pictureChoice('robot', [game, extras], () => copyFrom, (v) => (copyFrom = v));
+  // (and the mod's own, to make a variant of one: numbered from MINE)
+  const mine: PictureGroup<number> = { title: 'THIS MOD\'S ROBOTS', items: app.project!.robots.map((r, i) => ({
+    value: MINE + i, name: r.info.name || r.id, picture: afPicture(r.af, app.colors) })) };
+  const copies = pictureChoice('robot', [mine, game, extras], () => copyFrom, (v) => (copyFrom = v));
   let pictured = false;
   const drawCopies = () => {
     if (pictured) return;
     pictured = true;
-    for (const it of game.items) {
-      try {
-        it.picture = afPicture(originalAf(it.value), app.colors);
-      } catch {
-        // (its kind's icon)
-      }
+    // (the originals at once, the new robots once their mod's package is here; a picture that fails keeps the icon)
+    for (const group of [game, extras]) {
+      void Promise.all(group.items.map(async (it) => {
+        const af = await gameAf(it.value).catch(() => null);
+        if (af) it.picture = afPicture(af, app.colors);
+      })).then(() => copies.redraw());
     }
-    copies.redraw();
-    extrasPackage().then((pkg) => {
-      for (const it of extras.items) {
-        const r = pkg.robots.find((x) => x.id === EXTRAS_ROBOTS.find(([n]) => n === it.value)?.[2]);
-        if (r) it.picture = afPicture(parseAF(r.af), app.colors);
-      }
-      copies.redraw();
-    }, () => {});
   };
   const body = h('div');
   const preview = h('div', { class: 'screen', style: { minHeight: '150px', display: 'grid', placeItems: 'center' } });
@@ -91,7 +82,7 @@ export async function newRobotDialog(app: StudioApp): Promise<RobotDoc | null> {
     fill(body,
       h('div', { class: 'choices', style: { gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: '14px' } },
         choice('workshop', 'BUILD ONE', 'Put a robot together from the remaster\'s parts: every frame is drawn from its 3D model.'),
-        choice('copy', 'COPY ONE', 'Start from one of the game\'s robots, every animation and move included.'),
+        choice('copy', 'COPY ONE', `Start from one of the game's robots${app.project!.robots.length ? " or the mod's own" : ''}, every animation and move included.`),
         choice('blank', 'START BLANK', 'A plain figure in every animation the game needs, to draw over.')),
       field('Name', (() => {
         const i = h('input', { type: 'text', value: name, maxLength: 12 });
@@ -133,6 +124,12 @@ export async function newRobotDialog(app: StudioApp): Promise<RobotDoc | null> {
         info: { name: clean, description: `Built from ${PART_NAMES[w.body]}'s frame, ${PART_NAMES[w.head]}'s head and ${PART_NAMES[w.moves]}'s moves.`,
           moves: { ...g.specialNames }, ai: structuredClone(GEN_TACTICS[g.name] ?? { projectile: [], charge: [], push: [] }), workshop: w },
       };
+    }
+    if (start === 'copy' && copyFrom >= MINE) {
+      const c = copyRobot(app.project!.robots[copyFrom - MINE]);
+      c.id = id;
+      c.info.name = clean;
+      return c;
     }
     if (start === 'copy') {
       // A new robot: its robot as its mod has it (the robot workshop's parts of one robot, their 3D model draws them),

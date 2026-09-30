@@ -23,10 +23,15 @@ import type { Editor, StudioApp } from '../app';
 import { arenaPalette, indexedCanvas, nearestEntry, referenceArena } from '../colors';
 import { field, fill, h, modal, pickFiles, select, textInput, toast } from '../dom';
 import { EXTRAS_ARENAS, extrasPackage } from '../extras';
+import { gameBk } from '../gamePictures';
+import { copyArena } from '../history';
+import { listenButton, playSong, songPlaying, stopSong } from '../music';
 import { emptyHd, freeContentId, hdFromPackage, type ArenaDoc } from '../project';
 import { bkPicture, editorHead, pictureChoice, type PictureGroup } from '../ui';
 
 const ORIGINAL_NAMES = ['STADIUM', 'DANGER ROOM', 'POWER PLANT', 'FIRE PIT', 'DESERT'];
+/** The copy choice's numbers of the mod's own arenas (the game's are their arena numbers). */
+const MINE = 100;
 const BASES: [number, string][] = [[-1, 'None'], [0, 'Stadium (light on the robots)'], [1, 'Danger Room'], [2, 'Power Plant (electric walls)'],
   [3, 'Fire Pit (its fire hazards)'], [4, 'Desert (a palette for each round)']];
 const MUSIC_NAMES: Record<string, string> = {
@@ -80,7 +85,14 @@ export function arenaEditor(app: StudioApp, arena: ArenaDoc, anim?: number): Edi
     }
   };
   show();
-  return { el, close: () => anims?.destroy() };
+  return {
+    el,
+    close: () => {
+      anims?.destroy();
+      stopSong();
+    },
+    where: () => (tab === 'anims' ? anims?.current : undefined),
+  };
 }
 
 function overview(app: StudioApp, arena: ArenaDoc, openAnim: (id: number) => void, retitle: () => void, repicture: () => void): HTMLElement {
@@ -115,7 +127,14 @@ function overview(app: StudioApp, arena: ArenaDoc, openAnim: (id: number) => voi
         })()))),
       h('div', { class: 'card' }, h('h2', null, 'SOUND AND LOOK'),
         h('div', { class: 'grid2' },
-          field('Music', select<string>(MOD_MUSIC.map((m) => [m, MUSIC_NAMES[m] ?? m]), () => info.music, (v) => ((info.music = v as typeof info.music), app.changed(false)))),
+          field('Music', h('div', { class: 'row', style: { gap: '6px', flexWrap: 'nowrap' } },
+            select<string>(MOD_MUSIC.map((m) => [m, MUSIC_NAMES[m] ?? m]), () => info.music, (v) => {
+              info.music = v as typeof info.music;
+              app.changed(false);
+              // (listening: the new song)
+              if (songPlaying()) void playSong(v);
+            }),
+            listenButton(() => info.music))),
           field('Ambience', select<string>(MOD_AMBIENCE.map((m) => [m, m === 'none' ? 'None' : m.replace(/\b\w/g, (c) => c.toUpperCase())]), () => info.ambience,
             (v) => ((info.ambience = v as typeof info.ambience), app.changed(false))), 'remastered effects and echo'),
           field('Behaves like', select<number>(BASES, () => info.base, (v) => ((info.base = v), app.changed(false))), 'an original arena\'s built-in rules')))),
@@ -273,26 +292,21 @@ export async function newArenaDialog(app: StudioApp): Promise<ArenaDoc | null> {
   // What a copy starts from: the game's arenas, and the new arenas (their pictures once their mod's package is here).
   const game: PictureGroup<number> = { title: 'THE GAME\'S ARENAS', items: ORIGINAL_NAMES.map((n, i) => ({ value: i, name: n, picture: null })) };
   const extras: PictureGroup<number> = { title: 'THE NEW ARENAS', items: EXTRAS_ARENAS.map(([n, aname]) => ({ value: n, name: aname, picture: null })) };
-  const sources = pictureChoice('arena', [game, extras], () => from, (v) => (from = v));
+  // (and the mod's own, to make a variant of one: numbered from MINE)
+  const mine: PictureGroup<number> = { title: 'THIS MOD\'S ARENAS', items: app.project!.arenas.map((a, i) => ({
+    value: MINE + i, name: a.info.name || a.id, picture: bkPicture(a.bk) })) };
+  const sources = pictureChoice('arena', [mine, game, extras], () => from, (v) => (from = v));
   let pictured = false;
   const drawSources = () => {
     if (pictured) return;
     pictured = true;
-    for (const it of game.items) {
-      try {
-        it.picture = bkPicture(parseBK(getFile(`ARENA${it.value}.BK`)));
-      } catch {
-        // (its kind's icon)
-      }
+    // (the originals at once, the new arenas once their mod's package is here; a picture that fails keeps the icon)
+    for (const group of [game, extras]) {
+      void Promise.all(group.items.map(async (it) => {
+        const bk = await gameBk(it.value).catch(() => null);
+        if (bk) it.picture = bkPicture(bk);
+      })).then(() => sources.redraw());
     }
-    sources.redraw();
-    extrasPackage().then((pkg) => {
-      for (const it of extras.items) {
-        const a = pkg.arenas.find((x) => x.id === EXTRAS_ARENAS.find(([n]) => n === it.value)?.[2]);
-        if (a) it.picture = bkPicture(parseBK(a.bk));
-      }
-      sources.redraw();
-    }, () => {});
   };
   const body = h('div');
   const render = () => {
@@ -302,7 +316,7 @@ export async function newArenaDialog(app: StudioApp): Promise<ArenaDoc | null> {
     }, h('b', null, title), h('span', null, text));
     fill(body,
       h('div', { class: 'choices', style: { gridTemplateColumns: 'repeat(2, 1fr)', marginBottom: '14px' } },
-        choice('copy', 'COPY ONE', 'Start from one of the game\'s arenas: its background, colors and animations.'),
+        choice('copy', 'COPY ONE', `Start from one of the game's arenas${app.project!.arenas.length ? " or the mod's own" : ''}: its background, colors and animations.`),
         choice('picture', 'FROM A PICTURE', 'A PNG of 576 x 200 (with the widescreen sides) or 320 x 200 becomes a still arena.')),
       field('Name', (() => {
         const i = h('input', { type: 'text', value: name, maxLength: 16 });
@@ -322,6 +336,12 @@ export async function newArenaDialog(app: StudioApp): Promise<ArenaDoc | null> {
   const id = freeContentId(clean, app.project!.arenas.map((a) => a.id));
   const info = { name: clean, description: '', newsName: clean.charAt(0) + clean.slice(1).toLowerCase(), music: 'ARENA0.PSM' as const, ambience: 'none' as const, base: -1,
     loops: [] as number[] };
+  if (start === 'copy' && from >= MINE) {
+    const c = copyArena(app.project!.arenas[from - MINE]);
+    c.id = id;
+    c.info.name = clean;
+    return c;
+  }
   if (start === 'copy') {
     // A new arena: as its mod has it (its texts, music and ambience, its HD background).
     const extra = EXTRAS_ARENAS.find(([n]) => n === from);

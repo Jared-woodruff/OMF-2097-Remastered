@@ -3,7 +3,7 @@
 // robot makes one the game accepts.
 import fs from 'node:fs';
 import path from 'node:path';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { parseAF, saveAF, type AfFile } from '../formats/af';
 import { parseBK, saveBK } from '../formats/bk';
 import { buildWorkshopFighter } from '../gen/workshop';
@@ -26,6 +26,7 @@ import { robotPalette } from '../studio/colors';
 import { originalPilot } from '../studio/pilot/originals';
 import { BIO_BOX, ENDING_BOX, ENDING_LAST_BOX, endingPages, VICTORY_BOX, VS_BOX, wordsFit } from '../studio/pilot/words';
 import { projectProblems } from '../studio/checks';
+import { History } from '../studio/history';
 import { emptyHd, newProject, openPackage, packageFromProject, projectFromPackage } from '../studio/project';
 import { blankRobot } from '../studio/robot/newRobot';
 import { copyMove, pictureFromIdle, setPicture as setRobotPicture } from '../studio/robot/model';
@@ -305,5 +306,59 @@ describe.skipIf(!hasGameData)('OMF Studio projects', () => {
     expect(p.robots.map((r) => r.id)).toEqual(['sentinel']);
     expect(p.arenas.map((a) => a.id)).toEqual(['dusk-rooftop']);
     expect(p.pilots.map((x) => x.id)).toEqual(['vega']);
+  });
+
+  it('undo goes back a round of changes at a time, and what is edited after never changes the steps kept', async () => {
+    vi.useFakeTimers();
+    try {
+      const p = projectFromPackage(await buildSampleMod(await extrasPackage()));
+      const bytes = async (q: typeof p) => writeModPackage(packageFromProject(q));
+      const start = await bytes(p);
+      const history = new History();
+      history.reset(p);
+      expect([history.canUndo, history.canRedo]).toEqual([false, false]);
+      // One round: a frame taken out of a move, its hit point moved, the name typed a letter at a time, a sound.
+      const r = p.robots[0];
+      const move = r.af.moves[15]!.animation;
+      const frames = move.animString;
+      move.animString = frames.slice(0, frames.lastIndexOf('-'));
+      move.coords[0].x += 5;
+      for (const name of ['S', 'SE', 'SEN']) {
+        r.info.name = name;
+        history.changed(p);
+      }
+      r.af.soundTable[3] = 99;
+      history.changed(p);
+      vi.advanceTimersByTime(1000);
+      const afterRobot = await bytes(p);
+      // Another round, not yet a step: the arena's background and colors.
+      p.arenas[0].bk.background[0] ^= 1;
+      p.arenas[0].bk.palettes[0].set(0x60, 1, 2, 3);
+      history.changed(p);
+      expect(history.canUndo).toBe(true);
+      // Back one step: the arena as it was, the robot changed; back again: the project as it was opened.
+      const back1 = history.undo()!;
+      expect(await bytes(back1)).toEqual(afterRobot);
+      const back0 = history.undo()!;
+      expect(await bytes(back0)).toEqual(start);
+      expect(back0.robots[0].af.moves[15]!.animation.animString).toBe(frames);
+      expect(history.undo()).toBeNull();
+      // Edits of what undo gave never reach the steps kept.
+      back0.robots[0].af.moves[15]!.animation.coords[0].x += 50;
+      back0.robots[0].info.name = 'OTHER';
+      back0.arenas[0].bk.background[1] ^= 1;
+      const fwd = history.redo()!;
+      expect(await bytes(fwd)).toEqual(afterRobot);
+      expect(history.redo()!.arenas[0].bk.palettes[0].colors.slice(0x60 * 3, 0x60 * 3 + 3)).toEqual(new Uint8Array([1, 2, 3]));
+      expect(history.canRedo).toBe(false);
+      // A new change forgets what could be redone.
+      history.undo();
+      expect(history.canRedo).toBe(true);
+      p.manifest.name = 'NEW';
+      history.changed(p);
+      expect(history.canRedo).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

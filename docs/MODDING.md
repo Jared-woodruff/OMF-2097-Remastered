@@ -22,12 +22,15 @@ Studio makes content in the game's own formats, pixel for pixel, and tests it in
 what to do next (add something, fix what the checks find, or test the mod and share it) and shows what the mod holds;
 the top bar says whether the game can play it (a click lists the checks, each one leading to what it is about). Every
 robot, arena and pilot has a button that tests it in the game (**Fight with it**, **Fight in it**, **Play as them**).
-Projects save themselves as they change (**Ctrl+S** saves at once).
+Projects save themselves as they change (**Ctrl+S** saves at once), and any change can be taken back: **Undo** and
+**Redo** in the top bar (**Ctrl+Z**, **Ctrl+Y**) go back and forth through the last 80 steps. A new robot, arena or
+pilot can also start as a copy of one the mod already has, to make a variant of it.
 
 - **Robots** start as a copy of one of the game's robots (the new ones included, with their HD pictures), from the
   robot workshop's parts (a 3D model posed and drawn into every frame, like the remaster's own robots), or as a blank
   figure to draw over. The editor has:
-  - the robot's name, stats (health, endurance, speeds) and the special moves the computer uses for its tactics;
+  - the robot's name, stats (health, endurance, speeds: each shown against the original robots', from the least to
+    the most of them) and the special moves the computer uses for its tactics;
   - its moves: all 70 slots of its fighter file, each with its animation (a preview at the game's pace with the hit
     points, the frames and their tags, the raw animation string), its input (a builder: directions as they are
     entered, then the button), kind, damage, block stun, points, and the victim's reaction when it hits;
@@ -39,7 +42,7 @@ Projects save themselves as they change (**Ctrl+S** saves at once).
 - **Arenas** start as a copy of one of the game's arenas (the new ones too, with their HD backgrounds), or from a
   picture (576 × 200 with the widescreen sides, or
   320 × 200): Studio picks the arena's 64 colors and makes the shading tables the game needs. An arena names its music
-  (one of the game's songs), its ambience (the remastered effects and echo of one of the game's arenas) and, if any,
+  (one of the game's songs, played in Studio with **Listen**), its ambience (the remastered effects and echo of one of the game's arenas) and, if any,
   the original arena whose built-in rules it follows. Its animations are the 50 slots of its scene file, edited over
   the arena's background like a robot's moves (frames, tags, sprites, hit points): scenery that loops from the start,
   hazards that appear at random during fights (their chance, damage and the robot's reaction when they hit), what an
@@ -67,7 +70,8 @@ Projects save themselves as they change (**Ctrl+S** saves at once).
   drew it, in the colors the pictures are painted in.
 - **Test** plays the mod in the game over Studio: a fight against the computer, the computer against itself,
   training, in any arena, or the one-player game from its pilot select screen, its VS screen (the pilot against one
-  of the original ones) or its ending. **Build file** saves the `.omfmod` file to share; **Install in game** installs it on this
+  of the original ones) or its ending. The computer can fight as any pilot, the mod's own too (to try their
+  personality), and the test's window shows what it starts with: both robots in their pilots' colors in the arena. **Build file** saves the `.omfmod` file to share; **Install in game** installs it on this
   computer. Projects save themselves as they change and are listed on Studio's start screen.
 
 ## The package format

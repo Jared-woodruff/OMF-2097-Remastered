@@ -1,11 +1,13 @@
 // A robot in OMF Studio: its overview (name, stats, how the computer fights with it, its pictures, what it still
 // needs) and its moves (moveEditor.ts).
+import type { AfFile } from '../../formats/af';
 import { HD_REFERENCE_COLORS, PICTURE_MOVES, REQUIRED_MOVES } from '../../mods/types';
 import type { Editor, StudioApp } from '../app';
 import { MOVE_LABELS } from '../checks';
 import { hdSpritesCard } from '../hdCard';
 import { indexedCanvas, rampColor, robotPalette } from '../colors';
 import { field, fill, h, numberInput, textInput, toast } from '../dom';
+import { originalAf } from '../gamePictures';
 import type { RobotDoc } from '../project';
 import { inputText, moveLabel } from './moves';
 import { MoveEditor } from './moveEditor';
@@ -50,6 +52,7 @@ export function robotEditor(app: StudioApp, robot: RobotDoc, move?: number): Edi
   return {
     el,
     close: () => moves?.destroy(),
+    where: () => (tab === 'moves' ? moves?.current : undefined),
     // (the moves tab keeps its move; the overview is drawn again)
     recolor: () => {
       drawPicker();
@@ -80,11 +83,96 @@ function colorPicker(app: StudioApp): HTMLElement {
     row('Primary', 0), row('Secondary', 1), row('Tertiary', 2));
 }
 
+/** A stat of the fighter file, with what it means for the original robots. */
+interface Stat {
+  label: string;
+  key: 'health' | 'endurance' | 'forwardSpeed' | 'reverseSpeed' | 'jumpSpeed' | 'fallSpeed';
+  min: number;
+  max: number;
+  step: number;
+  /** What it is (when the original robots cannot be read). */
+  unit: string;
+  /** Below, among and above the original robots'. */
+  words: [string, string, string];
+  /** Smaller numbers are more (the jump's upward speed). */
+  flip?: boolean;
+}
+
+const STATS: Stat[] = [
+  { label: 'Health', key: 'health', min: 1, max: 65535, step: 1, unit: 'hit points', words: ['less than any original', 'like the originals', 'more than any original'] },
+  { label: 'Endurance', key: 'endurance', min: 1, max: 1e7, step: 1, unit: 'stun resistance',
+    words: ['less than any original', 'like the originals', 'more than any original'] },
+  { label: 'Walk forward', key: 'forwardSpeed', min: 0, max: 20, step: 0.01, unit: 'pixels a tick',
+    words: ['slower than any original', 'like the originals', 'faster than any original'] },
+  { label: 'Walk back', key: 'reverseSpeed', min: 0, max: 20, step: 0.01, unit: 'pixels a tick',
+    words: ['slower than any original', 'like the originals', 'faster than any original'] },
+  { label: 'Jump', key: 'jumpSpeed', min: -40, max: 0, step: 0.01, unit: 'upward speed', flip: true,
+    words: ['jumps lower than any original', 'jumps like the originals', 'jumps higher than any original'] },
+  { label: 'Fall', key: 'fallSpeed', min: 0, max: 5, step: 0.01, unit: 'gravity',
+    words: ['floats more than any original', 'falls like the originals', 'falls faster than any original'] },
+];
+
+/** The original robots' lowest and highest of each stat, or null when their files cannot be read. */
+let originalStats: Map<Stat['key'], [number, number]> | null | undefined;
+
+function originalRange(key: Stat['key']): [number, number] | null {
+  if (originalStats === undefined) {
+    try {
+      const afs: AfFile[] = Array.from({ length: 11 }, (_, i) => originalAf(i));
+      originalStats = new Map(STATS.map((s) => {
+        const v = afs.map((af) => af[s.key]);
+        return [s.key, [Math.min(...v), Math.max(...v)]];
+      }));
+    } catch {
+      originalStats = null;
+    }
+  }
+  return originalStats?.get(key) ?? null;
+}
+
+/**
+ * A stat's number, and a meter of where it stands among the original robots' (the green band: theirs, from the lowest
+ * to the highest), in words under it; it follows the number as it is typed.
+ */
+function statField(s: Stat, af: AfFile, changed: () => void): HTMLElement {
+  const input = numberInput(() => af[s.key], (v) => {
+    af[s.key] = v;
+    changed();
+  }, s.min, s.max, s.step);
+  const band = h('i', { class: 'band' }), mark = h('i', { class: 'mark' });
+  const note = h('span', { class: 'hint' });
+  const range = originalRange(s.key);
+  const fmt = (v: number) => String(s.step === 1 ? v : Number(v.toFixed(2)));
+  const update = (v: number) => {
+    if (!range) {
+      note.textContent = s.unit;
+      return;
+    }
+    // (on the meter, more is to the right)
+    const d = (x: number) => (s.flip ? -x : x);
+    const [a, b] = [d(range[0]), d(range[1])].sort((x, y) => x - y);
+    const x = d(v);
+    const span = Math.max(b - a, Math.abs(b) * 0.1, 1e-6);
+    const lo = Math.min(a - span * 1.5, x), hi = Math.max(b + span * 1.5, x);
+    const pct = (t: number) => ((t - lo) / (hi - lo)) * 100;
+    band.style.left = `${pct(a)}%`;
+    band.style.width = `${Math.max(pct(b) - pct(a), 1)}%`;
+    mark.style.left = `${pct(x)}%`;
+    const where = x < a ? 0 : x > b ? 2 : 1;
+    note.textContent = `${s.words[where]} (${range[0] === range[1] ? fmt(range[0]) : `${fmt(range[0])} to ${fmt(range[1])}`})`;
+  };
+  input.addEventListener('input', () => {
+    const v = Number(input.value);
+    if (input.value !== '' && Number.isFinite(v)) update(v);
+  });
+  input.addEventListener('change', () => update(af[s.key]));
+  update(af[s.key]);
+  return h('label', { class: 'field stat', title: `${s.label}: ${s.unit}` }, h('span', null, s.label), input, h('span', { class: 'meter' }, band, mark), note);
+}
+
 function overview(app: StudioApp, robot: RobotDoc, openMove: (id: number) => void, retitle: () => void): HTMLElement {
   const af = robot.af, info = robot.info;
   const pal = robotPalette(app.colors);
-  const stat = (label: string, get: () => number, set: (v: number) => void, min: number, max: number, step: number, hint: string) =>
-    field(label, numberInput(get, (v) => ((set(v)), app.changed(false)), min, max, step), hint);
   const attacks = af.moves.map((m, id) => ({ m, id })).filter(({ m, id }) => m && id >= 15 && id !== 60 && id !== 61 && /^[PK]/.test(m.moveString));
   const tactics = new Set([...info.ai.projectile, ...info.ai.charge, ...info.ai.push]).size;
 
@@ -139,6 +227,13 @@ function overview(app: StudioApp, robot: RobotDoc, openMove: (id: number) => voi
   const checklist = h('ul', { class: 'checks' }, REQUIRED_MOVES.map((id) => h('li', {
     class: af.moves[id] ? '' : 'missing', style: { cursor: 'pointer' }, onclick: () => openMove(id),
   }, `${MOVE_LABELS[id]} (move ${id})`)));
+  // (all there: folded away; something missing: open, the missing ones marked)
+  const missing = REQUIRED_MOVES.filter((id) => !af.moves[id]).length;
+  const needs = missing
+    ? h('div', { class: 'card' }, h('h2', null, 'WHAT IT NEEDS'),
+      h('p', { class: 'muted', style: { marginTop: '0' } }, `The game needs these animations: ${missing} ${missing === 1 ? 'is' : 'are'} missing (a click opens it).`),
+      checklist)
+    : foldCard('needs', 'WHAT IT NEEDS', `✓ all ${REQUIRED_MOVES.length} animations the game needs`, checklist).el;
 
   return h('div', { class: 'page' },
     h('p', { class: 'lead' }, 'Everything the game plays for this robot: its animations, its moves and its stats. Pilots choose its colors in the ' +
@@ -154,14 +249,8 @@ function overview(app: StudioApp, robot: RobotDoc, openMove: (id: number) => voi
           return t;
         })(), 'the mech lab shows it'))),
       h('div', { class: 'card' }, h('h2', null, 'STATS'),
-        h('div', { class: 'grid3' },
-          stat('Health', () => af.health, (v) => (af.health = v), 1, 65535, 1, 'originals 200-230'),
-          stat('Endurance', () => af.endurance, (v) => (af.endurance = v), 1, 1e7, 1, 'originals 14080'),
-          stat('Walk forward', () => af.forwardSpeed, (v) => (af.forwardSpeed = v), 0, 20, 0.01, 'pixels a tick'),
-          stat('Walk back', () => af.reverseSpeed, (v) => (af.reverseSpeed = v), 0, 20, 0.01, 'pixels a tick'),
-          stat('Jump', () => af.jumpSpeed, (v) => (af.jumpSpeed = v), -40, 0, 0.01, 'upward speed'),
-          stat('Fall', () => af.fallSpeed, (v) => (af.fallSpeed = v), 0, 5, 0.01, 'gravity')))),
-    h('div', { class: 'card' }, h('h2', null, 'WHAT IT NEEDS'), checklist),
+        h('div', { class: 'grid3' }, STATS.map((s) => statField(s, af, () => app.changed(false)))))),
+    needs,
     h('div', { class: 'card' }, h('h2', null, 'PICTURES'),
       h('div', { class: 'row', style: { alignItems: 'flex-start', gap: '30px' } }, picture('cell'), picture('vs'))),
     hdSpritesCard({

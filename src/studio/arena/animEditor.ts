@@ -256,6 +256,11 @@ export class ArenaAnimEditor {
     return this.backdrop;
   }
 
+  /** The animation shown. */
+  get current(): number {
+    return this.panel.id;
+  }
+
   private load(id: number): void {
     this.panel.load(id);
     this.renderList();

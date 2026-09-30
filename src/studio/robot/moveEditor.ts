@@ -12,7 +12,7 @@ import { RAMP_ENTRIES, robotPalette, ROBOT_ENTRIES } from '../colors';
 import { confirmDialog, field, fill, h, modal, numberInput, select, toast } from '../dom';
 import type { RobotDoc } from '../project';
 import { blankSprite, copySprite, detach } from '../sprites';
-import { CATEGORIES, DIRECTIONS, EXTRA_SELECTORS, inputText, moveLabel, REACTIONS, SHARED_MOVES } from './moves';
+import { CATEGORIES, DIRECTIONS, EXTRA_SELECTORS, inputShort, inputText, moveLabel, REACTIONS, SHARED_MOVES } from './moves';
 import { CELL_BACKGROUND, copyMove, newMove } from './model';
 
 /** Where robots stand in the preview (the game's floor) and the preview's size. */
@@ -111,6 +111,11 @@ export class MoveEditor {
     this.panel.refresh();
   }
 
+  /** The move shown. */
+  get current(): number {
+    return this.panel.id;
+  }
+
   private load(id: number): void {
     this.panel.load(id);
     this.renderList();
@@ -133,9 +138,11 @@ export class MoveEditor {
         onclick: () => this.load(id), title: shared ? 'The original game\'s is used when the robot has none' : '',
       },
       h('span', { class: 'faint', style: { width: '20px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: '11px' } }, String(id)),
-      h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis' } }, moveLabel(id, m) + (shared ? ' (shared)' : '')),
-      required && !m ? h('span', { class: 'badge bad', style: { marginLeft: 'auto' } }, 'needed') : null,
-      this.robot.info.moves[id] ? h('span', { class: 'badge', style: { marginLeft: 'auto' } }, this.robot.info.moves[id]) : null);
+      // (a special by its name, then its input)
+      h('span', { class: 'mv-label' }, this.robot.info.moves[id] && m
+        ? [h('b', null, this.robot.info.moves[id]), inputShort(m.moveString) ? h('span', { class: 'faint' }, ` ${inputShort(m.moveString)}`) : null]
+        : moveLabel(id, m) + (shared ? ' (shared)' : '')),
+      required && !m ? h('span', { class: 'badge bad', style: { marginLeft: 'auto' } }, 'needed') : null);
     };
     const used = [...Array(70).keys()].filter((id) => af.moves[id] || REQUIRED_MOVES.includes(id) || SHARED_MOVES.includes(id) || id === 60 || id === 61);
     const free = [...Array(70).keys()].filter((id) => id >= 15 && !af.moves[id] && !used.includes(id));

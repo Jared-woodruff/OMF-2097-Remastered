@@ -350,7 +350,10 @@ the menus' grid frames and blue border, the pages' colors, the remaster's typefa
 (what to do next, what the mod holds, its details), `ui.ts` the shared pieces (the content's pictures, the editors'
 heads with their checks and a test button, the cards that fold away). A project is a mod package open for
 editing (`project.ts`: fighter and scene files parsed, written back with `saveAF`/`saveBK`), kept in IndexedDB as it
-changes (`storage.ts`). Animation strings are edited as tokens that keep every character (`anim.ts`: an unedited
+changes (`storage.ts`); undo and redo keep copies of the project after each round of changes (`history.ts`: its
+structure is copied, the bytes of pictures and files shared, since Studio replaces them and never writes into them).
+The game's own robots, arenas and pilots' portraits, for the copy choices and the test's preview, are read once
+(`gamePictures.ts`), and an arena's song plays through the game's own player (`music.ts`). Animation strings are edited as tokens that keep every character (`anim.ts`: an unedited
 string is written back exactly; the tests check every string of the game's files), sprites through their sharing
 groups (`sprites.ts`: a picture stored once for several sprites is edited everywhere or split off), in a pixel editor
 (`pixel.ts`) working in the animation's coordinates. One panel edits an animation's frames, tags and sprites over its

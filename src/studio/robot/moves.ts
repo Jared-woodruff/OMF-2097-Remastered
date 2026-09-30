@@ -17,7 +17,7 @@ export function moveLabel(id: number, m: AfMoveData | null): string {
   if (MOVE_LABELS[id]) return MOVE_LABELS[id];
   if (!m) return 'Empty';
   const cat = CATEGORIES.find(([c]) => c === m.category)?.[1] ?? `Category ${m.category}`;
-  const input = inputText(m.moveString);
+  const input = inputShort(m.moveString);
   return input ? `${cat} · ${input}` : cat;
 }
 
@@ -28,6 +28,12 @@ export function inputText(moveString: string): string {
   if (!/^[PK][1-9]*$/.test(moveString)) return '';
   const dirs = [...moveString.slice(1)].reverse().map((d) => ARROWS[d]);
   return [...dirs, moveString[0] === 'P' ? 'Punch' : 'Kick'].join(' ');
+}
+
+/** A move string as the player enters it, facing right, in short ("↓↘→ P"); '' for moves no input starts. */
+export function inputShort(moveString: string): string {
+  if (!/^[PK][1-9]*$/.test(moveString)) return '';
+  return [...moveString.slice(1)].reverse().map((d) => ARROWS[d]).join('') + (moveString.length > 1 ? ' ' : '') + moveString[0];
 }
 
 /** The input builder's directions (numpad digits, facing right). */

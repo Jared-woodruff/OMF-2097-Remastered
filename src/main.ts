@@ -222,7 +222,9 @@ async function main(): Promise<void> {
       params.set('h1', String(h1));
       params.set('h2', String(h2));
       params.set('p1', String(p1));
-      params.set('p2', String(p1 === 3 ? 4 : 3));
+      // (the computer's pilot as chosen, any but the player's: then another, as before)
+      const p2 = testContent('pilot', params.get('p2'));
+      params.set('p2', String(p2 !== null && p2 !== p1 ? p2 : p1 === 3 ? 4 : 3));
       params.set('ai', '');
       if (params.get('t') === 'watch') params.set('watch', '');
     }

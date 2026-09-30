@@ -13,6 +13,7 @@ import { projectProblems, type Problem, type Target } from './checks';
 import { confirmDialog, fill, h, icon, modal, pickFiles, toast, type IconName } from './dom';
 import { modHome, problemList } from './home';
 import { buildProject, newProject, openPackage, projectFromPackage, type Project } from './project';
+import { History } from './history';
 import { deleteProject, listProjects, loadProject, saveProject } from './storage';
 import { robotEditor } from './robot/robotEditor';
 import { newRobotDialog } from './robot/newRobot';
@@ -30,6 +31,8 @@ export interface Editor {
   close?(): void;
   /** The preview colors changed (without it the editor is made again). */
   recolor?(): void;
+  /** Where it is (the move, animation or tab: Selection's `move`), to open it there again (after an undo). */
+  where?(): number | undefined;
 }
 
 export class StudioApp {
@@ -39,6 +42,10 @@ export class StudioApp {
   colors: [number, number, number] = [5, 11, 8];
   private saveTimer = 0;
   private editor: Editor | null = null;
+  /** Undo and redo (history.ts), and their buttons. */
+  private history = new History();
+  private undoButton = h('button', { class: 'btn icon ghost', title: 'Undo (Ctrl+Z)', 'aria-label': 'Undo', onclick: () => this.undo() }, icon('undo'));
+  private redoButton = h('button', { class: 'btn icon ghost', title: 'Redo (Ctrl+Y)', 'aria-label': 'Redo', onclick: () => this.redo() }, icon('redo'));
   private sidebar = h('div', { class: 'sidebar' });
   private content = h('div', { class: 'content' });
   private statusChip = h('button', { class: 'status-chip', onclick: () => this.showChecks(), title: 'What the game needs to play the mod (the checks)' });
@@ -67,17 +74,29 @@ export class StudioApp {
     void this.showStart();
   }
 
-  /** Ctrl+S saves now (Studio saves as it goes anyway); Enter or Space chooses the row, tab or choice that has the focus. */
+  /**
+   * Ctrl+S saves now (Studio saves as it goes anyway); Ctrl+Z and Ctrl+Y (or Ctrl+Shift+Z) undo and redo, unless a text
+   * field or a dialog (the pixel editor has its own) has them; Enter or Space chooses the row, tab or choice that has
+   * the focus.
+   */
   private key(e: KeyboardEvent): void {
-    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 's') {
-      e.preventDefault();
-      if (this.project) void this.flush().then(() => toast('Saved. Studio saves as you work; Build file makes the mod file to share.'));
-      return;
-    }
     const t = e.target as HTMLElement | null;
     // (a dialog open: only what is in it; the pixel editor's Space moves its view)
     const dialogs = document.querySelectorAll('.modal-back');
     const dialog = dialogs[dialogs.length - 1];
+    const ctrl = (e.ctrlKey || e.metaKey) && !e.altKey;
+    if (ctrl && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      if (this.project) void this.flush().then(() => toast('Saved. Studio saves as you work; Build file makes the mod file to share.'));
+      return;
+    }
+    const typing = !!t && (t.tagName === 'TEXTAREA' || t.isContentEditable || (t.tagName === 'INPUT' && /^(text|number|search|)$/.test((t as HTMLInputElement).type)));
+    if (ctrl && this.project && !dialog && !typing && ['z', 'y'].includes(e.key.toLowerCase())) {
+      e.preventDefault();
+      if (e.key.toLowerCase() === 'y' || e.shiftKey) this.redo();
+      else this.undo();
+      return;
+    }
     if ((e.key === 'Enter' || e.key === ' ') && t?.getAttribute?.('role') === 'button' && t.tagName === 'DIV' && (!dialog || dialog.contains(t))) {
       e.preventDefault();
       t.click();
@@ -136,7 +155,7 @@ export class StudioApp {
   async openFile(f: File): Promise<void> {
     try {
       this.open(await openPackage(new Uint8Array(await f.arrayBuffer())));
-      this.changed();
+      this.scheduleSave();
     } catch (err) {
       toast(err instanceof ModError ? err.message : `The file could not be opened: ${(err as Error)?.message ?? err}`, true, 6000);
     }
@@ -149,7 +168,7 @@ export class StudioApp {
       p.manifest.id = 'me.sample-copy';
       p.manifest.name = 'Sample mod (copy)';
       this.open(p);
-      this.changed();
+      this.scheduleSave();
     } catch (err) {
       toast(`The sample could not be made: ${(err as Error)?.message ?? err}`, true, 6000);
     }
@@ -163,7 +182,7 @@ export class StudioApp {
       p.manifest.id = 'me.new-robots-and-arenas';
       p.manifest.name = 'New robots and arenas (copy)';
       this.open(p);
-      this.changed();
+      this.scheduleSave();
     } catch (err) {
       toast(`The new robots and arenas could not be opened: ${(err as Error)?.message ?? err}`, true, 6000);
     }
@@ -183,10 +202,13 @@ export class StudioApp {
   open(p: Project): void {
     this.project = p;
     this.sel = { kind: 'mod' };
+    this.history.reset(p);
+    this.updateUndo();
     const top = h('div', { class: 'topbar' },
       h('div', { class: 'brand', onclick: () => void this.showStart(), title: 'Back to the start screen (every project)' },
         h('span', { class: 'chrome' }, 'OMF'), h('b', null, 'STUDIO')),
       this.crumbs,
+      h('span', { class: 'undo-redo' }, this.undoButton, this.redoButton),
       this.saveState,
       this.statusChip,
       h('span', { class: 'divider' }),
@@ -347,14 +369,58 @@ export class StudioApp {
 
   // ---- saving, building, testing ---------------------------------------------------------------------------------
 
-  /** The project changed: it is saved a moment later. `structure`: the sidebar and titles change too. */
+  /** The project changed: it is saved a moment later (and can be undone). `structure`: the sidebar and titles change too. */
   changed(structure = true): void {
     if (!this.project) return;
+    this.history.changed(this.project);
+    this.updateUndo();
+    this.scheduleSave();
+    if (structure) this.renderSidebar();
+    this.updateTitle();
+  }
+
+  /** Saves the project a moment later. */
+  private scheduleSave(): void {
     fill(this.saveState, icon('clock'), 'Saving…');
     clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => void this.saveNow(), 1200);
-    if (structure) this.renderSidebar();
-    this.updateTitle();
+  }
+
+  /** Goes back one step (the page stays where it is, if what it shows is still there). */
+  undo(): void {
+    const p = this.history.undo();
+    if (p) this.restore(p, 'Undone');
+    else toast('Nothing to undo.');
+  }
+
+  /** Goes forward again one step that was undone. */
+  redo(): void {
+    const p = this.history.redo();
+    if (p) this.restore(p, 'Redone');
+    else toast('Nothing to redo.');
+  }
+
+  private restore(p: Project, what: string): void {
+    const where = this.editor?.where?.();
+    const scroll = this.content.querySelector('.ed-body')?.scrollTop ?? this.content.scrollTop;
+    this.project = p;
+    const s = this.sel;
+    if (s.kind !== 'mod') {
+      const list: unknown[] = s.kind === 'robot' ? p.robots : s.kind === 'arena' ? p.arenas : p.pilots;
+      this.sel = s.index < list.length ? { kind: s.kind, index: s.index, move: where } : { kind: 'mod' };
+    }
+    this.refresh();
+    const body = this.content.querySelector('.ed-body');
+    if (body) body.scrollTop = scroll;
+    else this.content.scrollTop = scroll;
+    this.updateUndo();
+    this.scheduleSave();
+    toast(what, false, 1200);
+  }
+
+  private updateUndo(): void {
+    this.undoButton.disabled = !this.history.canUndo;
+    this.redoButton.disabled = !this.history.canRedo;
   }
 
   private async saveNow(): Promise<void> {

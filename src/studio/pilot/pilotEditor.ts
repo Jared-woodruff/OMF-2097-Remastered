@@ -27,7 +27,9 @@ import { emptyHd, freeContentId, type PilotDoc } from '../project';
 import { pngToPixels } from '../sprites';
 import { originalAnswer, originalName, originalPilot } from './originals';
 import { BIO_BOX, ENDING_BOX, ENDING_LAST_BOX, endingPages, scenePalette, VICTORY_BOX, VS_BOX, wordsCanvas, wordsFit, type WordBox } from './words';
-import { editorHead } from '../ui';
+import { gamePortrait } from '../gamePictures';
+import { copyPilot } from '../history';
+import { editorHead, pictureChoice, pilotPicture, type PictureGroup } from '../ui';
 
 const TABS = [['overview', 'Overview'], ['pictures', 'Pictures'], ['words', 'Words'], ['computer', 'Computer']] as const;
 type Tab = (typeof TABS)[number][0];
@@ -523,28 +525,50 @@ export async function newPilotDialog(app: StudioApp): Promise<PilotDoc | null> {
   let from = 0;
   let name = '';
   const body = h('div');
+  /** The copy choice's numbers of the mod's own pilots (the game's are their pilot numbers). */
+  const MINE = 100;
+  const nameOf = (v: number) => (v >= MINE ? app.project!.pilots[v - MINE]?.info.name ?? '' : originalName(v));
+  const mine: PictureGroup<number> = { title: 'THIS MOD\'S PILOTS', items: app.project!.pilots.map((p, i) => ({
+    value: MINE + i, name: p.info.name || p.id, picture: pilotPicture(p, true) })) };
+  const game: PictureGroup<number> = { title: 'THE GAME\'S PILOTS', items: PILOT_NAMES.map((n, i) => ({ value: i, name: n, picture: null })) };
+  const nameInput = h('input', { type: 'text', value: name, maxLength: 16 });
+  nameInput.addEventListener('input', () => (name = nameInput.value));
+  const pilots = pictureChoice('pilot', [mine, game], () => from, (v) => {
+    from = v;
+    nameInput.placeholder = nameOf(v);
+  });
+  let pictured = false;
   const render = () => {
+    if (start === 'copy' && !pictured) {
+      pictured = true;
+      for (const it of game.items) it.picture = gamePortrait(it.value);
+      pilots.redraw();
+    }
+    nameInput.placeholder = start === 'copy' ? nameOf(from) : 'New pilot';
     const choice = (s: typeof start, title: string, text: string) => h('div', {
       class: `choice${start === s ? ' sel' : ''}`,
       onclick: () => ((start = s), render()),
     }, h('b', null, title), h('span', null, text));
     fill(body,
       h('div', { class: 'choices', style: { gridTemplateColumns: 'repeat(2, 1fr)', marginBottom: '14px' } },
-        choice('copy', 'COPY ONE', 'Start from one of the game\'s pilots: their portrait and face, stats, colors, words, ending and personality.'),
+        choice('copy', 'COPY ONE', `Start from one of the game's pilots${app.project!.pilots.length ? " or the mod's own" : ''}: their portrait and face, stats, colors, words, ending and personality.`),
         choice('blank', 'BLANK', 'A pilot with average stats and no portrait yet, who fights like Crystal.')),
-      start === 'copy' ? h('div', { style: { marginBottom: '12px' } }, field('Pilot', select<number>(PILOT_NAMES.map((n, i) => [i, n]), () => from, (v) => (from = v)))) : null,
-      field('Name', (() => {
-        const i = h('input', { type: 'text', value: name, maxLength: 16, placeholder: start === 'copy' ? originalName(from) : 'New pilot' });
-        i.addEventListener('input', () => (name = i.value));
-        return i;
-      })()));
+      field('Name', nameInput),
+      start === 'copy' ? h('div', { style: { marginTop: '14px' } }, pilots.el) : null);
   };
   render();
-  const ok = await modal<boolean>((close) => h('div', { class: 'modal', style: { width: '620px' } },
+  const ok = await modal<boolean>((close) => h('div', { class: 'modal', style: { width: '760px' } },
     h('h2', null, 'New pilot'), body,
     h('div', { class: 'actions' }, h('button', { class: 'btn', onclick: () => close(false) }, 'Cancel'),
       h('button', { class: 'btn primary', onclick: () => close(true) }, 'Make it'))));
   if (!ok) return null;
+  const own = start === 'copy' && from >= MINE ? app.project!.pilots[from - MINE] : undefined;
+  if (own) {
+    const c = copyPilot(own);
+    c.info.name = (name.trim() || own.info.name).slice(0, 16);
+    c.id = freeContentId(c.info.name, app.project!.pilots.map((p) => p.id));
+    return c;
+  }
   const made = start === 'copy' ? await originalPilot(from) : {
     info: {
       name: '', sex: 'male', power: 10, agility: 10, endurance: 10, colors: [...app.colors] as [number, number, number], bio: '', personality: 0,
