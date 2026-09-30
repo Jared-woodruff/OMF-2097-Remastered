@@ -94,5 +94,5 @@ models: Gargoyle, Flail and Electra would need modeling from their design sheets
 pipeline applies.
 
 Note: Blender's glTF importer adds a hidden "Icosphere" object as the armature's bone shape. Tools that frame the
-camera on every imported mesh (the render kit's `import_model` does) must import with `disable_bone_shape=True`, as
-`render_frames.py` does, or leave that object out.
+camera on every imported mesh must import with `disable_bone_shape=True`, as `render_frames.py` does, or leave that
+object out.
