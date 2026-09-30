@@ -42,6 +42,8 @@
     "rework:survey": "python tools/rework/survey.py",
     "rework:export": "python tools/rework/export.py",
     "rework:import": "node tools/rework/import.mjs",
+    "blender:export": "node tools/blender/run.mjs export",
+    "blender:render": "node tools/blender/run.mjs render",
     "news:voice": "node tools/news-voice.mjs",
     "manual": "node tools/manual/build.mjs",
     "github": "node tools/github/build.mjs",

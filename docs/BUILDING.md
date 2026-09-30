@@ -116,6 +116,11 @@ robots' bundles too: it puts them in the package the same way and takes them bac
 delivered keeps its current artwork; `newart-pack/import_report.txt` lists deliveries worth a look (no transparency,
 drawn outside the silhouette, a moved composition).
 
+The frames can also be rendered from the robots' 3D models in Blender (a proof of concept, see
+[BLENDER_SPRITES.md](BLENDER_SPRITES.md)): `npm run blender:export` writes a robot as glTF (its mesh, skeleton and every
+sprite's pose), `npm run blender:render` renders HD pictures and color zone masks from it (Blender 5.2; `BLENDER=` its
+path when it is not in the default place), and `tools/blender/score.py` compares them with the current paintings.
+
 ### Other generated data
 
 - **Combo trials** (`src/game/training/trialData.ts`, committed): `COMBO_SEARCH=1 npx vitest run
