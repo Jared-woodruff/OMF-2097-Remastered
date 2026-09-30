@@ -38,6 +38,9 @@
     "menu:import": "python tools/menu-pack/import.py",
     "newart:export": "node tools/newart/run.mjs",
     "newart:import": "node tools/newart/import.mjs",
+    "rework:survey": "python tools/rework/survey.py",
+    "rework:export": "python tools/rework/export.py",
+    "rework:import": "node tools/rework/import.mjs",
     "news:voice": "node tools/news-voice.mjs",
     "manual": "node tools/manual/build.mjs",
     "manual:images": "python tools/manual/prepare.py"

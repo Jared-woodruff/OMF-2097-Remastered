@@ -21,9 +21,11 @@ Thumbs.db
 /hd-pack/
 /menu-pack/
 /newart-pack/
+/rework-pack/
 /hd-pack.zip
 /menu-pack.zip
 /newart-pack.zip
+/rework-pack.zip
 
 # The game manual's generated page source (npm run manual)
 /tools/manual/.build/
