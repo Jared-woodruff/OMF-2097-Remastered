@@ -7,7 +7,7 @@
 import { HAR_NAMES } from '../game/constants';
 import { APP_VERSION } from '../platform/versionLabel';
 import { provideGenerated } from '../resources/generated';
-import { forgetFighter, harFileName, setHarName } from '../resources/resources';
+import { forgetBk, forgetFighter, harFileName, setHarName } from '../resources/resources';
 import { decodePng, type PngImage } from '../util/png';
 import { modContentId } from './ids';
 import { readModPackage, type ModPackage } from './package';
@@ -112,6 +112,7 @@ export async function registerModPackage(pkg: ModPackage): Promise<void> {
     const fileId = a.info.base >= 0 ? ORIGINAL_FILE_IDS[a.info.base] : MOD_FILE_ID + index;
     new DataView(bk.buffer).setUint32(0, fileId, true);
     provideGenerated(`ARENA${index}.BK`, bk);
+    forgetBk(`ARENA${index}.BK`);
     if (a.wid) provideGenerated(`ARENA${index}.WID`, a.wid);
     arenas.set(index, { key: `${m.id}/${a.id}`, mod: m.id, index, info: a.info });
   });

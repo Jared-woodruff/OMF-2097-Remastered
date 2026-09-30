@@ -21,10 +21,12 @@ import { testFight } from './test';
 
 export type Selection = Target;
 
-/** What an editor gives back: its element, and what to do when it is closed. */
+/** What an editor gives back: its element, what to do when it is closed, and how it shows other colors. */
 export interface Editor {
   el: HTMLElement;
   close?(): void;
+  /** The preview colors changed (without it the editor is made again). */
+  recolor?(): void;
 }
 
 export class StudioApp {
@@ -194,7 +196,7 @@ export class StudioApp {
     const s = this.sel;
     let ed: Editor | null = null;
     if (s.kind === 'robot' && p.robots[s.index]) ed = robotEditor(this, p.robots[s.index], s.move);
-    else if (s.kind === 'arena' && p.arenas[s.index]) ed = arenaEditor(this, p.arenas[s.index]);
+    else if (s.kind === 'arena' && p.arenas[s.index]) ed = arenaEditor(this, p.arenas[s.index], s.move);
     else if (s.kind === 'pilot' && p.pilots[s.index]) ed = pilotEditor(this, p.pilots[s.index]);
     else ed = { el: this.modEditor() };
     this.editor = ed;
@@ -373,10 +375,12 @@ export class StudioApp {
 
   // ---- shared helpers for the editors ---------------------------------------------------------------------------
 
-  /** Sets the colors robots are shown in (all editors redraw). */
+  /** Sets the colors robots are shown in (the sidebar and the editor redraw). */
   setColors(c: [number, number, number]): void {
     this.colors = c;
-    this.refresh();
+    this.renderSidebar();
+    if (this.editor?.recolor) this.editor.recolor();
+    else this.renderEditor();
   }
 
   /** Opens a project that was built from a file (drag and drop, open). */

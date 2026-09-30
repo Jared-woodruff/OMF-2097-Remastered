@@ -331,7 +331,10 @@ editing (`project.ts`: fighter and scene files parsed, written back with `saveAF
 changes (`storage.ts`). Animation strings are edited as tokens that keep every character (`anim.ts`: an unedited
 string is written back exactly; the tests check every string of the game's files), sprites through their sharing
 groups (`sprites.ts`: a picture stored once for several sprites is edited everywhere or split off), in a pixel editor
-(`pixel.ts`) working in the robot's coordinates. **Test** puts the built package in the game's storage as the mod being
+(`pixel.ts`) working in the animation's coordinates. One panel edits an animation's frames, tags and sprites over its
+stage (`animPanel.ts`); a robot's moves (`robot/moveEditor.ts`) and an arena's animations (`arena/animEditor.ts`) are
+its hosts, each adding its own cards (a move's input and combat fields; an animation's looping, chance, damage and
+chains). **Test** puts the built package in the game's storage as the mod being
 tested and opens `index.html?modtest&t=…&h1=mod:<id>…` in a frame: the game loads it over the installed mods and starts
 the fight (`testContent()` in the registry turns the names into numbers).
 

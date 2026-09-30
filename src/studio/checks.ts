@@ -53,11 +53,8 @@ export function projectProblems(p: Project): Problem[] {
     }
     r.af.moves.forEach((m, id) => {
       if (!m) return;
+      // (a frame whose letter has no sprite shows nothing: the originals do it on purpose, with Z)
       const t = parseAnim(m.animation.animString);
-      const max = m.animation.sprites.length;
-      if (t.frames.some((f) => f.sprite >= max)) {
-        out.push({ level: 'error', text: `${name}, move ${id}: a frame shows a sprite the move does not have.`, target: target(id) });
-      }
       if (!t.frames.length) out.push({ level: 'error', text: `${name}, move ${id}: its animation has no frames.`, target: target(id) });
       if (m.animation.animString.length >= 1024) out.push({ level: 'error', text: `${name}, move ${id}: its animation string is longer than 1023 characters.`, target: target(id) });
       if (m.animation.sprites.length > 255) out.push({ level: 'error', text: `${name}, move ${id}: more than 255 sprites.`, target: target(id) });
@@ -71,6 +68,39 @@ export function projectProblems(p: Project): Problem[] {
       }
     });
     if (!Object.keys(r.info.moves).length) out.push({ level: 'warning', text: `${name}'s special moves have no names (the move list shows their kind).`, target: target() });
+  });
+
+  p.arenas.forEach((a, index) => {
+    const name = a.info.name || 'An arena';
+    const anims = a.bk.anims;
+    const target = (move?: number): Target => ({ kind: 'arena', index, move });
+    // (the round announcements and dust are the original game's when the arena has none)
+    const exists = (id: number) => !!anims[id] || [6, 7, 8, 9, 10, 11, 24, 25, 26, 27].includes(id);
+    for (const id of a.info.loops) {
+      if (!anims[id]) out.push({ level: 'warning', text: `${name}: animation ${id} is to loop from the start, but there is none.`, target: target(id) });
+    }
+    anims.forEach((x, id) => {
+      if (!x) return;
+      const t = parseAnim(x.animation.animString);
+      if (!t.frames.length) out.push({ level: 'error', text: `${name}, animation ${id}: it has no frames.`, target: target(id) });
+      if (x.animation.animString.length >= 1024) out.push({ level: 'error', text: `${name}, animation ${id}: its animation string is longer than 1023 characters.`, target: target(id) });
+      if (x.animation.extraStrings.some((s) => s.length >= 512)) out.push({ level: 'error', text: `${name}, animation ${id}: a variant is longer than 511 characters.`, target: target(id) });
+      if (x.animation.sprites.length > 255) out.push({ level: 'error', text: `${name}, animation ${id}: more than 255 sprites.`, target: target(id) });
+      for (const s of x.animation.sprites) {
+        if (!s.missing && s.data && s.data.length > MAX_SPRITE_BYTES) out.push({ level: 'error', text: `${name}, animation ${id}: a sprite is too big to store.`, target: target(id) });
+      }
+      for (const [chain, what] of [[x.chainHit, 'a robot\'s attack hits it'], [x.chainNoHit, 'it hits a robot or ends']] as [number, string][]) {
+        if (chain && !exists(chain)) out.push({ level: 'warning', text: `${name}, animation ${id}: when ${what} it becomes animation ${chain}, which is empty.`, target: target(id) });
+      }
+      // (its variants start animations too)
+      const spawns = new Set([x.animation.animString, ...x.animation.extraStrings].flatMap((str) => parseAnim(str).frames)
+        .flatMap((f) => f.tags.filter((g) => g.name === 'm' && g.value !== null).map((g) => g.value!)));
+      for (const s of spawns) if (!exists(s)) out.push({ level: 'warning', text: `${name}, animation ${id}: it starts animation ${s}, which is empty.`, target: target(id) });
+      // (one that starts others is often a spawner, like the Fire Pit's and the Desert's)
+      if (x.hazardDamage && x.probability > 1 && !x.animation.coords.length && !spawns.size) {
+        out.push({ level: 'warning', text: `${name}, animation ${id}: it does damage but has no hit points (it cannot touch anyone).`, target: target(id) });
+      }
+    });
   });
 
   p.pilots.forEach((pl, index) => {

@@ -274,6 +274,11 @@ function bkFile(name: string): BkFile {
   return f;
 }
 
+/** Forgets a parsed scene file (a mod arena registered again). */
+export function forgetBk(name: string): void {
+  bkCache.delete(name);
+}
+
 /** Scene animations every arena shares: ROUND, the round number, YOU LOSE, YOU WIN, FIGHT!, READY, dust, round token. */
 const SHARED_ARENA_ANIMS = [6, 7, 8, 9, 10, 11, 24, 25, 26, 27];
 
@@ -307,8 +312,9 @@ function withSharedArenaParts(bk: BkFile): BkFile {
     });
     bk.anims[id] = { ...a, animation };
   }
-  // (a mod arena may bring its own sounds; the generated arenas leave theirs empty)
-  if (bk.soundTable.every((v) => v === 0)) bk.soundTable = ref.soundTable.slice();
+  // (a mod arena may bring sounds of its own: each entry it leaves empty plays the first original arena's; the
+  // generated arenas leave them all empty)
+  bk.soundTable = bk.soundTable.map((v, i) => v || ref.soundTable[i]);
   return bk;
 }
 

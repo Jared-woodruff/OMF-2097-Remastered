@@ -40,6 +40,7 @@ import type { Af } from '../../resources/resources';
 import { arenaScreengrabWinner, harScreencapsCompress, harScreencapsReset, SCREENCAP_BLOW, SCREENCAP_POSE } from '../harScreencap';
 import { GEN_ARENAS } from '../../gen/scene/arenas';
 import { arenaBase, arenaMusic, nextArena } from '../roster';
+import { modArena } from '../../mods/registry';
 import { recSerialize } from '../../formats/rec';
 import { Recorder } from '../replay/recorder';
 import { ReplayHud } from '../replay/hud';
@@ -261,6 +262,8 @@ export class ArenaScene extends Scene implements ArenaLike {
 
   override startup(id: number): [boolean, boolean] {
     if (this.bk.fileId === 64 && id >= 1 && id <= 4) return [true, true];
+    // (a mod arena's own looping animations)
+    if (modArena(this.id - SceneId.ARENA0)?.info.loops.includes(id)) return [true, true];
     return [false, false];
   }
 
@@ -892,8 +895,12 @@ export class ArenaScene extends Scene implements ArenaLike {
 
   private spawnHazards(): void {
     const gs = this.gs;
+    // A mod arena's draws come from the high bits of the random numbers: their lowest bit alternates from one number to
+    // the next, so with an even count of draws a tick a hazard can land on even numbers only, and one needing 1 never
+    // appears. The original arenas keep the game's draws (and so their replays).
+    const draw = modArena(this.id - SceneId.ARENA0) ? (n: number) => (gs.rand.intmax() >>> 8) % n : (n: number) => gs.rand.int(n);
     for (const [id, info] of this.bk.infos) {
-      if (info.probability > 1 && gs.rand.int(info.probability) === 1) {
+      if (info.probability > 1 && draw(info.probability) === 1) {
         const obj = new GameObject(gs, info.ani.startX, info.ani.startY);
         obj.soundTranslationTable = this.bk.soundTranslationTable;
         obj.setAnimation(info.ani);
@@ -906,7 +913,7 @@ export class ArenaScene extends Scene implements ArenaLike {
           obj.group = GROUP_HAZARD;
           obj.userdata = this.bk;
           if (info.ani.extraStrings.length > 0) {
-            const r = gs.rand.int(info.ani.extraStrings.length);
+            const r = draw(info.ani.extraStrings.length);
             if (r > 0) obj.setCustomString(info.ani.extraStrings[r]);
           }
         }

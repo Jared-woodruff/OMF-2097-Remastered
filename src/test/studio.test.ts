@@ -10,6 +10,8 @@ import { buildWorkshopFighter } from '../gen/workshop';
 import { readModPackage, writeModPackage } from '../mods/package';
 import { buildSampleMod } from '../mods/sample';
 import { checkFighter } from '../mods/package';
+import { getFile } from '../resources/files';
+import { copyAnims, relatedAnims, renumberString } from '../studio/arena/animEditor';
 import { projectProblems } from '../studio/checks';
 import { newProject, openPackage, packageFromProject, projectFromPackage } from '../studio/project';
 import { blankRobot } from '../studio/robot/newRobot';
@@ -108,6 +110,9 @@ describe.skipIf(!hasGameData)('OMF Studio projects', () => {
     ];
     for (const af of made) {
       expect(() => checkFighter(saveAF(af), 'robot')).not.toThrow();
+      const p = newProject();
+      p.robots.push({ id: 'x', af, info: { name: 'X', description: '', moves: {}, ai: { projectile: [], charge: [], push: [] } } });
+      expect(projectProblems(p).filter((x) => x.level === 'error')).toEqual([]);
       // Its pictures can be made from its idle animation.
       const cell = pictureFromIdle(af, 'cell')!;
       expect([cell.width, cell.height]).toEqual([51, 36]);
@@ -133,6 +138,24 @@ describe.skipIf(!hasGameData)('OMF Studio projects', () => {
     expect(projectProblems(p).some((x) => x.level === 'error' && /idle animation/.test(x.text))).toBe(true);
     p.manifest.id = 'Bad Id';
     expect(projectProblems(p).some((x) => /id may only/.test(x.text))).toBe(true);
+  });
+
+  it('an arena animation copied from another arena brings the ones it starts and turns into', () => {
+    const fire = parseBK(getFile('ARENA3.BK'));
+    // (the Fire Pit's spawner starts the orb, which bursts when hit and fades otherwise)
+    expect(relatedAnims(fire.anims, 0)).toEqual([0, 15, 17, 18, 16]);
+    // (the Desert's planes, some started by its variants, drop bombs that explode)
+    expect([...relatedAnims(parseBK(getFile('ARENA4.BK')).anims, 0)].sort((a, b) => a - b)).toEqual([0, 12, 13, 14, 15, 16, 17, 18]);
+    expect(renumberString(fire.anims[0]!.animation.animString, new Map([[15, 40]]))).toBe('Z3-mx+152my+160mp-1m40Z1-mx+160my+100m40mp10Z1-Z300');
+    // Copied into a scene file whose slot 15 is taken: the orb moves, what names it follows; no chain stays none.
+    const to = parseBK(getFile('ARENA0.BK'));
+    to.anims[15] = to.anims[0];
+    const map = copyAnims(to, fire, 0, 5, true)!;
+    const orb = map.get(15)!;
+    expect(orb).not.toBe(15);
+    expect(to.anims[5]!.animation.animString).toBe(`Z3-mx+152my+160mp-1m${orb}Z1-mx+160my+100m${orb}mp10Z1-Z300`);
+    expect([to.anims[orb]!.chainHit, to.anims[orb]!.chainNoHit]).toEqual([17, 16]);
+    expect([to.anims[16]!.chainHit, to.anims[16]!.chainNoHit, to.anims[17]!.chainNoHit]).toEqual([0, 0, 18]);
   });
 
   it('a project from a package keeps its content ids', async () => {

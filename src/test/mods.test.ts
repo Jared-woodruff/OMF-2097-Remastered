@@ -16,7 +16,11 @@ import { PILOT_SEX_FEMALE, PilotId } from '../game/constants';
 import { MOD_ID_RANGES, resetModIds } from '../mods/ids';
 import { readModPackage, writeModPackage, type ModPackage } from '../mods/package';
 import { modArenas, modPilots, modRobot, modRobots, registerModPackage, resetMods } from '../mods/registry';
-import { buildSampleMod, SAMPLE_MOD_ID } from '../mods/sample';
+import { buildSampleMod, SAMPLE_ARC, SAMPLE_LIGHT, SAMPLE_MOD_ID } from '../mods/sample';
+import { parseBK, saveBK } from '../formats/bk';
+import { harData } from '../game/objects/har';
+import { getFile } from '../resources/files';
+import { copyAnims } from '../studio/arena/animEditor';
 import { ModError, readManifest } from '../mods/types';
 import { harName, harPicture, hasFighter, loadAf, loadBk } from '../resources/resources';
 import { decodePng, encodeIndexedPng, encodePng } from '../util/png';
@@ -293,5 +297,79 @@ describe.skipIf(!hasGameData)('mod pilots in the game', () => {
     press(run, 'Enter');
     press(run, 'Enter');
     expect(gs.getPlayer(1).pilot.pilotId).toBe(PilotId.KREISSACK);
+  });
+});
+
+describe.skipIf(!hasGameData)('animations of mod arenas', () => {
+  beforeAll(() => {
+    installBrowserShims();
+    loadGameData();
+  });
+
+  it('loop from the start when the arena lists them, with its own sounds over the original ones', async () => {
+    resetMods();
+    await registerModPackage(await buildSampleMod());
+    const arena = modArenas()[0].index;
+    const gs = createGame(SceneId.MENU, [0, 1], [0, 5]);
+    gs.swapScene(SceneId.ARENA0 + arena);
+    const ids = gs.objects.map((r) => r.obj.curAnimation?.id);
+    expect(ids).toContain(SAMPLE_LIGHT);
+    // The arc appears only at random.
+    expect(ids).not.toContain(SAMPLE_ARC);
+    const arc = gs.sc.bk.infos.get(SAMPLE_ARC)!;
+    expect([arc.probability, arc.hazardDamage, arc.ani.collisionCoords.length > 0]).toEqual([900, 8, true]);
+    const table = gs.sc.bk.soundTranslationTable;
+    expect(table[20]).toBe(33);
+    // (entries it leaves empty: the original's; 1 and 2 are the round's announcements)
+    expect(table[1]).toBe(20);
+  });
+
+  it('a hazard of a mod arena hurts the robot it touches', async () => {
+    resetMods();
+    const pkg = await buildSampleMod();
+    // The arc almost every tick, where the first robot stands.
+    const bk = parseBK(pkg.arenas[0].bk);
+    bk.anims[SAMPLE_ARC]!.probability = 2;
+    bk.anims[SAMPLE_ARC]!.animation.startX = 110;
+    pkg.arenas[0].bk = saveBK(bk);
+    await registerModPackage(pkg);
+    const arena = modArenas()[0].index;
+    const gs = createGame(SceneId.MENU, [0, 1], [0, 5]);
+    gs.matchSettings.rounds = 0;
+    gs.matchSettings.hazards = true;
+    gs.rand.setSeed(1001);
+    const scene = SceneId.ARENA0 + arena;
+    gs.swapScene(scene);
+    const run = new HeadlessRunner(gs);
+    const p1 = () => harData(gs.findObject(gs.getPlayer(0).harObjId)!);
+    const start = p1().health;
+    for (let t = 0; t < 12000 && p1().health === start; t += 250) run.advance(250);
+    expect(p1().health).toBeLessThan(start);
+  });
+
+  it('a hazard OMF Studio copies from an original arena plays in a mod arena', async () => {
+    resetMods();
+    const pkg = await buildSampleMod();
+    const bk = parseBK(pkg.arenas[0].bk);
+    // The Fire Pit's orbs: the animation that starts them (made more frequent), the orb, its burst and its fade.
+    const map = copyAnims(bk, parseBK(getFile('ARENA3.BK')), 0, 0, true)!;
+    expect([...map.keys()].sort((a, b) => a - b)).toEqual([0, 15, 16, 17, 18]);
+    bk.anims[0]!.probability = 10;
+    pkg.arenas[0].bk = saveBK(bk);
+    await registerModPackage(pkg);
+    // (whatever the random numbers: with the game's draw, 1001 never started it, two hazards drawing on even numbers)
+    for (const seed of [1000, 1001]) {
+      const gs = createGame(SceneId.MENU, [0, 1], [0, 5]);
+      gs.matchSettings.hazards = true;
+      gs.rand.setSeed(seed);
+      gs.swapScene(SceneId.ARENA0 + modArenas()[0].index);
+      const run = new HeadlessRunner(gs);
+      let orbs = 0;
+      for (let t = 0; t < 10000 && !orbs; t += 250) {
+        run.advance(250);
+        orbs = gs.objects.filter((r) => r.obj.curAnimation?.id === map.get(15)).length;
+      }
+      expect(orbs).toBeGreaterThan(0);
+    }
   });
 });

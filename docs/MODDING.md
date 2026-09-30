@@ -29,7 +29,12 @@ Studio makes content in the game's own formats, pixel for pixel, and tests it in
 - **Arenas** start as a copy of one of the game's arenas, or from a picture (576 × 200 with the widescreen sides, or
   320 × 200): Studio picks the arena's 64 colors and makes the shading tables the game needs. An arena names its music
   (one of the game's songs), its ambience (the remastered effects and echo of one of the game's arenas) and, if any,
-  the original arena whose built-in rules it follows.
+  the original arena whose built-in rules it follows. Its animations are the 50 slots of its scene file, edited over
+  the arena's background like a robot's moves (frames, tags, sprites, hit points): scenery that loops from the start,
+  hazards that appear at random during fights (their chance, damage and the robot's reaction when they hit), what an
+  animation turns into when it hits a robot, ends, or is hit, and its sounds. An animation can be copied from another
+  arena with the ones it starts and turns into (the Fire Pit's orbs come with their bursts), its colors matched to the
+  arena's.
 - **Pilots** have a name, stats, colors, the original pilot whose fighting style the computer uses, a bio, lines for
   the VS and victory screens, an ending for the one-player game, and a portrait (the game draws it in each screen's
   colors).
@@ -92,11 +97,29 @@ the effect colors every fight has (`0xA0`-`0xF9`); 0 is see-through. Attacks are
 | `music` | `ARENA0.PSM` … `ARENA4.PSM`, `MENU.PSM` or `END.PSM` |
 | `ambience` | `none`, `stadium`, `danger room`, `power plant`, `fire pit`, `desert`, `orbital`, `ice cave`, `rooftop` or `abyss` |
 | `base` | an original arena (0-4) whose built-in rules it follows (the Stadium's light, the Power Plant's walls, the Fire Pit's fire, the Desert's palette for each round), or `-1` |
+| `loops` | optional: its animations (0-49) that start with the arena and loop, e.g. `[30]` |
 
-The scene file's background is 320 × 200; the arena's own colors are palette entries `0x60`-`0x9F` (the rest, the
-round announcements and dust, and the sound table when it is empty, come from the original game's first arena). The
-widescreen file is the 576 × 200 picture (the middle 320 columns the classic screen): width and height (16 bits each),
-then the pixels encoded like sprites.
+The scene file's background is 320 × 200; the arena's own colors are palette entries `0x60`-`0x9F` (the rest, and the
+round announcements and dust when it has none of its own, come from the original game's first arena; so does each
+entry of its sound table left at 0). The widescreen file is the 576 × 200 picture (the middle 320 columns the classic
+screen): width and height (16 bits each), then the pixels encoded like sprites.
+
+The scene file's animations play in these ways:
+
+- listed in `loops`: they start with the arena and loop. They are scenery: they never hurt anyone.
+- a probability above 1 makes a **hazard**: during fights with hazards on, it appears at its position with one chance
+  in that number every tick (48 ms at the default speed), one at a time; one of its extra strings, picked at random,
+  plays instead of its animation string (the first never does).
+- the others play when an animation's `m` tag starts them (a probability of 1 makes them loop), or when the game does:
+  6-11 the round announcements, 20 and 21 the walls a robot is slammed into, 22 the slam's effect on the robot, 24-26
+  dust, 27 the round token.
+
+A hazard, and what it starts, hurts a robot its hit points touch: its damage, the robot reacting as its reaction
+string says (a move's footer string). It then turns into its next animation (the scene file's `chainNoHit`), as it
+does when it ends; when a robot's attack hits it, it turns into its `chainHit` animation. Its sprites use the arena's
+own colors and the effect colors (`0xA0`-`0xF9`); its `s n` tags play entry n of the arena's sound table (the game
+sets entries 3, 14 and 15). A frame whose letter has no sprite shows nothing, in arenas and robots alike (the
+originals use `Z`).
 
 ### pilot.json
 

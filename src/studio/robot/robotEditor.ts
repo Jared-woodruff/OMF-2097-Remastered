@@ -16,13 +16,16 @@ export function robotEditor(app: StudioApp, robot: RobotDoc, move?: number): Edi
   let moves: MoveEditor | null = null;
   const body = h('div', { style: { flex: '1', minHeight: '0' } });
   const tabs = h('div', { class: 'tabs', style: { padding: '0 22px', margin: '0' } });
+  const picker = h('div');
   const el = h('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
     h('div', { style: { padding: '14px 22px 0', display: 'flex', alignItems: 'center', gap: '12px' } },
       h('h1', { style: { margin: '0', font: '800 20px var(--title)', letterSpacing: '.06em' } }, robot.info.name || 'Robot'),
       h('span', { class: 'faint' }, `robots/${robot.id}`),
       h('span', { style: { flex: '1' } }),
-      colorPicker(app)),
+      picker),
     tabs, body);
+  const drawPicker = () => fill(picker, colorPicker(app));
+  drawPicker();
   const show = () => {
     moves?.destroy();
     moves = null;
@@ -43,7 +46,16 @@ export function robotEditor(app: StudioApp, robot: RobotDoc, move?: number): Edi
     }
   };
   show();
-  return { el, close: () => moves?.destroy() };
+  return {
+    el,
+    close: () => moves?.destroy(),
+    // (the moves tab keeps its move; the overview is drawn again)
+    recolor: () => {
+      drawPicker();
+      if (moves) moves.recolor();
+      else show();
+    },
+  };
 }
 
 /** The colors robots are shown in: the pilot's three color choices, like the game's (0-15 each). */
@@ -154,7 +166,12 @@ function overview(app: StudioApp, robot: RobotDoc, openMove: (id: number) => voi
         h('thead', null, h('tr', { class: 'faint', style: { textAlign: 'left' } }, h('th', null, '#'), h('th', null, 'Move'), h('th', null, 'Input'),
           h('th', null, 'Projectile'), h('th', null, 'Charge'), h('th', null, 'Push'), h('th', null, ''))),
         h('tbody', null, attacks.map(aiRow))) : h('p', { class: 'faint' }, 'No attacks yet.')),
-    soundsCard(af, () => app.changed(false)),
+    soundsCard(af.soundTable, () => app.changed(false), {
+      strings: af.moves.flatMap((m) => (m ? [m.animation.animString, ...m.animation.extraStrings] : [])),
+      shared: (i) => i < 10 || i >= 25,
+      help: `A frame's "s n" tag plays entry n: one of the game's sound effects. Entries 0-9 and 25-29 are the same for every robot (hits, ` +
+        'blocks, steps: the game sets some itself).',
+    }),
     h('div', { class: 'card' }, h('h2', null, 'REMOVE'),
       h('button', { class: 'btn danger', onclick: () => void app.removeSelected() }, `Remove ${info.name || 'this robot'} from the mod`)));
 }

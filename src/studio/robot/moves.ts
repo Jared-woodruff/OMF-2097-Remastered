@@ -47,7 +47,7 @@ export const EXTRA_SELECTORS: [number, string][] = [[0, 'None'], [1, 'Arm speed'
 
 /** What the tags of animation strings do, as far as they are known. */
 export const TAG_HELP: Record<string, string> = {
-  s: 'Play sound n of the robot\'s sound table', l: 'Sound volume', sf: 'Sound pitch', sb: 'Sound pan', sp: 'Sound priority',
+  s: 'Play entry n of the sound table', l: 'Sound volume', sf: 'Sound pitch', sb: 'Sound pan', sp: 'Sound priority',
   sd: 'Do not repeat the sound', se: 'Sound pan end', sl: 'Sound pan start', sc: 'Sound channel', sa: 'Sound follows the robot',
   smo: 'Play music n', smf: 'Stop the music',
   q: 'This frame can hit', n: 'No collision with the other robot', cp: 'Pause the fight on a hit', bn: 'Cannot be blocked',
@@ -67,11 +67,12 @@ export const TAG_HELP: Record<string, string> = {
   bt: 'Dark tint', by: 'No shadow', bo: 'Shadow correction', bb: 'Shake the screen up and down', bl: 'Shake the screen sideways',
   bs: 'Blend from', bf: 'Blend to', bpd: 'Palette: reference', bps: 'Palette: first entry', bpn: 'Palette: entries', bpp: 'Palette: levels',
   bpb: 'Palette: start level', bpf: 'Palette: the fighter\'s', bz: 'Tint', ox: 'Sprite x correction', oy: 'Sprite y correction',
-  t: 'Only while the enemy is hit or blocks', aa: 'Reset the air attack',
+  t: 'Only while the enemy is hit or blocks', aa: 'Reset the air attack', as: 'Wander about (the Fire Pit\'s orb)',
 };
 
-/** Tags for the "add a tag" list: the documented ones first. */
-export function tagChoices(allNames: string[]): string[] {
-  const documented = allNames.filter((n) => TAG_HELP[n]);
-  return [...documented, ...allNames.filter((n) => !TAG_HELP[n])];
+/** Tags for the "add a tag" list: the given ones first, then the documented ones. */
+export function tagChoices(allNames: string[], first: string[] = []): string[] {
+  const head = first.filter((n) => allNames.includes(n));
+  const rest = allNames.filter((n) => !head.includes(n));
+  return [...head, ...rest.filter((n) => TAG_HELP[n]), ...rest.filter((n) => !TAG_HELP[n])];
 }

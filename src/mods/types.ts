@@ -66,6 +66,8 @@ export interface ModArenaInfo {
    * Fire Pit's animations at the start (3), the Desert's palette for each round (4). -1: none.
    */
   base: number;
+  /** Its animations that start with the scene and loop (ids 0-49: signs, machines, flames...). */
+  loops: number[];
 }
 
 export const MOD_SEXES = ['male', 'female'] as const;
@@ -205,6 +207,14 @@ export function readRobotInfo(v: unknown, where: string): ModRobotInfo {
   };
 }
 
+function animIds(v: unknown, what: string): number[] {
+  if (v === undefined) return [];
+  if (!Array.isArray(v) || v.some((x) => typeof x !== 'number' || !Number.isInteger(x) || x < 0 || x > 49) || new Set(v).size !== v.length) {
+    throw new ModError(`${what} must list animation ids from 0 to 49 (each once).`);
+  }
+  return v as number[];
+}
+
 export function readArenaInfo(v: unknown, where: string): ModArenaInfo {
   const o = obj(v, where);
   const name = str(o, 'name', where, 16).trim().toUpperCase() || 'ARENA';
@@ -215,6 +225,7 @@ export function readArenaInfo(v: unknown, where: string): ModArenaInfo {
     music: oneOf(o, 'music', where, MOD_MUSIC, 'ARENA0.PSM'),
     ambience: oneOf(o, 'ambience', where, MOD_AMBIENCE, 'none'),
     base: int(o, 'base', where, -1, 4, -1),
+    loops: animIds(o.loops, `${where}: "loops"`),
   };
 }
 

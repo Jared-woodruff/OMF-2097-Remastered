@@ -220,6 +220,8 @@ async function main(): Promise<void> {
     startScene = SceneId.MENU;
     startTraining(gs);
   }
+  // (OMF Studio's tests show the arena's hazards whatever the player's own setting)
+  if (params.has('modtest')) gs.matchSettings.hazards = true;
   if (startScene !== SceneId.MENU) gs.swapScene(startScene);
   // On scene changes: evict stale surfaces from the atlas, and start loading the HD artwork the scene needs (the VS
   // screen also loads both robots and the fight graphics, so fights start with their artwork ready).

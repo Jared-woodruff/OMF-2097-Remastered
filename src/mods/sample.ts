@@ -1,7 +1,11 @@
 // A sample mod made from the game's own generators, with no original art in it: a robot put together the robot
 // workshop's way (GLACIER's frame, SPECTRE's head, HELIX's moves), an arena (the remaster's rooftop at dusk: its own
-// colors changed) and a pilot. The tests install and play it; OMF Studio offers it as an example.
-import { parseBK, saveBK } from '../formats/bk';
+// colors changed, a warning light blinking on a mast and an electric arc now and then) and a pilot. The tests install
+// and play it; OMF Studio offers it as an example.
+import { parseBK, saveBK, type BkAnimData, type BkFile } from '../formats/bk';
+import { AnimationData } from '../formats/animation';
+import { encodeSprite, Sprite } from '../formats/sprite';
+import { REACT } from '../gen/fighter/moveset';
 import { Palette } from '../formats/palette';
 import { MOVE } from '../gen/fighter/moveset';
 import { GEN_ROBOTS } from '../gen/roster';
@@ -43,7 +47,81 @@ function duskRooftop(): { bk: Uint8Array; wid: Uint8Array | null } {
   remaps.tables.forEach((t, k) => ownRemaps.tables[k].set(t.subarray(OWN_FIRST), OWN_FIRST));
   bk.palettes = [own];
   bk.remaps = [ownRemaps];
+  addAnimations(bk, full);
   return { bk: saveBK(bk), wid: getGenerated('ARENA7.WID') };
+}
+
+/** The sample arena's animations: slot 30 loops from the start (the light), slot 31 appears at random (the arc). */
+export const SAMPLE_LIGHT = 30, SAMPLE_ARC = 31;
+
+/** The nearest of the shared effect colors (0xA0-0xF9) to a color. */
+function effect(pal: Palette, r: number, g: number, b: number): number {
+  let best = 0xa0, bestD = Infinity;
+  for (let i = 0xa0; i < 0xfa; i++) {
+    const d = (pal.r(i) - r) ** 2 + (pal.g(i) - g) ** 2 + (pal.b(i) - b) ** 2;
+    if (d < bestD) (bestD = d), (best = i);
+  }
+  return best;
+}
+
+function sprite(px: Uint8Array, w: number, h: number, x: number, y: number): Sprite {
+  const s = new Sprite();
+  s.posX = x;
+  s.posY = y;
+  s.setData(encodeSprite(px, w, h), w, h);
+  return s;
+}
+
+function anim(sprites: Sprite[], animString: string, x: number, y: number): AnimationData {
+  const a = new AnimationData();
+  a.startX = x;
+  a.startY = y;
+  a.animString = animString;
+  a.sprites = sprites;
+  return a;
+}
+
+/** A warning light on a mast (blinking) and an electric arc striking the roof now and then (it hurts). */
+function addAnimations(bk: BkFile, pal: Palette): void {
+  // The light: a red glow on and off, 3 x 3.
+  const on = effect(pal, 255, 60, 40), glow = effect(pal, 170, 20, 20), off = effect(pal, 70, 10, 12);
+  const lit = new Uint8Array([glow, on, glow, on, on, on, glow, on, glow]);
+  const dark = new Uint8Array([0, off, 0, off, off, off, 0, off, 0]);
+  const light: BkAnimData = {
+    nullValue: 0, chainHit: 0, chainNoHit: 0, repeat: 0, probability: 1, hazardDamage: 0, footerString: '',
+    animation: anim([sprite(lit, 3, 3, -1, -1), sprite(dark, 3, 3, -1, -1)], 'A12-B18', 64, 58),
+  };
+  // The arc: a jagged bolt from above the roof down to it, in two shapes, 14 wide and 90 tall; its hit points along it.
+  const white = effect(pal, 250, 250, 255), cyan = effect(pal, 90, 220, 255), blue = effect(pal, 40, 90, 220);
+  const W = 14, H = 90;
+  const bolt = (seed: number): { px: Uint8Array; hits: [number, number][] } => {
+    const px = new Uint8Array(W * H);
+    const hits: [number, number][] = [];
+    let x = 7;
+    for (let y = 0; y < H; y++) {
+      if (y % 6 === 0) x = Math.max(2, Math.min(W - 3, x + (((y * 7 + seed * 13) % 5) - 2)));
+      for (let dx = -2; dx <= 2; dx++) {
+        const v = dx === 0 ? white : Math.abs(dx) === 1 ? cyan : blue;
+        if (Math.abs(dx) === 2 && (y + seed) % 3) continue;
+        px[y * W + x + dx] = v;
+      }
+      if (y % 10 === 5) hits.push([x - 7, y - H]);
+    }
+    return { px, hits };
+  };
+  const b1 = bolt(1), b2 = bolt(4);
+  const arcAnim = anim([sprite(b1.px, W, H, -7, -H), sprite(b2.px, W, H, -7, -H)], 's20l80A2-B2-A2-B2-A2-B3-A3', 96, 190);
+  arcAnim.coords = [
+    ...b1.hits.map(([x, y]) => ({ x, y, nullValue: 0, frameId: 0 })),
+    ...b2.hits.map(([x, y]) => ({ x, y, nullValue: 0, frameId: 1 })),
+  ];
+  const arc: BkAnimData = {
+    nullValue: 0, chainHit: 0, chainNoHit: 0, repeat: 0, probability: 900, hazardDamage: 8, footerString: REACT.highMedium, animation: arcAnim,
+  };
+  bk.anims[SAMPLE_LIGHT] = light;
+  bk.anims[SAMPLE_ARC] = arc;
+  // (the arc's sound: the Power Plant's zap; the other entries are the original game's first arena's)
+  bk.soundTable[20] = 33;
 }
 
 /**
@@ -128,6 +206,7 @@ export async function buildSampleMod(): Promise<ModPackage> {
         music: 'ARENA1.PSM',
         ambience: 'rooftop',
         base: -1,
+        loops: [SAMPLE_LIGHT],
       },
       bk: arena.bk,
       wid: arena.wid,
