@@ -1,7 +1,7 @@
 {
   "name": "omf2097-remastered",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "One Must Fall 2097 Remastered: a faithful reimplementation of the 1994 robot fighting game with HD graphics",
   "license": "MIT",
   "repository": {
