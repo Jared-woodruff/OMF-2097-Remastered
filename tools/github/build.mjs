@@ -1,5 +1,6 @@
 // The GitHub pages' pictures, in the game's look (docs/media): the README's hero, buttons, navigation, section
-// banners, feature icons and footer, the docs' headers, and the repository's social preview. Each is HTML in the
+// banners, feature icons and footer, the docs' headers, the repository's social preview, and pictures of the game in
+// the menus' frames (the arenas, the new robots and arenas, the manual) when footage of it is there (.captures/readme2). Each is HTML in the
 // style of the game's menus (the blue grid panels in their bright blue frames, the menus' green and gold Orbitron, the
 // painted main menu), shot at twice its size by Microsoft Edge in headless mode (Windows); GIF frames are decoded in
 // the page. `npm run github` makes them all; `npm run github -- hero banner-features` only those (file names without
@@ -22,20 +23,21 @@ const htmlOnly = args.includes('--html');
 /** `--out <folder>`: the pictures go there instead of docs/media (to compare them first). */
 const outAt = args.indexOf('--out');
 const OUT_DIR = outAt >= 0 ? path.resolve(args[outAt + 1]) : null;
-const only = new Set(args.filter((a, i) => !a.startsWith('--') && i !== outAt + 1));
+const only = new Set(args.filter((a, i) => !a.startsWith('--') && (outAt < 0 || i !== outAt + 1)));
 
 // ---- what the pages show --------------------------------------------------------------------------------------
 
 /** The README's sections: their banners (docs/media/banner-<key>.jpg) and navigation buttons (nav-<key>.png). */
 const SECTIONS = [
   { key: 'features', anchor: 'features', nav: 'Features', title: 'The classic, rebuilt',
-    line: 'Every robot, arena, mode and quirk of the 1994 original, ported faithfully', pic: { src: 'docs/media/replay.jpg', pos: '50% 22%' } },
+    line: 'Every robot, arena, mode and quirk of the 1994 original, ported faithfully',
+    pic: { gif: 'docs/media/fx-desert.gif', frame: 4, pos: '50% 72%' } },
   { key: 'modes', anchor: 'classic-remastered', nav: 'Classic / Remastered', title: 'Classic / Remastered',
     line: 'Pixel-exact VGA or HD at any resolution: F2 switches between them at any moment',
     pic: { gif: 'docs/media/classic-vs-remastered.gif', frame: 30, pos: '50% 40%' } },
   { key: 'effects', anchor: 'effects', nav: 'Effects', title: 'Fight effects',
     line: 'Sparks, light, shockwaves and arena ambience, purely visual: fights play out the same',
-    pic: { gif: 'docs/media/fx-powerplant.gif', frame: 15, pos: '64% 58%', zoom: 1.3 } },
+    pic: { gif: 'docs/media/fx-knockout.gif', frame: 14, pos: '60% 94%', zoom: 1.3 } },
   { key: 'gameplay', anchor: 'gameplay', nav: 'Gameplay', title: 'Gameplay additions',
     line: 'A training lab, replays, new modes, a robot workshop and custom tournaments', pic: { src: 'docs/media/lab-frames.jpg', pos: '50% 30%' } },
   { key: 'mods', anchor: 'mods', nav: 'Mods & Studio', title: 'Mods & OMF Studio',
@@ -167,6 +169,53 @@ for (const d of DOCS) {
 
 for (const p of PILLARS) add(`docs/media/icon-${p}.png`, `<div class="shot pillar" data-out="docs/media/icon-${p}.png">${icon(p)}</div>`);
 
+// ---- pictures of the game, framed ---------------------------------------------------------------------------------
+// Made from footage taken of the game (1920 x 1080 frames in .captures/readme2: .captures/readme-media/rec/readme2.mjs
+// records them from the dev server; the manual's pages rendered from its PDF), which is not in the repository: without
+// it these pictures stay as they are.
+
+const CAPS = '.captures/readme2';
+const hasCaps = fs.existsSync(path.join(ROOT, CAPS, 'arena-0.jpg'));
+
+/** Part of a 1920 x 1080 frame in a window of w x h (CSS pixels): centered on x `cx`, from y `y0`, `sh` frame pixels high. */
+function part(file, w, h, cx = 960, y0 = 0, sh = 1080) {
+  const k = h / sh;
+  return `<img src="${CAPS}/${file}" style="position:absolute;width:${(1920 * k).toFixed(2)}px;height:${(1080 * k).toFixed(2)}px;` +
+    `left:${(w / 2 - cx * k).toFixed(2)}px;top:${(-y0 * k).toFixed(2)}px">`;
+}
+
+/** A window onto the game with its name under it (a frame's windows fill its 852 pixels inside, 10 apart). */
+const framed = (w, h, img, name, sub = '') => `<figure style="width:${w}px"><div class="gwin" style="width:${w}px;height:${h}px">${img}</div>` +
+  `<figcaption><b>${name}</b>${sub ? `<span>${sub}</span>` : ''}</figcaption></figure>`;
+
+if (hasCaps) {
+  // The five arenas of the original game, a moment of a fight in each (without the fight's HUD).
+  const ARENAS = [['arena-0.jpg', 480, 'STADIUM'], ['arena-1.jpg', 690, 'DANGER ROOM'], ['arena-2.jpg', 1360, 'POWER PLANT'],
+    ['arena-3.jpg', 1400, 'FIRE PIT'], ['arena-4.jpg', 660, 'THE DESERT']];
+  add('docs/media/arenas.jpg', `
+<div class="shot gframe" data-out="docs/media/arenas.jpg" style="width:880px">
+  <div class="panel grow">${ARENAS.map(([f, cx, name]) => framed(162, 214, part(f, 162, 214, cx, 80, 1000), name)).join('')}</div>
+</div>`);
+  // The new robots and arenas: the four arenas (fights, with their HUD), the robots on the VS screen.
+  const NEW_ARENAS = [['newarena-5.jpg', 'ORBITAL', 'GLACIER VS HELIX'], ['newarena-6.jpg', 'ICE CAVE', 'GLACIER VS TEMPEST'],
+    ['newarena-7.jpg', 'ROOFTOP', 'SPECTRE VS TEMPEST'], ['newarena-8.jpg', 'ABYSS', 'HELIX VS SPECTRE']];
+  add('docs/media/new-arenas.jpg', `
+<div class="shot gframe" data-out="docs/media/new-arenas.jpg" style="width:880px">
+  <div class="panel grow wrap">${NEW_ARENAS.map(([f, name, sub]) => framed(421, 237, part(f, 421, 237), name, sub)).join('')}</div>
+</div>`);
+  add('docs/media/new-robots.jpg', `
+<div class="shot gframe" data-out="docs/media/new-robots.jpg" style="width:880px">
+  <div class="panel grow">${[['vsnew0.jpg', 'GLACIER VS TEMPEST'], ['vsnew1.jpg', 'HELIX VS SPECTRE']]
+    .map(([f, name]) => framed(421, 316, part(f, 421, 316, 960, 0, 1080), name)).join('')}</div>
+</div>`);
+  // The manual: its cover and two spreads (the robots, the pilots), on the menus' navy.
+  const page = (n) => `<img class="mpage" src="${CAPS}/manual-p${String(n).padStart(2, '0')}.png">`;
+  add('docs/media/manual.jpg', `
+<div class="shot gframe" data-out="docs/media/manual.jpg" style="width:880px">
+  <div class="panel grow manual"><div class="book cover">${page(1)}</div><div class="book">${page(12)}${page(13)}</div><div class="book">${page(20)}${page(21)}</div></div>
+</div>`);
+}
+
 add('docs/media/footer.jpg', `
 <div class="shot footer" data-out="docs/media/footer.jpg">
   <div class="hazard"></div>
@@ -259,6 +308,19 @@ body { margin: 0; padding: 40px; background: #0d1117; display: flex; flex-wrap: 
   background-image: linear-gradient(90deg, var(--grid) 1px, transparent 1px), linear-gradient(180deg, var(--grid) 1px, transparent 1px);
   background-size: 11px 11px; background-position: -1px -1px; }
 .pillar .ico { width: 26px; height: 26px; filter: drop-shadow(0 0 5px rgba(0, 255, 0, .45)); }
+
+/* pictures of the game in the menus' frames */
+.gframe .grow { display: flex; justify-content: space-between; gap: 10px; padding: 12px; }
+.gframe .grow.wrap { flex-wrap: wrap; row-gap: 12px; }
+.gframe figure { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.gframe .gwin { position: relative; overflow: hidden; border: 2px solid var(--edge); box-shadow: 0 0 0 1px var(--edge-dk), 0 0 18px rgba(0, 0, 243, .3); background: #000; }
+.gframe .gwin img { max-width: none; }
+.gframe figcaption { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.gframe figcaption b { font: 800 11.5px OMF; letter-spacing: .14em; color: var(--gold); text-shadow: 1px 1px 0 #2a1a00; white-space: nowrap; }
+.gframe figcaption span { font: 700 8.5px OMF; letter-spacing: .16em; color: var(--pale); opacity: .85; white-space: nowrap; }
+.gframe .manual { align-items: center; padding: 16px 18px; }
+.gframe .book { display: flex; box-shadow: 0 10px 24px rgba(0, 0, 0, .7), 0 0 0 1px rgba(0, 0, 0, .6); }
+.gframe .mpage { height: 250px; display: block; }
 
 /* the footer: 880 x 64 */
 .footer { width: 880px; height: 64px; display: flex; align-items: center; background: #0a0a0a; }
