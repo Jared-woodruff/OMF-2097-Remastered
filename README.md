@@ -33,7 +33,7 @@
 
 <a id="trailer"></a>
 
-https://github.com/user-attachments/assets/acc138a6-ef8b-43e2-a769-d2a326cea509
+https://github.com/user-attachments/assets/f226b2fa-c56a-4cce-b47a-8917a0448cf6
 
 <p align="center">
   <sub>A fan trailer with no narrator. It starts in 1994: a beige PC boots, the game is installed from two floppy disks,
