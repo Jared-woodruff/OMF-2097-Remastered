@@ -3,6 +3,7 @@
 // (a close-up of the robot in a kick, drawn like the originals' buttons).
 import type { Palette } from '../formats/palette';
 import { Animation, RSprite } from '../resources/animation';
+import { fighterFile, hasFighter } from '../resources/resources';
 import { hdAssets } from '../video/hd/assets';
 import { pixelHash } from '../video/hd/pixelHash';
 import { Surface } from '../video/surface';
@@ -217,4 +218,42 @@ function opaqueBox(s: { w: number; h: number; data: Uint8Array }): { x: number; 
     }
   }
   return x1 < 0 ? { x: 0, y: 0, w: 1, h: 1 } : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+}
+
+/** The customize menu's robot silhouettes (MECHLAB.BK animation 5): about this tall, centred here, standing here. */
+const ICON_HEIGHT = 34, ICON_CENTER_X = 139, ICON_FLOOR_Y = 181;
+/** Their shades, darkest to brightest. */
+const ICON_SHADES = [0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f];
+
+/**
+ * Adds a robot's silhouette to the customize menu's pictures when MECHLAB.BK has none for it (it has the original
+ * robots'; the remaster's, the workshop's and mods' robots get one made from their idle animation's first frame, in the
+ * originals' shades).
+ */
+export function ensureMechIcon(ani: Animation, harId: number): void {
+  if (ani.sprites[harId]?.surface) return;
+  if (!hasFighter(harId)) return;
+  const idle = fighterFile(harId).moves[11]?.animation.sprites.find((s) => !s.isEmpty() && s.width < 1000);
+  if (!idle) return;
+  const px = idle.pixels(), w = idle.width, h = idle.height;
+  let top = 0, bottom = h - 1;
+  while (top < bottom && !px.subarray(top * w, (top + 1) * w).some((v) => v)) top++;
+  while (bottom > top && !px.subarray(bottom * w, (bottom + 1) * w).some((v) => v)) bottom--;
+  const k = ICON_HEIGHT / (bottom - top + 1);
+  const sw = Math.max(1, Math.round(w * k)), sh = ICON_HEIGHT;
+  const data = new Uint8Array(sw * sh);
+  for (let y = 0; y < sh; y++) {
+    const sy = top + Math.min(bottom - top, Math.floor(y / k));
+    for (let x = 0; x < sw; x++) {
+      const v = px[sy * w + Math.min(w - 1, Math.floor(x / k))];
+      if (!v) continue;
+      // (the robots' own colors are ramps of 16 shades; effect colors show mid-grey)
+      const shade = v < 48 ? (v & 15) / 15 : 0.5;
+      data[y * sw + x] = ICON_SHADES[Math.round(shade * (ICON_SHADES.length - 1))];
+    }
+  }
+  const surf = new Surface(sw, sh, data, 0);
+  surf.source = { kind: 'generated', key: `mech/icon/${harId}` };
+  while (ani.sprites.length < harId) ani.sprites.push(new RSprite(ani.sprites.length, 0, 0, null));
+  ani.sprites[harId] = new RSprite(harId, ICON_CENTER_X - (sw >> 1), ICON_FLOOR_Y - sh, surf);
 }

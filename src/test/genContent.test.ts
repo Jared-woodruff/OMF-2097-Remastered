@@ -5,7 +5,7 @@ import { setKeyState } from '../controller/input';
 import { ARENA_COUNT, HarId, ORIGINAL_ARENAS, SceneId } from '../game/constants';
 import type { GameState } from '../game/gameState';
 import { harMoveList } from '../game/gui/moveList';
-import { arenaCount, arenaName, EXTRA_HAR_IDS, extraArenasEnabled, extraRobotsEnabled, randomHarPool } from '../game/roster';
+import { arenaList, arenaName, EXTRA_HAR_IDS, extraArenasEnabled, extraRobotsEnabled, randomHarPool } from '../game/roster';
 import type { MeleeScene } from '../game/scenes/melee';
 import { defaultSettings, loadSettings, saveSettings, settings } from '../game/settings';
 import { GEN_ARENAS } from '../gen/scene/arenas';
@@ -102,9 +102,9 @@ describe.skipIf(!hasGameData)('generated arenas', () => {
   it('can be turned off', () => {
     loadGameData();
     expect(extraArenasEnabled()).toBe(true);
-    expect(arenaCount()).toBe(ARENA_COUNT);
+    expect(arenaList().length).toBe(ARENA_COUNT);
     settings().gameplay.extraArenas = false;
-    expect(arenaCount()).toBe(ORIGINAL_ARENAS);
+    expect(arenaList().length).toBe(ORIGINAL_ARENAS);
   });
 });
 

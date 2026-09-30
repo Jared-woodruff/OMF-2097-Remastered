@@ -7,15 +7,16 @@ import type { Pilot } from '../../formats/pilot';
 import type { Sprite } from '../../formats/sprite';
 import { Animation, RSprite } from '../../resources/animation';
 import { bkGetInfo, harPicture, langGet, loadBk } from '../../resources/resources';
-import { GEN_ARENAS } from '../../gen/scene/arenas';
-import { arenaCount, arenaDescription, arenaName, extraArenasEnabled, EXTRA_HAR_IDS, extraRobotsEnabled } from '../roster';
+import { arenaDescription, arenaList, arenaName, extraRobotsEnabled, EXTRA_HAR_IDS, nextArena, pilotStyle, randomArena } from '../roster';
+import { addPilotPortrait } from '../../mods/portraits';
+import { modPilot, modQuote } from '../../mods/registry';
 import { MOVE } from '../../gen/fighter/moveset';
 import { globalRandom } from '../../util/random';
 import { TAG_MENU, video } from '../../video/draw';
 import { Surface } from '../../video/surface';
 import {
   ACT_DOWN, ACT_ESC, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_UP, CtrlType, OBJECT_FACE_LEFT, OBJECT_FACE_RIGHT,
-  ORIGINAL_HAR_TYPES, PilotId, RENDER_LAYER_MIDDLE, RENDER_LAYER_TOP, SceneId,
+  ORIGINAL_ARENAS, ORIGINAL_HAR_TYPES, PilotId, RENDER_LAYER_MIDDLE, RENDER_LAYER_TOP, SceneId,
 } from '../constants';
 import { registerScene, type FightStats, type GamePlayer, type GameState } from '../gameState';
 import { Dialog, DialogResult, DialogStyle } from '../gui/dialog';
@@ -317,6 +318,8 @@ export class VsScene extends Scene {
       // PLAYER
       const player1Portrait = new GameObject(gs, -10, 150);
       ani = bkGetInfo(this.bk, 4)!.ani;
+      // (mod pilots bring their portraits)
+      for (const id of [player1.pilot.pilotId, p2Pilot.pilotId]) addPilotPortrait(ani, id, this.bk.palettes[0]);
       if (player1.chr) {
         player1Portrait.setSpriteOverride(true);
         player1Portrait.setAnimation(photoAnimation(player1.chr.photo, `photo/${player1.chr.pilot.photoId}`));
@@ -392,8 +395,8 @@ export class VsScene extends Scene {
       // force arena 0 when fighting Kreissack in 1 player mode
       gs.arena = 0;
     } else if (gs.isTournament() || gs.isDemoplay()) {
-      // pick random arenas (the remaster's arenas too when they are turned on)
-      gs.arena = globalRandom.int(arenaCount());
+      // pick random arenas (the remaster's arenas too when they are turned on, and the mods')
+      gs.arena = randomArena();
     } else if (isSpectator(gs)) {
       this.arenaName = createArenaText(arenaName(gs.arena), 211 - 74, 6);
       this.arenaDesc = createArenaText(arenaDescription(gs.arena), 211 - 74, 50);
@@ -410,10 +413,11 @@ export class VsScene extends Scene {
       // tournament mode
       this.insults = [null, createInsultText(p2Pilot.quotes[0] ?? '', 150, 60)];
     } else if (p2Pilot) {
-      // 1 player
+      // 1 player (a mod pilot says its own lines; the originals speak to it as to the pilot it plays like)
+      const a = player1.pilot.pilotId, b = p2Pilot.pilotId;
       this.insults = [
-        createInsultText(lang(749 + 11 * player1.pilot.pilotId + p2Pilot.pilotId), 150, 30),
-        createInsultText(lang(870 + 11 * p2Pilot.pilotId + player1.pilot.pilotId), 150, 30),
+        createInsultText(modPilot(a) ? modQuote(a, 0) : lang(749 + 11 * a + pilotStyle(b)), 150, 30),
+        createInsultText(modPilot(b) ? modQuote(b, 1) : lang(870 + 11 * b + pilotStyle(a)), 150, 30),
       ];
     }
 
@@ -562,16 +566,14 @@ export class VsScene extends Scene {
         case ACT_UP:
         case ACT_LEFT:
           if (player2.selectable) {
-            gs.arena--;
-            if (gs.arena < 0) gs.arena = arenaCount() - 1;
+            gs.arena = nextArena(gs.arena, -1);
             this.arenaChanged();
           }
           break;
         case ACT_DOWN:
         case ACT_RIGHT:
           if (player2.selectable) {
-            gs.arena++;
-            if (gs.arena >= arenaCount()) gs.arena = 0;
+            gs.arena = nextArena(gs.arena);
             this.arenaChanged();
           }
           break;
@@ -587,11 +589,12 @@ export class VsScene extends Scene {
   }
 
   /**
-   * Preview pictures for the remaster's arenas, like the originals' (64x40, in the originals' grey shades): their
-   * backgrounds shrunk five times.
+   * Preview pictures for the remaster's arenas and the mods', like the originals' (64x40, in the originals' grey
+   * shades): their backgrounds shrunk five times.
    */
   private addArenaThumbnails(ani: Animation): void {
-    if (!extraArenasEnabled()) return;
+    const extra = arenaList().filter((a) => a >= ORIGINAL_ARENAS);
+    if (!extra.length) return;
     const pal = this.bk.palettes[0];
     // The shades the original previews are drawn with, darkest to brightest.
     const shades = new Set<number>();
@@ -599,9 +602,9 @@ export class VsScene extends Scene {
     const lum = (i: number) => pal.r(i) * 0.3 + pal.g(i) * 0.59 + pal.b(i) * 0.11;
     const ramp = [...shades].filter((v) => v > 0).sort((a, b) => lum(a) - lum(b));
     if (ramp.length === 0) return;
-    for (const a of GEN_ARENAS) {
-      if (ani.sprites[a.index]?.surface) continue;
-      const bk = loadBk(a.file);
+    for (const index of extra) {
+      if (ani.sprites[index]?.surface) continue;
+      const bk = loadBk(`ARENA${index}.BK`);
       const src = bk.background, apal = bk.palettes[0];
       const thumb = new Surface(64, 40, undefined, -1);
       for (let y = 0; y < 40; y++) {
@@ -620,9 +623,9 @@ export class VsScene extends Scene {
           thumb.data[y * 64 + x] = best;
         }
       }
-      thumb.source = { kind: 'generated', key: `vs/arena-thumb/${a.index}` };
-      while (ani.sprites.length < a.index) ani.sprites.push(new RSprite(ani.sprites.length, 0, 0, null));
-      ani.sprites[a.index] = new RSprite(a.index, 0, 0, thumb);
+      thumb.source = { kind: 'generated', key: `vs/arena-thumb/${index}` };
+      while (ani.sprites.length < index) ani.sprites.push(new RSprite(ani.sprites.length, 0, 0, null));
+      ani.sprites[index] = new RSprite(index, 0, 0, thumb);
     }
   }
 
@@ -649,7 +652,7 @@ export class VsScene extends Scene {
         return;
       }
       if (isDown('Enter') && menuEv.some((e) => e.type === 'action' && e.action === ACT_PUNCH)) {
-        gs.setNext(SceneId.ARENA0 + globalRandom.int(arenaCount())); // rand_arena()
+        gs.setNext(SceneId.ARENA0 + randomArena()); // rand_arena()
         return;
       }
     }

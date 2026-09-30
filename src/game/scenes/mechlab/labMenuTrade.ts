@@ -1,6 +1,6 @@
 // Robot trade: the HARs Plug offered after the last fight (pilot.harTrades). Focusing one previews it on a temporary
 // copy of the pilot; choosing one asks for confirmation. Port of the reference mechlab/lab_menu_trade.c.
-import { bkGetInfo, langGet } from '../../../resources/resources';
+import { bkGetInfo, harName, langGet } from '../../../resources/resources';
 import { gamePlayerSetPilot } from '../../gameState';
 import type { SpriteButton } from '../../gui/spriteButton';
 import { FontSize, HAlign, TEXT_TRN_BLUE, TextDirection, VAlign } from '../../gui/text';
@@ -61,13 +61,13 @@ export function labMenuTrade(c: SpriteButton, s: MechlabScene): void {
   const tradeValue = calculateTradeValue(chr.pilot);
   const harValue = harPrice(p1.pilot.harId);
   if (tradeValue === harValue) {
-    tmp = cFormat(100, langGet(520), langGet(31 + chr.pilot.harId), langGet(31 + p1.pilot.harId));
+    tmp = cFormat(100, langGet(520), harName(chr.pilot.harId), harName(p1.pilot.harId));
   } else if (tradeValue > harValue) {
     const price = `$ ${tradeValue - harValue}K`.slice(0, 14);
-    tmp = cFormat(100, langGet(518), langGet(31 + chr.pilot.harId), langGet(31 + p1.pilot.harId), price);
+    tmp = cFormat(100, langGet(518), harName(chr.pilot.harId), harName(p1.pilot.harId), price);
   } else if (tradeValue + p1.pilot.money > harValue) {
     const price = `$ ${harValue - tradeValue}K`.slice(0, 14);
-    tmp = cFormat(100, langGet(519), langGet(31 + chr.pilot.harId), price, langGet(31 + p1.pilot.harId));
+    tmp = cFormat(100, langGet(519), harName(chr.pilot.harId), price, harName(p1.pilot.harId));
   }
 
   const menu = labMenuConfirmCreate(s, (b) => confirmTrade(b, s), (b) => cancelTrade(b, s), tmp);

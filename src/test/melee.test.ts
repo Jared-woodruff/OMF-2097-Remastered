@@ -7,7 +7,7 @@ import type { VsScene } from '../game/scenes/vs';
 import { langGet, loadBk } from '../resources/resources';
 import { drawList } from '../video/draw';
 import { vga } from '../video/vga';
-import { arenaCount, randomHarPool } from '../game/roster';
+import { arenaList, randomHarPool } from '../game/roster';
 import { createGame, hasGameData, HeadlessRunner } from './harness';
 
 const lang = (id: number) => langGet(id).replace(/\n$/, '');
@@ -142,7 +142,7 @@ describe.skipIf(!hasGameData)('melee (headless)', () => {
     expect(vs.arenaDesc!.str).toBe(lang(67));
     press(run, 'ArrowLeft');
     press(run, 'ArrowLeft');
-    expect(gs.arena).toBe(arenaCount() - 1); // wraps (to the last of the remaster's arenas when they are on)
+    expect(gs.arena).toBe(arenaList().length - 1); // wraps (to the last of the remaster's arenas when they are on)
     press(run, 'ArrowRight');
     expect(gs.arena).toBe(0);
     press(run, 'ArrowRight');

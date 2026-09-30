@@ -1,5 +1,6 @@
 // Scoreboard: the high score table (one page per round type) with name entry for a new single player high score
 // (port of the reference scoreboard scene). Uses MAIN.BK with a darkened palette.
+import { modPilot } from '../../mods/registry';
 import { isDown } from '../../controller/input';
 import type { CtrlEvent } from '../../controller/controller';
 import { vga } from '../../video/vga';
@@ -36,7 +37,8 @@ function harName(id: number): string {
 }
 
 function pilotName(id: number): string {
-  return PILOT_NAMES[id] ?? '(null)';
+  // (a mod pilot while its mod is on)
+  return PILOT_NAMES[id] ?? modPilot(id)?.info.name.toUpperCase() ?? '(null)';
 }
 
 /** printf("%-18.16s%-9s%-9s%11s", ...) */

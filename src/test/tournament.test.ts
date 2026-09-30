@@ -551,6 +551,26 @@ describe.skipIf(!hasGameData)('tournament: mechlab', () => {
     }
   });
 
+  it('the BUY menu opens with any of the remaster robots (MECHLAB.BK has pictures for twelve)', () => {
+    settings().gameplay.extraRobots = true;
+    createGame(SceneId.MENU);
+    try {
+      for (const har of [HarId.GLACIER, HarId.TEMPEST, HarId.HELIX, HarId.SPECTRE]) {
+        const chr0 = newTournamentChr(`OWNER${har}`);
+        chr0.pilot.harId = har;
+        storage.write(sgFileName(`OWNER${har}`), chrSave(chr0));
+        settings().tournament.lastName = `OWNER${har}`;
+        const { run, sc } = openMechlab();
+        expect(sc.gs.getPlayer(0).pilot.harId).toBe(har);
+        clickButton(run, sc, 2); // BUY
+        const menu = waitMenuReady(run, sc);
+        expect(menu.objs.length, `robot ${har}`).toBeGreaterThan(0);
+      }
+    } finally {
+      settings().gameplay.extraRobots = false;
+    }
+  });
+
   it('shows popups when there is nothing to load or delete', () => {
     const { run, sc } = openMechlab();
     clickButton(run, sc, 4); // LOAD

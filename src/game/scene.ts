@@ -3,7 +3,7 @@ import type { Palette } from '../formats/palette';
 import { loadAf, loadBk, bkGetInfo, type Af, type Bk } from '../resources/resources';
 import { video } from '../video/draw';
 import { setMenuColors, vga } from '../video/vga';
-import { isArenaScene, RENDER_LAYER_BOTTOM, SCENE_BK, SceneId } from './constants';
+import { isArenaScene, RENDER_LAYER_BOTTOM, sceneBk, SceneId } from './constants';
 import type { GameState } from './gameState';
 import { GameObject } from './object';
 
@@ -43,7 +43,7 @@ export class Scene {
   constructor(gs: GameState, id: SceneId, bkName?: string) {
     this.gs = gs;
     this.id = id;
-    const name = bkName ?? SCENE_BK[id];
+    const name = bkName ?? sceneBk(id);
     if (!name) throw new Error(`No BK file for scene ${id}`);
     this.bk = loadBk(name);
     vga.setBasePalette(this.bk.palettes[0]);

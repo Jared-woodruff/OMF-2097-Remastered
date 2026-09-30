@@ -13,7 +13,10 @@ import { getFile, preloadAll } from './resources/files';
 import { loadGenerated } from './resources/generated';
 import { GeneratedArtwork } from './gen/hdArtwork';
 import { MOVE } from './gen/fighter/moveset';
-import { EXTRA_HAR_IDS, extraRobotsEnabled } from './game/roster';
+import { arenaAvailable, arenaLook, EXTRA_HAR_IDS, extraRobotsEnabled, pilotExists, pilotInfo, pilotNameOf } from './game/roster';
+import { loadMods, testContent } from './mods/registry';
+import { installModFiles, ModsPage } from './mods/modsPage';
+import { MOD_EXTENSION } from './mods/package';
 import { loadStoredGameFiles, provideGameFiles } from './platform/gameData';
 import { showImportScreen } from './platform/importScreen';
 import { fonts, langGet, loadLanguage, soundBank } from './resources/resources';
@@ -134,6 +137,10 @@ async function main(): Promise<void> {
   // The remaster's own content (the new robots), shipped with the app.
   bootStatus('PREPARING THE ROBOTS', 0.82);
   await loadGenerated();
+  // The installed mods that are on: their robots, arenas and pilots join the game (src/mods); ?modtest: OMF Studio's
+  // test fight, with the project it is testing.
+  const bootParams = new URLSearchParams(location.search);
+  const modTestError = await loadMods(bootParams.has('modtest'));
   loadSettings();
   try {
     loadLanguage(settings().language);
@@ -181,12 +188,32 @@ async function main(): Promise<void> {
     if (id !== undefined) startScene = id;
   }
   const gs = new GameState(SceneId.MENU);
+  // OMF Studio's test (?modtest&t=fight|watch|training&h1&h2&arena&p1): the project's content by folder name.
+  if (params.has('modtest') && params.has('h1')) {
+    const h1 = testContent('robot', params.get('h1')) ?? 0, h2 = testContent('robot', params.get('h2')) ?? 5;
+    const arena = testContent('arena', params.get('arena')) ?? 0, p1 = testContent('pilot', params.get('p1')) ?? 0;
+    if (params.get('t') === 'training') {
+      const t = settings().training;
+      Object.assign(t, { har: h1, opponent: h2, arena, pilot: p1, dummy: 0 });
+      params.set('training', '');
+    } else {
+      params.set('fight', String(arena));
+      params.set('h1', String(h1));
+      params.set('h2', String(h2));
+      params.set('p1', String(p1));
+      params.set('p2', String(p1 === 3 ? 4 : 3));
+      params.set('ai', '');
+      if (params.get('t') === 'watch') params.set('watch', '');
+    }
+  }
   if (params.has('fight')) {
     startScene = setupQuickFight(gs, params);
     gs.arena = startScene - SceneId.ARENA0;
     // (&seed: the same fight every time, the computer on both sides; see quickFight.ts)
     if (import.meta.env.DEV && params.has('seed')) seedQuickFight(gs, params);
     else if (params.has('ai')) gs.setupAi(1);
+    // (Studio's test: the computer on both sides)
+    if (params.has('watch')) gs.setupAi(0);
   }
   // ?training: straight into training mode with the last used setup.
   if (params.has('training')) {
@@ -230,7 +257,7 @@ async function main(): Promise<void> {
       engine.waiting = true;
       artworkWaitEnd = performance.now() + ARTWORK_WAIT_MS;
     }
-    audio.setRoom(gs.sc.isArena() ? gs.thisId - SceneId.ARENA0 : -1);
+    audio.setRoom(gs.sc.isArena() ? arenaLook(gs.thisId - SceneId.ARENA0) : -1);
     // Back from trying a workshop robot: the workshop opens again.
     if (workshopAfter && gs.thisId === SceneId.MENU) {
       workshopAfter = false;
@@ -242,7 +269,7 @@ async function main(): Promise<void> {
   // Pages that open once the main menu is back and has faded in (the replay list after watching a replay, the results
   // of an arcade, survival or time attack run).
   let onMenu: (() => void) | null = null;
-  audio.setRoom(gs.sc.isArena() ? gs.thisId - SceneId.ARENA0 : -1);
+  audio.setRoom(gs.sc.isArena() ? arenaLook(gs.thisId - SceneId.ARENA0) : -1);
   wantGenerated();
   // The first screen waits (briefly) for its artwork so it does not pop in.
   bootStatus('LOADING ARTWORK', 0.9);
@@ -487,9 +514,14 @@ async function main(): Promise<void> {
     for (const p of record.meta.players) {
       if (isWorkshopHar(p.harId)) ensureWorkshopRobot(p.harId - harIdOf(0));
       if (!hasFighter(p.harId)) {
-        toast('This fight was played with a robot that is not in the workshop any more.', 4000);
+        toast(isWorkshopHar(p.harId) ? 'This fight was played with a robot that is not in the workshop any more.'
+          : 'This fight was played with a robot of a mod that is not on (EXTRAS > MODS).', 4000);
         return;
       }
+    }
+    if (!arenaAvailable(record.meta.arena)) {
+      toast('This fight was played in an arena of a mod that is not on (EXTRAS > MODS).', 4000);
+      return;
     }
     new ReplaySession(gs, record, () => {
       clips.cancel();
@@ -514,13 +546,14 @@ async function main(): Promise<void> {
       gs.setupAi(1);
       gs.matchSettingsReset();
       const p1 = gs.getPlayer(0);
-      const info = PILOT_INFO[settings().training.pilot] ?? PILOT_INFO[0];
-      p1.pilot.pilotId = settings().training.pilot;
+      const pilotId = pilotExists(settings().training.pilot) ? settings().training.pilot : 0;
+      const info = pilotInfo(pilotId);
+      p1.pilot.pilotId = pilotId;
       p1.pilot.harId = harIdOf(slot);
       p1.pilot.power = info.power;
       p1.pilot.agility = info.agility;
       p1.pilot.endurance = info.endurance;
-      p1.pilot.name = langGet(20 + p1.pilot.pilotId);
+      p1.pilot.name = pilotNameOf(p1.pilot.pilotId);
       p1.pilot.photo = null;
       setPilotColors(p1.pilot, spec.colors[0], spec.colors[1], spec.colors[2]);
       gs.modeRun = new ModeRun('exhibition');
@@ -536,6 +569,7 @@ async function main(): Promise<void> {
   buildWorkshopInBackground();
   app.showTournaments = () => help.open(new CustomTournamentsPage());
   app.showCredits = () => startCredits(gs, { links: !isDesktop });
+  app.showMods = () => help.open(new ModsPage());
   registerCustomTournaments();
   app.showRecords = () => help.open(new RecordsPage(() => Math.trunc(8 + MS_PER_OMF_TICK_SLOWEST - ((settings().gameplay.speed + 5) / 15) * MS_PER_OMF_TICK_SLOWEST)));
   const clips = new ClipExporter({
@@ -604,6 +638,18 @@ async function main(): Promise<void> {
   });
   window.addEventListener('drop', (e) => {
     const files = Array.from(e.dataTransfer?.files ?? []);
+    // Mod files are installed (they play from the next start).
+    const mods = files.filter((f) => f.name.toLowerCase().endsWith(MOD_EXTENSION));
+    if (mods.length) {
+      e.preventDefault();
+      void installModFiles(mods).then(({ installed, errors }) => {
+        if (errors.length) toast(errors[0], 6000);
+        if (installed.length) {
+          toast(`${installed.join(', ')} installed: ${installed.length === 1 ? 'it plays' : 'they play'} from the next start (EXTRAS > MODS).`, 6000);
+        }
+      });
+      return;
+    }
     if (audioFiles(files).length === 0) return;
     e.preventDefault();
     void addTracks(files).then(async (n) => {
@@ -627,6 +673,7 @@ async function main(): Promise<void> {
   }
   hideBoot();
   engine.start();
+  if (modTestError) toast(`The mod could not be tested: ${modTestError}`, 8000);
   // Development: ?credits starts the remaster's credits (=n: at the n-th fight; past the last: the end titles).
   if (import.meta.env.DEV && params.has('credits')) startCredits(gs, { links: !isDesktop, start: Number(params.get('credits')) || 0 });
 

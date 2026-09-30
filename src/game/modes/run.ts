@@ -11,7 +11,7 @@ import { AiDifficulty, HarId, PILOT_INFO, PilotId, SceneId } from '../constants'
 import type { GameState } from '../gameState';
 import { setPilotColors } from '../pilotColors';
 import { records, saveRecords, unlock } from '../records/records';
-import { arenaCount, randomHarPool } from '../roster';
+import { randomArena, randomHarPool } from '../roster';
 import { settings } from '../settings';
 import { langGet } from '../../resources/resources';
 import { globalRandom } from '../../util/random';
@@ -106,7 +106,7 @@ export class ModeRun {
       pilotId = pool[globalRandom.int(pool.length)];
       const hars = randomHarPool();
       harId = hars[globalRandom.int(hars.length)];
-      gs.arena = globalRandom.int(arenaCount());
+      gs.arena = randomArena();
     }
     this.lastPilot = pilotId;
     this.lastHar = harId;

@@ -27,6 +27,7 @@ import { projectileGetOwner } from '../game/objects/projectile';
 import { afGetMove, type AfMove } from '../resources/resources';
 import { Tag } from '../script/tags';
 import { globalRandom } from '../util/random';
+import { modPilot, modRobot } from '../mods/registry';
 import { Controller, type CtrlEvent, type HarEvent } from './controller';
 
 /* times thrown before we AI learns its lesson */
@@ -272,6 +273,35 @@ function chainControllerCmd(ctrl: AiController, commands: number[], ev: CtrlEven
   for (const c of commands) ctrl.cmd(c, ev);
 }
 
+/**
+ * The controller commands that enter a move string, oldest input first, the button with the last direction (like the
+ * tactics below type the originals' specials), for the robot facing `o`'s way.
+ */
+export function moveStringCommands(o: GameObject, moveString: string): number[] {
+  const left = o.direction === OBJECT_FACE_LEFT;
+  const dirs: Record<string, number> = {
+    '8': ACT_UP, '2': ACT_DOWN, '6': left ? ACT_LEFT : ACT_RIGHT, '4': left ? ACT_RIGHT : ACT_LEFT,
+    '7': ACT_UP | (left ? ACT_RIGHT : ACT_LEFT), '9': ACT_UP | (left ? ACT_LEFT : ACT_RIGHT),
+    '1': ACT_DOWN | (left ? ACT_RIGHT : ACT_LEFT), '3': ACT_DOWN | (left ? ACT_LEFT : ACT_RIGHT), '5': ACT_STOP,
+  };
+  const cmds = [...moveString.slice(1)].reverse().map((c) => dirs[c] ?? ACT_STOP);
+  const button = moveString[0] === 'K' ? ACT_KICK : ACT_PUNCH;
+  if (!cmds.length || cmds[cmds.length - 1] === ACT_STOP) cmds.push(button);
+  else cmds[cmds.length - 1] |= button;
+  return cmds;
+}
+
+/** A mod robot's special for a tactic (its robot.json names them): typed out like the originals'. False: it has none. */
+function modTactic(ctrl: AiController, kind: 'projectile' | 'charge' | 'push', ev: CtrlEvent[]): boolean {
+  const [o, h] = aiHar(ctrl);
+  const ids = modRobot(h.id)?.info.ai[kind];
+  if (!ids?.length) return false;
+  const move = afGetMove(h.afData, ids.length > 1 ? ids[globalRandom.int(ids.length)] : ids[0]);
+  if (!move || !/^[PK][1-9]*$/.test(move.moveString)) return false;
+  chainControllerCmd(ctrl, moveStringCommands(o, move.moveString), ev);
+  return true;
+}
+
 /** Convenience method to roll '1 in x' chance. */
 function rollChance(rollX: number): boolean {
   return rollX <= 1 ? true : globalRandom.int(rollX) === 1;
@@ -399,7 +429,7 @@ export function harHasProjectiles(harId: number): boolean {
     case HarId.SPECTRE:
       return true;
   }
-  return false;
+  return (modRobot(harId)?.info.ai.projectile.length ?? 0) > 0;
 }
 
 /** Convenience method to check whether a HAR has a charge attack. */
@@ -421,7 +451,7 @@ export function harHasCharge(harId: number): boolean {
     case HarId.SPECTRE:
       return true;
   }
-  return false;
+  return (modRobot(harId)?.info.ai.charge.length ?? 0) > 0;
 }
 
 /** Convenience method to check whether a HAR has a push attack. */
@@ -439,7 +469,7 @@ export function harHasPush(harId: number): boolean {
     case HarId.HELIX:
       return true;
   }
-  return false;
+  return (modRobot(harId)?.info.ai.push.length ?? 0) > 0;
 }
 
 /** Determine whether the AI would like to use the specified tactic. */
@@ -711,7 +741,8 @@ function resetTacticState(a: Ai): void {
  * their current value (as in the reference).
  */
 export function resetPilotPersonality(pilot: Pilot): void {
-  switch (pilot.pilotId) {
+  // (a mod pilot fights like the original pilot its pilot.json names)
+  switch (modPilot(pilot.pilotId)?.info.personality ?? pilot.pilotId) {
     case 0:
       // crystal
       pilot.attNormal = 30;
@@ -1829,7 +1860,7 @@ function attemptChargeAttack(ctrl: AiController, ev: CtrlEvent[]): boolean {
       break;
     }
     default:
-      return false;
+      return modTactic(ctrl, 'charge', ev);
   }
 
   return true;
@@ -1918,7 +1949,7 @@ function attemptPushAttack(ctrl: AiController, ev: CtrlEvent[]): boolean {
       break;
     }
     default:
-      return false;
+      return modTactic(ctrl, 'push', ev);
   }
 
   return true;
@@ -2000,7 +2031,7 @@ function attemptProjectileAttack(ctrl: AiController, ev: CtrlEvent[]): boolean {
     }
   }
 
-  return false;
+  return modTactic(ctrl, 'projectile', ev);
 }
 
 /** Handle the next phase of the currently queued tactic. Returns whether the AI moved or attacked. */

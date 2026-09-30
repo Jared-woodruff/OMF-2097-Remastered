@@ -22,6 +22,12 @@ export enum SceneId {
   VS,
   MELEE,
   NEWSROOM,
+  TRN_CUTSCENE,
+  SCOREBOARD,
+  LOBBY,
+  /** The remaster's victory screen (scenes/victory.ts). */
+  VICTORY,
+  // The arenas come last: arena n is scene ARENA0 + n, for as many as there are (MAX_ARENAS).
   ARENA0,
   ARENA1,
   ARENA2,
@@ -32,11 +38,7 @@ export enum SceneId {
   ARENA6,
   ARENA7,
   ARENA8,
-  TRN_CUTSCENE,
-  SCOREBOARD,
-  LOBBY,
-  /** The remaster's victory screen (scenes/victory.ts). */
-  VICTORY,
+  // (mod arenas: ARENA0 + 9 and up, see src/mods)
 }
 
 export const SCENE_BK: Record<number, string> = {
@@ -50,25 +52,24 @@ export const SCENE_BK: Record<number, string> = {
   [SceneId.VS]: 'VS.BK',
   [SceneId.MELEE]: 'MELEE.BK',
   [SceneId.NEWSROOM]: 'NEWSROOM.BK',
-  [SceneId.ARENA0]: 'ARENA0.BK',
-  [SceneId.ARENA1]: 'ARENA1.BK',
-  [SceneId.ARENA2]: 'ARENA2.BK',
-  [SceneId.ARENA3]: 'ARENA3.BK',
-  [SceneId.ARENA4]: 'ARENA4.BK',
-  [SceneId.ARENA5]: 'ARENA5.BK',
-  [SceneId.ARENA6]: 'ARENA6.BK',
-  [SceneId.ARENA7]: 'ARENA7.BK',
-  [SceneId.ARENA8]: 'ARENA8.BK',
   [SceneId.SCOREBOARD]: 'MAIN.BK',
   [SceneId.VICTORY]: 'VS.BK',
 };
 
-/** The original game's arenas are 0..4; the remaster's 5..8. */
+/** The original game's arenas are 0..4; the remaster's 5..8; mods' 9 and up. */
 export const ORIGINAL_ARENAS = 5;
+/** The game's own arenas (the originals and the remaster's). */
 export const ARENA_COUNT = 9;
+/** Arena numbers go up to 31 (a replay keeps them in 5 bits). */
+export const MAX_ARENAS = 32;
 
 export function isArenaScene(id: number): boolean {
-  return id >= SceneId.ARENA0 && id <= SceneId.ARENA8;
+  return id >= SceneId.ARENA0 && id < SceneId.ARENA0 + MAX_ARENAS;
+}
+
+/** The scene file of a scene: arena n's is ARENAn.BK. */
+export function sceneBk(id: number): string | undefined {
+  return SCENE_BK[id] ?? (isArenaScene(id) ? `ARENA${id - SceneId.ARENA0}.BK` : undefined);
 }
 
 export enum HarId {

@@ -1,8 +1,10 @@
 // Melee: the pilot and HAR selection screen of one- and two-player games (port of the reference melee scene).
 //
 // Page 1 (PILOT_SELECT) shows the 5x2 pilot grid with bios and power/agility/endurance bars; page 2 (HAR_SELECT)
-// shows the HAR grid with animated previews. With the remaster's robots on, the HAR grid has a third row (HARs
-// 11-14 in columns 1-4, so DOWN on KATANA still stays there for the NOVA cheat) that the two visible rows scroll to. In one-player mode the CPU opponent of the first fight is chosen here
+// shows the HAR grid with animated previews. With the remaster's robots on or mod robots installed, the HAR grid has
+// more rows that the two visible rows scroll to: the third holds four robots in columns 1-4 (the remaster's HARs 11-14
+// first, so DOWN on KATANA still stays there for the NOVA cheat), the next ones five each. Mod pilots get rows of five
+// below the pilot grid the same way. In one-player mode the CPU opponent of the first fight is chosen here
 // (from player 1's single-player wins); afterwards the newsroom picks the following ones. Confirming the HAR goes
 // to the VS scene.
 import type { CtrlEvent } from '../../controller/controller';
@@ -27,7 +29,9 @@ import {
 import { menuBackground, MenuBackgroundStyle, playMenuSound } from '../gui/widgets';
 import { GameObject } from '../object';
 import { paletteLoadPlayerColors, PRIMARY, SECONDARY, setPilotColor, TERTIARY } from '../pilotColors';
-import { EXTRA_HAR_IDS, extraRobotsEnabled, randomHarPool } from '../roster';
+import { extraHarIds, modPilotIds, pilotBio, pilotInfo, pilotNameOf, pilotWinBit, randomHarPool } from '../roster';
+import { addPilotPortrait, nearestColor, pilotPortrait, PORTRAIT_FIRST, PORTRAIT_LAST } from '../../mods/portraits';
+import { modPilot } from '../../mods/registry';
 import { Scene } from '../scene';
 
 const MAX_STAT = 20;
@@ -70,9 +74,9 @@ function lang(id: number): string {
   return s.endsWith('\n') ? s.slice(0, -1) : s;
 }
 
-/** har_get_name() */
+/** har_get_name() (the remaster's, the workshop's and mods' robots too) */
 function harGetName(id: number): string {
-  return id >= 0 && id < NUMBER_OF_HAR_TYPES ? HAR_NAMES[id] : '';
+  return id >= 0 ? HAR_NAMES[id] ?? '' : '';
 }
 
 function ticksToBlinky(ticks: number): number {
@@ -159,13 +163,20 @@ export class MeleeScene extends Scene {
   pilotPortraits: Portrait[] = [];
   harPortraits: Portrait[] = [];
 
-  /** The remaster's robots are on: the HAR grid has a third row (row 2). */
+  /** The robots after the original ten (the remaster's when they are on, the mods'): the HAR grid's rows 2 and up. */
+  extras: number[] = [];
+  /** The mods' pilots: the pilot grid's rows 2 and up. */
+  extraPilots: number[] = [];
+  /** Unselected mod pilots' faces and the pilot grid's second row (dimmed), shown when the pilot grid scrolls. */
+  private pilotRowGray: Surface | null = null;
+  private pilotGray = new Map<number, { back: Surface; cells: { surf: Surface; x: number }[] }>();
+  /** There are rows after the original two. */
   extraRow = false;
-  /** First HAR grid row on screen (0: rows 0-1, 1: rows 1-2). */
+  /** First HAR grid row on screen (rows viewTop and viewTop + 1 are shown). */
   viewTop = 0;
-  /** Unselected cells when scrolled: the original sheet's second row, and the new robots' row. */
+  /** Unselected cells when scrolled: the original sheet's second row, and the extra rows (by row). */
   private rowGray: Surface | null = null;
-  private extraGray: { back: Surface; cells: { surf: Surface; x: number }[] } | null = null;
+  private extraGray = new Map<number, { back: Surface; cells: { surf: Surface; x: number }[] }>();
   private idleAnims = new Map<number, Animation>();
 
   har: [GameObject, GameObject];
@@ -212,7 +223,9 @@ export class MeleeScene extends Scene {
 
     const player1 = gs.getPlayer(0);
     const player2 = gs.getPlayer(1);
-    this.extraRow = extraRobotsEnabled();
+    this.extras = extraHarIds();
+    this.extraRow = this.extras.length > 0;
+    this.extraPilots = modPilotIds();
 
     this.networkGame = false;
     if (player1.ctrl && player2.ctrl) {
@@ -240,8 +253,9 @@ export class MeleeScene extends Scene {
 
     // Player bio boxes and names for both players
     for (let i = 0; i < 2; i++) {
-      this.playerBio[i] = createGreenText(156, 34, lang(135 + this.cursorIndex(i)));
-      this.playerName[i] = createBlackText(66, 6, lang(20 + this.cursorIndex(i)));
+      const pilotId = i === 0 ? this.pilotIdA : this.pilotIdB;
+      this.playerBio[i] = createGreenText(156, 34, pilotBio(pilotId));
+      this.playerName[i] = createBlackText(66, 6, pilotNameOf(pilotId));
       this.playerBio[i].setMargin({ left: 2, right: 2, top: 0, bottom: 0 });
     }
     // Stats texts (POWER, AGILITY, ENDURANCE)
@@ -324,26 +338,82 @@ export class MeleeScene extends Scene {
     this.unsubscribeKeys = null;
   }
 
-  /** CURSOR_INDEX(local, player) */
+  /** CURSOR_INDEX(local, player): the pilot (pilot page) or robot (robot page) under a player's cursor. */
   cursorIndex(player: number): number {
-    return 5 * this.cursor[player].row + this.cursor[player].column;
+    const c = this.cursor[player];
+    return c.row >= 2 ? this.extraAt(c.row, c.column) : 5 * c.row + c.column;
   }
 
-  /** The HAR under a player's cursor on the HAR page (row 2 holds the remaster's robots, from column 1). */
+  /** The HAR under a player's cursor on the HAR page (rows 2 and up hold the extra robots). */
   harIndex(player: number): number {
-    const c = this.cursor[player];
-    return c.row === 2 ? EXTRA_HAR_IDS[c.column - 1] : 5 * c.row + c.column;
+    return this.cursorIndex(player);
+  }
+
+  /**
+   * The current page's cells after its two original rows, and the first column of its third row: the robots' starts
+   * at column 1 (DOWN on KATANA stays there, for the NOVA cheat), the pilots' at 0.
+   */
+  private pageExtras(page = this.page): { list: number[]; first: number } {
+    return page === HAR_SELECT ? { list: this.extras, first: 1 } : { list: this.extraPilots, first: 0 };
+  }
+
+  /** Index in the page's extra cells of an extra row's cell: row 2 has 4 (robots) or 5 (pilots) cells, the next rows five. */
+  private extraIndex(row: number, column: number, page = this.page): number {
+    const first = this.pageExtras(page).first;
+    return row === 2 ? column - first : 5 - first + (row - 3) * 5 + column;
+  }
+
+  /** The robot (robot page) or pilot (pilot page) in an extra row's cell, or -1. */
+  private extraAt(row: number, column: number, page = this.page): number {
+    const { list, first } = this.pageExtras(page);
+    if (row < 2 || column < (row === 2 ? first : 0) || column > 4) return -1;
+    return list[this.extraIndex(row, column, page)] ?? -1;
+  }
+
+  /** The grid cell of the page's i-th extra cell. */
+  private extraCell(i: number, page = this.page): { row: number; column: number } {
+    const first = this.pageExtras(page).first, n2 = 5 - first;
+    return i < n2 ? { row: 2, column: i + first } : { row: 3 + Math.trunc((i - n2) / 5), column: (i - n2) % 5 };
+  }
+
+  /** The last row of the current page. */
+  private lastRow(): number {
+    const { list } = this.pageExtras();
+    return list.length ? this.extraCell(list.length - 1).row : 1;
+  }
+
+  /** The columns a row's cells take on the current page: [first, last]. */
+  private rowColumns(row: number): [number, number] {
+    if (row < 2) return [0, 4];
+    const first = row === 2 ? this.pageExtras().first : 0;
+    let last = first;
+    while (last < 4 && this.extraAt(row, last + 1) >= 0) last++;
+    return [first, last];
+  }
+
+  /** Cursors on cells the robot page does not have (a mod pilot's row) move to its first row. */
+  private fitCursorsToPage(): void {
+    for (const c of this.cursor) {
+      if (c.row < 2 || this.extraAt(c.row, c.column) >= 0) continue;
+      if (c.row <= this.lastRow()) {
+        const [first, last] = this.rowColumns(c.row);
+        c.column = Math.max(first, Math.min(last, c.column));
+      } else {
+        c.row = 0;
+      }
+    }
+    this.viewTop = Math.max(0, this.cursor[0].row - 1);
   }
 
   /** The grid scrolls to show the row a cursor moved to. */
   private follow(cur: CursorData): void {
-    if (cur.row === 2) this.viewTop = 1;
-    else if (cur.row === 0) this.viewTop = 0;
+    if (cur.row > this.viewTop + 1) this.viewTop = cur.row - 1;
+    else if (cur.row < this.viewTop) this.viewTop = cur.row;
   }
 
   /** Screen row of a grid row on the current page, or -1 when scrolled out of view. */
   private screenRow(row: number): number {
-    const r = this.page === HAR_SELECT ? row - this.viewTop : row;
+    const r = row - this.viewTop;
     return r >= 0 && r <= 1 ? r : -1;
   }
 
@@ -441,12 +511,12 @@ export class MeleeScene extends Scene {
   private loadPilotStats(playerId: number): void {
     const player = this.gs.getPlayer(playerId);
     const pilotId = playerId === 0 ? this.pilotIdA : this.pilotIdB;
-    const pA = PILOT_INFO[pilotId];
+    const pA = pilotInfo(pilotId);
     if (player.selectable) {
       const bigPortrait = playerId === 0 ? this.bigPortrait1 : this.bigPortrait2;
       bigPortrait?.selectSprite(pilotId);
-      this.playerBio[playerId].set(lang(135 + pilotId));
-      this.playerName[playerId].set(lang(20 + pilotId));
+      this.playerBio[playerId].set(pilotBio(pilotId));
+      this.playerName[playerId].set(pilotNameOf(pilotId));
       bigPortrait?.selectSprite(pilotId);
     }
     player.pilot.endurance = pA.endurance;
@@ -459,7 +529,7 @@ export class MeleeScene extends Scene {
   private loadPilotColors(playerId: number): void {
     const player = this.gs.getPlayer(playerId);
     const pilotId = playerId === 0 ? this.pilotIdA : this.pilotIdB;
-    const pA = PILOT_INFO[pilotId];
+    const pA = pilotInfo(pilotId);
     // update the player palette
     setPilotColor(player.pilot, PRIMARY, pA.color1);
     setPilotColor(player.pilot, SECONDARY, pA.color2);
@@ -482,30 +552,43 @@ export class MeleeScene extends Scene {
       case ACT_STOP:
         this.barStat[player][this.cheatPilotStatsStat[player]].highlight = false;
         break;
-      case ACT_LEFT:
+      case ACT_LEFT: {
+        const [first, last] = this.rowColumns(cur.row);
         cur.column--;
-        if (cur.column < (cur.row === 2 ? 1 : 0)) {
-          cur.column = 4;
-          if (this.page === PILOT_SELECT) this.cheatPilotStats[player] |= cur.row + 1;
+        if (cur.column < first) {
+          cur.column = last;
+          if (this.page === PILOT_SELECT && cur.row < 2) this.cheatPilotStats[player] |= cur.row + 1;
         }
         this.resetCursorBlinky(player);
         break;
-      case ACT_RIGHT:
+      }
+      case ACT_RIGHT: {
+        const [first, last] = this.rowColumns(cur.row);
         cur.column++;
-        if (cur.column > 4) {
-          cur.column = cur.row === 2 ? 1 : 0;
-          if (this.page === PILOT_SELECT) this.cheatPilotStats[player] |= cur.row + 1;
+        if (cur.column > last) {
+          cur.column = first;
+          if (this.page === PILOT_SELECT && cur.row < 2) this.cheatPilotStats[player] |= cur.row + 1;
         }
         this.resetCursorBlinky(player);
         break;
+      }
       case ACT_UP:
-        if (cur.row > 0) cur.row--;
+        if (cur.row > 0) {
+          cur.row--;
+          const [first, last] = this.rowColumns(cur.row);
+          cur.column = Math.max(first, Math.min(last, cur.column));
+        }
         this.follow(cur);
         this.resetCursorBlinky(player);
         break;
       case ACT_DOWN:
         if (cur.row === 0) cur.row = 1;
-        else if (cur.row === 1 && cur.column > 0 && this.page === HAR_SELECT && this.extraRow) cur.row = 2;
+        else if (cur.row >= 1 && !(this.page === HAR_SELECT && cur.row === 1 && cur.column === 0) && cur.row < this.lastRow()) {
+          // (DOWN on KATANA stays there, for the NOVA cheat)
+          cur.row++;
+          const [first, last] = this.rowColumns(cur.row);
+          cur.column = Math.max(first, Math.min(last, cur.column));
+        }
         this.follow(cur);
         this.resetCursorBlinky(player);
         // nova selection cheat
@@ -565,11 +648,13 @@ export class MeleeScene extends Scene {
           this.cursor[0].done = false;
           this.cursor[1].done = false;
           if (this.page === PILOT_SELECT) {
-            this.page = HAR_SELECT;
-            this.updateHar(0);
-            this.updateHar(1);
             this.pilotIdA = this.cursorIndex(0);
             this.pilotIdB = this.cursorIndex(1);
+            this.page = HAR_SELECT;
+            // (the robot page's cursors start where the pilots' were: a mod pilot's row is not one of its rows)
+            this.fitCursorsToPage();
+            this.updateHar(0);
+            this.updateHar(1);
 
             // prepare for nova selection cheat
             this.cheatSelected[0].fill(0);
@@ -597,7 +682,7 @@ export class MeleeScene extends Scene {
               this.pilotIdB = player2.pilot.pilotId;
               this.loadPilotColors(1);
             } else {
-              if (player1.spWins === (2046 ^ (2 << player1.pilot.pilotId))) {
+              if (player1.spWins === (2046 ^ pilotWinBit(player1.pilot.pilotId))) {
                 // everyone but kreissack
                 player2.pilot.pilotId = PilotId.KREISSACK;
                 player2.pilot.harId = HarId.NOVA;
@@ -624,8 +709,8 @@ export class MeleeScene extends Scene {
               this.loadPilotColors(1);
             }
             if (!this.networkGame) {
-              player1.pilot.name = lang(player1.pilot.pilotId + 20);
-              player2.pilot.name = lang(player2.pilot.pilotId + 20);
+              player1.pilot.name = pilotNameOf(player1.pilot.pilotId);
+              player2.pilot.name = pilotNameOf(player2.pilot.pilotId);
             }
             gs.setNext(SceneId.VS);
           }
@@ -663,10 +748,11 @@ export class MeleeScene extends Scene {
     if (b === HarId.NOVA) b = HarId.FLAIL;
     [a, b].forEach((id, i) => {
       const c = this.cursor[i];
-      const extra = this.page === HAR_SELECT ? EXTRA_HAR_IDS.indexOf(id) : -1;
-      if (extra >= 0 && this.extraRow) {
-        c.row = 2;
-        c.column = extra + 1;
+      const extra = this.pageExtras().list.indexOf(id);
+      if (extra >= 0) {
+        const cell = this.extraCell(extra);
+        c.row = cell.row;
+        c.column = cell.column;
       } else if (id >= 10) {
         // A remaster robot while they are turned off: back to the first cell.
         c.row = 0;
@@ -677,7 +763,7 @@ export class MeleeScene extends Scene {
       }
       c.done = false;
     });
-    this.viewTop = this.cursor[0].row === 2 ? 1 : 0;
+    this.viewTop = Math.max(0, this.cursor[0].row - 1);
   }
 
   /** Mouse (not in the original game): player 1 points at a portrait to move the cursor there and clicks to pick it. */
@@ -686,8 +772,8 @@ export class MeleeScene extends Scene {
     if (cur.done) return false;
     const column = Math.floor((x - 11) / 62), screenRow = Math.floor((y - 115) / 42);
     if (column < 0 || column > 4 || screenRow < 0 || screenRow > 1 || x - 11 - column * 62 > 52 || y - 115 - screenRow * 42 > 38) return false;
-    const row = screenRow + (this.page === HAR_SELECT ? this.viewTop : 0);
-    if (row === 2 && column === 0) return false;
+    const row = screenRow + this.viewTop;
+    if (row >= 2 && this.extraAt(row, column) < 0) return false;
     if (kind !== 'move' && kind !== 'click') return false;
     if (row !== cur.row || column !== cur.column) {
       // Step the cursor like the arrow keys would (sounds, stats and cheat bookkeeping included).
@@ -722,9 +808,9 @@ export class MeleeScene extends Scene {
       if (i.type === 'action' && i.action === ACT_ESC) {
         playMenuSound(20, 0);
         if (this.page === HAR_SELECT) {
-          // restore the player selection
-          this.restoreCursorsTo(this.pilotIdA, this.pilotIdB);
+          // restore the player selection (on the pilot page's cells)
           this.page = PILOT_SELECT;
+          this.restoreCursorsTo(this.pilotIdA, this.pilotIdB);
           this.loadPilotPortraitsPalette();
         } else {
           // (the reference returns to the network lobby when it came from there; no netplay in this port)
@@ -753,7 +839,7 @@ export class MeleeScene extends Scene {
 
   private renderEnabledPortrait(portraits: Portrait[], cursor: CursorData, player: number): void {
     const r = this.screenRow(cursor.row);
-    const p = portraits[cursor.row === 2 ? EXTRA_HAR_IDS[cursor.column - 1] : 5 * cursor.row + cursor.column];
+    const p = portraits[cursor.row >= 2 ? this.extraAt(cursor.row, cursor.column) : 5 * cursor.row + cursor.column];
     if (!p || r < 0) return;
     const x = 11 + 62 * cursor.column, y = 115 + 42 * r;
     if (player < 0) video.draw(p.enabled, x, y);
@@ -789,7 +875,21 @@ export class MeleeScene extends Scene {
       this.titles[0].draw(160, 97);
     }
 
-    this.unselectedPilotPortraits.render();
+    if (this.viewTop === 0 || !this.pilotRowGray) {
+      this.unselectedPilotPortraits.render();
+    } else {
+      for (let s = 0; s < 2; s++) {
+        const row = this.viewTop + s, y = 115 + 42 * s;
+        if (row === 1) {
+          video.draw(this.pilotRowGray, 11, y);
+          continue;
+        }
+        const g = this.pilotGray.get(row);
+        if (!g) continue;
+        video.draw(g.back, 11, y);
+        for (const c of g.cells) video.draw(c.surf, 11 + c.x, y);
+      }
+    }
     this.renderHighlights(player2IsSelectable);
     this.renderEnabledPortrait(this.pilotPortraits, this.cursor[0], -1);
     this.bigPortrait1.render();
@@ -803,12 +903,20 @@ export class MeleeScene extends Scene {
     this.player2Placeholder.render();
 
     // render the unselected HAR portraits before anything so we can render anything else on top of them
-    if (this.viewTop === 0 || !this.rowGray || !this.extraGray) {
+    if (this.viewTop === 0 || !this.rowGray) {
       this.unselectedHarPortraits.render();
     } else {
-      video.draw(this.rowGray, 11, 115);
-      video.draw(this.extraGray.back, 11, 157);
-      for (const c of this.extraGray.cells) video.draw(c.surf, 11 + c.x, 157);
+      for (let s = 0; s < 2; s++) {
+        const row = this.viewTop + s, y = 115 + 42 * s;
+        if (row === 1) {
+          video.draw(this.rowGray, 11, y);
+          continue;
+        }
+        const g = this.extraGray.get(row);
+        if (!g) continue;
+        video.draw(g.back, 11, y);
+        for (const c of g.cells) video.draw(c.surf, 11 + c.x, y);
+      }
     }
     this.renderHighlights(player2IsSelectable);
 
@@ -873,6 +981,41 @@ export class MeleeScene extends Scene {
     this.unselectedPilotPortraits = new GameObject(this.gs, 0, 0);
     this.unselectedPilotPortraits.setAnimation(harPortraits);
     this.unselectedPilotPortraits.selectSprite(0);
+    if (this.extraPilots.length) this.loadModPilotPortraits(harPortraits.getSprite(0)!.surface!);
+  }
+
+  /**
+   * The mod pilots' faces in the pilot grid's colors (full and dimmed: the dimmed colors 0x01-0x5F are the portrait
+   * colors 0xA1-0xFF at half brightness, see loadPilotPortraitsPalette), their big portraits, and the dimmed second
+   * row shown when the grid scrolls.
+   */
+  private loadModPilotPortraits(sheet: Surface): void {
+    const pal = this.bk.palettes[0];
+    this.pilotRowGray = new Surface(sheet.w, 36, undefined, sheet.transparent);
+    this.pilotRowGray.blit(sheet, 0, 0, 0, 42, sheet.w, 36);
+    this.pilotRowGray.source = { kind: 'generated', key: 'melee/pilot-row2-dim' };
+    // (the remastered renderer draws it from the sheet's artwork, like the whole sheet)
+    this.pilotRowGray.hdSource = { surf: sheet, x: 0, y: 42, gray: false };
+    const dark = nearestColor(pal, PORTRAIT_FIRST, PORTRAIT_LAST, 0, 0, 0);
+    const back = new Surface(sheet.w, 36, undefined, 0);
+    for (let i = 0; i < 5; i++) back.fillRect(62 * i, 0, 51, 36, dark - 0xa0);
+    back.source = { kind: 'generated', key: 'melee/pilot-row3-back' };
+    const big = bkGetInfo(this.bk, 4)!.ani;
+    this.extraPilots.forEach((id, i) => {
+      const { row, column } = this.extraCell(i, PILOT_SELECT);
+      let g = this.pilotGray.get(row);
+      if (!g) this.pilotGray.set(row, (g = { back, cells: [] }));
+      // (a face of its own is see-through around the head, like the originals', where the cursor's color shows)
+      const face = pilotPortrait(id, pal, 51, 36, 'cover', modPilot(id)?.face ? 0 : dark, true);
+      if (face) {
+        const dim = new Surface(face.w, face.h, face.data.map((v) => (v >= 0xa1 ? v - 0xa0 : v)), 0);
+        dim.source = { kind: 'generated', key: `melee/pilot-dim/${id}` };
+        this.pilotPortraits[id] = { x: 11 + 62 * column, y: 115 + 42 * row, disabledOffset: 0, enabled: face, disabled: dim };
+        g.cells.push({ surf: dim, x: 62 * column });
+      }
+      // The big portrait above the pilot's stats.
+      addPilotPortrait(big, id, pal);
+    });
   }
 
   private loadHarPortraits(): void {
@@ -903,32 +1046,33 @@ export class MeleeScene extends Scene {
     if (this.extraRow) this.loadExtraPortraits(sheetSurface, gray);
   }
 
-  /** The remaster robots' cells (from their fighter files) and the unselected rows shown when the grid scrolls. */
+  /** The extra robots' cells (from their fighter files) and the unselected rows shown when the grid scrolls. */
   private loadExtraPortraits(sheet: Surface, gray: Surface): void {
     this.rowGray = new Surface(sheet.w, 36, undefined, gray.transparent);
     this.rowGray.blit(gray, 0, 0, 0, 42, sheet.w, 36);
     this.rowGray.source = { kind: 'generated', key: 'melee/har-row2-gray' };
     this.rowGray.hdSource = { surf: sheet, x: 0, y: 42, gray: true };
-    // The row's black cell backgrounds (the first cell, below KATANA, stays empty).
+    // Each row's black cell backgrounds.
     const back = new Surface(sheet.w, 36, undefined, 0);
     for (let i = 0; i < 5; i++) back.fillRect(62 * i, 0, 51, 36, CELL_BACKGROUND);
     back.source = { kind: 'generated', key: 'melee/har-row3-back' };
-    const cells: { surf: Surface; x: number }[] = [];
-    EXTRA_HAR_IDS.forEach((id, i) => {
+    this.extras.forEach((id, i) => {
+      const { row, column } = this.extraCell(i, HAR_SELECT);
+      let g = this.extraGray.get(row);
+      if (!g) this.extraGray.set(row, (g = { back, cells: [] }));
       const pic = harPicture(id, MOVE.PORTRAIT_CELL);
       if (!pic) return;
       const enabled = pic.surface;
       enabled.transparent = CELL_BACKGROUND;
-      this.harPortraits[id] = { x: 11 + 62 * (i + 1), y: 157, disabledOffset: 0, enabled, disabled: null };
+      this.harPortraits[id] = { x: 11 + 62 * column, y: 157, disabledOffset: 0, enabled, disabled: null };
       // Unselected: the cell in grey, which the remastered renderer draws from the colored cell's artwork in grey
       // (like the original rows).
-      const g = new Surface(enabled.w, enabled.h, enabled.data.slice(), CELL_BACKGROUND);
-      g.convertHarToGrayscale(8);
-      g.source = { kind: 'generated', key: `melee/har-cell-gray/${id}` };
-      g.hdSource = { surf: enabled, x: 0, y: 0, gray: true };
-      cells.push({ surf: g, x: 62 * (i + 1) });
+      const grey = new Surface(enabled.w, enabled.h, enabled.data.slice(), CELL_BACKGROUND);
+      grey.convertHarToGrayscale(8);
+      grey.source = { kind: 'generated', key: `melee/har-cell-gray/${id}` };
+      grey.hdSource = { surf: enabled, x: 0, y: 0, gray: true };
+      g.cells.push({ surf: grey, x: 62 * column });
     });
-    this.extraGray = { back, cells };
   }
 
   private loadHars(player2IsSelectable: boolean): void {

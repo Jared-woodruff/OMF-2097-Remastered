@@ -1,7 +1,7 @@
 // Arena: the fight itself — rounds, HUD, hazards, wall slams, victory/defeat flow (port of the reference arena scene).
 import type { CtrlEvent } from '../../controller/controller';
 import { Animation, RSprite } from '../../resources/animation';
-import { afGetMove, bkGetInfo, langGet } from '../../resources/resources';
+import { afGetMove, bkGetInfo, harName, langGet } from '../../resources/resources';
 import { Tag } from '../../script/tags';
 import { globalRandom } from '../../util/random';
 import { paletteDarken, vga } from '../../video/vga';
@@ -10,7 +10,7 @@ import { Surface } from '../../video/surface';
 import {
   ACT_DOWN, ACT_ESC, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_UP, ANIM_DAMAGE, ANIM_DEFEAT, ANIM_SCRAP_METAL, ANIM_VICTORY, ARENA_FLOOR, ARENA_LEFT_WALL, ARENA_RIGHT_WALL, CtrlType,
   GROUP_ANNOUNCEMENT, GROUP_HAZARD, GROUP_PROJECTILE, GROUP_SCRAP, HarEventType, HarId, HarState, LAYER_HAR, LAYER_HAZARD,
-  LAYER_SCRAP, OBJECT_FACE_LEFT, OBJECT_FACE_RIGHT, PilotId, RENDER_LAYER_BOTTOM, RENDER_LAYER_MIDDLE, RENDER_LAYER_TOP, SceneId,
+  LAYER_SCRAP, MAX_ARENAS, OBJECT_FACE_LEFT, OBJECT_FACE_RIGHT, PilotId, RENDER_LAYER_BOTTOM, RENDER_LAYER_MIDDLE, RENDER_LAYER_TOP, SceneId,
 } from '../constants';
 import type { HarEvent } from '../../controller/controller';
 import {
@@ -39,7 +39,7 @@ import { InputDisplay } from '../gui/inputDisplay';
 import type { Af } from '../../resources/resources';
 import { arenaScreengrabWinner, harScreencapsCompress, harScreencapsReset, SCREENCAP_BLOW, SCREENCAP_POSE } from '../harScreencap';
 import { GEN_ARENAS } from '../../gen/scene/arenas';
-import { arenaCount } from '../roster';
+import { arenaBase, arenaMusic, nextArena } from '../roster';
 import { recSerialize } from '../../formats/rec';
 import { Recorder } from '../replay/recorder';
 import { ReplayHud } from '../replay/hud';
@@ -122,8 +122,9 @@ export class ArenaScene extends Scene implements ArenaLike {
     gs.fightStats.arena = id - SceneId.ARENA0;
     const music: Record<number, string> = { 8: 'ARENA0.PSM', 16: 'ARENA1.PSM', 32: 'ARENA2.PSM', 64: 'ARENA3.PSM', 128: 'ARENA4.PSM' };
     for (const a of GEN_ARENAS) music[a.fileId] = a.music;
-    // (the credits play their song)
-    if (music[bk.fileId] && !gs.credits) gs.playMusic(music[bk.fileId]);
+    // (a mod arena names its song; the credits play theirs)
+    const track = arenaMusic(gs.fightStats.arena) ?? music[bk.fileId];
+    if (track && !gs.credits) gs.playMusic(track);
     this.rounds = [1, 3, 5, 7][gs.matchSettings.rounds] ?? 1;
     let palIndex = 0;
     // A replay uses the recorded palette (the desert's time of day in tournaments).
@@ -190,7 +191,7 @@ export class ArenaScene extends Scene implements ArenaLike {
     for (let i = 0; i < 2; i++) {
       const p = gs.getPlayer(i);
       this.playerName.push(hudText(p.pilot.name, 0xe7, 0xf8, 155, 5));
-      this.playerHar.push(hudText(gs.credits?.hudLine(i) ?? langGet(p.pilot.harId + 31), 0xe7, 0xf8, 155, 5));
+      this.playerHar.push(hudText(gs.credits?.hudLine(i) ?? harName(p.pilot.harId), 0xe7, 0xf8, 155, 5));
     }
     this.playerName[1].setHAlign(HAlign.RIGHT);
     this.playerHar[1].setHAlign(HAlign.RIGHT);
@@ -220,7 +221,7 @@ export class ArenaScene extends Scene implements ArenaLike {
     bk.soundTranslationTable[14] = 10;
     bk.soundTranslationTable[15] = 16;
     bk.soundTranslationTable[3] = 23 + this.round;
-    if (id === SceneId.ARENA3) bk.soundTranslationTable[20] = 0;
+    if (arenaBase(id - SceneId.ARENA0) === 3) bk.soundTranslationTable[20] = 0;
     this.pauseMenu = new ArenaPauseMenu(gs, this);
     if (this.training) {
       this.inputDisplay = new InputDisplay();
@@ -264,7 +265,7 @@ export class ArenaScene extends Scene implements ArenaLike {
   }
 
   wallSlamTolerance(): number {
-    if (this.gs.matchSettings.hazards && this.gs.thisId - SceneId.ARENA0 === 2) return WALL_SLAM_TOLERANCE_POWERPLANT;
+    if (this.gs.matchSettings.hazards && arenaBase(this.gs.thisId - SceneId.ARENA0) === 2) return WALL_SLAM_TOLERANCE_POWERPLANT;
     return WALL_SLAM_TOLERANCE_DEFAULT;
   }
 
@@ -524,8 +525,7 @@ export class ArenaScene extends Scene implements ArenaLike {
 
     if (gs.isSingleplayer() && winnerId === 0) {
       // cycle the maps in singleplayer
-      gs.arena++;
-      if (gs.arena >= arenaCount()) gs.arena = 0;
+      gs.arena = nextArena(gs.arena);
     }
     this.victoryScreen();
   }
@@ -898,7 +898,7 @@ export class ArenaScene extends Scene implements ArenaLike {
         obj.soundTranslationTable = this.bk.soundTranslationTable;
         obj.setAnimation(info.ani);
         obj.orbVal = gs.rand.int(255) - 127;
-        if (this.id === SceneId.ARENA3 && id === 0) obj.setCustomString('Z3-mx+160my+100m15mp10Z1-Z300');
+        if (arenaBase(this.id - SceneId.ARENA0) === 3 && id === 0) obj.setCustomString('Z3-mx+160my+100m15mp10Z1-Z300');
         hazardCreate(obj);
         obj.playerInitSpawned();
         if (gs.addObject(obj, RENDER_LAYER_BOTTOM, true, false)) {
@@ -1163,7 +1163,7 @@ export class ArenaScene extends Scene implements ArenaLike {
   robot(player: number): { af: Af; name: string } | null {
     const p = this.gs.getPlayer(player);
     const obj = this.gs.findObject(p.harObjId);
-    return obj ? { af: harData(obj).afData, name: langGet(31 + p.pilot.harId) } : null;
+    return obj ? { af: harData(obj).afData, name: harName(p.pilot.harId) } : null;
   }
 
   /** Pauses a running fight when the player switches away (not demos, which just keep playing). */
@@ -1290,6 +1290,8 @@ export class ArenaScene extends Scene implements ArenaLike {
   }
 }
 
-for (const id of [SceneId.ARENA0, SceneId.ARENA1, SceneId.ARENA2, SceneId.ARENA3, SceneId.ARENA4, SceneId.ARENA5, SceneId.ARENA6, SceneId.ARENA7, SceneId.ARENA8]) {
+// Every arena number has the arena scene (the game's own and mods' arenas: a number without its files is never chosen).
+for (let i = 0; i < MAX_ARENAS; i++) {
+  const id = SceneId.ARENA0 + i;
   registerScene(id, (gs) => new ArenaScene(gs, id));
 }

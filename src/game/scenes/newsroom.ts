@@ -1,12 +1,13 @@
 // Newsroom: the post-fight news report of single player and tournament games. Two report screens (win/lose texts
 // picked by the remaining health) with fight photos, then the next opponent / ending / continue dialog, or the
 // tournament's challenger and new champion reports. Port of the reference newsroom scene.
+import { pilotWinBit } from '../roster';
 import { unlock } from '../records/records';
 import { newsReader, type NewsReadNames } from '../../audio/newsVoice';
 import { createAiController } from '../../controller/ai';
 import type { CtrlEvent } from '../../controller/controller';
 import type { Pilot } from '../../formats/pilot';
-import { bkGetInfo, langGet } from '../../resources/resources';
+import { bkGetInfo, harName, langGet } from '../../resources/resources';
 import { globalRandom } from '../../util/random';
 import { video } from '../../video/draw';
 import type { Surface } from '../../video/surface';
@@ -98,8 +99,8 @@ export function newsroomFormat(template: string, n: NewsNames): string {
   rep('~7', pronounStrip(objectPronoun(n.sex1)));
   rep('~6', pronounStrip(possessivePronoun(n.sex1)));
   rep('~5', arenaNewsName(n.arena ?? 0));
-  rep('~4', pronounStrip(langGet(n.har2 + LANG_STR_HAR)));
-  rep('~3', pronounStrip(langGet(n.har1 + LANG_STR_HAR)));
+  rep('~4', pronounStrip(harName(n.har2)));
+  rep('~3', pronounStrip(harName(n.har1)));
   rep('~2', n.pilot2);
   rep('~1', n.pilot1);
   return newsroomFixupCapitalization(tmp);
@@ -109,7 +110,7 @@ export function newsroomFormat(template: string, n: NewsNames): string {
 export function newsReadNames(n: NewsNames): NewsReadNames {
   return {
     pilot1: n.pilot1, pilot2: n.pilot2,
-    robot1: pronounStrip(langGet(n.har1 + LANG_STR_HAR)), robot2: pronounStrip(langGet(n.har2 + LANG_STR_HAR)),
+    robot1: pronounStrip(harName(n.har1)), robot2: pronounStrip(harName(n.har2)),
     arena: arenaNewsName(n.arena ?? 0), sex1: n.sex1, sex2: n.sex2,
   };
 }
@@ -308,7 +309,7 @@ export class NewsroomScene extends Scene {
   private nextOpponent(p1: GamePlayer, p2: GamePlayer): void {
     const gs = this.gs;
     const pilot = p2.pilot;
-    if (p1.spWins === (ALL_REGULAR_PILOTS_BEATEN ^ (2 << p1.pilot.pilotId))) {
+    if (p1.spWins === (ALL_REGULAR_PILOTS_BEATEN ^ pilotWinBit(p1.pilot.pilotId))) {
       pilot.pilotId = PilotId.KREISSACK;
       pilot.harId = HarId.NOVA;
     } else {
@@ -368,7 +369,7 @@ export class NewsroomScene extends Scene {
             if (p1.chr) {
               setPilot(p2, null);
               p2.spWins = 0;
-            } else if (p1.spWins === (ALL_PILOTS_BEATEN ^ (2 << p1.pilot.pilotId))) {
+            } else if (p1.spWins === (ALL_PILOTS_BEATEN ^ pilotWinBit(p1.pilot.pilotId))) {
               unlock('campaign');
               gs.setNext(SceneId.END);
             } else {

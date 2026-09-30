@@ -9,7 +9,7 @@
 // what it needs through GameState.credits (CreditsHooks); creditsView.ts draws the show from its timetable.
 import { audio, type Track } from '../../audio/audio';
 import { onKey } from '../../controller/input';
-import { langGet } from '../../resources/resources';
+import { harName, langGet } from '../../resources/resources';
 import { ACT_DOWN, ACT_ESC, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_UP, isArenaScene, SceneId, STATIC_TICKS } from '../constants';
 import type { GameState } from '../gameState';
 import { helpOverlayOpen } from '../gui/helpOverlay';
@@ -175,7 +175,7 @@ export class CreditsRun implements CreditsHooks {
     this.view = openCreditsView({
       links,
       song: this.track,
-      harName: (harId) => langGet(harId + 31),
+      harName: (harId) => harName(harId),
       onNext: () => this.skip(),
       onExit: () => this.exit(),
     });

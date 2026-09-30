@@ -3,7 +3,6 @@ import type { CtrlEvent } from '../../controller/controller';
 import { isDown, onKey } from '../../controller/input';
 import { KeyboardController } from '../../controller/keyboard';
 import { Pilot } from '../../formats/pilot';
-import { globalRandom } from '../../util/random';
 import { TAG_MENU, video } from '../../video/draw';
 import { pulseMenuColors } from '../../video/vga';
 import { CtrlType, SceneId } from '../constants';
@@ -17,7 +16,7 @@ import { menuMainCreate } from './mainmenu/menuMain';
 import { menuExtrasCreate } from './mainmenu/menuExtras';
 import { menuModesCreate } from './mainmenu/menuModes';
 import { PresskeyMenu } from './mainmenu/menuPresskey';
-import { arenaCount } from '../roster';
+import { randomArena } from '../roster';
 
 /** keyboard_binds_key(): whether a key is one of the keyboard controller's bindings. */
 function keyboardBindsKey(ctrl: KeyboardController, code: string): boolean {
@@ -80,7 +79,7 @@ export class MainMenuScene extends Scene {
       player.score.reset(true);
       player.score.resetWins();
     }
-    gs.arena = globalRandom.int(arenaCount());
+    gs.arena = randomArena();
     gs.reconfigureControllers();
     gs.playMusic('MENU.PSM');
 

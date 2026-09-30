@@ -1,10 +1,11 @@
 // Mechlab dashboards: the pilot/HAR stats dashboard (also used while picking a photo / difficulty and while
 // browsing save games) and the SIM opponent dashboard. Port of the reference mechlab/lab_dash_main.c.
 import { genRobot } from '../../../gen/roster';
+import { modRobot } from '../../../mods/registry';
 import { ORIGINAL_HAR_TYPES } from '../../constants';
 import { createAiController } from '../../../controller/ai';
 import type { Pilot } from '../../../formats/pilot';
-import { langGet } from '../../../resources/resources';
+import { harName, langGet } from '../../../resources/resources';
 import { sgDelete, sgLoadAll } from '../../../resources/sgmanager';
 import { Surface } from '../../../video/surface';
 import { SceneId } from '../../constants';
@@ -405,7 +406,7 @@ export function labDashSimCreate(s: MechlabScene, dw: DashboardWidgets): XYSizer
 function harMovesText(harId: number): string {
   if (harId < ORIGINAL_HAR_TYPES) return langGet(492 + harId);
   // (in the originals' style: "Ice Lance")
-  const names = Object.values(genRobot(harId)?.specialNames ?? {}).map((n) => n.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()));
+  const names = Object.values(genRobot(harId)?.specialNames ?? modRobot(harId)?.info.moves ?? {}).map((n) => n.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()));
   return `SPECIAL MOVES:\n\n${names.join('\n\n')}`;
 }
 
@@ -468,7 +469,7 @@ export function labDashMainUpdate(s: MechlabScene, dw: DashboardWidgets): void {
   dw.losses!.setText(`LOSES: ${pilot.losses}`);
   dw.money!.setText(`MONEY: $ ${scoreFormat(pilot.money)}K`);
 
-  dw.harName!.setText(langGet(31 + pilot.harId));
+  dw.harName!.setText(harName(pilot.harId));
   dw.harMoves!.setText(harMovesText(pilot.harId));
 
   // Tournament and player name
@@ -492,7 +493,7 @@ export function labDashMainUpdate(s: MechlabScene, dw: DashboardWidgets): void {
 export function labDashSimUpdate(_s: MechlabScene, dw: DashboardWidgets, pilot: Pilot): void {
   dw.wins!.setText(`WINS: ${pilot.wins}`);
   dw.losses!.setText(`LOSES: ${pilot.losses}`);
-  dw.harName!.setText(`MODEL: ${langGet(31 + pilot.harId)}`.slice(0, 63));
+  dw.harName!.setText(`MODEL: ${harName(pilot.harId)}`.slice(0, 63));
   dw.name!.setText(`NAME: ${pilot.name}`.slice(0, 63));
 
   labDashSimUpdatePortraits(dw);

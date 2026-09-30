@@ -8,25 +8,25 @@ import type { GameState } from '../../gameState';
 import { Button, Filler, Label, Menu, TextSelector } from '../../gui/widgets';
 import { setPilotColors } from '../../pilotColors';
 import { settings } from '../../settings';
-import { allowedArena, allowedHar, arenaCount, EXTRA_HAR_IDS, extraRobotsEnabled } from '../../roster';
+import { allowedArena, allowedHar, arenaList, arenaName, extraHarIds, modPilotIds, pilotExists, pilotInfo, pilotNameOf } from '../../roster';
 import { ensureWorkshopRobot, isWorkshopHar, readyWorkshopHars } from '../../workshop/registry';
 import { WORKSHOP_FIRST_ID } from '../../../gen/workshop';
-import { GEN_ARENAS } from '../../../gen/scene/arenas';
 import type { MainMenuScene } from '../mainmenu';
 import { menuDone, settingsChanged } from './common';
 
-const ARENA_NAMES = ['STADIUM', 'DANGER ROOM', 'POWER PLANT', 'FIRE PIT', 'DESERT', ...GEN_ARENAS.map((a) => a.name)];
+/** The original arenas' names as the menus write them (the game's texts say "The Desert"). */
+const ORIGINAL_ARENA_NAMES = ['STADIUM', 'DANGER ROOM', 'POWER PLANT', 'FIRE PIT', 'DESERT'];
 const PILOTS = PILOT_NAMES.slice(0, 10);
 
 function setPilot(gs: GameState, player: number, pilotId: number, harId: number): void {
   const p = gs.getPlayer(player);
-  const info = PILOT_INFO[pilotId];
+  const info = pilotInfo(pilotId);
   p.pilot.pilotId = pilotId;
   p.pilot.harId = harId;
   p.pilot.power = info.power;
   p.pilot.agility = info.agility;
   p.pilot.endurance = info.endurance;
-  p.pilot.name = langGet(20 + pilotId);
+  p.pilot.name = pilotNameOf(pilotId);
   p.pilot.photo = null;
   setPilotColors(p.pilot, info.color1, info.color2, info.color3);
   p.score.reset(true);
@@ -42,7 +42,7 @@ export function startTraining(gs: GameState): void {
   else gs.setupKeyboard(0, 0);
   gs.matchSettingsReset();
   gs.matchSettings.rounds = 0;
-  setPilot(gs, 0, t.pilot, allowedHar(t.har));
+  setPilot(gs, 0, pilotExists(t.pilot) ? t.pilot : 0, allowedHar(t.har));
   // The dummy gets another pilot's colors, so a mirror match is still easy to tell apart.
   setPilot(gs, 1, (t.pilot + 5) % 10, allowedHar(t.opponent));
   // Playing back a recording needs one (else the dummy stands).
@@ -56,13 +56,19 @@ export function startTraining(gs: GameState): void {
 
 export function menuTrainingCreate(s: MainMenuScene): Menu {
   const t = settings().training;
-  // The remaster's robots only while they are on, and the workshop's robots once built.
-  const ids = [...HAR_NAMES.slice(0, 11).map((_, i) => i), ...(extraRobotsEnabled() ? EXTRA_HAR_IDS : []), ...readyWorkshopHars()];
+  // The remaster's robots only while they are on, the mods' robots, and the workshop's robots once built.
+  const ids = [...HAR_NAMES.slice(0, 11).map((_, i) => i), ...extraHarIds(), ...readyWorkshopHars()];
   const robots = ids.map((id) => HAR_NAMES[id] ?? '?');
   t.har = allowedHar(t.har);
   t.opponent = allowedHar(t.opponent);
   t.arena = allowedArena(t.arena);
-  const arenas = ARENA_NAMES.slice(0, arenaCount());
+  // (arenas are picked by number, like the robots: the list skips the remaster's when they are off)
+  const arenaIds = arenaList();
+  const arenas = arenaIds.map((a) => ORIGINAL_ARENA_NAMES[a] ?? arenaName(a).toUpperCase());
+  // (pilots by id too: the original ten, then the mods')
+  const pilotIds = [...PILOTS.map((_, i) => i), ...modPilotIds()];
+  if (!pilotIds.includes(t.pilot)) t.pilot = 0;
+  const pilots = pilotIds.map((id) => PILOTS[id] ?? pilotNameOf(id).toUpperCase());
   const menu = new Menu();
   menu.attach(Label.title('TRAINING'));
   menu.attach(new Filler());
@@ -72,9 +78,11 @@ export function menuTrainingCreate(s: MainMenuScene): Menu {
   const robot = (title: string, help: string, key: 'har' | 'opponent') =>
     menu.attach(new TextSelector(title, help, () => Math.max(0, ids.indexOf(t[key])), (v) => (t[key] = ids[v] ?? 0), robots, settingsChanged));
   robot('ROBOT', 'The robot you practice with (robots built in the workshop too).', 'har');
-  sel('PILOT', 'Your pilot. Pilots differ in power, agility and endurance.', 'pilot', PILOTS);
+  menu.attach(new TextSelector('PILOT', 'Your pilot. Pilots differ in power, agility and endurance.', () => Math.max(0, pilotIds.indexOf(t.pilot)),
+    (v) => (t.pilot = pilotIds[v] ?? 0), pilots, settingsChanged));
   robot('OPPONENT', 'The robot of the training dummy.', 'opponent');
-  sel('ARENA', 'Where to train. Hazards follow the GAMEPLAY setting.', 'arena', arenas);
+  menu.attach(new TextSelector('ARENA', 'Where to train. Hazards follow the GAMEPLAY setting.', () => Math.max(0, arenaIds.indexOf(t.arena)),
+    (v) => (t.arena = arenaIds[v] ?? 0), arenas, settingsChanged));
   sel('DUMMY', 'What the dummy does: stand, crouch, jump, block high or low attacks, or fight back like the computer. ' +
     'It can also be changed from the pause menu.', 'dummy', DUMMY_MODE_NAMES);
   menu.attach(new Button('START', 'Practice moves and combos: nobody gets knocked out and health refills after every combo.',

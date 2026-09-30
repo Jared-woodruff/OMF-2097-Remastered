@@ -99,11 +99,65 @@ function withSharedMoves(af: AfFile): AfFile {
 export function harPicture(harId: number, moveId: number): { surface: Surface; x: number; y: number } | null {
   if (!hasFighter(harId)) return null;
   const name = harFileName(harId);
-  const sp = afFile(name).moves[moveId]?.animation.sprites[0];
-  if (!sp || sp.isEmpty()) return null;
+  const af = afFile(name);
+  const sp = af.moves[moveId]?.animation.sprites[0];
+  if (!sp || sp.isEmpty()) return moveId === PICTURE_CELL || moveId === PICTURE_VS ? pictureFromIdle(af, name, moveId) : null;
   const surface = new Surface(sp.width, sp.height, sp.pixels().slice(), 0);
   surface.source = { kind: 'sprite', key: `${name}/${moveId}/0` };
   return { surface, x: sp.posX, y: sp.posY };
+}
+
+/** The robot select screen's cell and the VS screen's image (moves of the generated robots' and mods' fighter files). */
+const PICTURE_CELL = 60, PICTURE_VS = 61;
+/** The cell's size and background color (gen/fighter/moveset.ts). */
+const CELL_W = 51, CELL_H = 36, CELL_BACKGROUND = 0xd0;
+/** About the height of the original robots' VS images. */
+const VS_HEIGHT = 130;
+
+/**
+ * A picture for a fighter file that has none (a mod made without them), from the first frame of its idle animation:
+ * the cell shows its head and shoulders, the VS screen the whole robot scaled to the originals' size.
+ */
+function pictureFromIdle(af: AfFile, name: string, moveId: number): { surface: Surface; x: number; y: number } | null {
+  const idle = af.moves[11]?.animation.sprites.find((s) => !s.isEmpty() && s.width < 1000);
+  if (!idle) return null;
+  const px = idle.pixels(), w = idle.width, h = idle.height;
+  let top = 0;
+  while (top < h - 1 && !px.subarray(top * w, (top + 1) * w).some((v) => v)) top++;
+  if (moveId === PICTURE_CELL) {
+    // Centred on the pixels of the frame's top part (the head), a little room above it.
+    let sum = 0, n = 0;
+    for (let y = top; y < Math.min(h, top + CELL_H); y++) {
+      for (let x = 0; x < w; x++) {
+        if (px[y * w + x]) {
+          sum += x;
+          n++;
+        }
+      }
+    }
+    const cx = n ? Math.round(sum / n) : w >> 1;
+    const data = new Uint8Array(CELL_W * CELL_H).fill(CELL_BACKGROUND);
+    for (let y = 0; y < CELL_H; y++) {
+      for (let x = 0; x < CELL_W; x++) {
+        const sx = cx - (CELL_W >> 1) + x, sy = top - 3 + y;
+        const v = sx >= 0 && sx < w && sy >= 0 && sy < h ? px[sy * w + sx] : 0;
+        if (v) data[y * CELL_W + x] = v;
+      }
+    }
+    const surface = new Surface(CELL_W, CELL_H, data, 0);
+    surface.source = { kind: 'generated', key: `${name}/${moveId}/idle` };
+    return { surface, x: 0, y: 0 };
+  }
+  const scale = Math.max(1, Math.min(3, VS_HEIGHT / Math.max(1, h - top)));
+  const sw = Math.round(w * scale), sh = Math.round((h - top) * scale);
+  const data = new Uint8Array(sw * sh);
+  for (let y = 0; y < sh; y++) {
+    const sy = top + Math.min(h - top - 1, Math.floor(y / scale));
+    for (let x = 0; x < sw; x++) data[y * sw + x] = px[sy * w + Math.min(w - 1, Math.floor(x / scale))];
+  }
+  const surface = new Surface(sw, sh, data, 0);
+  surface.source = { kind: 'generated', key: `${name}/${moveId}/idle` };
+  return { surface, x: 0, y: 0 };
 }
 
 /** The parsed fighter file of a robot (shared: do not modify). */
@@ -253,7 +307,8 @@ function withSharedArenaParts(bk: BkFile): BkFile {
     });
     bk.anims[id] = { ...a, animation };
   }
-  bk.soundTable = ref.soundTable.slice();
+  // (a mod arena may bring its own sounds; the generated arenas leave theirs empty)
+  if (bk.soundTable.every((v) => v === 0)) bk.soundTable = ref.soundTable.slice();
   return bk;
 }
 
@@ -325,17 +380,25 @@ export function loadLanguage(file = 'ENGLISH.DAT'): void {
   GENERATED_HAR_NAMES.forEach((name, i) => {
     if (!language[42 + i]) language[42 + i] = name;
   });
-  for (const [id, name] of customHarNames) language[31 + id] = name;
+  for (const [id, name] of customHarNames) if (31 + id <= LAST_FREE_HAR_NAME) language[31 + id] = name;
 }
 
-/** Names of the workshop's robots (HAR 15..), kept over language changes. */
+/** The last of the language file's free entries after the robot names (56 is the first arena's name). */
+const LAST_FREE_HAR_NAME = 55;
+
+/** Names of the workshop's and mods' robots (HAR 15..), kept over language changes. */
 const customHarNames = new Map<number, string>();
 
-/** Names a workshop robot (the language file's free entries after the robot names). */
+/** Names a workshop or mod robot (in the language file's free entries after the robot names while there are some). */
 export function setHarName(harId: number, name: string): void {
   const title = name.charAt(0) + name.slice(1).toLowerCase();
   customHarNames.set(harId, title);
-  if (language.length) language[31 + harId] = title;
+  if (language.length && 31 + harId <= LAST_FREE_HAR_NAME) language[31 + harId] = title;
+}
+
+/** A robot's name as the game's texts write it ("Jaguar"; the workshop's and mods' robots too). */
+export function harName(harId: number): string {
+  return customHarNames.get(harId) ?? langGet(31 + harId);
 }
 
 /** Names of HARs 11.. (the generated robots), in the case of the originals' ("Jaguar"; the news report prints it). */

@@ -6,6 +6,7 @@ import { ACT_ESC, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, CAT_CLOSE, CAT_DESTR
   CAT_SCRAP, CtrlType } from '../constants';
 import type { Af } from '../../resources/resources';
 import { genRobot } from '../../gen/roster';
+import { modRobot } from '../../mods/registry';
 import { drawDir, ICON_SIZE } from './inputIcons';
 import { settings } from '../settings';
 import { SPECIAL_SLOTS } from '../../controller/special';
@@ -52,7 +53,8 @@ export function moveNotation(moveString: string): { inputs: string[]; button: 'P
 /** The moves of a robot worth listing, by kind. */
 export function harMoveList(af: Af): MoveListEntry[] {
   const out: MoveListEntry[] = [];
-  const names = genRobot(af.id)?.specialNames ?? {};
+  // (the remaster's robots name their specials in their definitions, mods in their robot.json)
+  const names = genRobot(af.id)?.specialNames ?? modRobot(af.id)?.info.moves ?? {};
   for (const [cats, kind] of KINDS) {
     for (const m of af.moves) {
       // Moves that only chain from others (position constraint bit 2) cannot be entered on their own.

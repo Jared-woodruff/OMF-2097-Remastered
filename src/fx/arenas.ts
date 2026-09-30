@@ -378,8 +378,20 @@ const ABYSS: ArenaFx = {
 };
 
 /** Effects configuration of an arena (0..8). */
-export function arenaFx(arena: number): ArenaFx {
-  return [STADIUM, DANGER_ROOM, POWER_PLANT, FIRE_PIT, DESERT, ORBITAL, ICE_CAVE, ROOFTOP, ABYSS][arena] ?? STADIUM;
+// ---- An arena without an ambience of its own (a mod arena that names none): impacts and light, nothing in the air.
+const PLAIN: ArenaFx = {
+  dust: [0.55, 0.56, 0.6],
+  barrier: [0.62, 0.84, 1],
+  rim: { x: 160, y: -140, r: 0.46, g: 0.5, b: 0.58, ambR: 1, ambG: 1, ambB: 1 },
+  envLights() {},
+  haze: [],
+  shafts: [],
+  ambient() {},
+};
+
+/** The effects of an arena's look (roster.ts arenaLook: 0-8 the game's arenas; -1 none). */
+export function arenaFx(look: number): ArenaFx {
+  return [STADIUM, DANGER_ROOM, POWER_PLANT, FIRE_PIT, DESERT, ORBITAL, ICE_CAVE, ROOFTOP, ABYSS][look] ?? PLAIN;
 }
 
 export { FLOOR as FX_FLOOR };

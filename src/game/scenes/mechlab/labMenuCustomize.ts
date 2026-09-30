@@ -1,7 +1,8 @@
 // BUY / SELL menu: HAR colors, upgrade kits and the robot trade. Port of the reference
 // mechlab/lab_menu_customize.c (calculate_trade_value, har_price and sell_highest_value_upgrade are in harEconomy.ts).
+import { ensureMechIcon } from '../../../gen/mechlabModel';
 import type { Pilot } from '../../../formats/pilot';
-import { bkGetInfo, langGet } from '../../../resources/resources';
+import { bkGetInfo, harName, langGet } from '../../../resources/resources';
 import { componentDisable } from '../../gui/sizer';
 import { SpriteButton } from '../../gui/spriteButton';
 import { FontSize, HAlign, TEXT_TRN_BLUE, TextDirection, VAlign } from '../../gui/text';
@@ -288,7 +289,7 @@ export function labMenuFocusTrade(_c: SpriteButton, focused: boolean, s: Mechlab
   } else {
     headerLabel?.setText(langGet(461));
     // The reference formats 1..5 names (its buffer holds 5; the VS screen never offers more) and nothing otherwise.
-    const names = trades.map((i) => langGet(31 + i));
+    const names = trades.map((i) => harName(i));
     detailsLabel?.setText(names.length <= 5 ? names.join('\n').slice(0, 199) : '');
   }
 }
@@ -323,6 +324,7 @@ const FOCUS_CBS: ((c: SpriteButton, focused: boolean, s: MechlabScene) => void)[
 function labMenuHarPictureTick(currentPicture: SpriteButton, s: MechlabScene): void {
   if ((currentPicture.parent as TrnMenu).isFading()) return;
   const correctPicture = bkGetInfo(s.bk, 5)!.ani;
+  ensureMechIcon(correctPicture, playerPilot(s).harId);
   const correctSprite = correctPicture.getSprite(playerPilot(s).harId);
   if (correctSprite && currentPicture.getImg() !== correctSprite.surface) {
     currentPicture.setImg(correctSprite.surface);
@@ -356,7 +358,9 @@ export function labMenuCustomizeCreate(s: MechlabScene): TrnMenu {
     menu.attach(button);
   }
 
-  const bsprite = harPicture.getSprite(playerPilot(s).harId)!;
+  // (MECHLAB.BK has the original robots' pictures; the others get theirs made)
+  ensureMechIcon(harPicture, playerPilot(s).harId);
+  const bsprite = harPicture.getSprite(playerPilot(s).harId) ?? harPicture.getSprite(0)!;
   const button = new SpriteButton(null, bsprite.surface, false, null);
   button.setPosHints(bsprite.posX, bsprite.posY);
   button.supportsSelect = false;

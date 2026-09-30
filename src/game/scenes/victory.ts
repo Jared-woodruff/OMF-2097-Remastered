@@ -13,6 +13,8 @@ import { FontSize, GLYPH_SHADOW_BOTTOM, GLYPH_SHADOW_RIGHT, HAlign, Text, VAlign
 import { GameObject } from '../object';
 import { menuShade } from '../gui/widgets';
 import { paletteLoadPlayerColors } from '../pilotColors';
+import { addPilotPortrait } from '../../mods/portraits';
+import { modPilot } from '../../mods/registry';
 import { Scene } from '../scene';
 
 const COLOR_YELLOW = 0xcf;
@@ -42,7 +44,9 @@ export const WIN_QUOTES: string[][] = [
 const ANYONE = ['Victory!', 'Another one for the record books.', 'Next!', 'Is that all you had?'];
 
 export function winQuote(pilotId: number): string {
-  const q = WIN_QUOTES[pilotId] ?? ANYONE;
+  // (a mod pilot's own lines)
+  const own = modPilot(pilotId)?.info.quotes;
+  const q = own?.length ? own : WIN_QUOTES[pilotId] ?? ANYONE;
   return q[globalRandom.int(q.length)];
 }
 
@@ -84,9 +88,11 @@ export class VictoryScene extends Scene {
     har.selectSprite(pilot.harId);
     har.setHalt(1);
     gs.addObject(har, RENDER_LAYER_MIDDLE, false, false);
-    if (pilot.pilotId >= 0 && pilot.pilotId <= 10) {
+    const portraits = bkGetInfo(this.bk, 4)!.ani;
+    addPilotPortrait(portraits, pilot.pilotId, this.bk.palettes[0]);
+    if ((pilot.pilotId >= 0 && pilot.pilotId <= 10) || portraits.sprites[pilot.pilotId]?.surface) {
       const portrait = new GameObject(gs, -10, 150);
-      portrait.setAnimation(bkGetInfo(this.bk, 4)!.ani);
+      portrait.setAnimation(portraits);
       portrait.selectSprite(pilot.pilotId);
       portrait.setHalt(1);
       gs.addObject(portrait, RENDER_LAYER_TOP, false, false);

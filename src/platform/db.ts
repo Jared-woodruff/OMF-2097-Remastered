@@ -1,8 +1,10 @@
 // The game's IndexedDB database (web and desktop): imported game data ('gamedata', see gameData.ts), the player's
-// own music ('music', see audio/customMusic.ts) and saved fights ('replays', see game/replay/store.ts).
+// own music ('music', see audio/customMusic.ts), saved fights ('replays', see game/replay/store.ts), installed mods
+// ('mods', see mods/store.ts; OMF Studio installs into it too) and OMF Studio's projects ('studio', see
+// studio/storage.ts).
 
 const DB_NAME = 'omf2097r';
-const DB_VERSION = 3;
+const DB_VERSION = 5;
 
 export function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -16,6 +18,8 @@ export function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains('gamedata')) db.createObjectStore('gamedata');
       if (!db.objectStoreNames.contains('music')) db.createObjectStore('music', { keyPath: 'id', autoIncrement: true });
       if (!db.objectStoreNames.contains('replays')) db.createObjectStore('replays', { keyPath: 'id', autoIncrement: true });
+      if (!db.objectStoreNames.contains('mods')) db.createObjectStore('mods', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('studio')) db.createObjectStore('studio', { keyPath: 'key' });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);

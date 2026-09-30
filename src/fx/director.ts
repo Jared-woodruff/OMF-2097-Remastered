@@ -10,6 +10,7 @@ import { emptyFxFrame, ParticleKind, type FxFrame, type FxLight } from '../video
 import type { Surface } from '../video/surface';
 import { vga } from '../video/vga';
 import { arenaFx, flicker, FX_FLOOR, type ArenaCtx, type ArenaFx } from './arenas';
+import { arenaLook } from '../game/roster';
 import { ParticleSystem } from './particles';
 import { RobotFx } from './robotFx';
 import { HarId } from '../game/constants';
@@ -113,7 +114,7 @@ export class FxDirector {
     if (gs.thisId !== this.sceneId) {
       this.reset();
       this.sceneId = gs.thisId;
-      this.cfg = arenaFx(arena);
+      this.cfg = arenaFx(arenaLook(arena));
     }
     const cfg = this.cfg!;
     if (gs.paused) dt = 0;

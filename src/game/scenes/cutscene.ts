@@ -1,5 +1,6 @@
 // Cut scenes: the single player endings (END -> END1 -> END2 -> scoreboard) and the tournament victory cutscene
 // (TRN_CUTSCENE, using the tournament's own BK). Text pages advance with punch/kick. Port of the reference cutscene.
+import { modPilot } from '../../mods/registry';
 import type { CtrlEvent } from '../../controller/controller';
 import { Palette } from '../../formats/palette';
 import { bkGetInfo, langGet } from '../../resources/resources';
@@ -13,6 +14,16 @@ import { Scene } from '../scene';
 const END_TEXT = 992;
 const END1_TEXT = 993;
 const END2_TEXT = 1003;
+
+/** A mod pilot's ending (pilot.json), or the game's own words when it has none. */
+function modEnding(pilotId: number, part: 0 | 1): string {
+  const own = modPilot(pilotId)?.info.ending[part];
+  if (own) return own;
+  return part === 0
+    ? 'Ganymede and everything WAR built on it now answer to you. The crowds chant your name as you leave the arena, ' +
+      'no longer a challenger.\nSomewhere in the stands, the next one is already watching you.'
+    : 'As you fly towards the moon, you wonder what comes next. Whatever it is, you will be ready.';
+}
 
 /** Splits like the reference str_split: empty pieces are dropped. */
 function splitLines(s: string): string[] {
@@ -72,7 +83,7 @@ export class CutsceneScene extends Scene {
         this.current.setColor(0xf8);
         break;
       case SceneId.END1: {
-        text = langGet(END1_TEXT + p1.pilot.pilotId);
+        text = modPilot(p1.pilot.pilotId) ? modEnding(p1.pilot.pilotId, 0) : langGet(END1_TEXT + p1.pilot.pilotId);
         this.textX = 10;
         this.textY = 157;
         this.current.setColor(0xfd);
@@ -95,7 +106,7 @@ export class CutsceneScene extends Scene {
         break;
       }
       case SceneId.END2:
-        text = langGet(END2_TEXT + p1.pilot.pilotId);
+        text = modPilot(p1.pilot.pilotId) ? modEnding(p1.pilot.pilotId, 1) : langGet(END2_TEXT + p1.pilot.pilotId);
         this.textX = 10;
         this.textY = 160;
         this.current.setColor(0xf8);

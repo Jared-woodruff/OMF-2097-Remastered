@@ -26,6 +26,8 @@ export const app = {
   showTournaments(): void {},
   /** Shows the remaster's credits. */
   showCredits(): void {},
+  /** Shows the installed mods. */
+  showMods(): void {},
   /** Notified whenever settings change so the host can apply them. */
   settingsChanged(): void {},
 };

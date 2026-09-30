@@ -1,4 +1,4 @@
-// MAIN MENU > EXTRAS: the remaster's robot workshop, replays and records, and the original's DEMO and SCOREBOARD.
+// MAIN MENU > EXTRAS: the remaster's robot workshop, mods, replays and records, and the original's DEMO and SCOREBOARD.
 import { app } from '../../../app';
 import { Button, Label, Menu } from '../../gui/widgets';
 import type { MainMenuScene } from '../mainmenu';
@@ -10,6 +10,8 @@ export function menuExtrasCreate(s: MainMenuScene): Menu {
   menu.attach(Label.title('EXTRAS'));
   menu.attach(new Button('ROBOT WORKSHOP', 'Build your own robots from the parts of the new robots, try them out and share them ' +
     'as files.', false, false, () => app.showWorkshop()));
+  menu.attach(new Button('MODS', 'Robots, arenas and pilots made by players with OMF Studio: install mod files and turn them ' +
+    'on or off.', false, false, () => app.showMods()));
   menu.attach(new Button('REPLAYS', 'Watch your saved fights again, slow them down, step through them and save clips.', false, false,
     () => app.showReplays()));
   menu.attach(new Button('RECORDS', 'Your statistics, the best results of the modes, and achievements.', false, false,
