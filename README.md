@@ -38,10 +38,11 @@
 </p>
 
 <p align="center">
-  <sub>Every feature in 90 seconds, cut to the bars of the original main menu theme (played by this port's music
-  engine) with a voice-over by the new male announcer: the classic look and the HD one, every arena, the new robots and
-  arenas, the training lab, replays, the workshop, the modes, the controls, the announcers and the manual (turn the
-  sound on). <a href="docs/media/trailer.mp4">Watch it in 1080p60</a>.</sub>
+  <sub>A fan trailer with no narrator. It starts in 1994: a DOS prompt, then the original game in its own pixels on a
+  beige CRT, to its main menu theme (played by this port's music engine). Then, 32 years later, the picture sweeps into
+  HD on the drop of Hadal Static's <i>Twenty Ninety-Seven (Remix)</i>: fights at ULTIMATE, the classic look against
+  the new one, the new robots and arenas, and every feature, cut to the song's bars (turn the sound on).
+  <a href="docs/media/trailer.mp4">Watch it in 1080p60</a>.</sub>
 </p>
 
 <br>

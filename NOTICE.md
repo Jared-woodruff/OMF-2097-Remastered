@@ -19,11 +19,13 @@ painted by an image generation model over the remaster's own renders.
 
 - [Orbitron](public/fonts/Orbitron-OFL.txt) (the remastered text) by Matt McInerney and The League of Moveable Type,
   under the SIL Open Font License 1.1.
-- The announcers' voice lines in [`public/audio/announcer/`](public/audio/announcer) were made with ElevenLabs text to
-  speech (https://elevenlabs.io, Eleven v4; the voices Victor and Kristen from its voice library) and finished with FFmpeg
-  ([`tools/make-announcer.py`](tools/make-announcer.py)). They are shared with the game on its terms: free of charge.
-  The trailer's voice-over ([`docs/media/trailer.mp4`](docs/media/trailer.mp4)) was made the same way, over the game's
-  own main menu theme.
+- The announcers' voice lines in [`public/audio/announcer/`](public/audio/announcer) and the newsreader's recordings in
+  [`public/audio/news/`](public/audio/news) were made with ElevenLabs text to speech (https://elevenlabs.io, Eleven v4;
+  the voices Victor and Kristen from its voice library) and finished with FFmpeg
+  ([`tools/make-announcer.py`](tools/make-announcer.py), [`tools/make-news.py`](tools/make-news.py)). They are shared
+  with the game on its terms: free of charge.
+- The trailer ([`docs/media/trailer.mp4`](docs/media/trailer.mp4)) is set to the game's own main menu theme and to the
+  credits' song below, with the game's own sound effects.
 - Hyllian's xBR-lv2 shader (MIT), adapted in `src/video/hd/shaders.ts`; see the notice there.
 - The picture of the human coder in [`public/credits/`](public/credits) is Jared Woodruff's.
 - The credits' song, [*Twenty Ninety-Seven (Remix)*](https://www.hadalstatic.com/releases/twenty-ninety-seven/) by
