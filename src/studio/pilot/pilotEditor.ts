@@ -27,6 +27,7 @@ import { emptyHd, freeContentId, type PilotDoc } from '../project';
 import { pngToPixels } from '../sprites';
 import { originalAnswer, originalName, originalPilot } from './originals';
 import { BIO_BOX, ENDING_BOX, ENDING_LAST_BOX, endingPages, scenePalette, VICTORY_BOX, VS_BOX, wordsCanvas, wordsFit, type WordBox } from './words';
+import { editorHead } from '../ui';
 
 const TABS = [['overview', 'Overview'], ['pictures', 'Pictures'], ['words', 'Words'], ['computer', 'Computer']] as const;
 type Tab = (typeof TABS)[number][0];
@@ -45,15 +46,26 @@ interface Ctx {
 
 export function pilotEditor(app: StudioApp, pilot: PilotDoc, tabNumber?: number): Editor {
   let tab: Tab = tabNumber !== undefined ? TABS[tabNumber]?.[0] ?? lastTab : lastTab;
-  const body = h('div', { style: { flex: '1', minHeight: '0', overflow: 'auto' } });
-  const tabs = h('div', { class: 'tabs', style: { padding: '0 22px', margin: '0' } });
-  const title = h('h1', { style: { margin: '0', font: '800 20px var(--title)', letterSpacing: '.06em' } });
-  const el = h('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
-    h('div', { style: { padding: '14px 22px 0', display: 'flex', alignItems: 'center', gap: '12px' } }, title, h('span', { class: 'faint' }, `pilots/${pilot.id}`)),
-    tabs, body);
+  const index = app.project!.pilots.indexOf(pilot);
+  const body = h('div', { class: 'ed-body', style: { overflow: 'auto' } });
+  const tabs = h('div', { class: 'tabs' });
+  const title = h('h1');
+  const makeHead = () => editorHead(app, 'pilot', index, title, `pilots/${pilot.id}`);
+  let head = makeHead();
+  const el = h('div', { class: 'editor' }, head, tabs, body);
+  let portrait = pilot.portrait, face = pilot.face;
   const show = () => {
     lastTab = tab;
     fill(title, pilot.info.name || 'Pilot');
+    // (a new portrait or face: the head's picture too)
+    if (pilot.portrait !== portrait || pilot.face !== face) {
+      portrait = pilot.portrait;
+      face = pilot.face;
+      const next = makeHead();
+      head.replaceWith(next);
+      head = next;
+      app.changed(true);
+    }
     fill(tabs, TABS.map(([t, label]) => h('div', { class: `tab${tab === t ? ' sel' : ''}`, onclick: () => ((tab = t), show()) }, label)));
     const c: Ctx = { app, pilot, info: pilot.info, redraw: show };
     fill(body, tab === 'overview' ? overview(c, () => fill(title, pilot.info.name || 'Pilot')) : tab === 'pictures' ? pictures(c) : tab === 'words' ? words(c) : computer(c));
@@ -84,7 +96,7 @@ function endingEntriesOf(): number[] {
 function previewBox(caption: string, content: HTMLElement | null, note = ''): HTMLElement {
   return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' } },
     h('b', null, caption),
-    h('div', { style: { background: '#070a13', padding: '8px', borderRadius: '6px', minWidth: '60px', minHeight: '40px' } }, content ?? h('span', { class: 'faint' }, 'None')),
+    h('div', { class: 'screen', style: { minWidth: '60px', minHeight: '40px' } }, content ?? h('span', { class: 'faint' }, 'None')),
     note ? h('span', { class: 'faint', style: { fontSize: '11px', maxWidth: '240px' } }, note) : null);
 }
 
@@ -276,15 +288,15 @@ function overview(c: Ctx, retitle: () => void): HTMLElement {
   const drawSelect = async () => {
     const img = pilot.portrait ? await decodePng(pilot.portrait) : null;
     const pal = scenePalette('MELEE.BK');
-    const bar = (label: string, v: number) => h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' } },
-      h('span', { style: { width: '70px', color: '#6fd98a' } }, label),
-      h('div', { style: { width: '100px', height: '6px', background: '#12301c', borderRadius: '2px' } },
-        h('div', { style: { width: `${(v / 20) * 100}%`, height: '100%', background: '#6fd98a', borderRadius: '2px' } })));
+    // (the game's bars: a segment for each point)
+    const bar = (label: string, v: number) => h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } },
+      h('span', { class: 'omf', style: { width: '92px', fontSize: '10.5px', color: 'var(--green)', textShadow: '1px 1px 0 var(--green-dk)' } }, label),
+      h('div', { class: 'segments' }, h('i', { style: { width: `${(v / 20) * 100}%` } })));
     fill(selectBox, h('div', { style: { display: 'flex', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' } },
-      h('div', { style: { background: '#070a13', padding: '8px', borderRadius: '6px', minWidth: '180px', minHeight: '140px' } },
+      h('div', { class: 'screen', style: { minWidth: '180px', minHeight: '140px' } },
         img ? pictureCanvas(fitPicture(img, pal, PORTRAIT_ENTRIES, PORTRAIT_SIZE.w, PORTRAIT_SIZE.h, 'fit'), pal, 2) : h('span', { class: 'faint' }, 'No portrait yet')),
       h('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start' } },
-        h('b', { style: { font: '700 13px var(--title)', letterSpacing: '.08em' } }, info.name || 'Pilot'),
+        h('b', { class: 'omf', style: { fontSize: '14px', color: 'var(--yellow)' } }, info.name || 'Pilot'),
         bar('POWER', info.power), bar('AGILITY', info.agility), bar('ENDURANCE', info.endurance),
         wordsCanvas(BIO_BOX, info.bio), fitNote(BIO_BOX, info.bio))));
   };
@@ -305,15 +317,14 @@ function overview(c: Ctx, retitle: () => void): HTMLElement {
     })));
   return h('div', { class: 'page' },
     h('p', { class: 'lead' }, 'A pilot joins the pilot select screen (on the page after the original ten), fights in any robot, and plays ' +
-      'the one-player game to its own ending. Its words and the way the computer fights as it are on the Words and Computer tabs.'),
+      'the one-player game to its own ending.'),
     h('div', { class: 'grid2' },
       h('div', { class: 'card' }, h('h2', null, 'PILOT'),
         h('div', { class: 'grid2' },
           field('Name', textInput(() => info.name, (v) => ((info.name = v.slice(0, 16)), app.changed(true), retitle(), void drawSelect()), { maxLength: 16 }), 'as the game writes names ("Crystal")'),
           field('Sex', select<string>(MOD_SEXES.map((s) => [s, s === 'male' ? 'Male' : 'Female']), () => info.sex, (v) => ((info.sex = v as typeof info.sex), app.changed(false))), 'the news report\'s words'),
           field('Plays like', select<number>(PILOT_NAMES.map((n, i) => [i, n]), () => info.personality, (v) => ((info.personality = v), app.changed(false))),
-            'the computer fights like them unless the Computer tab gives it a personality of its own; the originals talk to it like to them unless ' +
-            'the Words tab gives them other words')),
+            'how the computer fights as it and what the originals say to it, unless the Computer and Words tabs say otherwise')),
         h('div', { class: 'grid3', style: { marginTop: '10px' } }, stat('Power', 'power'), stat('Agility', 'agility'), stat('Endurance', 'endurance'))),
       h('div', { class: 'card' }, h('h2', null, 'COLORS', h('span', { class: 'spacer' }),
         h('button', { class: 'btn small', title: 'Show the mod\'s robots in these colors in Studio', onclick: () => app.setColors([...info.colors] as [number, number, number]) },
@@ -322,7 +333,7 @@ function overview(c: Ctx, retitle: () => void): HTMLElement {
         h('div', { style: { display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' } },
           h('div', null, colorRow('Primary', 0), colorRow('Secondary', 1), colorRow('Tertiary', 2)), robotBox))),
     h('div', { class: 'card' }, h('h2', null, 'ON THE PILOT SELECT SCREEN'), selectBox),
-    h('div', { class: 'card' }, h('h2', null, 'REMOVE'),
+    h('div', { class: 'card danger-zone' }, h('h2', null, 'REMOVE'),
       h('button', { class: 'btn danger', onclick: () => void app.removeSelected() }, `Remove ${info.name || 'this pilot'} from the mod`)));
 }
 
@@ -487,8 +498,8 @@ function computer(c: Ctx): HTMLElement {
       h('span', { class: 'faint', style: { fontSize: '11px' } }, [hint, `${originalName(info.personality)}: ${fmt(baseAi[key])}`].filter(Boolean).join(' · ')));
   };
   return h('div', { class: 'page' },
-    h('p', { class: 'lead' }, 'How the computer fights as this pilot: the personality every original pilot has (the game\'s own values below, as ' +
-      'a start). The player\'s difficulty setting decides how well it fights; this decides how.'),
+    h('p', { class: 'lead' }, 'How the computer fights as this pilot (the difficulty setting decides how well). Beside each value: the one of ' +
+      'the pilot it plays like.'),
     h('div', { class: 'card' }, h('h2', null, 'PERSONALITY'),
       h('label', { class: 'muted', style: { display: 'block', marginBottom: '10px' } }, own, ' A personality of its own'),
       info.ai
@@ -514,7 +525,7 @@ export async function newPilotDialog(app: StudioApp): Promise<PilotDoc | null> {
   const body = h('div');
   const render = () => {
     const choice = (s: typeof start, title: string, text: string) => h('div', {
-      class: 'choice', style: { borderColor: start === s ? 'var(--accent)' : '', background: start === s ? '#13203a' : '' },
+      class: `choice${start === s ? ' sel' : ''}`,
       onclick: () => ((start = s), render()),
     }, h('b', null, title), h('span', null, text));
     fill(body,

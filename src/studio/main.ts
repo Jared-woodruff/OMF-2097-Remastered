@@ -9,19 +9,21 @@ import { loadGenerated } from '../resources/generated';
 import { loadLanguage } from '../resources/resources';
 import { StudioApp } from './app';
 import { h } from './dom';
+import { hero } from './ui';
 
 async function main(): Promise<void> {
   const root = document.getElementById('studio')!;
-  const loading = document.getElementById('loading');
+  const bar = document.querySelector<HTMLElement>('#loading .load-bar i');
+  const label = document.querySelector<HTMLElement>('#loading .load-text');
   const fromServer = await preloadAll((loaded, total) => {
-    if (loading) loading.textContent = `OMF STUDIO · LOADING THE GAME'S FILES ${Math.round((loaded / total) * 100)}%`;
+    const pct = Math.round((loaded / total) * 100);
+    if (bar) bar.style.width = `${pct}%`;
+    if (label) label.textContent = `Loading the game's files · ${pct}%`;
   });
   if (!fromServer && !(await loadStoredGameFiles())) {
     root.replaceChildren(h('div', { class: 'start' }, h('div', { class: 'inner' },
-      h('h1', { class: 'logo' }, 'OMF STUDIO'),
-      h('p', { class: 'tag' }, 'OMF Studio needs the game\'s files. Start the game once in this browser: it asks for them and ' +
-        'keeps them, and Studio uses the same ones.'),
-      h('a', { class: 'btn primary', href: './index.html' }, 'Open the game'))));
+      hero('OMF Studio needs the game\'s files. Start the game once in this browser: it asks for them and keeps them, and Studio uses the same ones.'),
+      h('div', { style: { textAlign: 'center' } }, h('a', { class: 'btn go', href: './index.html' }, '▶ Open the game')))));
     return;
   }
   await loadGenerated();

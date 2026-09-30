@@ -14,6 +14,8 @@ export interface Problem {
   level: 'error' | 'warning';
   text: string;
   target: Target;
+  /** 'empty': the mod holds nothing yet (its page offers to add something). */
+  code?: 'empty';
 }
 
 export const MOVE_LABELS: Record<number, string> = {
@@ -30,7 +32,7 @@ export function projectProblems(p: Project): Problem[] {
   const mod = { kind: 'mod' } as const;
   if (!ID_PATTERN.test(p.manifest.id)) out.push({ level: 'error', text: 'The mod\'s id may only have lower case letters, digits, ".", "-" and "_".', target: mod });
   if (!p.manifest.name.trim()) out.push({ level: 'error', text: 'The mod has no name.', target: mod });
-  if (!p.robots.length && !p.arenas.length && !p.pilots.length) out.push({ level: 'error', text: 'The mod has no robots, arenas or pilots yet.', target: mod });
+  if (!p.robots.length && !p.arenas.length && !p.pilots.length) out.push({ level: 'error', text: 'The mod has no robots, arenas or pilots yet.', target: mod, code: 'empty' });
   if (!p.manifest.author.trim()) out.push({ level: 'warning', text: 'The mod names no author.', target: mod });
   const ids = (list: { id: string }[], what: string, kind: 'robot' | 'arena' | 'pilot') => {
     list.forEach((x, index) => {

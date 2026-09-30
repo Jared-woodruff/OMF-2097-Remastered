@@ -48,7 +48,7 @@ export async function newRobotDialog(app: StudioApp): Promise<RobotDoc | null> {
     ...GEN_ROBOTS.map((r) => [r.id, `${r.name} (the remaster's)`] as [number, string]),
   ];
   const body = h('div');
-  const preview = h('div', { style: { minHeight: '150px', display: 'grid', placeItems: 'center', background: '#070a13', borderRadius: '8px' } });
+  const preview = h('div', { class: 'screen', style: { minHeight: '150px', display: 'grid', placeItems: 'center' } });
   const drawPreview = () => {
     try {
       const t = workshopPreview({ ...spec, name: cleanName(name) });
@@ -62,7 +62,7 @@ export async function newRobotDialog(app: StudioApp): Promise<RobotDoc | null> {
   };
   const render = () => {
     const choice = (s: Start, title: string, text: string) => h('div', {
-      class: 'choice', style: { borderColor: start === s ? 'var(--accent)' : '', background: start === s ? '#13203a' : '' },
+      class: `choice${start === s ? ' sel' : ''}`,
       onclick: () => ((start = s), render()),
     }, h('b', null, title), h('span', null, text));
     const part = (label: string, key: 'body' | 'head' | 'moves') => field(label, select<number>(PART_NAMES.map((n, i) => [i, n]), () => spec[key], (v) => ((spec[key] = v), drawPreview())));

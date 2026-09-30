@@ -12,6 +12,7 @@ import { rampColor } from './colors';
 import { fill, h, modal, pickFiles, toast } from './dom';
 import { compactPicture, hdBitmap, hdProblem, hdTemplate, parseStem, picturesFromFiles, spriteStem } from './hd';
 import { emptyHd, type HdDoc } from './project';
+import { foldCard } from './ui';
 
 type Anims = ({ animation: { sprites: Sprite[] } } | null | undefined)[];
 
@@ -31,7 +32,7 @@ export interface HdSprites {
   colors: boolean;
   changed: () => void;
   /** More ways to make pictures (a robot's 3D model), shown when they can be used. */
-  actions?: { label: string; title: string; available: () => boolean; run: () => Promise<unknown> }[];
+  actions?: { label: string; title: string; available: () => boolean; run: () => Promise<unknown>; hint?: string }[];
 }
 
 /** A picture's preview, `max` pixels a side at most. */
@@ -99,10 +100,13 @@ function readme(o: HdSprites, pad: number): string {
 
 export function hdSpritesCard(o: HdSprites): HTMLElement {
   const body = h('div');
+  const card = foldCard('hd', 'HD ARTWORK', '', body);
   const render = () => {
     const hd = o.get();
     const list = uniqueSprites(o.anims(), o.prefix);
     const have = list.filter((x) => hd?.sprites.has(x.hash)).length;
+    const hints = have < list.length ? (o.actions ?? []).filter((a) => a.available() && a.hint).map((a) => a.hint!) : [];
+    fill(card.note, [`${have} of ${list.length} sprites have an HD picture`, ...hints].join(' · '));
     const colorRow = (label: string, slot: 0 | 1 | 2) => h('div', { style: { display: 'flex', alignItems: 'center', gap: '2px', marginBottom: '3px' } },
       h('span', { class: 'faint', style: { width: '70px', fontSize: '12px' } }, label),
       Array.from({ length: 16 }, (_, k) => h('div', {
@@ -177,7 +181,7 @@ export function hdSpritesCard(o: HdSprites): HTMLElement {
     await report(`${problems.length} picture${problems.length === 1 ? '' : 's'} left out`, problems);
   };
   render();
-  return h('div', { class: 'card' }, h('h2', null, 'HD ARTWORK'), body);
+  return card.el;
 }
 
 export interface HdPicture {
@@ -200,7 +204,7 @@ export function hdPictureRow(o: HdPicture): HTMLElement {
     const native = o.native();
     const bytes = o.get();
     fill(row,
-      h('div', { style: { background: '#070a13', borderRadius: '6px', padding: '4px' } }, hdThumb(bytes)),
+      h('div', { class: 'screen', style: { padding: '4px' } }, hdThumb(bytes)),
       h('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
         h('span', { class: 'muted', style: { fontSize: '12px' } }, native
           ? `HD: ${native[0] * HD_SCALE.x} x ${native[1] * HD_SCALE.y} (or any size of that shape)` : 'HD: nothing to make one for yet'),

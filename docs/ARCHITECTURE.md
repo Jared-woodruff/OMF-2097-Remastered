@@ -329,7 +329,11 @@ the classic pictures they stand for, against the palette they were painted in; f
 that wanted them. The engine keeps what it loaded, so turning mods on or off applies at the next start.
 
 OMF Studio (`studio.html`, `src/studio`) is a separate page on the same origin: plain TypeScript and DOM, 2D canvases
-for its pictures (no `GameState`: the engine's singletons are the game's). A project is a mod package open for
+for its pictures (no `GameState`: the engine's singletons are the game's), in the game's look (`studio.html`'s styles:
+the menus' grid frames and blue border, the pages' colors, the remaster's typeface with the game's hard shadows).
+`app.ts` is the window (the start screen, the list, the top bar with what the checks say), `home.ts` the mod's page
+(what to do next, what the mod holds, its details), `ui.ts` the shared pieces (the content's pictures, the editors'
+heads with their checks and a test button, the cards that fold away). A project is a mod package open for
 editing (`project.ts`: fighter and scene files parsed, written back with `saveAF`/`saveBK`), kept in IndexedDB as it
 changes (`storage.ts`). Animation strings are edited as tokens that keep every character (`anim.ts`: an unedited
 string is written back exactly; the tests check every string of the game's files), sprites through their sharing

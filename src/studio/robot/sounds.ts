@@ -4,6 +4,7 @@ import { soundSampleRate } from '../../audio/soundOpts';
 import { soundBank } from '../../resources/resources';
 import { parseAnim } from '../anim';
 import { h } from '../dom';
+import { foldCard } from '../ui';
 
 let ctx: AudioContext | null = null;
 
@@ -63,8 +64,9 @@ export function soundsCard(table: Uint8Array, changed: () => void, o: SoundsCard
       h('button', { class: 'btn small icon', title: 'Play it', onclick: () => playSound(playing()) }, '▶'),
       h('span', { class: 'faint', style: { fontSize: '11px' } }, notes));
   };
-  return h('div', { class: 'card' }, h('h2', null, 'SOUNDS'),
+  const played = used.filter((n) => n).length;
+  return foldCard('sounds', 'SOUNDS', `${played || 'none'} played by its animations`,
     h('p', { class: 'muted', style: { marginTop: '0' } }, o.help),
     h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '4px 16px' } },
-      Array.from({ length: 30 }, (_, i) => row(i))));
+      Array.from({ length: 30 }, (_, i) => row(i)))).el;
 }

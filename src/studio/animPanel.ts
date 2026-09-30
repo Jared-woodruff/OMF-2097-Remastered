@@ -17,7 +17,7 @@ import { spriteHash } from '../mods/package';
 import { followEdit, hdBitmap, hdTemplate } from './hd';
 import { hdPictureRow } from './hdCard';
 import { emptyHd, type HdDoc } from './project';
-import { field, fill, h, modal, numberInput, pickFiles, select, toast } from './dom';
+import { field, fill, h, icon, modal, numberInput, pickFiles, select, toast } from './dom';
 import { editPixels } from './pixel';
 import { TAG_HELP, tagChoices } from './robot/moves';
 import { blankSprite, copySprite, detach, pngToPixels, setPicture, sharedGroup, spritePng, trim } from './sprites';
@@ -122,7 +122,7 @@ export class AnimPanel {
   private bitmaps = new Map<Uint8Array, ImageBitmap | null>();
   private hdRow = h('div', { style: { marginTop: '10px' } });
   private stageCanvas = h('canvas', { class: 'pix', style: { width: '100%', height: '100%', display: 'block' } });
-  private center = h('div', { class: 'col', style: { flex: '1 1 480px', minWidth: '0', padding: '12px 12px 20px' } });
+  private center = h('div', { class: 'col', style: { flex: '1 1 440px', minWidth: '0', padding: '12px 12px 20px' } });
   private right = h('div', { style: { flex: '0 0 340px', minWidth: '0', padding: '0 12px 20px' } });
   private timeline = h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '4px' } });
   private sprites = h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '8px' } });
@@ -132,7 +132,7 @@ export class AnimPanel {
   private playButton = h('button', { class: 'btn small', onclick: () => this.togglePlay() }, '▶ Play');
 
   constructor(private host: AnimPanelHost) {
-    const stageBox = h('div', { style: { height: '340px', background: '#070a13', border: '1px solid var(--line)', borderRadius: '8px', overflow: 'hidden' } }, this.stageCanvas);
+    const stageBox = h('div', { class: 'stage' }, this.stageCanvas);
     this.resize.observe(stageBox);
     const controls = h('div', { class: 'row', style: { alignItems: 'center' } },
       this.playButton,
@@ -156,9 +156,10 @@ export class AnimPanel {
         h('button', { class: 'btn small primary', onclick: () => void this.editSprite(), title: 'Draw the selected sprite (double click one)' }, 'Draw'),
         h('button', { class: 'btn small', onclick: () => this.addSprite(false), title: 'An empty sprite' }, '+ Empty'),
         h('button', { class: 'btn small', onclick: () => this.addSprite(true), title: 'A copy of the selected sprite' }, 'Duplicate'),
-        h('button', { class: 'btn small', onclick: () => void this.importSprites(), title: 'New sprites from PNG pictures' }, 'Import PNG'),
-        h('button', { class: 'btn small', onclick: () => void this.exportSprite(), title: 'Save the selected sprite as a PNG' }, 'Export PNG'),
-        h('button', { class: 'btn small danger', onclick: () => void this.deleteSprite() }, 'Delete')), this.sprites, host.hd ? this.hdRow : null));
+        h('button', { class: 'btn small icon', onclick: () => void this.importSprites(), title: 'Import PNG: new sprites from PNG pictures', 'aria-label': 'Import PNG' }, icon('install')),
+        h('button', { class: 'btn small icon', onclick: () => void this.exportSprite(), title: 'Export PNG: save the selected sprite as a PNG', 'aria-label': 'Export PNG' }, icon('export')),
+        h('button', { class: 'btn small icon danger', onclick: () => void this.deleteSprite(), title: 'Delete the selected sprite', 'aria-label': 'Delete the sprite' }, icon('trash'))),
+      this.sprites, host.hd ? this.hdRow : null));
     // (the frame panel goes under the preview when the window is narrow)
     this.el = h('div', { style: { overflow: 'auto', minWidth: '0' } }, h('div', { style: { display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start' } }, this.center, this.right));
   }
@@ -195,6 +196,8 @@ export class AnimPanel {
   }
 
   private renderAll(): void {
+    // (an empty slot: only the stage, and the card on the right that makes one)
+    this.center.classList.toggle('no-anim', !this.anim);
     this.renderTimeline();
     this.renderSprites();
     this.renderRight();
@@ -287,8 +290,8 @@ export class AnimPanel {
     g.imageSmoothingEnabled = false;
     const floor = st.floor ?? st.height;
     const grad = g.createLinearGradient(0, 0, 0, oy + floor * k);
-    grad.addColorStop(0, '#0a1122');
-    grad.addColorStop(1, '#16223f');
+    grad.addColorStop(0, '#03041a');
+    grad.addColorStop(1, '#0d1552');
     g.fillStyle = grad;
     g.fillRect(0, 0, c.width, c.height);
     if (st.backdrop) {
@@ -302,9 +305,22 @@ export class AnimPanel {
       }
     }
     if (st.floor !== null) {
-      g.fillStyle = '#1b2440';
+      g.fillStyle = '#080c36';
       g.fillRect(0, oy + st.floor * k, c.width, c.height);
-      g.strokeStyle = 'rgba(255, 183, 64, .5)';
+      // (the floor: the menus' grid, in perspective-free squares)
+      g.strokeStyle = 'rgba(20, 30, 200, .35)';
+      g.beginPath();
+      const cell = 16 * k;
+      for (let x = ((ox % cell) + cell) % cell; x < c.width; x += cell) {
+        g.moveTo(Math.round(x) + 0.5, oy + st.floor * k);
+        g.lineTo(Math.round(x) + 0.5, c.height);
+      }
+      for (let y = oy + st.floor * k + cell; y < c.height; y += cell) {
+        g.moveTo(0, Math.round(y) + 0.5);
+        g.lineTo(c.width, Math.round(y) + 0.5);
+      }
+      g.stroke();
+      g.strokeStyle = 'rgba(255, 200, 64, .6)';
       g.beginPath();
       g.moveTo(0, oy + st.floor * k + 0.5);
       g.lineTo(c.width, oy + st.floor * k + 0.5);
@@ -345,7 +361,7 @@ export class AnimPanel {
     }
     if (!st.centred) {
       // Where it is placed.
-      g.strokeStyle = 'rgba(60, 195, 255, .8)';
+      g.strokeStyle = 'rgba(159, 208, 255, .85)';
       g.beginPath();
       g.moveTo(ox + x0 * k - 6 * k, oy + y0 * k + 0.5);
       g.lineTo(ox + x0 * k + 6 * k, oy + y0 * k + 0.5);
@@ -498,7 +514,7 @@ export class AnimPanel {
       } }, '✕')));
     return h('div', { class: 'card', style: { marginTop: '12px' } },
       h('h2', null, `FRAME ${this.frame + 1}`),
-      h('div', { class: 'row' },
+      h('div', { class: 'row', style: { alignItems: 'flex-start' } },
         field('Sprite', select<number>(letters, () => f.sprite, (v) => {
           setFrame(f, v, f.ticks);
           this.spriteSel = v;
@@ -509,7 +525,7 @@ export class AnimPanel {
           setFrame(f, f.sprite, v);
           this.commitAnim();
         }, 0, 9999), `${TICK_MS} ms each`)),
-      h('div', { style: { marginTop: '10px' } }, h('div', { class: 'muted', style: { fontSize: '12px', marginBottom: '4px' } }, 'Tags (what happens on this frame)'),
+      h('div', { style: { marginTop: '10px' } }, h('div', { class: 'sublabel', title: 'What happens on this frame' }, 'Tags on this frame'),
         tagRows.length ? tagRows : h('div', { class: 'faint' }, 'None'),
         h('div', { class: 'row', style: { marginTop: '6px', alignItems: 'center' } },
           select<string>(allTags.map((n) => [n, `${n}${TAG_HELP[n] ? ` — ${TAG_HELP[n]}` : ''}`]), () => newTagName, (v) => (newTagName = v)),
@@ -534,7 +550,7 @@ export class AnimPanel {
       }
     });
     return h('details', { class: 'card' },
-      h('summary', { style: { cursor: 'pointer', font: '700 12px var(--title)', letterSpacing: '.14em', color: '#a9c4ff' } }, 'ANIMATION STRING'),
+      h('summary', null, 'ANIMATION STRING'),
       h('div', { style: { marginTop: '10px' } }, field('As the file stores it', raw, 'frames: a sprite letter and ticks, "-" between them, tags before')));
   }
 
@@ -550,10 +566,7 @@ export class AnimPanel {
     fill(this.sprites, a.sprites.map((s, i) => {
       const img = this.image(s);
       const box = h('div', {
-        style: {
-          width: '76px', height: '92px', border: `1px solid ${i === this.spriteSel ? 'var(--accent)' : 'var(--line)'}`, borderRadius: '6px',
-          background: '#070a13', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '4px', cursor: 'pointer',
-        },
+        class: `spr${i === this.spriteSel ? ' sel' : ''}`, title: 'Click to choose it, double click to draw it',
         onclick: () => {
           this.spriteSel = i;
           this.renderSprites();

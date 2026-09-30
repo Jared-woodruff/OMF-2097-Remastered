@@ -25,6 +25,7 @@ import type { Editor, StudioApp } from '../app';
 import { arenaPalette, indexedCanvas, nearestEntry, referenceArena } from '../colors';
 import { field, fill, h, modal, pickFiles, select, textInput, toast } from '../dom';
 import { emptyHd, freeContentId, type ArenaDoc } from '../project';
+import { editorHead } from '../ui';
 
 const ORIGINAL_NAMES = ['STADIUM', 'DANGER ROOM', 'POWER PLANT', 'FIRE PIT', 'DESERT'];
 const BASES: [number, string][] = [[-1, 'None'], [0, 'Stadium (light on the robots)'], [1, 'Danger Room'], [2, 'Power Plant (electric walls)'],
@@ -44,13 +45,13 @@ function wide(a: ArenaDoc): Uint8Array | null {
 export function arenaEditor(app: StudioApp, arena: ArenaDoc, anim?: number): Editor {
   let tab: 'overview' | 'anims' = anim !== undefined ? 'anims' : 'overview';
   let anims: ArenaAnimEditor | null = null;
-  const body = h('div', { style: { flex: '1', minHeight: '0' } });
-  const tabs = h('div', { class: 'tabs', style: { padding: '0 22px', margin: '0' } });
-  const el = h('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
-    h('div', { style: { padding: '14px 22px 0', display: 'flex', alignItems: 'center', gap: '12px' } },
-      h('h1', { style: { margin: '0', font: '800 20px var(--title)', letterSpacing: '.06em' } }, arena.info.name || 'Arena'),
-      h('span', { class: 'faint' }, `arenas/${arena.id}`)),
-    tabs, body);
+  const index = app.project!.arenas.indexOf(arena);
+  const body = h('div', { class: 'ed-body' });
+  const tabs = h('div', { class: 'tabs' });
+  const title = h('h1', null, arena.info.name || 'Arena');
+  const makeHead = () => editorHead(app, 'arena', index, title, `arenas/${arena.id}`);
+  let head = makeHead();
+  const el = h('div', { class: 'editor' }, head, tabs, body);
   const renderTabs = () => {
     const count = arena.bk.anims.filter((a) => a).length;
     fill(tabs,
@@ -71,6 +72,11 @@ export function arenaEditor(app: StudioApp, arena: ArenaDoc, anim?: number): Edi
         anim = id;
         tab = 'anims';
         show();
+      }, () => fill(title, arena.info.name || 'Arena'), () => {
+        // (a new background: the head's picture too)
+        const next = makeHead();
+        head.replaceWith(next);
+        head = next;
       }));
     }
   };
@@ -78,7 +84,7 @@ export function arenaEditor(app: StudioApp, arena: ArenaDoc, anim?: number): Edi
   return { el, close: () => anims?.destroy() };
 }
 
-function overview(app: StudioApp, arena: ArenaDoc, openAnim: (id: number) => void): HTMLElement {
+function overview(app: StudioApp, arena: ArenaDoc, openAnim: (id: number) => void, retitle: () => void, repicture: () => void): HTMLElement {
   const info = arena.info;
   const pictureBox = h('div');
   const drawPicture = () => {
@@ -96,13 +102,12 @@ function overview(app: StudioApp, arena: ArenaDoc, openAnim: (id: number) => voi
   const hazards = arena.bk.anims.map((a, id) => ({ a, id })).filter((x) => x.a && x.a.probability > 1);
   const loops = [...new Set([...info.loops, ...(info.base === 3 ? [1, 2, 3, 4] : [])])].filter((id) => arena.bk.anims[id]);
   return h('div', { class: 'page' },
-    h('p', { class: 'lead' }, 'The arena\'s scene file holds its background, its own 64 colors (the rest every arena shares), its animations ' +
-      '(hazards and things that move) and its sounds. The round announcements and dust come from the original game\'s first arena ' +
-      'unless it has its own.'),
+    h('p', { class: 'lead' }, 'The arena\'s background and its 64 colors, what moves in it (hazards, scenery) and its sounds. The round ' +
+      'announcements and dust are the original game\'s unless it has its own.'),
     h('div', { class: 'grid2' },
       h('div', { class: 'card' }, h('h2', null, 'NAME AND TEXTS'),
         h('div', { class: 'grid2' },
-          field('Name', textInput(() => info.name, (v) => ((info.name = v.toUpperCase().slice(0, 16)), app.changed(true)), { maxLength: 16 })),
+          field('Name', textInput(() => info.name, (v) => ((info.name = v.toUpperCase().slice(0, 16)), app.changed(true), retitle()), { maxLength: 16 })),
           field('In the news', textInput(() => info.newsName, (v) => ((info.newsName = v.slice(0, 24)), app.changed(false)), { maxLength: 24 }), '"they traded blows in the ..."')),
         h('div', { style: { marginTop: '10px' } }, field('The VS screen\'s text', (() => {
           const t = h('textarea', { rows: 3, maxLength: 160 }, info.description);
@@ -116,7 +121,12 @@ function overview(app: StudioApp, arena: ArenaDoc, openAnim: (id: number) => voi
             (v) => ((info.ambience = v as typeof info.ambience), app.changed(false))), 'remastered effects and echo'),
           field('Behaves like', select<number>(BASES, () => info.base, (v) => ((info.base = v), app.changed(false))), 'an original arena\'s built-in rules')))),
     h('div', { class: 'card' }, h('h2', null, 'BACKGROUND', h('span', { class: 'spacer' }),
-      h('button', { class: 'btn small primary', onclick: () => void replacePicture(app, arena).then((ok) => ok && drawPicture()) }, 'Replace from a PNG'),
+      h('button', { class: 'btn small primary', onclick: () => void replacePicture(app, arena).then((ok) => {
+        if (!ok) return;
+        drawPicture();
+        repicture();
+        app.changed(true);
+      }) }, 'Replace from a PNG'),
       h('button', { class: 'btn small', onclick: () => void exportPicture(arena) }, 'Export PNG')),
       pictureBox,
       // The remastered look's picture of it: the whole background, with its widescreen sides when it has them.
@@ -149,7 +159,7 @@ function overview(app: StudioApp, arena: ArenaDoc, openAnim: (id: number) => voi
         'first arena\'s (the round announcements and dust use some); the game sets entries 3, 14 and 15 itself.',
       fallback: referenceArena().soundTable,
     }),
-    h('div', { class: 'card' }, h('h2', null, 'REMOVE'),
+    h('div', { class: 'card danger-zone' }, h('h2', null, 'REMOVE'),
       h('button', { class: 'btn danger', onclick: () => void app.removeSelected() }, `Remove ${info.name || 'this arena'} from the mod`)));
 }
 
@@ -268,7 +278,7 @@ export async function newArenaDialog(app: StudioApp): Promise<ArenaDoc | null> {
   const body = h('div');
   const render = () => {
     const choice = (s: Start, title: string, text: string) => h('div', {
-      class: 'choice', style: { borderColor: start === s ? 'var(--accent)' : '', background: start === s ? '#13203a' : '' },
+      class: `choice${start === s ? ' sel' : ''}`,
       onclick: () => ((start = s), render()),
     }, h('b', null, title), h('span', null, text));
     fill(body,

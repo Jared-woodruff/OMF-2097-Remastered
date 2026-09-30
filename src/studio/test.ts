@@ -29,7 +29,8 @@ interface TestSetup {
 
 let last: TestSetup | null = null;
 
-export async function testFight(app: StudioApp, p: Project): Promise<void> {
+/** Tests the project in the game, after asking how; `prefer` chooses some of the project's content ("mod:<folder>"). */
+export async function testFight(app: StudioApp, p: Project, prefer: Partial<Record<'robot' | 'arena' | 'pilot', string>> = {}): Promise<void> {
   const robots: [string, string][] = [
     ...p.robots.map((r) => [`mod:${r.id}`, `${r.info.name} (this mod)`] as [string, string]),
     ...HAR_NAMES.slice(0, 10).map((n, i) => [String(i), n] as [string, string]),
@@ -47,16 +48,16 @@ export async function testFight(app: StudioApp, p: Project): Promise<void> {
   const keep = (v: string | undefined, list: [string, string][]) => (v && list.some(([k]) => k === v) ? v : list[0][0]);
   const s: TestSetup = {
     mode: last?.mode ?? 'fight',
-    robot: keep(last?.robot, robots),
+    robot: keep(prefer.robot ?? last?.robot, robots),
     opponent: keep(last?.opponent, robots.filter(([k]) => !k.startsWith('mod:')).concat(robots)),
-    arena: keep(last?.arena, arenas),
-    pilot: keep(last?.pilot, pilots),
+    arena: keep(prefer.arena ?? last?.arena, arenas),
+    pilot: keep(prefer.pilot ?? last?.pilot, pilots),
     opponentPilot: last?.opponentPilot ?? '0',
   };
   if (s.opponent === s.robot && robots.length > 1) s.opponent = robots.find(([k]) => k !== s.robot && !k.startsWith('mod:'))?.[0] ?? s.opponent;
   const ok = await modal<boolean>((close) => h('div', { class: 'modal', style: { width: '560px' } },
     h('h2', null, 'Test in the game'),
-    h('p', { class: 'muted' }, 'The game opens over Studio with this mod (as it is now) and the fight starts right away. Close it to come back.'),
+    h('p', { class: 'muted' }, 'The game opens over Studio with the mod as it is now, and starts right away. Close it to come back to Studio.'),
     h('div', { class: 'grid2' },
       field('Play', select<Mode>(MODES, () => s.mode, (v) => (s.mode = v))),
       field('Arena', select<string>(arenas, () => s.arena, (v) => (s.arena = v))),
@@ -73,8 +74,9 @@ export async function testFight(app: StudioApp, p: Project): Promise<void> {
   const frame = h('iframe', { src: `./index.html?${q.toString()}`, allow: 'autoplay; fullscreen; gamepad' });
   const back = h('div', { class: 'test-back' },
     h('div', { class: 'bar' },
-      h('b', { style: { font: '700 12px var(--title)', letterSpacing: '.12em' } }, 'TEST'),
-      h('span', { class: 'muted' }, `${p.manifest.name}: ${s.mode === 'select' || s.mode === 'ending' ? MODES.find(([m]) => m === s.mode)?.[1] :
+      h('span', { class: 'hazard' }),
+      h('b', { class: 'omf', style: { fontSize: '13px', color: '#ffb431' } }, 'TEST'),
+      h('span', { class: 'muted what' }, `${p.manifest.name}:${s.mode === 'select' || s.mode === 'ending' ? MODES.find(([m]) => m === s.mode)?.[1] :
         `${robots.find(([k]) => k === s.robot)?.[1]} vs ${robots.find(([k]) => k === s.opponent)?.[1]}, ${arenas.find(([k]) => k === s.arena)?.[1]}`}`),
       h('span', { style: { flex: '1' } }),
       h('span', { class: 'faint' }, 'Click the game to play; the keys are the game\'s'),

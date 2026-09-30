@@ -363,7 +363,7 @@ export class ArenaAnimEditor {
     }));
     render();
     return h('details', { class: 'card', style: { marginTop: '10px', marginBottom: '0' } },
-      h('summary', { style: { cursor: 'pointer', font: '700 12px var(--title)', letterSpacing: '.14em', color: '#a9c4ff' } },
+      h('summary', null,
         `VARIANTS (${a.animation.extraStrings.length})`),
       h('p', { class: 'faint', style: { fontSize: '11px' } }, 'When it appears at random, the game plays one of these instead of its animation string (variant 0 never: ' +
         'it keeps the animation string then).'),
@@ -396,7 +396,7 @@ export class ArenaAnimEditor {
     const body = h('div');
     const render = () => {
       const choice = (s: Source, title: string, text: string) => h('div', {
-        class: 'choice', style: { borderColor: source === s ? 'var(--accent)' : '', background: source === s ? '#13203a' : '' },
+        class: `choice${source === s ? ' sel' : ''}`,
         onclick: () => ((source = s), render()),
       }, h('b', null, title), h('span', null, text));
       const otherAnims = otherFile(otherArena).anims.map((a, i) => (a ? [i, `Animation ${i}${RESERVED_ANIMS[i] ? `: ${RESERVED_ANIMS[i]}` : ''}`] : null))

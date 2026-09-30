@@ -212,7 +212,7 @@ export class MoveEditor {
         this.app.changed(false);
       } }), ` ${label}`);
     return h('details', { class: 'card' },
-      h('summary', { style: { cursor: 'pointer', font: '700 12px var(--title)', letterSpacing: '.14em', color: '#a9c4ff' } }, 'MORE'),
+      h('summary', null, 'MORE'),
       h('div', { class: 'grid2', style: { marginTop: '10px' } },
         field('Next move on a hit', numberInput(() => m.playIfHit, (v) => ((m.playIfHit = v), this.app.changed(false)), 0, 69)),
         field('Successor / throw range', numberInput(() => m.successorId, (v) => ((m.successorId = v), this.app.changed(false)), 0, 255)),

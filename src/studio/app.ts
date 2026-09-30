@@ -1,16 +1,17 @@
-// OMF Studio's window: the start screen (new, open, recent projects) and the workspace (the project's robots, arenas
-// and pilots on the left, the selected one's editor on the right), with the project's actions on top: build the mod
-// file, install it in the game, test it in a fight. Projects save themselves as they change.
+// OMF Studio's window: the start screen (new, open, recent projects) and the workspace (the mod and its robots, arenas
+// and pilots on the left, the selected one's page on the right), with the project's state and actions on top: whether
+// the game can play it (the checks), build the mod file, install it in the game, test it in a fight. Projects save
+// themselves as they change.
 import { installMod, setTestMod } from '../mods/store';
 import { MOD_EXTENSION, readModPackage } from '../mods/package';
 import { buildSampleMod } from '../mods/sample';
-import { ModError, ID_PATTERN } from '../mods/types';
+import { ModError } from '../mods/types';
 import { saveFile } from '../platform/files';
 import { APP_VERSION } from '../platform/versionLabel';
 import { writeModPackage } from '../mods/package';
 import { projectProblems, type Problem, type Target } from './checks';
-import { indexedCanvas, robotPalette } from './colors';
-import { confirmDialog, field, fill, h, modal, pickFiles, textInput, toast } from './dom';
+import { confirmDialog, fill, h, icon, modal, pickFiles, toast, type IconName } from './dom';
+import { modHome, problemList } from './home';
 import { buildProject, newProject, openPackage, projectFromPackage, type Project } from './project';
 import { deleteProject, listProjects, loadProject, saveProject } from './storage';
 import { robotEditor } from './robot/robotEditor';
@@ -18,6 +19,7 @@ import { newRobotDialog } from './robot/newRobot';
 import { arenaEditor, newArenaDialog } from './arena/arenaEditor';
 import { newPilotDialog, pilotEditor } from './pilot/pilotEditor';
 import { testFight } from './test';
+import { A, contentPicture, hero, timeAgo, type ContentKind } from './ui';
 
 export type Selection = Target;
 
@@ -35,13 +37,18 @@ export class StudioApp {
   /** The pilot colors robots are shown in (primary, secondary, tertiary: the game's color choices 0-15). */
   colors: [number, number, number] = [5, 11, 8];
   private saveTimer = 0;
-  private savedText = '';
   private editor: Editor | null = null;
   private sidebar = h('div', { class: 'sidebar' });
   private content = h('div', { class: 'content' });
-  private statusText = h('span');
-  private saveState = h('span', { class: 'faint' });
-  private projectName = h('div', { class: 'project-name' });
+  private statusChip = h('button', { class: 'status-chip', onclick: () => this.showChecks(), title: 'What the game needs to play the mod (the checks)' });
+  private saveState = h('span', { class: 'save-state' });
+  private crumbs = h('div', { class: 'crumbs' });
+  /** The mod's name in the list (kept up to date as it is typed). */
+  private homeName = h('b');
+  /** The list's marks of what has something to fix, by "kind:index". */
+  private marks = new Map<string, HTMLElement>();
+  /** The page's parts that show what the checks say (they hear of every change). */
+  private statusListeners: ((problems: Problem[]) => void)[] = [];
 
   constructor(private root: HTMLElement) {
     window.addEventListener('beforeunload', () => {
@@ -55,7 +62,25 @@ export class StudioApp {
       e.preventDefault();
       void this.openFile(f);
     });
+    document.addEventListener('keydown', (e) => this.key(e));
     void this.showStart();
+  }
+
+  /** Ctrl+S saves now (Studio saves as it goes anyway); Enter or Space chooses the row, tab or choice that has the focus. */
+  private key(e: KeyboardEvent): void {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      if (this.project) void this.flush().then(() => toast('Saved. Studio saves as you work; Build file makes the mod file to share.'));
+      return;
+    }
+    const t = e.target as HTMLElement | null;
+    // (a dialog open: only what is in it; the pixel editor's Space moves its view)
+    const dialogs = document.querySelectorAll('.modal-back');
+    const dialog = dialogs[dialogs.length - 1];
+    if ((e.key === 'Enter' || e.key === ' ') && t?.getAttribute?.('role') === 'button' && t.tagName === 'DIV' && (!dialog || dialog.contains(t))) {
+      e.preventDefault();
+      t.click();
+    }
   }
 
   // ---- start screen --------------------------------------------------------------------------------------------
@@ -65,32 +90,39 @@ export class StudioApp {
     this.editor?.close?.();
     this.editor = null;
     this.project = null;
+    this.statusListeners = [];
     const recent = await listProjects();
     this.root.classList.remove('ws');
-    const choice = (title: string, text: string, onclick: () => void) => h('div', { class: 'choice', onclick }, h('b', null, title), h('span', null, text));
+    const choice = (ic: IconName, title: string, text: string, onclick: () => void) =>
+      h('div', { class: 'choice', onclick }, icon(ic), h('b', null, title), h('span', null, text));
+    const step = (n: string, title: string, text: string) => h('div', { class: 'step' }, h('div', { class: 'n' }, n), h('b', null, title), h('span', null, text));
     fill(this.root, h('div', { class: 'start' }, h('div', { class: 'inner' },
-      h('h1', { class: 'logo' }, 'OMF STUDIO'),
-      h('p', { class: 'tag' }, 'Make robots, arenas and pilots for One Must Fall 2097 Remastered, pixel for pixel in the game\'s own ' +
-        'formats, and build them into mods the game plays.'),
-      h('div', { class: 'choices' },
-        choice('NEW MOD', 'Start an empty mod, then add robots, arenas and pilots to it.', () => this.open(newProject())),
-        choice('OPEN A MOD FILE', `Open a ${MOD_EXTENSION} file to change it.`, () => void this.openPicked()),
-        choice('OPEN THE SAMPLE', 'A mod with a robot, an arena and a pilot, to see how one is made.', () => void this.openSample())),
-      recent.length ? h('h3', { class: 'muted', style: { font: '700 11px var(--title)', letterSpacing: '.16em' } }, 'RECENT PROJECTS') : null,
-      h('div', { class: 'recent' }, recent.map((r) => h('div', { class: 'item', onclick: () => void this.openStored(r.key) },
-        h('span', null, r.name),
-        h('span', { class: 'sub' }, new Date(r.updated).toLocaleString()),
-        h('button', {
-          class: 'btn small danger', title: 'Delete this project', onclick: async (e: Event) => {
-            e.stopPropagation();
-            if (await confirmDialog('Delete project', `Delete "${r.name}"? Its mod file, if you built one, stays.`, 'Delete', true)) {
-              await deleteProject(r.key);
-              void this.showStart();
-            }
-          },
-        }, 'Delete')))),
-      h('p', { class: 'faint', style: { marginTop: '30px' } }, `OMF Studio ${APP_VERSION}. Projects are kept on this computer as you ` +
-        'work; BUILD saves a mod file to share.'))));
+      hero('Make robots, arenas and pilots for One Must Fall 2097 Remastered, pixel for pixel in the game\'s own formats, and play them in the game.'),
+      h('div', { class: 'choices big' },
+        choice('plus', 'NEW MOD', 'Start an empty mod, then add robots, arenas and pilots to it.', () => this.open(newProject())),
+        choice('folder', 'OPEN A MOD FILE', `Change a mod: open its ${MOD_EXTENSION} file, or drop it here.`, () => void this.openPicked()),
+        choice('sample', 'OPEN THE SAMPLE', 'A mod with a robot, an arena and a pilot, to see how one is made.', () => void this.openSample())),
+      recent.length ? [h('div', { class: 'section-title' }, 'CONTINUE'), h('div', { class: 'recent' }, recent.map((r) => h('div', {
+        class: 'item', title: `Open ${r.name}`, onclick: () => void this.openStored(r.key),
+      },
+      icon('folder'),
+      h('span', { class: 'name' }, r.name || '(no name)'),
+      h('span', { class: 'sub', title: new Date(r.updated).toLocaleString() }, `saved ${timeAgo(r.updated)}`),
+      h('button', {
+        class: 'btn small ghost icon', title: 'Delete this project', 'aria-label': 'Delete this project', onclick: async (e: Event) => {
+          e.stopPropagation();
+          if (await confirmDialog('Delete project', `Delete "${r.name}"? Its mod file, if you built one, stays.`, 'Delete', true)) {
+            await deleteProject(r.key);
+            void this.showStart();
+          }
+        },
+      }, icon('trash')))))] : null,
+      h('div', { class: 'section-title' }, 'HOW IT WORKS'),
+      h('div', { class: 'steps' },
+        step('01', 'Make', 'Robots, arenas and pilots: copy one of the game\'s, build one, or draw your own.'),
+        step('02', 'Test', 'Play them in the real game, right from Studio, as often as you like.'),
+        step('03', 'Share', 'Install the mod in the game, or build its file to give to others.')),
+      h('p', { class: 'foot' }, `OMF Studio ${APP_VERSION}. Projects are kept on this computer as you work.`))));
   }
 
   private async openPicked(): Promise<void> {
@@ -131,32 +163,67 @@ export class StudioApp {
     this.project = p;
     this.sel = { kind: 'mod' };
     const top = h('div', { class: 'topbar' },
-      h('div', { class: 'brand', onclick: () => void this.showStart(), style: { cursor: 'pointer' }, title: 'Back to the start screen' }, 'OMF STUDIO'),
-      this.projectName,
-      h('button', { class: 'btn', onclick: () => this.showChecks(), title: 'What the mod still needs' }, 'Checks'),
-      h('button', { class: 'btn', onclick: () => void this.build(), title: `Save the mod as a ${MOD_EXTENSION} file to share` }, 'Build file'),
-      h('button', { class: 'btn primary', onclick: () => void this.install(), title: 'Install the mod in the game on this computer' }, 'Install in game'),
+      h('div', { class: 'brand', onclick: () => void this.showStart(), title: 'Back to the start screen (every project)' },
+        h('span', { class: 'chrome' }, 'OMF'), h('b', null, 'STUDIO')),
+      this.crumbs,
+      this.saveState,
+      this.statusChip,
+      h('span', { class: 'divider' }),
+      h('button', { class: 'btn', onclick: () => void this.build(), title: `Save the mod as a ${MOD_EXTENSION} file to share` }, icon('box'), 'Build file'),
+      h('button', { class: 'btn primary', onclick: () => void this.install(), title: 'Install the mod in the game on this computer' }, icon('install'), 'Install in game'),
       h('button', { class: 'btn go', onclick: () => void this.test(), title: 'Play the mod in the game now' }, '▶ Test'));
-    const status = h('div', { class: 'statusbar' }, this.statusText, h('span', { class: 'spacer' }), this.saveState);
     this.root.classList.add('ws');
-    fill(this.root, top, h('div', { class: 'workspace' }, this.sidebar, this.content), status);
+    fill(this.saveState);
+    fill(this.root, top, h('div', { class: 'workspace' }, this.sidebar, this.content));
     this.refresh();
   }
 
-  /** Redraws the sidebar and the editor (after the selection or the project's structure changed). */
+  /** Redraws the list and the page (after the selection or the project's structure changed). */
   refresh(): void {
     this.renderSidebar();
     this.renderEditor();
     this.updateTitle();
   }
 
+  /** What the checks say, everywhere it shows: the top bar, the list's marks, the page's parts that listen. */
   private updateTitle(): void {
     const p = this.project;
     if (!p) return;
-    fill(this.projectName, 'Mod: ', h('b', null, p.manifest.name || '(no name)'), ` · ${p.manifest.id} · version ${p.manifest.version}`);
-    const errors = projectProblems(p).filter((x) => x.level === 'error').length;
-    fill(this.statusText, errors ? h('span', { style: { color: 'var(--bad)' } }, `${errors} problem${errors === 1 ? '' : 's'} to fix before the game can play it (Checks)`)
-      : h('span', { style: { color: 'var(--ok)' } }, 'Ready to play'));
+    const problems = projectProblems(p);
+    const errors = problems.filter((x) => x.level === 'error');
+    this.statusChip.className = `status-chip ${errors.length ? 'bad' : 'ok'}`;
+    fill(this.statusChip, errors.length ? [icon('alert'), `${errors.length} to fix`] : [icon('check'), 'Ready to play']);
+    fill(this.homeName, p.manifest.name || '(no name)');
+    const s = this.sel;
+    const here = s.kind === 'robot' ? p.robots[s.index] : s.kind === 'arena' ? p.arenas[s.index] : s.kind === 'pilot' ? p.pilots[s.index] : null;
+    fill(this.crumbs, h('a', { onclick: () => this.select({ kind: 'mod' }), title: 'The mod\'s page' }, p.manifest.name || '(no name)'),
+      here ? [h('span', { class: 'sep' }, '›'), h('span', { class: 'here' }, here.info.name || here.id)] : null);
+    this.markProblems(problems);
+    for (const fn of this.statusListeners) fn(problems);
+  }
+
+  /** Marks in the list what has something to fix. */
+  private markProblems(problems: Problem[]): void {
+    const bad = new Set(problems.filter((x) => x.level === 'error' && 'index' in x.target)
+      .map((x) => `${x.target.kind}:${(x.target as { index: number }).index}`));
+    for (const [k, mark] of this.marks) mark.hidden = !bad.has(k);
+  }
+
+  /** Calls `fn` with what the checks say now and after every change, while the page shows. */
+  onStatus(fn: (problems: Problem[]) => void): void {
+    this.statusListeners.push(fn);
+    if (this.project) fn(projectProblems(this.project));
+  }
+
+  /** Shows in `el` what the checks say about one robot, arena or pilot. */
+  watchStatus(el: HTMLElement, kind: ContentKind, index: number): void {
+    this.onStatus((problems) => {
+      const mine = problems.filter((x) => x.target.kind === kind && 'index' in x.target && x.target.index === index);
+      const errors = mine.filter((x) => x.level === 'error').length, notes = mine.length - errors;
+      fill(el, errors ? h('span', { class: 'badge bad', title: 'See the checks', onclick: () => this.showChecks() }, `${errors} to fix`)
+        : notes ? h('span', { class: 'badge warn', title: 'See the checks', onclick: () => this.showChecks() }, `${notes} note${notes === 1 ? '' : 's'}`)
+          : h('span', { class: 'badge ok' }, '✓ Ready'));
+    });
   }
 
   select(sel: Selection): void {
@@ -167,96 +234,59 @@ export class StudioApp {
   private renderSidebar(): void {
     const p = this.project!;
     const is = (k: Selection['kind'], i = -1) => this.sel.kind === k && (i < 0 || ('index' in this.sel && this.sel.index === i));
-    const pal = robotPalette(this.colors);
-    const robotThumb = (index: number) => {
-      const sp = p.robots[index].af.moves[11]?.animation.sprites.find((s) => !s.isEmpty());
-      if (!sp) return h('span', { class: 'thumb' });
-      const c = indexedCanvas(sp.pixels(), sp.width, sp.height, pal);
-      c.className = 'thumb pix';
-      return c;
+    this.marks.clear();
+    const item = (kind: ContentKind, index: number, name: string) => {
+      const pic = contentPicture(this, kind, index);
+      const mark = h('span', { class: 'dot', title: 'Something to fix (see the checks)' });
+      this.marks.set(`${kind}:${index}`, mark);
+      return h('div', { class: `item${is(kind, index) ? ' sel' : ''}`, title: name, onclick: () => this.select({ kind, index }) },
+        h('span', { class: `thumb${pic.cover ? ' cover' : ''}` }, pic.el), h('span', { class: 'name' }, name), mark);
     };
-    const section = (title: string, add: () => void, items: HTMLElement[]) => [
-      h('h3', null, title, h('button', { class: 'btn', onclick: add, title: `Add ${title.toLowerCase().replace(/s$/, '')}` }, '+ Add')),
-      items.length ? items : h('div', { class: 'item empty' }, 'None yet'),
+    const section = (title: string, kind: ContentKind, names: string[], add: () => void) => [
+      h('h3', { title }, icon(kind), h('span', { class: 'label' }, title), h('span', { class: 'count' }, String(names.length)),
+        h('button', { class: 'btn small', onclick: add, title: `Add ${A[kind]} to the mod` }, '+', h('span', { class: 'label' }, ' Add'))),
+      names.length ? names.map((name, i) => item(kind, i, name))
+        : h('div', { class: 'item add', title: `Add ${A[kind]}`, onclick: add }, icon('plus'), h('span', { class: 'name' }, `Add ${A[kind]}`)),
     ];
     fill(this.sidebar,
-      h('div', { class: `item${is('mod') ? ' sel' : ''}`, onclick: () => this.select({ kind: 'mod' }) }, '⚙ Mod details'),
-      section('ROBOTS', () => void this.addRobot(), p.robots.map((r, i) => h('div', { class: `item${is('robot', i) ? ' sel' : ''}`, onclick: () => this.select({ kind: 'robot', index: i }) },
-        robotThumb(i), r.info.name || r.id))),
-      section('ARENAS', () => void this.addArena(), p.arenas.map((a, i) => h('div', { class: `item${is('arena', i) ? ' sel' : ''}`, onclick: () => this.select({ kind: 'arena', index: i }) },
-        a.info.name || a.id))),
-      section('PILOTS', () => void this.addPilot(), p.pilots.map((pl, i) => h('div', { class: `item${is('pilot', i) ? ' sel' : ''}`, onclick: () => this.select({ kind: 'pilot', index: i }) },
-        pl.info.name || pl.id))));
+      h('div', { class: `home-item${is('mod') ? ' sel' : ''}`, title: 'The mod\'s page: what it needs, what it holds, its details', onclick: () => this.select({ kind: 'mod' }) },
+        icon('home'), h('div', { class: 't' }, h('small', null, 'Mod'), this.homeName)),
+      section('ROBOTS', 'robot', p.robots.map((r) => r.info.name || r.id), () => void this.addRobot()),
+      section('ARENAS', 'arena', p.arenas.map((a) => a.info.name || a.id), () => void this.addArena()),
+      section('PILOTS', 'pilot', p.pilots.map((pl) => pl.info.name || pl.id), () => void this.addPilot()));
+    this.markProblems(projectProblems(p));
   }
 
   private renderEditor(): void {
     this.editor?.close?.();
     this.editor = null;
+    this.statusListeners = [];
     const p = this.project!;
     const s = this.sel;
     let ed: Editor | null = null;
     if (s.kind === 'robot' && p.robots[s.index]) ed = robotEditor(this, p.robots[s.index], s.move);
     else if (s.kind === 'arena' && p.arenas[s.index]) ed = arenaEditor(this, p.arenas[s.index], s.move);
     else if (s.kind === 'pilot' && p.pilots[s.index]) ed = pilotEditor(this, p.pilots[s.index], s.move);
-    else ed = { el: this.modEditor() };
+    else ed = { el: modHome(this) };
     this.editor = ed;
     fill(this.content, ed.el);
     this.content.scrollTop = 0;
   }
 
-  /** The mod's details: its id, name, version, author and description. */
-  private modEditor(): HTMLElement {
-    const m = this.project!.manifest;
-    const idInput = textInput(() => m.id, (v) => {
-      m.id = v.trim();
-      idInput.style.borderColor = ID_PATTERN.test(m.id) ? '' : 'var(--bad)';
-      this.changed(false);
-    });
-    return h('div', { class: 'page' },
-      h('h1', null, 'Mod details'),
-      h('p', { class: 'lead' }, 'How the mod is named in the game\'s MODS page. Its id tells it apart from every other mod: an update of ' +
-        'the mod keeps the same id, and replaces the older version when it is installed.'),
-      h('div', { class: 'card' },
-        h('div', { class: 'grid2' },
-          field('Name', textInput(() => m.name, (v) => ((m.name = v), this.changed(false)), { maxLength: 40 })),
-          field('Id', idInput, 'yourname.mod-name'),
-          field('Version', textInput(() => m.version, (v) => ((m.version = v), this.changed(false)), { maxLength: 16 })),
-          field('Author', textInput(() => m.author, (v) => ((m.author = v), this.changed(false)), { maxLength: 40 }))),
-        h('div', { style: { marginTop: '12px' } }, field('Description', (() => {
-          const t = h('textarea', { rows: 4, maxLength: 400 }, m.description);
-          t.addEventListener('input', () => ((m.description = t.value), this.changed(false)));
-          return t;
-        })(), 'up to 400 characters'))),
-      this.problemsCard());
-  }
-
-  private problemsCard(): HTMLElement {
+  /** The checks: everything the game needs to play the mod, and what it makes up for. */
+  showChecks(): void {
     const list = projectProblems(this.project!);
-    if (!list.length) return h('div', { class: 'card' }, h('h2', null, 'CHECKS'), h('span', { class: 'badge ok' }, 'Nothing to fix: the game can play this mod.'));
-    return h('div', { class: 'card' }, h('h2', null, 'CHECKS'), this.problemList(list));
-  }
-
-  private problemList(list: Problem[]): HTMLElement {
-    return h('ul', { class: 'problems' }, list.map((x) => h('li', { style: { cursor: 'pointer', color: x.level === 'error' ? '' : 'var(--warn)' }, onclick: () => this.select(x.target) },
-      x.level === 'error' ? x.text : `${x.text}`)));
-  }
-
-  private showChecks(): void {
-    const list = projectProblems(this.project!);
-    void modal<void>((close) => h('div', { class: 'modal', style: { width: '640px' } },
+    void modal<void>((close) => h('div', { class: 'modal', style: { width: '660px' } },
       h('h2', null, 'Checks'),
-      list.length ? h('div', null, h('p', { class: 'muted' }, 'Red: the game cannot play the mod until it is fixed. Yellow: the game makes up for it. ' +
-        'Click one to go there.'), (() => {
-        const ul = this.problemList(list);
-        ul.addEventListener('click', () => close(null));
-        return ul;
-      })()) : h('p', null, h('span', { class: 'badge ok' }, 'Nothing to fix: the game can play this mod.')),
+      list.length ? [h('p', { class: 'muted' }, 'Red: the game cannot play the mod until it is fixed. Yellow: the game makes up for it. Click one to go there.'),
+        problemList(this, list, () => close(null))]
+        : h('p', null, h('span', { class: 'badge ok' }, '✓ Nothing to fix: the game can play this mod.')),
       h('div', { class: 'actions' }, h('button', { class: 'btn', onclick: () => close(null) }, 'Close'))));
   }
 
   // ---- adding content --------------------------------------------------------------------------------------------
 
-  private async addRobot(): Promise<void> {
+  async addRobot(): Promise<void> {
     const r = await newRobotDialog(this);
     if (!r) return;
     this.project!.robots.push(r);
@@ -265,7 +295,7 @@ export class StudioApp {
     if (r.info.workshop) toast('Its HD pictures can be rendered from its 3D model: HD ARTWORK, on its overview.', false, 6000);
   }
 
-  private async addArena(): Promise<void> {
+  async addArena(): Promise<void> {
     const a = await newArenaDialog(this);
     if (!a) return;
     this.project!.arenas.push(a);
@@ -273,7 +303,7 @@ export class StudioApp {
     this.select({ kind: 'arena', index: this.project!.arenas.length - 1 });
   }
 
-  private async addPilot(): Promise<void> {
+  async addPilot(): Promise<void> {
     const pl = await newPilotDialog(this);
     if (!pl) return;
     this.project!.pilots.push(pl);
@@ -298,7 +328,7 @@ export class StudioApp {
   /** The project changed: it is saved a moment later. `structure`: the sidebar and titles change too. */
   changed(structure = true): void {
     if (!this.project) return;
-    fill(this.saveState, 'Saving…');
+    fill(this.saveState, icon('clock'), 'Saving…');
     clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => void this.saveNow(), 1200);
     if (structure) this.renderSidebar();
@@ -311,9 +341,10 @@ export class StudioApp {
     if (!p) return;
     try {
       await saveProject(p);
-      this.savedText = `Saved ${new Date().toLocaleTimeString()}`;
-      fill(this.saveState, this.savedText);
+      this.saveState.title = `Saved at ${new Date().toLocaleTimeString()} (on this computer)`;
+      fill(this.saveState, icon('check'), 'Saved');
     } catch (err) {
+      this.saveState.title = '';
       fill(this.saveState, h('span', { style: { color: 'var(--bad)' } }, `Not saved: ${(err as Error)?.message ?? err}`));
     }
   }
@@ -344,7 +375,7 @@ export class StudioApp {
     }
   }
 
-  private async build(): Promise<void> {
+  async build(): Promise<void> {
     const bytes = await this.checkedBuild();
     if (!bytes) return;
     const name = `${this.project!.manifest.id}${MOD_EXTENSION}`;
@@ -356,7 +387,7 @@ export class StudioApp {
     }
   }
 
-  private async install(): Promise<void> {
+  async install(): Promise<void> {
     const bytes = await this.checkedBuild();
     if (!bytes) return;
     try {
@@ -367,11 +398,15 @@ export class StudioApp {
     }
   }
 
-  private async test(): Promise<void> {
+  /** Tests the mod in the game (`prefer`: a robot, arena or pilot of it chosen for the test). */
+  async test(prefer?: { kind: ContentKind; index: number }): Promise<void> {
     const bytes = await this.checkedBuild();
     if (!bytes) return;
     await setTestMod(bytes);
-    testFight(this, this.project!);
+    const p = this.project!;
+    const list = prefer ? (prefer.kind === 'robot' ? p.robots : prefer.kind === 'arena' ? p.arenas : p.pilots) : [];
+    const id = prefer && list[prefer.index]?.id;
+    void testFight(this, p, prefer && id ? { [prefer.kind]: `mod:${id}` } : {});
   }
 
   // ---- shared helpers for the editors ---------------------------------------------------------------------------

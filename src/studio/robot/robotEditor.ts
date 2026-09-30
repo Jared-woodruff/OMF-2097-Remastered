@@ -12,20 +12,19 @@ import { MoveEditor } from './moveEditor';
 import { pictureFromIdle, setPicture } from './model';
 import { soundsCard } from './sounds';
 import { renderModelDialog } from './hdModel';
+import { editorHead, foldCard } from '../ui';
 
 export function robotEditor(app: StudioApp, robot: RobotDoc, move?: number): Editor {
   let tab: 'overview' | 'moves' = move !== undefined ? 'moves' : 'overview';
   let moves: MoveEditor | null = null;
-  const body = h('div', { style: { flex: '1', minHeight: '0' } });
-  const tabs = h('div', { class: 'tabs', style: { padding: '0 22px', margin: '0' } });
+  const index = app.project!.robots.indexOf(robot);
+  const body = h('div', { class: 'ed-body' });
+  const tabs = h('div', { class: 'tabs' });
   const picker = h('div');
-  const el = h('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
-    h('div', { style: { padding: '14px 22px 0', display: 'flex', alignItems: 'center', gap: '12px' } },
-      h('h1', { style: { margin: '0', font: '800 20px var(--title)', letterSpacing: '.06em' } }, robot.info.name || 'Robot'),
-      h('span', { class: 'faint' }, `robots/${robot.id}`),
-      h('span', { style: { flex: '1' } }),
-      picker),
-    tabs, body);
+  const title = h('h1', null, robot.info.name || 'Robot');
+  const makeHead = () => editorHead(app, 'robot', index, title, `robots/${robot.id}`, picker);
+  let head = makeHead();
+  const el = h('div', { class: 'editor' }, head, tabs, body);
   const drawPicker = () => fill(picker, colorPicker(app));
   drawPicker();
   const show = () => {
@@ -44,7 +43,7 @@ export function robotEditor(app: StudioApp, robot: RobotDoc, move?: number): Edi
         move = id;
         tab = 'moves';
         show();
-      }));
+      }, () => fill(title, robot.info.name || 'Robot')));
     }
   };
   show();
@@ -54,6 +53,9 @@ export function robotEditor(app: StudioApp, robot: RobotDoc, move?: number): Edi
     // (the moves tab keeps its move; the overview is drawn again)
     recolor: () => {
       drawPicker();
+      const next = makeHead();
+      head.replaceWith(next);
+      head = next;
       if (moves) moves.recolor();
       else show();
     },
@@ -78,12 +80,13 @@ function colorPicker(app: StudioApp): HTMLElement {
     row('Primary', 0), row('Secondary', 1), row('Tertiary', 2));
 }
 
-function overview(app: StudioApp, robot: RobotDoc, openMove: (id: number) => void): HTMLElement {
+function overview(app: StudioApp, robot: RobotDoc, openMove: (id: number) => void, retitle: () => void): HTMLElement {
   const af = robot.af, info = robot.info;
   const pal = robotPalette(app.colors);
   const stat = (label: string, get: () => number, set: (v: number) => void, min: number, max: number, step: number, hint: string) =>
     field(label, numberInput(get, (v) => ((set(v)), app.changed(false)), min, max, step), hint);
   const attacks = af.moves.map((m, id) => ({ m, id })).filter(({ m, id }) => m && id >= 15 && id !== 60 && id !== 61 && /^[PK]/.test(m.moveString));
+  const tactics = new Set([...info.ai.projectile, ...info.ai.charge, ...info.ai.push]).size;
 
   // How the computer fights with it: which specials are projectiles, charges, pushes.
   const aiRow = ({ id }: { id: number }) => {
@@ -117,7 +120,7 @@ function overview(app: StudioApp, robot: RobotDoc, openMove: (id: number) => voi
     }
     return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' } },
       h('b', null, which === 'cell' ? 'Robot select screen' : 'VS screen'),
-      h('div', { style: { background: '#070a13', padding: '8px', borderRadius: '6px', minHeight: '60px' } }, img ?? h('span', { class: 'faint' }, 'No idle animation yet')),
+      h('div', { class: 'screen', style: { minHeight: '60px' } }, img ?? h('span', { class: 'faint' }, 'No idle animation yet')),
       s ? h('span', { class: 'badge ok' }, 'Its own picture') : h('span', { class: 'badge warn' }, 'Made by the game from the idle frame'),
       h('div', { class: 'row' },
         h('button', { class: 'btn small', onclick: () => openMove(id), disabled: !s }, 'Draw'),
@@ -138,12 +141,12 @@ function overview(app: StudioApp, robot: RobotDoc, openMove: (id: number) => voi
   }, `${MOVE_LABELS[id]} (move ${id})`)));
 
   return h('div', { class: 'page' },
-    h('p', { class: 'lead' }, 'The robot\'s fighter file holds everything the game plays: its animations (sprites, frames and hit points), its ' +
-      'moves and its stats. Pilots choose its colors in the game: the three color ramps above show it in any of them.'),
+    h('p', { class: 'lead' }, 'Everything the game plays for this robot: its animations, its moves and its stats. Pilots choose its colors in the ' +
+      'game: the color choices above show it in any of them.'),
     h('div', { class: 'grid2' },
       h('div', { class: 'card' }, h('h2', null, 'NAME'),
         h('div', { class: 'grid2' },
-          field('Name', textInput(() => info.name, (v) => ((info.name = v.toUpperCase().slice(0, 12)), app.changed(true)), { maxLength: 12 }), 'up to 12 letters'),
+          field('Name', textInput(() => info.name, (v) => ((info.name = v.toUpperCase().slice(0, 12)), app.changed(true), retitle()), { maxLength: 12 }), 'up to 12 letters'),
           field('Folder', h('input', { type: 'text', value: robot.id, disabled: true }))),
         h('div', { style: { marginTop: '10px' } }, field('Description', (() => {
           const t = h('textarea', { rows: 3, maxLength: 200 }, info.description);
@@ -169,21 +172,22 @@ function overview(app: StudioApp, robot: RobotDoc, openMove: (id: number) => voi
         label: 'Render from the 3D model', available: () => !!robot.info.workshop,
         title: 'It was built from the robot workshop\'s parts: render its HD pictures from their 3D model, like the game renders the remaster\'s robots',
         run: () => renderModelDialog(app, robot),
+        hint: 'its 3D model can render them',
       }],
     }),
-    h('div', { class: 'card' }, h('h2', null, 'THE COMPUTER\'S TACTICS'),
+    foldCard('tactics', 'THE COMPUTER\'S TACTICS', tactics ? `${tactics} of its moves chosen` : 'none chosen: it fights with its moves in general',
       h('p', { class: 'muted', style: { marginTop: '0' } }, 'Which of its special moves the computer uses when it wants to shoot from afar, charge in, ' +
         'or push the other robot back. Without any, it fights with its moves in general.'),
-      attacks.length ? h('table', { style: { borderCollapse: 'collapse', width: '100%' } },
-        h('thead', null, h('tr', { class: 'faint', style: { textAlign: 'left' } }, h('th', null, '#'), h('th', null, 'Move'), h('th', null, 'Input'),
+      attacks.length ? h('table', { class: 'list' },
+        h('thead', null, h('tr', null, h('th', null, '#'), h('th', null, 'Move'), h('th', null, 'Input'),
           h('th', null, 'Projectile'), h('th', null, 'Charge'), h('th', null, 'Push'), h('th', null, ''))),
-        h('tbody', null, attacks.map(aiRow))) : h('p', { class: 'faint' }, 'No attacks yet.')),
+        h('tbody', null, attacks.map(aiRow))) : h('p', { class: 'faint' }, 'No attacks yet.')).el,
     soundsCard(af.soundTable, () => app.changed(false), {
       strings: af.moves.flatMap((m) => (m ? [m.animation.animString, ...m.animation.extraStrings] : [])),
       shared: (i) => i < 10 || i >= 25,
       help: `A frame's "s n" tag plays entry n: one of the game's sound effects. Entries 0-9 and 25-29 are the same for every robot (hits, ` +
         'blocks, steps: the game sets some itself).',
     }),
-    h('div', { class: 'card' }, h('h2', null, 'REMOVE'),
+    h('div', { class: 'card danger-zone' }, h('h2', null, 'REMOVE'),
       h('button', { class: 'btn danger', onclick: () => void app.removeSelected() }, `Remove ${info.name || 'this robot'} from the mod`)));
 }

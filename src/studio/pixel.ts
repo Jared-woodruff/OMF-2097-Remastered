@@ -4,7 +4,7 @@
 // kept, and its position moves with the trim, so it stays exactly where it was drawn.
 import type { Palette } from '../formats/palette';
 import { cssColor, toRgba } from './colors';
-import { h, modal, pickFiles, toast } from './dom';
+import { h, icon, modal, pickFiles, toast, type IconName } from './dom';
 import { spriteFits, } from './checks';
 import { pngToPixels, trim } from './sprites';
 import { encodeIndexedPng } from '../util/png';
@@ -45,15 +45,15 @@ export interface PixelEditResult extends PixelPicture {
 
 type Tool = 'pencil' | 'eraser' | 'fill' | 'line' | 'rect' | 'pick' | 'move' | 'hit';
 
-const TOOLS: [Tool, string, string, string][] = [
-  ['pencil', '✎', 'Pencil (B)', 'KeyB'],
-  ['eraser', '⌫', 'Eraser (E)', 'KeyE'],
-  ['fill', '▧', 'Fill (G)', 'KeyG'],
-  ['line', '╱', 'Line (L)', 'KeyL'],
-  ['rect', '▭', 'Rectangle (R)', 'KeyR'],
-  ['pick', '⊕', 'Pick a color (I)', 'KeyI'],
-  ['move', '✥', 'Move the drawing (M)', 'KeyM'],
-  ['hit', '✖', 'Hit points (H): click to add, drag to move, right click to remove', 'KeyH'],
+const TOOLS: [Tool, IconName, string, string][] = [
+  ['pencil', 'pencil', 'Pencil (B)', 'KeyB'],
+  ['eraser', 'eraser', 'Eraser (E)', 'KeyE'],
+  ['fill', 'fill', 'Fill (G)', 'KeyG'],
+  ['line', 'line', 'Line (L)', 'KeyL'],
+  ['rect', 'rect', 'Rectangle (R)', 'KeyR'],
+  ['pick', 'pick', 'Pick a color (I)', 'KeyI'],
+  ['move', 'move', 'Move the drawing (M)', 'KeyM'],
+  ['hit', 'hit', 'Hit points (H): click to add, drag to move, right click to remove', 'KeyH'],
 ];
 
 /** Opens the editor; resolves with the edited picture, or null when cancelled. */
@@ -125,7 +125,7 @@ class PixelEditor {
       this.onionImage.height = this.rh;
       this.onionImage.getContext('2d')!.putImageData(new ImageData(toRgba(b, o.palette), this.rw, this.rh), 0, 0);
     }
-    this.canvas = h('canvas', { class: 'pix', style: { display: 'block', width: '100%', height: '100%', cursor: 'crosshair', background: '#05070d' } });
+    this.canvas = h('canvas', { class: 'pix', style: { display: 'block', width: '100%', height: '100%', cursor: 'crosshair', background: '#02030f' } });
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     this.canvas.addEventListener('pointerdown', (e) => this.down(e));
     this.canvas.addEventListener('pointermove', (e) => this.move(e));
@@ -144,9 +144,9 @@ class PixelEditor {
       close(v);
     };
     this.close = finish;
-    const toolbar = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px' } }, TOOLS.map(([t, icon, title]) => {
+    const toolbar = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px' } }, TOOLS.map(([t, name, title]) => {
       if (t === 'hit' && !this.hits) return null;
-      const b = h('button', { class: 'btn icon', title, onclick: () => this.setTool(t) }, icon);
+      const b = h('button', { class: 'btn icon', title, 'aria-label': title, onclick: () => this.setTool(t) }, icon(name));
       this.toolButtons.set(t, b);
       return b;
     }));
@@ -221,13 +221,13 @@ class PixelEditor {
     const g = c.getContext('2d')!;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.imageSmoothingEnabled = false;
-    g.fillStyle = '#05070d';
+    g.fillStyle = '#02030f';
     g.fillRect(0, 0, r.width, r.height);
     const z = this.zoom, ox = this.panX, oy = this.panY;
     // The drawing area, checkered where it is see-through.
-    g.fillStyle = '#10151f';
+    g.fillStyle = '#090c26';
     g.fillRect(ox, oy, this.rw * z, this.rh * z);
-    g.fillStyle = '#161d2b';
+    g.fillStyle = '#0e1234';
     const cell = Math.max(z, 8);
     for (let y = 0; y < this.rh * z; y += cell) {
       for (let x = (Math.floor(y / cell) % 2) * cell; x < this.rw * z; x += cell * 2) g.fillRect(ox + x, oy + y, Math.min(cell, this.rw * z - x), Math.min(cell, this.rh * z - y));
@@ -245,7 +245,7 @@ class PixelEditor {
       for (const [x, y] of this.tool === 'line' ? linePoints(d.x0, d.y0, d.x, d.y) : rectPoints(d.x0, d.y0, d.x, d.y)) g.fillRect(ox + x * z, oy + y * z, z, z);
     }
     if (this.showGrid && z >= 6) {
-      g.strokeStyle = 'rgba(120, 150, 220, .12)';
+      g.strokeStyle = 'rgba(70, 90, 255, .16)';
       g.lineWidth = 1;
       g.beginPath();
       for (let x = 0; x <= this.rw; x++) {
@@ -271,7 +271,7 @@ class PixelEditor {
       g.setLineDash([]);
     }
     if (!this.o.fixed) {
-      g.strokeStyle = 'rgba(60, 195, 255, .8)';
+      g.strokeStyle = 'rgba(159, 208, 255, .85)';
       g.beginPath();
       g.moveTo(sx - 8, sy + 0.5);
       g.lineTo(sx + 8, sy + 0.5);
@@ -291,7 +291,7 @@ class PixelEditor {
         g.stroke();
       }
     }
-    g.strokeStyle = 'rgba(60, 195, 255, .35)';
+    g.strokeStyle = 'rgba(40, 60, 243, .75)';
     g.strokeRect(ox - 0.5, oy - 0.5, this.rw * z + 1, this.rh * z + 1);
   }
 

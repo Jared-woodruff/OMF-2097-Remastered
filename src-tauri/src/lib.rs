@@ -49,7 +49,7 @@ fn open_window(app: &tauri::AppHandle, studio: bool) -> tauri::Result<tauri::Web
     .center()
     .prevent_overflow()
     .visible(false)
-    .background_color(tauri::webview::Color(if studio { 10 } else { 0 }, if studio { 14 } else { 0 }, if studio { 24 } else { 0 }, 255))
+    .background_color(tauri::webview::Color(if studio { 4 } else { 0 }, if studio { 6 } else { 0 }, if studio { 26 } else { 0 }, 255))
     // (files dropped on the window reach the page: mods, music, pictures)
     .disable_drag_drop_handler()
     .additional_browser_args(BROWSER_ARGS)

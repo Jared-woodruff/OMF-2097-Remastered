@@ -13,7 +13,11 @@ the modes, replays and the move list.
 
 ## OMF Studio
 
-Studio makes content in the game's own formats, pixel for pixel, and tests it in the game itself.
+Studio makes content in the game's own formats, pixel for pixel, and tests it in the game itself. The mod's page says
+what to do next (add something, fix what the checks find, or test the mod and share it) and shows what the mod holds;
+the top bar says whether the game can play it (a click lists the checks, each one leading to what it is about). Every
+robot, arena and pilot has a button that tests it in the game (**Fight with it**, **Fight in it**, **Play as them**).
+Projects save themselves as they change (**Ctrl+S** saves at once).
 
 - **Robots** start as a copy of one of the game's robots, from the robot workshop's parts (a 3D model posed and drawn
   into every frame, like the remaster's own robots), or as a blank figure to draw over. The editor has:
