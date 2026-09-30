@@ -27,10 +27,13 @@ painted by an image generation model over the remaster's own renders.
 - The trailer ([`docs/media/trailer.mp4`](docs/media/trailer.mp4)) is set to the game's own main menu theme and to the
   credits' song below, with the game's own sound effects.
 - Hyllian's xBR-lv2 shader (MIT), adapted in `src/video/hd/shaders.ts`; see the notice there.
-- The picture of the human coder in [`public/credits/`](public/credits) is Jared Woodruff's.
+- The picture of the human coder in [`public/credits/`](public/credits) is Jared Woodruff's. The credits' title
+  pictures in [`public/credits/title/`](public/credits/title) are the original intro's logo, lightning and digits, cut
+  out of the remaster's HD artwork of them, and are shared on the game's terms like that artwork.
 - The credits' song, [*Twenty Ninety-Seven (Remix)*](https://www.hadalstatic.com/releases/twenty-ninety-seven/) by
-  Hadal Static ([`public/audio/credits/`](public/audio/credits), with its cover in [`public/credits/`](public/credits)),
-  © Hadal Static, is included with the artist's permission. It is not covered by the MIT license.
+  Hadal Static ([`public/audio/credits/`](public/audio/credits): the song, and its ending as a file of its own, with its
+  cover in [`public/credits/`](public/credits)), © Hadal Static, is included with the artist's permission. It is not
+  covered by the MIT license.
 - The game manual ([`docs/manual/`](docs/manual)) shows the game's texts and artwork on the game's terms, and embeds
   subsets of Orbitron and of the Windows fonts Georgia, Verdana, Arial Black and Courier New (as their licenses allow).
 

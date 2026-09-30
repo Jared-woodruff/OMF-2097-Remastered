@@ -687,8 +687,8 @@ page('Credits', `
   </div>
   <p class="center small" style="margin-top:8pt"><i>github.com/Jared-woodruff/OMF-2097-Remastered</i></p>
   <figure style="margin-top:6pt"><img src="${img('shot-credits.jpg')}" style="height:1.55in; object-fit:cover; object-position:center 42%">
-  <figcaption><b>EXTRAS &rsaquo; CREDITS</b> &nbsp;The remaster's credits are fought out: every credit pilots a robot in its own
-  colors and wins a quick, brutal fight, to Hadal Static's <i>Twenty Ninety-Seven (Remix)</i>.</figcaption></figure>
+  <figcaption><b>EXTRAS &rsaquo; CREDITS</b> &nbsp;The remaster's credits are fought out, scored to Hadal Static's <i>Twenty
+  Ninety-Seven (Remix)</i>: every credit pilots a robot in its own colors and lands its final blow on the beat.</figcaption></figure>
 `);
 
 // 32. Back cover.

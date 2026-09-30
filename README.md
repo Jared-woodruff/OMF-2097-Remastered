@@ -329,13 +329,16 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
   the fight in numbers (rounds, time, hits, accuracy, best combo, perfects and finishers).
 - **Fight camera** (optional, remastered graphics): the view comes closer when the robots are close and follows the
   fight, while the HUD stays put.
-- **Remaster credits** (Extras › Credits): the credits are fought out. Every credit pilots one of the original robots
-  in its own colors (Claude's coral and cream, OpenAI's black, white and green...) and wins a quick, brutal fight in one
-  of the original arenas against something the remaster had to beat: tech debt, spaghetti code, pixel noise, dead air,
-  silence, a black box and time itself. The computer fights both sides at ULTIMATE in HYPER mode, and every fight ends
-  with a SCRAP or a DESTRUCTION. Each opens on a VS card and ends on the winner's card, then come the end titles, all to
+- **Remaster credits** (Extras › Credits): the credits are fought out, and scored to
   [*Twenty Ninety-Seven (Remix)*](https://www.hadalstatic.com/releases/twenty-ninety-seven/) by Hadal Static, a song about
-  *One Must Fall 2097*. ENTER skips ahead, ESC goes back.
+  *One Must Fall 2097*. Its intro plays over the painted city at night; on its drop the 1994 logo is struck by lightning
+  and written 2 0 9 7 again, a bolt a beat, as the original intro did. Then every credit pilots one of the original
+  robots in its own colors (Claude's coral and cream, OpenAI's black, white and green...) and wins a quick, brutal fight
+  in one of the original arenas against something the remaster had to beat: tech debt, spaghetti code, pixel noise, dead
+  air, silence, a black box and time itself. Every VS card slams on a downbeat and every final blow lands on the beat
+  (the fights play out the same every time, so each arena is let go at just the right moment). The end titles come at
+  dawn with a picture of every winner, cut to the song's last chorus so that they finish on its final hit, and the
+  picture switches off like an old TV. ENTER skips ahead, ESC goes back.
 - **Achievements** announce themselves with a banner the moment they are earned.
 - **The game manual**: a [32-page PDF booklet](docs/manual/OMF-2097-Remastered-Manual.pdf) in the style of the
   1990s (see [above](#manual)); the F1 help's pointers to the DOS-era manual now lead to it.
@@ -349,8 +352,8 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
 </p>
 
 <p align="center">
-  <img src="docs/media/credits-hero.jpg" alt="The credits' fights: Claude Opus 5.5 against Spaghetti Code, on a VS card over the arena" width="49%">
-  <img src="docs/media/credits.jpg" alt="The credits' fights: the human coder's winning card as the Jaguar lifts Tech Debt for the finish" width="49%">
+  <img src="docs/media/credits-hero.jpg" alt="The credits' title: the original logo, struck by lightning and written 2097 on the song's drop, over the city at night" width="49%">
+  <img src="docs/media/credits.jpg" alt="The credits' end titles at dawn: the seven winners, each with a picture of its fight" width="49%">
 </p>
 
 #### And also
@@ -369,7 +372,8 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
 - **Gamepad rumble** on hits, blocks, throws, wall slams and knockouts.
 - **Mouse support** in every menu: hover to select, click to activate, scroll to change values, right click to go back.
 - **F1 help at any time**, as the original help pages promised, with the game paused behind it. In remastered
-  graphics the help pages are set in the remastered typeface, as readable pages beside a list of their topics.
+  graphics the help pages are set in the remastered typeface, as readable pages in the look of the other menu screens,
+  beside a list of their topics.
 - **The German texts as written**: umlauts in the remastered typeface, the help pages' highlighted words in their
   colors on the same line, and pages longer than the screen continued over more pages.
 - **Auto pause**: switching to another window or tab pauses a fight.
@@ -389,7 +393,7 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
 </p>
 <p align="center">
   <img src="docs/media/screen-pause.jpg" alt="The pause menu over a fight" width="49%">
-  <img src="docs/media/screen-help.jpg" alt="The help pages in the remastered typeface, a list of their topics beside them" width="49%">
+  <img src="docs/media/screen-help.jpg" alt="The help pages in the remastered typeface, in the frame of the game's own menu screens, their topics beside them" width="49%">
 </p>
 <p align="center">
   <img src="docs/media/screen-controls-keyboard.jpg" alt="The controls screen: every action on the keyboard for both players" width="49%">

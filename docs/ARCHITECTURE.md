@@ -160,8 +160,10 @@ pixels in one of two ways, switchable at any time (F2, pause menu, VIDEO options
   back (queued on the menu controller). Fights ignore the mouse outside their pause menu.
 - F1 (`src/game/gui/helpOverlay.ts`) shows the original help pages over the paused game, full screen with the main
   menu's palette (text colors are palette entries), restoring the scene's palette afterwards. In remastered graphics
-  HELP and F1 show them as HTML instead (`src/game/gui/helpHtml.ts`: the language file's markup parsed into titles,
-  headings and paragraphs, code page 437 decoded, set in the remaster's typeface beside a list of the pages).
+  HELP and F1 show them as one of the remaster's pages instead (`src/game/gui/helpHtml.ts`, a `Page`: the game draws the
+  frame, the title and the keys like the records' or the replays'; the language file's markup, parsed into titles,
+  headings and paragraphs and code page 437 decoded, is HTML over the frame at the game's scale, in the remaster's
+  typeface, beside the topics).
 - The main menu (`src/game/scenes/mainmenu/menuMain.ts`): the original's three ways to play, then MORE MODES
   (`menuModes.ts`), EXTRAS (`menuExtras.ts`), OPTIONS (`menuOptions.ts`: GAMEPLAY, NEW CONTENT, CONTROLS, GRAPHICS with
   its CLASSIC STYLE / REMASTERED / EFFECTS submenus, SOUND, LANGUAGE), HELP and QUIT. `GameState.menuReturn` reopens
@@ -262,18 +264,33 @@ own file formats, so the engine runs them like the originals.
   victory screen
   (`scenes/victory.ts`, a scene on the VS backdrop between the fight and what follows it) and the fight camera
   (`video/camera.ts`; the HD renderer zooms the finished world image before the overlay is drawn).
-- **Remaster credits** (`game/credits/`): EXTRAS › CREDITS runs the credits as fights (`battles.ts`: every credit, its
-  robot, colors, opponent, arena and seed). `creditsRun.ts` goes from fight to fight through `GameState.credits`, the
-  hooks the arena asks: the fight is set up as its arena opens (`CREDITS_RULES`: both robots the computer's at
-  ULTIMATE, HYPER mode, SPEED 7, a single round, POWER tilted toward the credit; the seeds), so it plays out the same
-  every time and the credit wins (`test/creditsBattles.test.ts` plays them all; `gen/dev/creditsSeeds.test.ts` picks the
-  seeds for quick fights and reports their finishing moves); the round starts late and a won fight lingers
-  (`readyTick`, `endTicks`); the arena's end hands over to `fightOver`. `creditsView.ts` is the HTML over the game: the
-  title and the end titles over a canvas backdrop (`backdrop.ts`: stars, nebula, neon grid, sparks), the VS card and
-  the credit's card, which follow the arena's state and ticks. The credits' song plays through `AudioSystem.playTrack`
-  (a media element at the music volume, with an analyser for the equalizer and the backdrop; END.PSM when it cannot be
-  played). While the titles cover the screen the game is paused and not drawn. Dev: `?credits=n` (the n-th fight;
-  8: the end titles).
+- **Remaster credits** (`game/credits/`): EXTRAS › CREDITS, scored to the credits' song. `song.ts` is the song as
+  music: its steady tempo (137.98 BPM, a beat tracker's 679 beats over the master within 10 ms of a straight line), its
+  bars (bar k's downbeat is beat 2 + 4k; bar 168 is the final hit) and sections. `conductor.ts` is the credits' clock:
+  the song's position (the track's own, run on the page clock between its updates) or, without the song (no audio, the
+  file missing, the tests), the credits' own time counted in static ticks (`GameState.staticTick` calls
+  `CreditsHooks.staticTick`). `battles.ts` holds the fights: every credit, its robot, colors, opponent, arena and seed
+  (`CREDITS_RULES`: both robots the computer's at ULTIMATE, HYPER mode, SPEED 7, a single round, POWER tilted toward the
+  credit, the match rules' defaults, so a fight plays out the same every time and the credit wins), and the game ticks
+  measured from the arena's opening to the final blow and to the end of its aftermath. `creditsRun.ts` keeps the
+  timetable: the title through the song's intro, the first arena held under it; every arena opens held (paused, which
+  leaves the fight as it is) and is let go at the moment that lands its final blow on a half bar, its VS card on the
+  downbeat before, a tick of 19 or 21 ms instead of 20 catching up drifts on the way; the cut on a downbeat after the
+  blow's aftermath (the fights never end by themselves: `endTicks`; the arena's `finishing` tells a finishing move or
+  the score is on); last the end titles, and a cut on a downbeat to the song's ending (`audio/credits/*-ending.flac`,
+  made by `tools/credits/ending.mjs`; `Track.cutTo` starts it on the Web Audio clock where the song reaches the
+  downbeat) so that they finish on the final hit whenever the fights ended. The view is worked out from the song's
+  position every frame, not left to CSS animations: `creditsView.ts` (over the game: the cover with the next credit, the
+  VS card, the blow's flash and the game picture's punch, the credit's card and its WINS, the now playing chip; leaving,
+  the picture folds away like an old TV), `stage.ts` (the main menu's painted layers as page pictures under a moving
+  camera, graded from night to dawn; canvases for the lightning, searchlights, stars, the spotlight on the statue, embers
+  and sparks), `titleCard.ts` (the 1994 intro's logo, lightning and digits, cut out of the HD artwork by
+  `tools/credits/title.py`, struck in on the drop and written 2 0 9 7 on the next bar's beats) and `finaleRoll.ts` (the
+  winners, each with a picture taken of its fight: `CreditsRun.rendered` after the game draws a frame; the credits a
+  phrase at a time; the final frame). The song plays through `AudioSystem.playTrack` (a media element at the music
+  volume, with an analyser for the equalizer and the embers; END.PSM when it cannot be played). Tests:
+  `test/creditsBattles.test.ts` (every fight won), `test/creditsShow.test.ts` (the timetable on the song's grid, the
+  stored ticks, the cut, skipping). Dev: `?credits=n` (the n-th fight; 8: the end titles).
 - **HTML over the game**: notices (`platform/toast.ts`), achievement banners (`platform/achievementBanner.ts`, queued,
   from `records.unlock`), the main menu's name and version (`platform/versionLabel.ts`, the version from package.json
   through Vite's `__APP_VERSION__`) and the loading screen (`index.html`, `bootStatus` in `main.ts`; the logo is
