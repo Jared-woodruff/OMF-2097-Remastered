@@ -28,7 +28,7 @@ export interface CreditsHooks {
 }
 
 /** The credits' song (the game's ending theme when it cannot be played). */
-const SONG = 'audio/credits/twenty-ninety-seven-remix.mp3';
+const SONG = 'audio/credits/twenty-ninety-seven-remix.flac';
 const FALLBACK_MUSIC = 'END.PSM';
 /** The title's time on screen, a skip's fade to black, an end title's time and the last one's (ms). */
 const INTRO_MS = 5600;
