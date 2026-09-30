@@ -38,9 +38,9 @@ https://github.com/user-attachments/assets/acc138a6-ef8b-43e2-a769-d2a326cea509
 <p align="center">
   <sub>A fan trailer with no narrator. It starts in 1994: a beige PC boots, the game is installed from two floppy disks,
   and it runs in its own pixels to its main menu theme (played by this port's music engine). Then, 32 years later, the
-  picture sweeps into HD on the drop of Hadal Static's <i>Twenty Ninety-Seven (Remix)</i>: fights at ULTIMATE, the
-  classic look against the new one, the new robots and arenas, and every feature, cut to the song's bars (turn the
-  sound on). <a href="docs/media/trailer.mp4">Watch it in 1080p60</a>.</sub>
+  picture sweeps into HD on the drop of Hadal Static's <i>Twenty Ninety-Seven (Remix)</i>: fights at ULTIMATE at the
+  game's own pace, the classic look against the new one, the new robots and arenas, every feature and the fought-out
+  credits, cut to the song's bars (turn the sound on). <a href="docs/media/trailer.mp4">Watch it in 1080p60</a>.</sub>
 </p>
 
 <br>
@@ -331,14 +331,16 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
   fight, while the HUD stays put.
 - **Remaster credits** (Extras › Credits): the credits are fought out, and scored to
   [*Twenty Ninety-Seven (Remix)*](https://www.hadalstatic.com/releases/twenty-ninety-seven/) by Hadal Static, a song about
-  *One Must Fall 2097*. Its intro plays over the painted city at night; on its drop the 1994 logo is struck by lightning
-  and written 2 0 9 7 again, a bolt a beat, as the original intro did. Then every credit pilots one of the original
-  robots in its own colors (Claude's coral and cream, OpenAI's black, white and green...) and wins a quick, brutal fight
-  in one of the original arenas against something the remaster had to beat: tech debt, spaghetti code, pixel noise, dead
-  air, silence, a black box and time itself. Every VS card slams on a downbeat and every final blow lands on the beat
-  (the fights play out the same every time, so each arena is let go at just the right moment). The end titles come at
-  dawn with a picture of every winner, cut to the song's last chorus so that they finish on its final hit, and the
-  picture switches off like an old TV. ENTER skips ahead, ESC goes back.
+  *One Must Fall 2097*. Its intro plays over the painted city at night, the story typing in; on its drop the 1994 logo
+  is struck by lightning and written 2 0 9 7 again, a bolt a beat, as the original intro did. Then every credit pilots
+  one of the original robots in its own colors (Claude's coral and cream, OpenAI's black, white and green...) against
+  something the remaster had to beat: tech debt, spaghetti code, pixel noise, dead air, silence, a black box and time
+  itself. They are real fights, at the game's own pace: both robots as strong, knocking each other down, the lead
+  changing hands, and the credit winning it in the end, most often with a finishing move. Everything on screen wears the
+  game's own look: its menu frames, the VS screen's colors, text that types in. Every VS card slams on a downbeat and
+  every final blow lands on the beat (the fights play out the same every time, so each arena is let go at just the right
+  moment); the seven fights fill the song, and the end titles come at dawn with a picture of every winner, finishing on
+  its final hit, before the picture switches off like an old TV. ENTER skips ahead, ESC goes back.
 - **Achievements** announce themselves with a banner the moment they are earned.
 - **The game manual**: a [32-page PDF booklet](docs/manual/OMF-2097-Remastered-Manual.pdf) in the style of the
   1990s (see [above](#manual)); the F1 help's pointers to the DOS-era manual now lead to it.

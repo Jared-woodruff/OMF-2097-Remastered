@@ -64,8 +64,11 @@ OpenOMF project (MIT, https://github.com/omf2097/openomf); rendering and platfor
 ## Running
 
 - `npm run dev` then open http://localhost:5173/ (boots to the intro/menu).
-- Dev params: `?scene=MELEE` start at a scene; `?fight=0&h1=0&h2=5&p1=0&p2=1[&ai]` quick fight; `?training`
-  training mode; `?noaudio`; `?nopause` (fights keep running when the window loses focus); `?viewer` asset viewer.
+- Dev params: `?scene=MELEE` start at a scene; `?fight=0&h1=0&h2=5&p1=0&p2=1[&ai]` quick fight, and with `&seed=N`
+  the same fight every time (`game/quickFight.ts`: the computer on both sides, the match rules' defaults with
+  `&power=6,6`, `&speed=10`, `&hyper`; the README trailer's takes are recorded this way, their seeds found by
+  `src/gen/dev/trailerFights.test.ts`); `?credits=n` the credits from the n-th fight; `?training` training mode;
+  `?noaudio`; `?nopause` (fights keep running when the window loses focus); `?viewer` asset viewer.
 - Debug API in the page: `__omf.gs`, `__omf.step(ms)` (advance simulation; works when the tab is hidden),
   `__omf.key(code, down)` (simulate keys by `KeyboardEvent.code`), `await __omf.capture(name, w, h, crop?)` (renders a
   frame at w x h and saves `.captures/<name>.png` via the dev server — view it to check visuals),
@@ -270,19 +273,22 @@ own file formats, so the engine runs them like the originals.
   the song's position (the track's own, run on the page clock between its updates) or, without the song (no audio, the
   file missing, the tests), the credits' own time counted in static ticks (`GameState.staticTick` calls
   `CreditsHooks.staticTick`). `battles.ts` holds the fights: every credit, its robot, colors, opponent, arena and seed
-  (`CREDITS_RULES`: both robots the computer's at ULTIMATE, HYPER mode, SPEED 7, a single round, POWER tilted toward the
-  credit, the match rules' defaults, so a fight plays out the same every time and the credit wins), and the game ticks
-  measured from the arena's opening to the final blow and to the end of its aftermath. `creditsRun.ts` keeps the
+  (`CREDITS_RULES`: both robots the computer's at ULTIMATE, the normal speed, both as strong, no HYPER moves, a single
+  round, the match rules' defaults, so a fight plays out the same every time; `src/gen/dev/creditsSeeds.test.ts` scores
+  seeds for fights that go back and forth, and the credit wins every one it keeps), and the game ticks measured from the
+  arena's opening to the final blow and to the end of its aftermath. `creditsRun.ts` keeps the
   timetable: the title through the song's intro, the first arena held under it; every arena opens held (paused, which
   leaves the fight as it is) and is let go at the moment that lands its final blow on a half bar, its VS card on the
-  downbeat before, a tick of 19 or 21 ms instead of 20 catching up drifts on the way; the cut on a downbeat after the
+  downbeat before, a tick of 27 or 29 ms instead of 28 catching up drifts on the way; the cut on a downbeat after the
   blow's aftermath (the fights never end by themselves: `endTicks`; the arena's `finishing` tells a finishing move or
   the score is on); last the end titles, and a cut on a downbeat to the song's ending (`audio/credits/*-ending.flac`,
   made by `tools/credits/ending.mjs`; `Track.cutTo` starts it on the Web Audio clock where the song reaches the
   downbeat) so that they finish on the final hit whenever the fights ended. The view is worked out from the song's
-  position every frame, not left to CSS animations: `creditsView.ts` (over the game: the cover with the next credit, the
-  VS card, the blow's flash and the game picture's punch, the credit's card and its WINS, the now playing chip; leaving,
-  the picture folds away like an old TV), `stage.ts` (the main menu's painted layers as page pictures under a moving
+  position every frame, not left to CSS animations, in the game's own look (`look.ts`: the menu frame's shade, grid and
+  border, the VS screen's box and its yellow and green, the pages' colors, hard shadows, text typing in behind a block
+  cursor): `creditsView.ts` (over the game: the menu frame wiping across between fights with the next credit, the VS
+  card, the credit's card and its WINS, the now playing box with its meter; leaving, the picture folds away like an old
+  TV), `stage.ts` (the main menu's painted layers as page pictures under a moving
   camera, graded from night to dawn; canvases for the lightning, searchlights, stars, the spotlight on the statue, embers
   and sparks), `titleCard.ts` (the 1994 intro's logo, lightning and digits, cut out of the HD artwork by
   `tools/credits/title.py`, struck in on the drop and written 2 0 9 7 on the next bar's beats) and `finaleRoll.ts` (the
