@@ -191,6 +191,8 @@ export class GameState {
   modeRun: import('./modes/run').ModeRun | null = null;
   /** The credits' fights under way (EXTRAS > CREDITS, see credits/creditsRun.ts). */
   credits: import('./credits/creditsRun').CreditsHooks | null = null;
+  /** OMF Studio's test of a mod (?modtest): the one-player game shows everything whatever the settings. */
+  modTest = false;
   sc!: Scene;
   objects: RenderObj[] = [];
   players: [GamePlayer, GamePlayer];

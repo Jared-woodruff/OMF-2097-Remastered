@@ -15,6 +15,7 @@ import { menuShade } from '../gui/widgets';
 import { paletteLoadPlayerColors } from '../pilotColors';
 import { addPilotPortrait } from '../../mods/portraits';
 import { modPilot } from '../../mods/registry';
+import { ANY_WIN_QUOTES, WIN_QUOTES } from '../pilotWords';
 import { Scene } from '../scene';
 
 const COLOR_YELLOW = 0xcf;
@@ -27,26 +28,10 @@ const PANEL_X = 172, PANEL_Y = 38, PANEL_W = 140, PANEL_H = 96;
 /** Ticks until the screen goes on by itself. */
 const WAIT_TICKS = 700;
 
-/** Three lines for each of the eleven pilots (after their biographies), and some for anybody else. */
-export const WIN_QUOTES: string[][] = [
-  ['I did not come this far to lose to you.', 'Every win brings me closer to the truth.', 'Get up. I have fought worse on my own.'],
-  ['Young? Sure. Slow? Never.', 'Did you think the kid would be easy?', 'Tell the veterans I am coming for them next.'],
-  ['Too slow. Way too slow.', 'One, two, down. That is kickboxing.', 'You blinked. I did not.'],
-  ['Sorry about your robot. And your pride.', 'Attack, attack, attack. It never fails.', 'Smile for the cameras. They came to see me.'],
-  ['Ha! These old bones still have some fight in them.', 'Power comes with patience, young one.', 'Come back after a few more birthdays.'],
-  ['Everything went exactly as I planned.', 'You fought fair. That was your mistake.', 'I knew every move before you made it.'],
-  ['A good fight. Learn from it, and come back stronger.', 'Endurance wins the long race, my friend.', 'Rest now. We train again tomorrow.'],
-  ['...', 'You will not remember my name. Only the defeat.', 'Leave me be.'],
-  ['The arena took my legs. It will not take my wins.', 'Careful fighters live longer. Remember that.', 'Hope was your first mistake.'],
-  ['Crawl back to wherever you came from.', 'Kreissack sends his regards.', 'That was not a fight. That was a lesson.'],
-  ['The future belongs to WAR.', 'Flesh is weak. Steel endures.', 'You were never a threat. Only a test.'],
-];
-const ANYONE = ['Victory!', 'Another one for the record books.', 'Next!', 'Is that all you had?'];
-
 export function winQuote(pilotId: number): string {
   // (a mod pilot's own lines)
   const own = modPilot(pilotId)?.info.quotes;
-  const q = own?.length ? own : WIN_QUOTES[pilotId] ?? ANYONE;
+  const q = own?.length ? own : WIN_QUOTES[pilotId] ?? ANY_WIN_QUOTES;
   return q[globalRandom.int(q.length)];
 }
 

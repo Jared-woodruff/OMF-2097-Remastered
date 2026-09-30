@@ -162,6 +162,13 @@ const PULSE_COLORS: [number, number, number][] = [
   [0, 30, 0], [2, 34, 2], [5, 38, 5], [7, 42, 7], [10, 46, 10], [12, 50, 12], [15, 54, 15], [17, 60, 17], [20, 63, 20],
 ];
 
+/** A scene's palette as the screen shows it: with the menu colors every scene puts at 250-255 (for previews). */
+export function withMenuColors(p: Palette): Palette {
+  const out = p.clone();
+  MENU_COLORS.forEach(([r, g, b], i) => out.set(250 + i, color6to8(r), color6to8(g), color6to8(b)));
+  return out;
+}
+
 export function setMenuColors(): void {
   MENU_COLORS.forEach(([r, g, b], i) => vga.setBaseIndex(250 + i, color6to8(r), color6to8(g), color6to8(b)));
 }

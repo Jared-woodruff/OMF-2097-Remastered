@@ -71,11 +71,6 @@ export const modPilots = (): ModPilot[] => [...pilots.values()];
 export const modState = (id: string): ModState | undefined => states.get(id);
 
 /** One of a mod pilot's lines (the n-th, else its first; '' when it has none). */
-export function modQuote(pilotId: number, n: number): string {
-  const q = pilots.get(pilotId)?.info.quotes ?? [];
-  return q[n] ?? q[0] ?? '';
-}
-
 /** Registers a package's content (a mod's content that is already there is replaced). Throws ModError. */
 export async function registerModPackage(pkg: ModPackage): Promise<void> {
   const m = pkg.manifest;

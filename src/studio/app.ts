@@ -197,7 +197,7 @@ export class StudioApp {
     let ed: Editor | null = null;
     if (s.kind === 'robot' && p.robots[s.index]) ed = robotEditor(this, p.robots[s.index], s.move);
     else if (s.kind === 'arena' && p.arenas[s.index]) ed = arenaEditor(this, p.arenas[s.index], s.move);
-    else if (s.kind === 'pilot' && p.pilots[s.index]) ed = pilotEditor(this, p.pilots[s.index]);
+    else if (s.kind === 'pilot' && p.pilots[s.index]) ed = pilotEditor(this, p.pilots[s.index], s.move);
     else ed = { el: this.modEditor() };
     this.editor = ed;
     fill(this.content, ed.el);

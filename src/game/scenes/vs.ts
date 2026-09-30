@@ -9,7 +9,7 @@ import { Animation, RSprite } from '../../resources/animation';
 import { bkGetInfo, harPicture, langGet, loadBk } from '../../resources/resources';
 import { arenaDescription, arenaList, arenaName, extraRobotsEnabled, EXTRA_HAR_IDS, nextArena, pilotStyle, randomArena } from '../roster';
 import { addPilotPortrait } from '../../mods/portraits';
-import { modPilot, modQuote } from '../../mods/registry';
+import { modPilot } from '../../mods/registry';
 import { MOVE } from '../../gen/fighter/moveset';
 import { globalRandom } from '../../util/random';
 import { TAG_MENU, video } from '../../video/draw';
@@ -229,6 +229,8 @@ export class VsScene extends Scene {
 
   vsText: Text | null = null;
   insults: (Text | null)[] = [null, null];
+  /** Kreissack, but not on Veteran or higher: he will not fight. */
+  private easyKreissack = false;
   arenaName: Text | null = null;
   arenaDesc: Text | null = null;
 
@@ -405,7 +407,9 @@ export class VsScene extends Scene {
     }
 
     // Insults
-    const easyKreissack = p2Pilot !== null && p2Pilot.pilotId === PilotId.KREISSACK && settings().gameplay.difficulty < 2 && !gs.modeRun;
+    // (OMF Studio's tests show a mod pilot's words to him whatever the difficulty)
+    const easyKreissack = p2Pilot !== null && p2Pilot.pilotId === PilotId.KREISSACK && settings().gameplay.difficulty < 2 && !gs.modeRun && !gs.modTest;
+    this.easyKreissack = easyKreissack;
     if (easyKreissack) {
       // kreissack, but not on Veteran or higher
       this.insults = [null, createInsultText(lang(747), 170, 60)];
@@ -413,11 +417,14 @@ export class VsScene extends Scene {
       // tournament mode
       this.insults = [null, createInsultText(p2Pilot.quotes[0] ?? '', 150, 60)];
     } else if (p2Pilot) {
-      // 1 player (a mod pilot says its own lines; the originals speak to it as to the pilot it plays like)
+      // 1 player: what the player's pilot says, and the opponent's answer. A mod pilot says its own lines (its line for
+      // that original pilot, or its line for anyone), and gives the originals theirs; otherwise the originals speak to
+      // it as to the pilot it plays like.
       const a = player1.pilot.pilotId, b = p2Pilot.pilotId;
+      const va = modPilot(a)?.info.vs, vb = modPilot(b)?.info.vs;
       this.insults = [
-        createInsultText(modPilot(a) ? modQuote(a, 0) : lang(749 + 11 * a + pilotStyle(b)), 150, 30),
-        createInsultText(modPilot(b) ? modQuote(b, 1) : lang(870 + 11 * b + pilotStyle(a)), 150, 30),
+        createInsultText(va ? va.to[b] || va.line : vb?.from[a] || lang(749 + 11 * a + pilotStyle(b)), 150, 30),
+        createInsultText(vb ? vb.to[a] || vb.line : va?.from[b] || lang(870 + 11 * b + pilotStyle(a)), 150, 30),
       ];
     }
 
@@ -722,7 +729,7 @@ export class VsScene extends Scene {
       video.draw(this.arenaSelectBg, 55, 150);
       this.arenaName?.draw(56 + 72, 152);
       this.arenaDesc?.draw(56 + 72, 153);
-    } else if (p2Pilot && p2Pilot.pilotId === PilotId.KREISSACK && settings().gameplay.difficulty < 2) {
+    } else if (this.easyKreissack) {
       // kreissack, but not on Veteran or higher
       this.insults[1]?.draw(80, 165);
     } else if (player1.chr && p2Pilot) {

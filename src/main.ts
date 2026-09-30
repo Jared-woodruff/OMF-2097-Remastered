@@ -38,7 +38,7 @@ import { firstRunSetup } from './platform/setupScreen';
 import { drainPointer, initMouse, pushPointer } from './controller/mouse';
 import { renderedFrames } from './game/gui/widgets';
 import { startTraining } from './game/scenes/mainmenu/menuTraining';
-import { seedQuickFight, setupQuickFight } from './game/quickFight';
+import { seedQuickFight, setPlayerPilot, setupQuickFight } from './game/quickFight';
 import { applyPadSettings } from './game/controls';
 import { addTracks, audioFiles } from './audio/customMusic';
 import { toast } from './platform/toast';
@@ -188,14 +188,33 @@ async function main(): Promise<void> {
     if (id !== undefined) startScene = id;
   }
   const gs = new GameState(SceneId.MENU);
-  // OMF Studio's test (?modtest&t=fight|watch|training&h1&h2&arena&p1): the project's content by folder name.
+  // OMF Studio's test (?modtest&t=fight|watch|training|select|vs|ending&h1&h2&arena&p1&p2): the project's content by
+  // folder name.
   if (params.has('modtest') && params.has('h1')) {
     const h1 = testContent('robot', params.get('h1')) ?? 0, h2 = testContent('robot', params.get('h2')) ?? 5;
     const arena = testContent('arena', params.get('arena')) ?? 0, p1 = testContent('pilot', params.get('p1')) ?? 0;
-    if (params.get('t') === 'training') {
+    const mode = params.get('t');
+    if (mode === 'training') {
       const t = settings().training;
       Object.assign(t, { har: h1, opponent: h2, arena, pilot: p1, dummy: 0 });
       params.set('training', '');
+    } else if (mode === 'select' || mode === 'vs' || mode === 'ending') {
+      // The one-player game, as its menu item starts it: from the pilot select screen, from the VS screen (the pilot
+      // against an original one, then the fight in the arena), or its ending.
+      setupPlayerInput(gs, 0);
+      for (let i = 0; i < 2; i++) gs.getPlayer(i).score.setDifficulty(settings().gameplay.difficulty);
+      gs.setupAi(1);
+      gs.matchSettingsReset();
+      if (mode === 'select') {
+        gs.getPlayer(0).pilot.name = '';
+        gs.getPlayer(0).pilot.pilotId = p1;
+        startScene = SceneId.MELEE;
+      } else {
+        setPlayerPilot(gs, 0, p1, h1);
+        setPlayerPilot(gs, 1, Math.min(10, testContent('pilot', params.get('p2')) ?? 3), h2);
+        gs.arena = arena;
+        startScene = mode === 'vs' ? SceneId.VS : SceneId.END1;
+      }
     } else {
       params.set('fight', String(arena));
       params.set('h1', String(h1));
@@ -220,8 +239,11 @@ async function main(): Promise<void> {
     startScene = SceneId.MENU;
     startTraining(gs);
   }
-  // (OMF Studio's tests show the arena's hazards whatever the player's own setting)
-  if (params.has('modtest')) gs.matchSettings.hazards = true;
+  // (OMF Studio's tests show the arena's hazards whatever the player's own setting, and Kreissack at any difficulty)
+  if (params.has('modtest')) {
+    gs.matchSettings.hazards = true;
+    gs.modTest = true;
+  }
   if (startScene !== SceneId.MENU) gs.swapScene(startScene);
   // On scene changes: evict stale surfaces from the atlas, and start loading the HD artwork the scene needs (the VS
   // screen also loads both robots and the fight graphics, so fights start with their artwork ready).

@@ -35,11 +35,19 @@ Studio makes content in the game's own formats, pixel for pixel, and tests it in
   animation turns into when it hits a robot, ends, or is hit, and its sounds. An animation can be copied from another
   arena with the ones it starts and turns into (the Fire Pit's orbs come with their bursts), its colors matched to the
   arena's.
-- **Pilots** have a name, stats, colors, the original pilot whose fighting style the computer uses, a bio, lines for
-  the VS and victory screens, an ending for the one-player game, and a portrait (the game draws it in each screen's
-  colors).
-- **Test** plays the mod in the game over Studio: a fight against the computer, the computer against itself, or
-  training, in any arena. **Build file** saves the `.omfmod` file to share; **Install in game** installs it on this
+- **Pilots** start as a copy of one of the game's pilots (their portrait and face, stats, colors, words, ending and
+  personality) or blank. The editor has:
+  - the name, sex, stats and colors (shown on a robot), and the original pilot it plays like;
+  - its portrait and face, drawn in the pixel editor in the pilot select screen's portrait colors or brought in as
+    PNG, and shown as the pilot select, VS and ending screens show them (each screen draws it in its own colors);
+  - its words, drawn in the game's font in the screens' boxes, which say when a text is too long for its box: the
+    bio, its line on the VS screen to each of the original pilots and their answers, its lines after winning, and its
+    ending;
+  - the computer's personality when it fights as the pilot: how it goes about a fight, the attacks it likes, how it
+    moves and how readily it learns the player's habits (the original pilots' as a start).
+- **Test** plays the mod in the game over Studio: a fight against the computer, the computer against itself,
+  training, in any arena, or the one-player game from its pilot select screen, its VS screen (the pilot against one
+  of the original ones) or its ending. **Build file** saves the `.omfmod` file to share; **Install in game** installs it on this
   computer. Projects save themselves as they change and are listed on Studio's start screen.
 
 ## The package format
@@ -130,11 +138,23 @@ originals use `Z`).
 | `power`, `agility`, `endurance` | 1-20 each |
 | `colors` | the robot's colors: primary, secondary, tertiary (0-15, the game's color choices) |
 | `bio` | the pilot select screen's text |
-| `personality` | the original pilot (0 Crystal … 10 Kreissack) whose fighting style the computer uses |
-| `quotes` | up to 10 lines: the first on the VS screen, all after winning |
-| `ending` | the one-player game's ending: the story, and the last line |
+| `personality` | the original pilot it plays like (0 Crystal … 10 Kreissack): the computer fights like them without an `ai`, and the originals talk to it like to them on the VS screen without its `vs.from` |
+| `ai` | optional: how the computer fights as the pilot (below) |
+| `vs` | optional: its words on the one-player game's VS screen: `line` (to an opponent it has no line for), `to` (its line to each original pilot, by number: `{ "10": "..." }`), `from` (each original pilot's answer to it); 160 characters each |
+| `quotes` | up to 10 lines after winning (the victory screen says one at random) |
+| `ending` | the one-player game's ending: the story (a page a line), and the last line |
 
-`portrait.png` is up to 160 × 160 (up to 88 × 69 shows as it is); `face.png` is 51 × 36, see-through around the head.
+`portrait.png` is up to 160 × 160 (up to 88 × 69 shows as it is; the ending fits it into 86 × 61); `face.png` is
+51 × 36, see-through around the head. Without `vs`, the VS screen's line is the first of `quotes`.
+
+`ai` holds the personality fields of the original pilot records, all numbers (missing ones are 0):
+
+| Field | |
+|---|---|
+| `normal`, `hyper`, `jump`, `defensive`, `sniper` | its attitudes, 0-100: fighting with basic moves, charging in, jumping in, defending, shooting from afar |
+| `throws`, `specials`, `jumpAttacks`, `high`, `low`, `middle` | how much it likes each kind of attack, -100 to 100 |
+| `moveJump`, `moveForward`, `moveBack` | how much it likes to jump, walk forward and walk back, -100 to 100 |
+| `learning`, `forget` | how readily it learns the player's habits (0-15; the originals 0.7-3) and forgets them (0-3) |
 
 ## How the game loads mods
 

@@ -84,15 +84,70 @@ export interface ModPilotInfo {
   colors: [number, number, number];
   /** The pilot select screen's text. */
   bio: string;
-  /** How the computer fights as this pilot: an original pilot's style (0 CRYSTAL .. 10 KREISSACK). */
+  /**
+   * The original pilot it plays like (0 CRYSTAL .. 10 KREISSACK): the computer fights like them when it has no `ai` of
+   * its own, and the originals speak to it like to them on the VS screen when it gives them no words of its own.
+   */
   personality: number;
-  /** Lines said on the VS screen and after winning. */
+  /** How the computer fights as this pilot, or null: like the pilot it plays like. */
+  ai: ModPilotAi | null;
+  /** Its words on the one-player game's VS screen. */
+  vs: ModPilotVs;
+  /** Lines it says after winning (one at random). */
   quotes: string[];
   /**
    * The one-player game's ending after beating Major Kreissack: the pilot's story (shown with the end titles) and a
    * closing line (empty: the game's own words).
    */
   ending: [string, string];
+}
+
+/**
+ * How the computer fights as a pilot: the personality fields of the original pilot records (controller/
+ * personalities.ts). Attitudes are 0-100, how much it likes an attack or a way of moving -100 to 100.
+ */
+export interface ModPilotAi {
+  /** Attitudes: fighting with basic moves, charging in, jumping in, defending (blocks, throws), sniping from afar. */
+  normal: number;
+  hyper: number;
+  jump: number;
+  defensive: number;
+  sniper: number;
+  /** How much it likes each kind of attack. */
+  throws: number;
+  specials: number;
+  jumpAttacks: number;
+  high: number;
+  low: number;
+  middle: number;
+  /** How much it likes to jump, walk forward and walk back. */
+  moveJump: number;
+  moveForward: number;
+  moveBack: number;
+  /** How readily it learns the player's habits (0-15) and forgets them (0-3). */
+  learning: number;
+  forget: number;
+}
+
+/** The range of each field of pilot.json's "ai", and whether it is a whole number. */
+export const MOD_AI_RANGES: Record<keyof ModPilotAi, [number, number, boolean]> = {
+  normal: [0, 100, true], hyper: [0, 100, true], jump: [0, 100, true], defensive: [0, 100, true], sniper: [0, 100, true],
+  throws: [-100, 100, true], specials: [-100, 100, true], jumpAttacks: [-100, 100, true], high: [-100, 100, true],
+  low: [-100, 100, true], middle: [-100, 100, true], moveJump: [-100, 100, true], moveForward: [-100, 100, true],
+  moveBack: [-100, 100, true], learning: [0, 15, false], forget: [0, 3, false],
+};
+
+/**
+ * A pilot's words on the one-player game's VS screen, where the player's pilot says a line to the opponent and the
+ * opponent answers. Keyed by original pilot (0 CRYSTAL .. 10 KREISSACK).
+ */
+export interface ModPilotVs {
+  /** What it says to an opponent it has no line of its own for. */
+  line: string;
+  /** What it says to each original pilot. */
+  to: Record<number, string>;
+  /** What each original pilot says to it (otherwise what they say to the pilot it plays like). */
+  from: Record<number, string>;
 }
 
 /** Every robot must have these animations (the engine plays them): jump, stand up, stunned, crouch, both blocks, the damage sheet, walk, idle, victory and defeat. */
@@ -237,6 +292,42 @@ function ending(v: unknown, where: string): [string, string] {
   return [v[0] ?? '', v[1] ?? ''];
 }
 
+function pilotAi(v: unknown, where: string): ModPilotAi | null {
+  if (v === undefined || v === null) return null;
+  const o = obj(v, `${where}: "ai"`);
+  const out = {} as ModPilotAi;
+  for (const [key, [min, max, whole]] of Object.entries(MOD_AI_RANGES) as [keyof ModPilotAi, [number, number, boolean]][]) {
+    const x = o[key] ?? 0;
+    if (typeof x !== 'number' || !Number.isFinite(x) || x < min || x > max || (whole && !Number.isInteger(x))) {
+      throw new ModError(`${where}: "ai.${key}" must be a${whole ? ' whole' : ''} number from ${min} to ${max}.`);
+    }
+    out[key] = x;
+  }
+  return out;
+}
+
+/** The lines of a "vs" table by original pilot id (0-10). */
+function vsLines(v: unknown, where: string): Record<number, string> {
+  if (v === undefined) return {};
+  const o = obj(v, where);
+  const out: Record<number, string> = {};
+  for (const [k, line] of Object.entries(o)) {
+    const id = Number(k);
+    if (!Number.isInteger(id) || id < 0 || id > 10 || typeof line !== 'string' || line.length > 160) {
+      throw new ModError(`${where} must name original pilots (0-10) with lines of 160 characters at most.`);
+    }
+    if (line) out[id] = line;
+  }
+  return out;
+}
+
+function pilotVs(v: unknown, quotes: string[], where: string): ModPilotVs {
+  // (without one, its first line after winning)
+  if (v === undefined) return { line: quotes[0] ?? '', to: {}, from: {} };
+  const o = obj(v, `${where}: "vs"`);
+  return { line: str(o, 'line', `${where}: "vs"`, 160, ''), to: vsLines(o.to, `${where}: "vs.to"`), from: vsLines(o.from, `${where}: "vs.from"`) };
+}
+
 export function readPilotInfo(v: unknown, where: string): ModPilotInfo {
   const o = obj(v, where);
   const colors = o.colors ?? [0, 0, 0];
@@ -256,6 +347,8 @@ export function readPilotInfo(v: unknown, where: string): ModPilotInfo {
     colors: colors as [number, number, number],
     bio: str(o, 'bio', where, 300, ''),
     personality: int(o, 'personality', where, 0, 10, 0),
+    ai: pilotAi(o.ai, where),
+    vs: pilotVs(o.vs, quotes as string[], where),
     quotes: quotes as string[],
     ending: ending(o.ending, where),
   };

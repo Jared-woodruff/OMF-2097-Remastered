@@ -334,9 +334,13 @@ groups (`sprites.ts`: a picture stored once for several sprites is edited everyw
 (`pixel.ts`) working in the animation's coordinates. One panel edits an animation's frames, tags and sprites over its
 stage (`animPanel.ts`); a robot's moves (`robot/moveEditor.ts`) and an arena's animations (`arena/animEditor.ts`) are
 its hosts, each adding its own cards (a move's input and combat fields; an animation's looping, chance, damage and
-chains). **Test** puts the built package in the game's storage as the mod being
+chains). A pilot's words are laid out by the game's own text code in the boxes of the screens that show them
+(`pilot/words.ts`), its portrait fitted into each screen's colors by the game's own functions (`mods/portraits.ts`),
+and its personality edited as the fields the original pilots have (`controller/personalities.ts`, the table the
+game's `resetPilotPersonality` applies). **Test** puts the built package in the game's storage as the mod being
 tested and opens `index.html?modtest&t=…&h1=mod:<id>…` in a frame: the game loads it over the installed mods and starts
-the fight (`testContent()` in the registry turns the names into numbers).
+the fight, or the one-player game at its pilot select screen, its VS screen or its ending (`testContent()` in the
+registry turns the names into numbers; `gs.modTest` shows the arena's hazards and Kreissack whatever the settings).
 
 The desktop app (`src-tauri`) opens the game's window, or Studio's when it is started with `--studio` or its file is
 named like `omf-studio.exe`; the game's **Extras › OMF Studio** opens Studio's window through the `open_studio`

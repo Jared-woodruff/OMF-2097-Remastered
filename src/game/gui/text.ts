@@ -261,6 +261,12 @@ export class Text {
     });
   }
 
+  /** The laid out glyphs: each glyph's picture (1 where it is drawn) and where, from the box's top left. */
+  glyphs(): readonly LayoutItem[] {
+    this.layout();
+    return this.items;
+  }
+
   glyphPos(index: number): [number, number] | null {
     this.layout();
     const it = this.items[index];

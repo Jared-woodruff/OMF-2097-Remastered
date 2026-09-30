@@ -8,10 +8,16 @@ import { parseAF, saveAF, type AfFile } from '../formats/af';
 import { parseBK, saveBK } from '../formats/bk';
 import { buildWorkshopFighter } from '../gen/workshop';
 import { readModPackage, writeModPackage } from '../mods/package';
+import { readPilotInfo } from '../mods/types';
 import { buildSampleMod } from '../mods/sample';
 import { checkFighter } from '../mods/package';
 import { getFile } from '../resources/files';
 import { copyAnims, relatedAnims, renumberString } from '../studio/arena/animEditor';
+import { modAi, storyPersonality } from '../controller/personalities';
+import { loadLanguage } from '../resources/resources';
+import { decodePng } from '../util/png';
+import { originalPilot } from '../studio/pilot/originals';
+import { BIO_BOX, ENDING_BOX, ENDING_LAST_BOX, endingPages, VICTORY_BOX, VS_BOX, wordsFit } from '../studio/pilot/words';
 import { projectProblems } from '../studio/checks';
 import { newProject, openPackage, packageFromProject, projectFromPackage } from '../studio/project';
 import { blankRobot } from '../studio/robot/newRobot';
@@ -138,6 +144,11 @@ describe.skipIf(!hasGameData)('OMF Studio projects', () => {
     expect(projectProblems(p).some((x) => x.level === 'error' && /idle animation/.test(x.text))).toBe(true);
     p.manifest.id = 'Bad Id';
     expect(projectProblems(p).some((x) => /id may only/.test(x.text))).toBe(true);
+    // Words the screens would cut off: a warning that opens the pilot's words.
+    p.pilots.push({ id: 'y', info: readPilotInfo({ name: 'Y', bio: 'A very long bio that goes on and on. '.repeat(6) }, 'y'), portrait: null, face: null });
+    const long = projectProblems(p).find((x) => /bio is too long/.test(x.text));
+    expect(long?.level).toBe('warning');
+    expect(long?.target).toEqual({ kind: 'pilot', index: 0, move: 2 });
   });
 
   it('an arena animation copied from another arena brings the ones it starts and turns into', () => {
@@ -156,6 +167,45 @@ describe.skipIf(!hasGameData)('OMF Studio projects', () => {
     expect(to.anims[5]!.animation.animString).toBe(`Z3-mx+152my+160mp-1m${orb}Z1-mx+160my+100m${orb}mp10Z1-Z300`);
     expect([to.anims[orb]!.chainHit, to.anims[orb]!.chainNoHit]).toEqual([17, 16]);
     expect([to.anims[16]!.chainHit, to.anims[16]!.chainNoHit, to.anims[17]!.chainNoHit]).toEqual([0, 0, 18]);
+  });
+
+  it('a copy of an original pilot has everything the game has for them, and builds', async () => {
+    loadLanguage();
+    const melee = parseBK(fs.readFileSync(path.join(GAMEDATA_DIR, 'MELEE.BK')));
+    for (const id of [0, 7, 10]) {
+      const p = await originalPilot(id);
+      expect(p.info.ai).toEqual(modAi(storyPersonality(id)));
+      expect(Object.keys(p.info.vs.to)).toHaveLength(11);
+      const portrait = await decodePng(p.portrait!);
+      const s = melee.anims[4]!.animation.sprites[id];
+      expect([portrait.w, portrait.h]).toEqual([s.width, s.height]);
+      // (Kreissack has no face in the grid, nor an ending: the player never plays him)
+      expect(!!p.face).toBe(id < 10);
+      expect(!!p.info.ending[0]).toBe(id < 10);
+      const project = newProject();
+      project.manifest.name = 'Copy';
+      project.pilots.push({ id: 'copy', ...p });
+      const back = await readModPackage(await writeModPackage(packageFromProject(project)));
+      expect(back.pilots[0].info).toEqual(p.info);
+    }
+    expect((await originalPilot(0)).info.name).toBe('Crystal');
+  });
+
+  it('the original pilots\' words fit the boxes Studio shows them in, as the game does', async () => {
+    loadLanguage();
+    for (let id = 0; id < 10; id++) {
+      const { info } = await originalPilot(id);
+      expect(wordsFit(BIO_BOX, info.bio), `bio ${id}`).toBe(true);
+      for (let b = 0; b < 11; b++) {
+        expect(wordsFit(VS_BOX, info.vs.to[b]), `line ${id} to ${b}`).toBe(true);
+        expect(wordsFit(VS_BOX, info.vs.from[b]), `answer ${b} to ${id}`).toBe(true);
+      }
+      for (const q of info.quotes) expect(wordsFit(VICTORY_BOX, q), q).toBe(true);
+      for (const page of endingPages(info.ending[0])) expect(wordsFit(ENDING_BOX, page), `ending ${id}`).toBe(true);
+      for (const page of endingPages(info.ending[1])) expect(wordsFit(ENDING_LAST_BOX, page), `last line ${id}`).toBe(true);
+    }
+    // A bio twice as long does not.
+    expect(wordsFit(BIO_BOX, `${(await originalPilot(0)).info.bio} `.repeat(2))).toBe(false);
   });
 
   it('a project from a package keeps its content ids', async () => {

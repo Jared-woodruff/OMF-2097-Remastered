@@ -1,6 +1,8 @@
 // Cut scenes: the single player endings (END -> END1 -> END2 -> scoreboard) and the tournament victory cutscene
 // (TRN_CUTSCENE, using the tournament's own BK). Text pages advance with punch/kick. Port of the reference cutscene.
+import { addEndingPortrait } from '../../mods/portraits';
 import { modPilot } from '../../mods/registry';
+import { MOD_ENDING } from '../pilotWords';
 import type { CtrlEvent } from '../../controller/controller';
 import { Palette } from '../../formats/palette';
 import { bkGetInfo, langGet } from '../../resources/resources';
@@ -17,12 +19,7 @@ const END2_TEXT = 1003;
 
 /** A mod pilot's ending (pilot.json), or the game's own words when it has none. */
 function modEnding(pilotId: number, part: 0 | 1): string {
-  const own = modPilot(pilotId)?.info.ending[part];
-  if (own) return own;
-  return part === 0
-    ? 'Ganymede and everything WAR built on it now answer to you. The crowds chant your name as you leave the arena, ' +
-      'no longer a challenger.\nSomewhere in the stands, the next one is already watching you.'
-    : 'As you fly towards the moon, you wonder what comes next. Whatever it is, you will be ready.';
+  return modPilot(pilotId)?.info.ending[part] || MOD_ENDING[part];
 }
 
 /** Splits like the reference str_split: empty pieces are dropped. */
@@ -90,6 +87,8 @@ export class CutsceneScene extends Scene {
         // Pilot portrait (one frame per pilot) ...
         const portrait = bkGetInfo(this.bk, 3);
         if (portrait) {
+          // (a mod pilot's own, in the ending's colors)
+          addEndingPortrait(portrait.ani, p1.pilot.pilotId, this.bk.palettes[0]);
           const obj = new GameObject(gs, 0, 0);
           obj.setAnimation(portrait.ani);
           obj.selectSprite(p1.pilot.pilotId);

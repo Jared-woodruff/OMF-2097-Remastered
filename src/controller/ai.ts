@@ -28,6 +28,7 @@ import { afGetMove, type AfMove } from '../resources/resources';
 import { Tag } from '../script/tags';
 import { globalRandom } from '../util/random';
 import { modPilot, modRobot } from '../mods/registry';
+import { applyPersonality, modPersonality, STORY_PERSONALITIES } from './personalities';
 import { Controller, type CtrlEvent, type HarEvent } from './controller';
 
 /* times thrown before we AI learns its lesson */
@@ -741,194 +742,14 @@ function resetTacticState(a: Ai): void {
  * their current value (as in the reference).
  */
 export function resetPilotPersonality(pilot: Pilot): void {
-  // (a mod pilot fights like the original pilot its pilot.json names)
-  switch (modPilot(pilot.pilotId)?.info.personality ?? pilot.pilotId) {
-    case 0:
-      // crystal
-      pilot.attNormal = 30;
-      pilot.attHyper = 10;
-      pilot.attJump = 10;
-      pilot.attSniper = 20;
-      pilot.apThrow = 100;
-      pilot.apSpecial = 75;
-      pilot.apJump = -30;
-      pilot.apHigh = -50;
-      pilot.apLow = -50;
-      pilot.apMiddle = -50;
-      pilot.prefJump = -10;
-      pilot.prefFwd = 30;
-      pilot.prefBack = 10;
-      pilot.learning = Math.fround(1.5);
-      pilot.forget = Math.fround(0.25);
-      break;
-    case 1:
-      // steffan
-      pilot.attNormal = 40;
-      pilot.attHyper = 60;
-      pilot.attJump = 30;
-      pilot.apThrow = 25;
-      pilot.apSpecial = 20;
-      pilot.apHigh = -75;
-      pilot.apLow = 75;
-      pilot.apMiddle = 50;
-      pilot.prefJump = 6;
-      pilot.prefFwd = 20;
-      pilot.prefBack = -9;
-      pilot.learning = Math.fround(1.0);
-      pilot.forget = Math.fround(0.4);
-      break;
-    case 2:
-      // milano
-      pilot.attNormal = 20;
-      pilot.attHyper = 30;
-      pilot.attJump = 40;
-      pilot.attSniper = 20;
-      pilot.apThrow = -50;
-      pilot.apSpecial = -50;
-      pilot.apJump = -50;
-      pilot.apHigh = 50;
-      pilot.apLow = 50;
-      pilot.apMiddle = 50;
-      pilot.prefJump = 8;
-      pilot.prefFwd = 30;
-      pilot.prefBack = -3;
-      pilot.learning = Math.fround(0.9);
-      pilot.forget = Math.fround(0.1);
-      break;
-    case 3:
-      // christian
-      pilot.attNormal = 20;
-      pilot.attHyper = 15;
-      pilot.attDef = 30;
-      pilot.attSniper = 10;
-      pilot.apThrow = 30;
-      pilot.apSpecial = 25;
-      pilot.apJump = 30;
-      pilot.apLow = -25;
-      pilot.apMiddle = 20;
-      pilot.prefJump = 2;
-      pilot.prefFwd = 10;
-      pilot.prefBack = -10;
-      pilot.learning = Math.fround(2.5);
-      pilot.forget = Math.fround(0.35);
-      break;
-    case 4:
-      // shirro
-      pilot.attNormal = 15;
-      pilot.attHyper = 5;
-      pilot.attJump = 5;
-      pilot.attDef = 20;
-      pilot.attSniper = 4;
-      pilot.apThrow = 75;
-      pilot.apSpecial = 50;
-      pilot.apJump = -50;
-      pilot.apHigh = -50;
-      pilot.apLow = -50;
-      pilot.apMiddle = -50;
-      pilot.prefJump = -20;
-      pilot.prefFwd = 10;
-      pilot.prefBack = 10;
-      pilot.learning = Math.fround(2.0);
-      pilot.forget = Math.fround(0.2);
-      break;
-    case 5:
-      // jean-paul
-      pilot.attNormal = 20;
-      pilot.attHyper = 10;
-      pilot.attJump = 20;
-      pilot.attDef = 30;
-      pilot.attSniper = 45;
-      pilot.apThrow = -50;
-      pilot.apSpecial = 75;
-      pilot.apJump = 100;
-      pilot.apHigh = -50;
-      pilot.apLow = 100;
-      pilot.apMiddle = -50;
-      pilot.prefFwd = 20;
-      pilot.learning = Math.fround(1.2);
-      pilot.forget = Math.fround(0.07);
-      break;
-    case 6:
-      // ibrahim
-      pilot.attNormal = 40;
-      pilot.attHyper = 5;
-      pilot.attJump = 5;
-      pilot.attDef = 50;
-      pilot.attSniper = 7;
-      pilot.apSpecial = 50;
-      pilot.apJump = -50;
-      pilot.apHigh = 50;
-      pilot.apLow = 50;
-      pilot.apMiddle = 50;
-      pilot.prefJump = 2;
-      pilot.prefFwd = 10;
-      pilot.prefBack = -10;
-      pilot.learning = Math.fround(2.5);
-      pilot.forget = Math.fround(0.05);
-      break;
-    case 7:
-      // angel
-      pilot.attNormal = 40;
-      pilot.attHyper = 60;
-      pilot.attJump = 30;
-      pilot.apThrow = 25;
-      pilot.apSpecial = 20;
-      pilot.apJump = 100;
-      pilot.apHigh = -75;
-      pilot.apLow = 75;
-      pilot.apMiddle = 50;
-      pilot.prefJump = 40;
-      pilot.prefFwd = 40;
-      pilot.prefBack = -9;
-      pilot.learning = Math.fround(3.0);
-      pilot.forget = Math.fround(0.15);
-      break;
-    case 8:
-      // cossette
-      pilot.attNormal = 50;
-      pilot.attHyper = 5;
-      pilot.attJump = 5;
-      pilot.attDef = 5;
-      pilot.attSniper = 5;
-      pilot.apThrow = 25;
-      pilot.apSpecial = -50;
-      pilot.apJump = -50;
-      pilot.apHigh = -25;
-      pilot.apLow = 10;
-      pilot.apMiddle = -50;
-      pilot.prefJump = -10;
-      pilot.prefBack = 10;
-      pilot.learning = Math.fround(0.7);
-      pilot.forget = Math.fround(0.2);
-      break;
-    case 9:
-      // raven
-      pilot.attNormal = 30;
-      pilot.attHyper = 40;
-      pilot.apThrow = 100;
-      pilot.apSpecial = 100;
-      pilot.apJump = 100;
-      pilot.apHigh = 100;
-      pilot.apLow = 100;
-      pilot.apMiddle = 100;
-      pilot.prefJump = 12;
-      pilot.prefFwd = 30;
-      pilot.prefBack = -7;
-      pilot.learning = Math.fround(3.0);
-      pilot.forget = Math.fround(0.5);
-      break;
-    case 10:
-      // kreissack
-      // special
-      pilot.attNormal = 30;
-      pilot.attHyper = 75;
-      pilot.attSniper = 25;
-      pilot.apThrow = 100;
-      pilot.apSpecial = 100;
-      pilot.learning = Math.fround(3.0);
-      pilot.forget = Math.fround(0.25);
-      break;
+  // (a mod pilot fights with its own personality, or like the original pilot its pilot.json names)
+  const mod = modPilot(pilot.pilotId)?.info;
+  if (mod?.ai) {
+    applyPersonality(pilot, modPersonality(mod.ai));
+    return;
   }
+  const p = STORY_PERSONALITIES[mod?.personality ?? pilot.pilotId];
+  if (p) applyPersonality(pilot, p);
 }
 
 /** Reset the base movement act timer. */

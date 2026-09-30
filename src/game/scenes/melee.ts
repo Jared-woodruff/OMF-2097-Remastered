@@ -242,7 +242,8 @@ export class MeleeScene extends Scene {
       paletteLoadPlayerColors(player2.pilot.palette, 1);
     } else {
       this.page = PILOT_SELECT;
-      this.pilotIdA = PilotId.CRYSTAL;
+      // (OMF Studio's test of a pilot starts on it)
+      this.pilotIdA = gs.modTest && modPilot(player1.pilot.pilotId) ? player1.pilot.pilotId : PilotId.CRYSTAL;
       this.pilotIdB = PilotId.SHIRRO;
       this.restoreCursorsTo(this.pilotIdA, this.pilotIdB);
       this.loadPilotPortraitsPalette();

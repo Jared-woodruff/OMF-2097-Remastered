@@ -15,19 +15,24 @@ export function setupQuickFight(gs: GameState, params: URLSearchParams): SceneId
   // (any arena number: the game's own, or a mod arena's)
   const arena = Math.max(0, Math.min(MAX_ARENAS - 1, parseInt(params.get('fight') ?? '0', 10) || 0));
   for (let i = 0; i < 2; i++) {
-    const p = gs.getPlayer(i);
     const pilotId = parseInt(params.get(`p${i + 1}`) ?? String(i), 10) || 0;
     const harId = parseInt(params.get(`h${i + 1}`) ?? String(i === 0 ? 0 : 5), 10) || 0;
-    const info = pilotInfo(pilotId);
-    p.pilot.pilotId = pilotId;
-    p.pilot.harId = harId;
-    p.pilot.power = info.power;
-    p.pilot.agility = info.agility;
-    p.pilot.endurance = info.endurance;
-    p.pilot.name = pilotNameOf(pilotId);
-    setPilotColors(p.pilot, info.color1, info.color2, info.color3);
+    setPlayerPilot(gs, i, pilotId, harId);
   }
   return SceneId.ARENA0 + arena;
+}
+
+/** A player's pilot (its name, stats and colors) and robot. */
+export function setPlayerPilot(gs: GameState, player: number, pilotId: number, harId: number): void {
+  const p = gs.getPlayer(player);
+  const info = pilotInfo(pilotId);
+  p.pilot.pilotId = pilotId;
+  p.pilot.harId = harId;
+  p.pilot.power = info.power;
+  p.pilot.agility = info.agility;
+  p.pilot.endurance = info.endurance;
+  p.pilot.name = pilotNameOf(pilotId);
+  setPilotColors(p.pilot, info.color1, info.color2, info.color3);
 }
 
 /** The seeded fight's rules, the computer on both sides and the seeds (call just before the arena opens). */

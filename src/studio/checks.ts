@@ -2,7 +2,10 @@
 // (the same rules the game applies, mods/package.ts), warnings are things the game makes up for.
 import { encodeSprite } from '../formats/sprite';
 import { CONTENT_ID_PATTERN, ID_PATTERN, PICTURE_MOVES, REQUIRED_MOVES } from '../mods/types';
+import { PILOT_NAMES } from '../game/constants';
 import { parseAnim } from './anim';
+import { originalName } from './pilot/originals';
+import { BIO_BOX, ENDING_BOX, ENDING_LAST_BOX, endingPages, VICTORY_BOX, VS_BOX, wordsFit } from './pilot/words';
 import type { Project } from './project';
 
 export type Target = { kind: 'mod' } | { kind: 'robot' | 'arena' | 'pilot'; index: number; move?: number };
@@ -104,7 +107,26 @@ export function projectProblems(p: Project): Problem[] {
   });
 
   p.pilots.forEach((pl, index) => {
-    if (!pl.portrait) out.push({ level: 'warning', text: `${pl.info.name || 'A pilot'} has no portrait.`, target: { kind: 'pilot', index } });
+    const name = pl.info.name || 'A pilot', info = pl.info;
+    if (!pl.portrait) out.push({ level: 'warning', text: `${name} has no portrait.`, target: { kind: 'pilot', index, move: 1 } });
+    // Words too long for the screens' boxes (the game cuts them off).
+    const words = { kind: 'pilot', index, move: 2 } as const;
+    const long = (text: string) => out.push({ level: 'warning', text, target: words });
+    if (!wordsFit(BIO_BOX, info.bio)) long(`${name}'s bio is too long for the pilot select screen.`);
+    if (info.vs.line && !wordsFit(VS_BOX, info.vs.line)) long(`${name}'s line on the VS screen is too long for its box.`);
+    PILOT_NAMES.forEach((_, b) => {
+      if (info.vs.to[b] && !wordsFit(VS_BOX, info.vs.to[b])) long(`${name}'s line to ${originalName(b)} on the VS screen is too long for its box.`);
+      if (info.vs.from[b] && !wordsFit(VS_BOX, info.vs.from[b])) long(`${originalName(b)}'s answer to ${name} on the VS screen is too long for its box.`);
+    });
+    info.quotes.forEach((q, i) => {
+      if (!wordsFit(VICTORY_BOX, q)) long(`${name}'s victory line ${i + 1} is too long for the victory screen.`);
+    });
+    endingPages(info.ending[0]).forEach((page, i) => {
+      if (!wordsFit(ENDING_BOX, page)) long(`${name}'s ending: page ${i + 1} of the story is too long for the screen (a page a line).`);
+    });
+    endingPages(info.ending[1]).forEach((page) => {
+      if (!wordsFit(ENDING_LAST_BOX, page)) long(`${name}'s ending: the last line is too long for the screen.`);
+    });
   });
   return out;
 }

@@ -222,6 +222,16 @@ export async function buildSampleMod(): Promise<ModPackage> {
         colors: [5, 11, 8],
         bio: 'A test pilot from the orbital yards, VEGA flies every new frame before anyone else is allowed to.',
         personality: 0,
+        // A test pilot: she tries everything a machine can do, keeps her distance and learns fast.
+        ai: {
+          normal: 30, hyper: 20, jump: 35, defensive: 15, sniper: 40, throws: 10, specials: 80, jumpAttacks: 40, high: 10, low: 20,
+          middle: 30, moveJump: 15, moveForward: 20, moveBack: 5, learning: 2.5, forget: 0.2,
+        },
+        vs: {
+          line: 'I have flown worse machines than yours. Not many.',
+          to: { 10: 'Your NOVA is the last machine on my test list, Major.' },
+          from: { 10: 'A test pilot. Then let this be your final test.' },
+        },
         quotes: ['I have flown worse machines than yours. Not many.', 'Another one for the test report.'],
         ending: [
           'The orbital yards send their congratulations, and a new frame to fly. VEGA files the last test report of the ' +

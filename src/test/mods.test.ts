@@ -21,7 +21,14 @@ import { parseBK, saveBK } from '../formats/bk';
 import { harData } from '../game/objects/har';
 import { getFile } from '../resources/files';
 import { copyAnims } from '../studio/arena/animEditor';
-import { ModError, readManifest } from '../mods/types';
+import { ModError, readManifest, readPilotInfo } from '../mods/types';
+import { modPersonality, STORY_PERSONALITIES } from '../controller/personalities';
+import { resetPilotPersonality } from '../controller/ai';
+import { Pilot } from '../formats/pilot';
+import { settings } from '../game/settings';
+import { endingEntries, ENDING_PORTRAIT } from '../mods/portraits';
+import { modPilot } from '../mods/registry';
+import { bkGetInfo, langGet } from '../resources/resources';
 import { harName, harPicture, hasFighter, loadAf, loadBk } from '../resources/resources';
 import { decodePng, encodeIndexedPng, encodePng } from '../util/png';
 import { unzip, zip } from '../util/zip';
@@ -75,6 +82,19 @@ describe('mod manifests', () => {
   it('refuse formats newer than the game reads, and packages without content', () => {
     expect(() => readManifest({ ...base, format: 2 })).toThrow(/newer version/);
     expect(() => readManifest({ ...base, robots: [] })).toThrow(/no robots/);
+  });
+
+  it('give pilots a personality and VS screen words of their own, and read older pilots as they were', () => {
+    // (before them: no personality of its own, its first line after winning on the VS screen)
+    const old = readPilotInfo({ name: 'X', quotes: ['a', 'b'] }, 'p');
+    expect(old.ai).toBeNull();
+    expect(old.vs).toEqual({ line: 'a', to: {}, from: {} });
+    const p = readPilotInfo({ name: 'X', ai: { normal: 30, learning: 1.5 }, vs: { line: 'l', to: { 3: 'hi' }, from: { 10: 'yo' } } }, 'p');
+    expect(p.ai).toMatchObject({ normal: 30, learning: 1.5, hyper: 0, throws: 0 });
+    expect(p.vs).toEqual({ line: 'l', to: { 3: 'hi' }, from: { 10: 'yo' } });
+    expect(() => readPilotInfo({ name: 'X', ai: { normal: 101 } }, 'p')).toThrow(/ai\.normal/);
+    expect(() => readPilotInfo({ name: 'X', ai: { throws: 1.5 } }, 'p')).toThrow(/whole/);
+    expect(() => readPilotInfo({ name: 'X', vs: { to: { 11: 'x' } } }, 'p')).toThrow(ModError);
   });
 });
 
@@ -276,9 +296,54 @@ describe.skipIf(!hasGameData)('mod pilots in the game', () => {
     gs.setupAi(1);
     gs.swapScene(SceneId.VS);
     const vs = gs.sc as VsScene;
+    // Its line for anyone; Christian answers as he answers Crystal (the pilot VEGA plays like).
     expect(vs.insults[0]?.str).toBe('I have flown worse machines than yours. Not many.');
-    // Christian answers as he would answer Crystal (the pilot VEGA plays like).
-    expect(vs.insults[1]?.str).toBeTruthy();
+    expect(vs.insults[1]?.str).toBe(langGet(870 + 11 * PilotId.CHRISTIAN + PilotId.CRYSTAL));
+    // Its own line to Major Kreissack, and his own answer to it (on a difficulty where he answers at all).
+    const difficulty = settings().gameplay.difficulty;
+    settings().gameplay.difficulty = 3;
+    const gs2 = createGame(SceneId.MENU, [0, PilotId.KREISSACK], [0, 5]);
+    gs2.getPlayer(0).pilot.pilotId = pilotId;
+    gs2.setupAi(1);
+    gs2.swapScene(SceneId.VS);
+    const vs2 = gs2.sc as VsScene;
+    settings().gameplay.difficulty = difficulty;
+    expect(vs2.insults[0]?.str).toBe('Your NOVA is the last machine on my test list, Major.');
+    expect(vs2.insults[1]?.str).toBe('A test pilot. Then let this be your final test.');
+  });
+
+  it('fight with a personality of their own, or like the pilot they play like', () => {
+    const p = new Pilot();
+    p.pilotId = pilotId;
+    resetPilotPersonality(p);
+    const own = modPersonality(modPilot(pilotId)!.info.ai!);
+    expect([p.attNormal, p.attSniper, p.apSpecial, p.prefBack, p.learning]).toEqual([own.attNormal, own.attSniper, own.apSpecial, own.prefBack, Math.fround(own.learning)]);
+    const info = modPilot(pilotId)!.info;
+    const ai = info.ai;
+    info.ai = null;
+    try {
+      const q = new Pilot();
+      q.pilotId = pilotId;
+      resetPilotPersonality(q);
+      expect([q.attNormal, q.apThrow, q.prefFwd]).toEqual([STORY_PERSONALITIES[0].attNormal, STORY_PERSONALITIES[0].apThrow, STORY_PERSONALITIES[0].prefFwd]);
+    } finally {
+      info.ai = ai;
+    }
+  });
+
+  it('have their portrait in the one-player game\'s ending, in its colors', () => {
+    const gs = createGame(SceneId.MENU, [0, 1], [harId, 5]);
+    gs.getPlayer(0).pilot.pilotId = pilotId;
+    gs.swapScene(SceneId.END1);
+    const ani = bkGetInfo(gs.sc.bk, 3)!.ani;
+    const pic = ani.sprites[pilotId]?.surface;
+    expect(pic).toBeTruthy();
+    expect(pic!.w).toBeLessThanOrEqual(ENDING_PORTRAIT.w);
+    expect(pic!.h).toBeLessThanOrEqual(ENDING_PORTRAIT.h);
+    // (only the colors the originals' portraits use there)
+    const entries = new Set(endingEntries(ani.sprites.slice(0, 10).map((s) => s.surface?.data)));
+    expect([...pic!.data].every((v) => v === 0 || entries.has(v))).toBe(true);
+    expect(gs.objects.some((r) => r.obj.curAnimation === ani && r.obj.curSpriteId === pilotId)).toBe(true);
   });
 
   it('meet Major Kreissack once every original pilot is beaten', () => {
