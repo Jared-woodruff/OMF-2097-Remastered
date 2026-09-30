@@ -4,8 +4,8 @@
  * On desktop this talks to Tauri through the global API that `app.withGlobalTauri` injects as
  * `window.__TAURI__` (src-tauri/tauri.conf.json), so the web bundle has no runtime npm
  * dependencies. Only the window commands allowed in src-tauri/capabilities/default.json are
- * usable: is/set fullscreen, set title and close; and the shell's own `save_file` command
- * (src-tauri/src/lib.rs).
+ * usable: is/set fullscreen, set title and close; and the shell's own `save_file` and `open_studio`
+ * commands (src-tauri/src/lib.rs).
  *
  * None of the functions reject. Failures (e.g. a browser refusing fullscreen outside a user
  * gesture) are logged with console.warn and otherwise ignored.
@@ -99,6 +99,19 @@ export async function quitApp(): Promise<void> {
     await appWindow.close();
   } catch (err) {
     warn('quitApp()', err);
+  }
+}
+
+/** Opens OMF Studio, the modding tool: a window of the desktop app, a new tab on the web. */
+export async function openStudio(): Promise<void> {
+  if (!tauri) {
+    window.open('./studio.html', '_blank', 'noopener');
+    return;
+  }
+  try {
+    await tauri.core.invoke('open_studio');
+  } catch (err) {
+    warn('openStudio()', err);
   }
 }
 

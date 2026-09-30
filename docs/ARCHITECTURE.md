@@ -27,6 +27,9 @@ OpenOMF project (MIT, https://github.com/omf2097/openomf); rendering and platfor
 | `src/game/modes/`, `src/game/records/` | Arcade, survival, time attack and the workshop's test fight (`run.ts`), their results page; statistics and achievements. |
 | `src/game/workshop/`, `src/gen/workshop.ts` | The robot workshop: robot descriptions, building them into fighters at run time, the editor page. |
 | `src/game/tournament/custom*.ts` | Custom tournaments made from the installed ones, and their page. |
+| `src/mods/` | Mods (see [MODDING.md](MODDING.md)): the `.omfmod` package format (`types.ts`, `package.ts`), the installed mods (`store.ts`, IndexedDB), the numbers their content plays under (`ids.ts`), loading them at start-up (`registry.ts`), pilots' portraits in each screen's colors (`portraits.ts`), the Mods page, and a sample mod. |
+| `src/studio/`, `studio.html` | OMF Studio, the modding tool: a second page sharing the formats, the generators and the storage (see below). |
+| `src/util/zip.ts`, `src/util/png.ts` | Zip archives and PNG images read and written without the browser (the game data import, mods, Studio's art). |
 
 ## Porting conventions (C reference → TypeScript)
 
@@ -305,3 +308,34 @@ own file formats, so the engine runs them like the originals.
   development URLs with parameters (`?scene`, `?fight`...) skip it. Screenshots: PRINT SCREEN (key release; F12 in the desktop app) renders a frame and saves the
   canvas as a PNG through `platform/files.ts`.
 - **Touch controls** (`platform/touch.ts`): DOM controls read by player 1's keyboard controller like a gamepad.
+
+## Mods and OMF Studio
+
+Mods (`src/mods`) are zip archives of the game's own formats: a robot is a fighter file (AF) and a JSON file of what
+the game cannot read from it (its name, special move names, which specials the computer uses for its tactics); an
+arena a scene file (BK), its widescreen background and a JSON file (texts, music, ambience, the original arena whose
+built-in rules it follows); a pilot a JSON file and PNG pictures. At start-up (`main.ts`, after the generated content,
+before the language) `loadMods()` reads the installed mods that are on, checks them like OMF Studio does, gives their
+content numbers (kept in localStorage by `<mod id>/<content id>`, because replays, records and the training setup save
+them) and registers it the way the remaster's own content is: files through `provideGenerated` (so robots get the
+shared effect moves and arenas the shared palette, remap rows, announcements and sounds at load), names through
+`setHarName`/`HAR_NAMES` and `harName()`, the rest in the registry that `roster.ts` asks (the select grids' extra rows,
+`arenaList()` for the rotation and the VS screen, `pilotInfo()`/`pilotNameOf()`/`pilotBio()` for pilots). Arenas are the
+last block of `SceneId` (`ARENA0 + n` for any n below `MAX_ARENAS`), and code keyed by an original arena asks
+`arenaBase()` (built-in rules) or `arenaLook()` (remastered ambience and acoustics). The engine keeps what it loaded,
+so turning mods on or off applies at the next start.
+
+OMF Studio (`studio.html`, `src/studio`) is a separate page on the same origin: plain TypeScript and DOM, 2D canvases
+for its pictures (no `GameState`: the engine's singletons are the game's). A project is a mod package open for
+editing (`project.ts`: fighter and scene files parsed, written back with `saveAF`/`saveBK`), kept in IndexedDB as it
+changes (`storage.ts`). Animation strings are edited as tokens that keep every character (`anim.ts`: an unedited
+string is written back exactly; the tests check every string of the game's files), sprites through their sharing
+groups (`sprites.ts`: a picture stored once for several sprites is edited everywhere or split off), in a pixel editor
+(`pixel.ts`) working in the robot's coordinates. **Test** puts the built package in the game's storage as the mod being
+tested and opens `index.html?modtest&t=…&h1=mod:<id>…` in a frame: the game loads it over the installed mods and starts
+the fight (`testContent()` in the registry turns the names into numbers).
+
+The desktop app (`src-tauri`) opens the game's window, or Studio's when it is started with `--studio` or its file is
+named like `omf-studio.exe`; the game's **Extras › OMF Studio** opens Studio's window through the `open_studio`
+command. Both windows share the storage. The installer asks whether to add Studio's shortcuts
+(`src-tauri/installer/hooks.nsh`).

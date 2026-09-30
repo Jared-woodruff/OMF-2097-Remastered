@@ -1,42 +1,95 @@
-//! Desktop shell for One Must Fall 2097 Remastered: one WebView2 window hosting the Vite-built
-//! web game. Window, WebView2 arguments and permissions are configured in `tauri.conf.json` and
-//! `capabilities/default.json`; the frontend talks to Tauri through `src/platform/desktop.ts`.
+//! Desktop shell for One Must Fall 2097 Remastered: WebView2 windows hosting the Vite-built web
+//! game (index.html) and OMF Studio, the modding tool (studio.html). The program opens the game,
+//! or Studio when it is started with `--studio` or its file is named like `omf-studio.exe` (the
+//! release's Studio download is this program under that name). The game opens Studio in a second
+//! window (`open_studio`); both share the game's storage, so Studio installs mods straight into it.
+//! Permissions are in `capabilities/default.json`; the frontend talks to Tauri through
+//! `src/platform/desktop.ts`.
 
 use std::time::Duration;
 
-use tauri::{webview::PageLoadEvent, Manager};
+use tauri::{webview::PageLoadEvent, Manager, WebviewUrl, WebviewWindowBuilder};
 
-/// Show the main window after this long even if the page never reports that it finished loading.
+/// Show a window after this long even if the page never reports that it finished loading.
 const SHOW_WINDOW_FALLBACK: Duration = Duration::from_secs(5);
+
+/// WebView2's arguments: the same for every window (windows that share the storage must agree on them).
+const BROWSER_ARGS: &str =
+  "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required";
+
+/// Whether this start opens OMF Studio instead of the game.
+fn studio_start() -> bool {
+  let flag = std::env::args().skip(1).any(|a| a.eq_ignore_ascii_case("--studio"));
+  let named = std::env::current_exe()
+    .ok()
+    .and_then(|p| p.file_stem().map(|s| s.to_string_lossy().to_lowercase()))
+    .is_some_and(|name| name.contains("studio"));
+  flag || named
+}
+
+/// Opens a window: the game ("main", index.html) or OMF Studio ("studio", studio.html). Created hidden and
+/// shown once its page has loaded, so there is no white flash while WebView2 starts up.
+fn open_window(app: &tauri::AppHandle, studio: bool) -> tauri::Result<tauri::WebviewWindow> {
+  let (label, page, title, size) = if studio {
+    ("studio", "studio.html", "OMF Studio", (1440.0, 900.0))
+  } else {
+    ("main", "index.html", "One Must Fall 2097 Remastered", (1280.0, 800.0))
+  };
+  if let Some(window) = app.get_webview_window(label) {
+    let _ = window.show();
+    let _ = window.unminimize();
+    let _ = window.set_focus();
+    return Ok(window);
+  }
+  let window = WebviewWindowBuilder::new(app, label, WebviewUrl::App(page.into()))
+    .title(title)
+    .inner_size(size.0, size.1)
+    .min_inner_size(640.0, 400.0)
+    .resizable(true)
+    .center()
+    .prevent_overflow()
+    .visible(false)
+    .background_color(tauri::webview::Color(if studio { 10 } else { 0 }, if studio { 14 } else { 0 }, if studio { 24 } else { 0 }, 255))
+    // (files dropped on the window reach the page: mods, music, pictures)
+    .disable_drag_drop_handler()
+    .additional_browser_args(BROWSER_ARGS)
+    .build()?;
+  let handle = app.clone();
+  let label = label.to_string();
+  std::thread::spawn(move || {
+    std::thread::sleep(SHOW_WINDOW_FALLBACK);
+    if let Some(window) = handle.get_webview_window(&label) {
+      let _ = window.show();
+    }
+  });
+  #[cfg(windows)]
+  if !cfg!(debug_assertions) {
+    disable_browser_ui(&window);
+  }
+  Ok(window)
+}
+
+/// Opens OMF Studio's window (or brings it to the front). Async: on Windows, building a window from a synchronous
+/// command deadlocks (it runs on the main thread the window needs).
+#[tauri::command]
+async fn open_studio(app: tauri::AppHandle) -> Result<(), String> {
+  open_window(&app, true).map(|_| ()).map_err(|e| e.to_string())
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    // The main window is created hidden (see tauri.conf.json) and shown once the page has loaded,
-    // so there is no white flash while WebView2 starts up.
+    // Windows are created hidden (open_window) and shown once their page has loaded.
     .on_page_load(|webview, payload| {
       if payload.event() == PageLoadEvent::Finished {
         let _ = webview.window().show();
       }
     })
     .setup(|app| {
-      let handle = app.handle().clone();
-      std::thread::spawn(move || {
-        std::thread::sleep(SHOW_WINDOW_FALLBACK);
-        if let Some(window) = handle.get_webview_window("main") {
-          let _ = window.show();
-        }
-      });
-
-      #[cfg(windows)]
-      if !cfg!(debug_assertions) {
-        if let Some(window) = app.get_webview_window("main") {
-          disable_browser_ui(&window);
-        }
-      }
+      open_window(app.handle(), studio_start())?;
       Ok(())
     })
-    .invoke_handler(tauri::generate_handler![save_file])
+    .invoke_handler(tauri::generate_handler![save_file, open_studio])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

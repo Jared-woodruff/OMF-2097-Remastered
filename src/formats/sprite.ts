@@ -52,6 +52,14 @@ export class Sprite {
     return this.decoded;
   }
 
+  /** Replaces the picture with encoded data (see encodeSprite) of the given size. */
+  setData(data: Uint8Array, width: number, height: number): void {
+    this.data = data;
+    this.width = width;
+    this.height = height;
+    this.decoded = null;
+  }
+
   clone(): Sprite {
     const s = new Sprite();
     s.posX = this.posX;

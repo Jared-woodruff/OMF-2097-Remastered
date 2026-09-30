@@ -1,8 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Window controls used by the game (see src/platform/desktop.ts): fullscreen get/set, window title, close/quit.",
-  "windows": ["main"],
+  "description": "Window controls used by the game and OMF Studio (see src/platform/desktop.ts): fullscreen get/set, window title, close/quit.",
+  "windows": [
+    "main",
+    "studio"
+  ],
   "permissions": [
     "core:window:allow-is-fullscreen",
     "core:window:allow-set-fullscreen",

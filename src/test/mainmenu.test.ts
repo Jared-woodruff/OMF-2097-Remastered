@@ -163,7 +163,7 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     fresh();
     open('EXTRAS');
     expect(current().items.filter((c) => c instanceof Button).map((c) => (c as Button).text.str)).toEqual(
-      ['ROBOT WORKSHOP', 'MODS', 'REPLAYS', 'RECORDS', 'SCOREBOARD', 'DEMO', 'CREDITS', 'DONE']);
+      ['ROBOT WORKSHOP', 'MODS', 'OMF STUDIO', 'REPLAYS', 'RECORDS', 'SCOREBOARD', 'DEMO', 'CREDITS', 'DONE']);
     open('DEMO');
     expect(gs.nextId).toBe(SceneId.VS);
     expect(gs.isDemoplay()).toBe(true);

@@ -310,6 +310,22 @@ Make your own tournaments from the installed ones: fewer opponents (spread over 
 them), their robots as they were or on the new robots, more or less prize money. They show up in **Tournament play**
 like the others and are shared as `.omftrn` files. The new arenas join the tournament's arenas too when they are on.
 
+#### Mods and OMF Studio
+
+New robots, arenas and pilots made by players, installed from `.omfmod` files (drop one on the game, or **Extras ›
+Mods**). They play like the game's own: every animation, move and hit point, in classic and remastered graphics, on
+the select screens, in the arena rotation, the modes and replays.
+
+**OMF Studio**, the game's mod tools (**Extras › OMF Studio**; setup can add its shortcuts), makes them in the game's
+own formats, pixel for pixel: robots from a copy of one of the game's, from the workshop's parts or from a blank
+figure, drawn frame by frame in the game's palette with their hit points, their moves' inputs, damage and reactions;
+arenas from a copy or a picture; pilots with portraits, lines and an ending. **Test** plays the mod in the game right
+away. See [docs/MODDING.md](docs/MODDING.md).
+
+<p align="center">
+  <img src="docs/media/studio.jpg" alt="OMF Studio: a robot's special move, its frames, tags, input and hit points" width="100%">
+</p>
+
 #### Presentation
 
 - **Main menu** (remastered graphics): the robot on its stage is a parallax scene of painted layers under a slowly

@@ -53,6 +53,10 @@ export default defineConfig({
     outDir: 'dist',
     assetsInlineLimit: 0,
     chunkSizeWarningLimit: 2000,
+    // Two pages: the game, and OMF Studio (the modding tool) next to it (they share the code and the storage).
+    rollupOptions: {
+      input: { main: path.resolve('index.html'), studio: path.resolve('studio.html') },
+    },
   },
   test: {
     // The game logic runs against the real data: CI machines can be several times slower than a desktop.
