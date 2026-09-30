@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/tag/v0.1.2"><img src="https://img.shields.io/badge/%E2%AC%87%20Download%20v0.1.2%20for%20Windows-free-ff7a3d?style=for-the-badge" alt="Download v0.1.2 for Windows (free)"></a>
+  <a href="https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/tag/v0.1.3"><img src="https://img.shields.io/badge/%E2%AC%87%20Download%20v0.1.3%20for%20Windows-free-ff7a3d?style=for-the-badge" alt="Download v0.1.3 for Windows (free)"></a>
   <a href="docs/manual/OMF-2097-Remastered-Manual.pdf"><img src="https://img.shields.io/badge/%F0%9F%93%96%20Game%20manual-PDF-c8102e?style=for-the-badge" alt="Game manual (PDF)"></a>
 </p>
 
@@ -33,9 +33,7 @@
 
 <a id="trailer"></a>
 
-<p align="center">
-  <a href="docs/media/trailer.mp4"><img src="docs/media/trailer-poster.jpg" alt="Watch the trailer" width="100%"></a>
-</p>
+https://github.com/user-attachments/assets/c7715827-5b9f-4f16-b4f2-b15734fc5be4
 
 <p align="center">
   <sub>A fan trailer with no narrator. It starts in 1994: a DOS prompt, then the original game in its own pixels on a
@@ -431,10 +429,10 @@ a pack of your own.
 <a id="get-started"></a>
 <p align="center"><a href="#get-started"><img src="docs/media/banner-start.jpg" alt="07 · Get started" width="100%"></a></p>
 
-**To play**, download version 0.1.2 for Windows: the
-[installer](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/download/v0.1.2/OMF-2097-Remastered-0.1.2-setup.exe), or the portable
-[`omf2097-remastered.exe`](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/download/v0.1.2/omf2097-remastered.exe) that runs from anywhere
-([release notes](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/tag/v0.1.2)). Everything is included and free: *One Must Fall 2097* has been
+**To play**, download version 0.1.3 for Windows: the
+[installer](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/download/v0.1.3/OMF-2097-Remastered-0.1.3-setup.exe), or the portable
+[`omf2097-remastered.exe`](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/download/v0.1.3/omf2097-remastered.exe) that runs from anywhere
+([release notes](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/tag/v0.1.3)). Everything is included and free: *One Must Fall 2097* has been
 freeware since 1999, and its owners let everyone share it as long as nobody charges for it (see [NOTICE.md](NOTICE.md)).
 New to the game? The [manual](docs/manual/OMF-2097-Remastered-Manual.pdf) has a quick start on page 2.
 
