@@ -1,10 +1,11 @@
-// The credits' title, over the city at night (stage.ts) through the song's intro: four lines, a bar apart from each
-// other's end, while the camera sinks from the clouds; then on the drop the original game's logo, as its 1994 intro drew
-// it (tools/credits/title.py cut its pictures out of the remaster's HD artwork): struck by lightning, and on the next
-// bar's four beats four bolts writing 2 0 9 7 into it; then REMASTERED, THE CREDITS. Worked out from the song's position
-// each frame (update).
+// The credits' title, over the city at night (stage.ts) through the song's intro: four lines typing in, a bar apart,
+// in a menu frame (look.ts) while the camera sinks from the clouds; then on the drop the original game's logo, as its
+// 1994 intro drew it (tools/credits/title.py cut its pictures out of the remaster's HD artwork): struck by lightning, and
+// on the next bar's beats four bolts writing 2 0 9 7 into it; then REMASTERED stamped in a letter at a time, THE
+// CREDITS in the menus' green. Worked out from the song's position each frame (update).
 import placements from '../../../public/credits/title/title.json';
 import { BEAT, barTime, SECTIONS } from './song';
+import { typeInto } from './look';
 import { clamp01, easeIn, easeOut, easeOutBack, hit, ramp, window01 } from './motion';
 
 type Placed = keyof typeof placements;
@@ -53,35 +54,36 @@ function img(name: Placed, cls: string, origin: [number, number]): HTMLImageElem
 
 export const TITLE_CSS = `
 .omft { position: absolute; inset: 0; pointer-events: none; }
-.omft-line, .omft-logo, .omft-remastered, .omft-credits, .omft-tag { visibility: hidden; }
-.omft-line { position: absolute; left: 6vw; right: 6vw; top: calc(var(--oy) + 150 * var(--uy)); text-align: center; }
-.omft-kicker { font-weight: 800; letter-spacing: .6em; margin-right: -.6em; font-size: calc(5.2 * var(--uy)); color: #ffc840;
-  text-shadow: 0 0 14px rgba(255,190,60,.7), 0 2px 2px rgba(0,0,0,.8); margin-bottom: .7em; }
-.omft-text { font-weight: 600; letter-spacing: .3em; margin-right: -.3em; font-size: calc(4.6 * var(--uy)); line-height: 1.5;
-  color: #e6eeff; text-shadow: 0 0 18px rgba(90,150,255,.65), 0 2px 3px rgba(0,0,0,.9); }
-.omft-text b { font-weight: inherit; display: inline-block; white-space: nowrap; }
-.omft-text span { display: inline-block; white-space: pre; will-change: opacity, transform, filter; }
+.omft-box, .omft-logo, .omft-remastered, .omft-credits, .omft-tag { visibility: hidden; }
+.omft-box { position: absolute; left: calc(var(--ox) + 22 * var(--ux)); top: calc(var(--oy) + 122 * var(--uy)); width: calc(276 * var(--ux));
+  height: calc(46 * var(--uy)); padding: calc(5 * var(--uy)) calc(10 * var(--ux)); display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: calc(2.6 * var(--uy)); text-align: center; will-change: clip-path; }
+.omft-kicker { font-size: calc(8 * var(--uy)); letter-spacing: .3em; margin-right: -.3em; }
+.omft-text { font-size: max(11px, calc(4.4 * var(--uy))); letter-spacing: .1em; line-height: 1.45; white-space: normal; text-wrap: balance; }
 .omft-logo { position: absolute; left: 50%; top: calc(var(--oy) + ${LOGO_TOP} * var(--uy)); width: calc(306 * var(--lx)); height: calc(192 * var(--ly));
   --lx: calc(var(--ux) * ${LOGO_SCALE}); --ly: calc(var(--uy) * ${LOGO_SCALE}); transform-origin: 50% 55%; will-change: transform, opacity; }
 .omft-logo img { position: absolute; display: block; }
-.omft-badge { filter: drop-shadow(0 0 calc(2 * var(--uy)) rgba(0,0,0,.9)); }
-.omft-bolt, .omft-strike { mix-blend-mode: screen; opacity: 0; filter: drop-shadow(0 0 calc(1.5 * var(--uy)) #7fd6ff); }
+.omft-badge { filter: drop-shadow(calc(1.2 * var(--ux)) calc(1.2 * var(--uy)) 0 rgba(0,0,0,.85)); }
+.omft-bolt, .omft-strike { mix-blend-mode: screen; opacity: 0; }
 .omft-digit { opacity: 0; }
 .omft-shine { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen;
   -webkit-mask: url(credits/title/badge.webp) center / 100% 100% no-repeat; mask: url(credits/title/badge.webp) center / 100% 100% no-repeat;
   background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,.75) 50%, transparent 60%) no-repeat; background-size: 250% 100%; }
-.omft-remastered { position: absolute; left: 0; right: 0; top: calc(var(--oy) + 137 * var(--uy)); text-align: center; font-weight: 800;
-  font-size: calc(9.6 * var(--uy)); letter-spacing: .5em; margin-right: -.5em; color: #c6f8ff;
-  text-shadow: 0 0 6px #33e6ff, 0 0 20px #33e6ff, 0 0 46px #2f5bff; }
-.omft-credits { position: absolute; left: 0; right: 0; top: calc(var(--oy) + 160 * var(--uy)); text-align: center; font-weight: 700;
-  font-size: calc(4.4 * var(--uy)); letter-spacing: .9em; margin-right: -.9em; color: #ffd84a; text-shadow: 0 0 14px rgba(255,200,60,.8); }
-.omft-tag { position: absolute; left: 0; right: 0; top: calc(var(--oy) + 172 * var(--uy)); text-align: center; font-weight: 700;
-  font-size: calc(3 * var(--uy)); letter-spacing: .5em; margin-right: -.5em; color: #fff; text-shadow: 0 0 10px #ff3df2, 0 0 26px rgba(255,61,242,.7); }
+.omft-remastered { position: absolute; left: 0; right: 0; top: calc(var(--oy) + 136 * var(--uy)); text-align: center;
+  font-size: calc(10 * var(--uy)); letter-spacing: .42em; margin-right: -.42em; color: #f2f4f7;
+  text-shadow: calc(.8 * var(--ux)) calc(.8 * var(--uy)) 0 #0000f3, calc(1.6 * var(--ux)) calc(1.6 * var(--uy)) 0 #050608; }
+.omft-credits { position: absolute; left: 0; right: 0; top: calc(var(--oy) + 159 * var(--uy)); text-align: center;
+  font-size: calc(7 * var(--uy)); letter-spacing: .5em; margin-right: -.5em; }
+.omft-tag { position: absolute; left: 0; right: 0; top: calc(var(--oy) + 172 * var(--uy)); text-align: center; letter-spacing: .3em;
+  font-size: max(10px, calc(3.6 * var(--uy))); }
 `;
 
 export class TitleCard {
   readonly el: HTMLDivElement;
-  private lines: { el: HTMLDivElement; kicker: HTMLDivElement; letters: HTMLSpanElement[] }[] = [];
+  /** The lines' frame, its year and its line. */
+  private box: HTMLDivElement;
+  private kicker: HTMLDivElement;
+  private text: HTMLDivElement;
   private logo: HTMLDivElement;
   private strike: HTMLImageElement;
   private bolts: HTMLImageElement[];
@@ -90,37 +92,19 @@ export class TitleCard {
   private remastered: HTMLDivElement;
   private credits: HTMLDivElement;
   private tag: HTMLDivElement;
+  private tagText: string;
   private last = -1;
 
   constructor(count: string) {
     const el = (this.el = document.createElement('div'));
     el.className = 'omft';
-    for (const l of LINES) {
-      const line = document.createElement('div');
-      line.className = 'omft-line';
-      const kicker = document.createElement('div');
-      kicker.className = 'omft-kicker';
-      kicker.textContent = l.kicker;
-      const text = document.createElement('div');
-      text.className = 'omft-text';
-      // (letters in words, which wrap as words)
-      const letters: HTMLSpanElement[] = [];
-      l.text.split(' ').forEach((word, w) => {
-        if (w > 0) text.append(' ');
-        const b = document.createElement('b');
-        for (const ch of word) {
-          const s = document.createElement('span');
-          s.textContent = ch;
-          b.appendChild(s);
-          letters.push(s);
-        }
-        text.appendChild(b);
-      });
-      if (l.kicker) line.appendChild(kicker);
-      line.appendChild(text);
-      el.appendChild(line);
-      this.lines.push({ el: line, kicker, letters });
-    }
+    this.box = document.createElement('div');
+    this.box.className = 'omft-box omfg';
+    this.kicker = document.createElement('div');
+    this.kicker.className = 'omft-kicker omfg-b omfg-gold';
+    this.text = document.createElement('div');
+    this.text.className = 'omft-text omfg-s omfg-white';
+    this.box.append(this.kicker, this.text);
     this.logo = document.createElement('div');
     this.logo.className = 'omft-logo';
     this.strike = img('strike', 'omft-strike', STRIKE_AT);
@@ -135,15 +119,14 @@ export class TitleCard {
     this.shine.style.height = badge.style.height;
     this.logo.append(badge, ...this.digits, this.shine, this.strike, ...this.bolts);
     this.remastered = document.createElement('div');
-    this.remastered.className = 'omft-remastered';
-    this.remastered.textContent = 'REMASTERED';
+    this.remastered.className = 'omft-remastered omfg-b';
     this.credits = document.createElement('div');
-    this.credits.className = 'omft-credits';
+    this.credits.className = 'omft-credits omfg-b omfg-green';
     this.credits.textContent = 'THE CREDITS';
     this.tag = document.createElement('div');
-    this.tag.className = 'omft-tag';
-    this.tag.textContent = `${count} FIGHTS  ·  ${count} WINNERS`;
-    el.append(this.logo, this.remastered, this.credits, this.tag);
+    this.tag.className = 'omft-tag omfg-s omfg-gold';
+    this.tagText = `${count} FIGHTS  ·  ${count} WINNERS`;
+    el.append(this.box, this.logo, this.remastered, this.credits, this.tag);
   }
 
   /** A strike's point on the screen (CSS pixels): the middle of its digit. */
@@ -154,33 +137,33 @@ export class TitleCard {
 
   /** Off the screen (outside the title). */
   hide(): void {
-    for (const e of [...this.lines.map((l) => l.el), this.logo, this.remastered, this.credits, this.tag]) e.style.visibility = 'hidden';
+    for (const e of [this.box, this.logo, this.remastered, this.credits, this.tag]) e.style.visibility = 'hidden';
     this.last = -1;
   }
 
   /** The title at song time t (its end at `end`: it leaves in the last moment before). */
   update(t: number, end: number, ev: TitleEvents): void {
     const B = barTime;
-    // The lines: letters coming in one after another over most of a bar, the line leaving over the last half bar.
-    LINES.forEach((l, i) => {
-      const { el, kicker, letters } = this.lines[i];
-      const a = B(l.from), b = Math.min(B(l.to), end);
-      const on = t > a - 0.1 && t < b + 0.1;
-      el.style.visibility = on ? 'visible' : 'hidden';
-      if (!on) return;
-      const out = ramp(t, b - (B(1) - B(0)) * 0.45, b);
-      kicker.style.opacity = (easeOut(ramp(t, a, a + 0.5)) * (1 - out)).toFixed(3);
-      kicker.style.transform = `translateY(${((1 - easeOut(ramp(t, a, a + 0.5))) * 12).toFixed(1)}px)`;
-      const span = (B(1) - B(0)) * 0.85;
-      letters.forEach((s, k) => {
-        const at = a + 0.12 + (k / letters.length) * span;
-        const x = easeOut(ramp(t, at, at + 0.35));
-        s.style.opacity = (x * (1 - out)).toFixed(3);
-        s.style.transform = `translateY(${((1 - x) * 10 - out * 14).toFixed(1)}px)`;
-        s.style.filter = x < 1 || out > 0 ? `blur(${((1 - x) * 6 + out * 8).toFixed(1)}px)` : '';
-      });
-      el.style.letterSpacing = out > 0 ? `${(out * 0.3).toFixed(3)}em` : '';
-    });
+    const BAR = B(1) - B(0);
+    // The lines: the frame wiping open on the first line's bar, each line's year shown and its words typed in over most
+    // of a bar, cleared half a bar before the next; the frame wiping shut on the drop.
+    const first = B(LINES[0].from), last = Math.min(B(LINES[LINES.length - 1].to), end);
+    const boxOn = t > first - 0.02 && t < last;
+    this.box.style.visibility = boxOn ? 'visible' : 'hidden';
+    if (boxOn) {
+      const open = easeOut(ramp(t, first, first + 0.2)), shut = easeIn(ramp(t, last - 0.2, last));
+      this.box.style.clipPath = `inset(0 ${((1 - open) * 100).toFixed(2)}% 0 ${(shut * 100).toFixed(2)}%)`;
+      const line = LINES.find((l) => t >= B(l.from) && t < Math.min(B(l.to), end));
+      this.kicker.style.display = line?.kicker ? '' : 'none';
+      if (line) {
+        const a = B(line.from) + 0.2;
+        this.kicker.textContent = line.kicker;
+        typeInto(this.text, line.text, t, a + (line.kicker ? 0.25 : 0), (BAR * 0.8) / line.text.length, BAR);
+      } else {
+        this.text.textContent = '';
+        this.text.dataset.typed = '';
+      }
+    }
 
     // The logo: struck on the drop, written 2 0 9 7 on the next bar's beats.
     const drop = B(SECTIONS.drop);
@@ -199,25 +182,22 @@ export class TitleCard {
         const d = ramp(t, at + 0.04, at + 0.12);
         const flare = hit(t, at + 0.04, 0.35);
         this.digits[i].style.opacity = d.toFixed(3);
-        this.digits[i].style.filter = `drop-shadow(0 0 ${(4 + flare * 26).toFixed(1)}px rgba(90,220,255,${(0.6 + flare * 0.4).toFixed(2)})) brightness(${(1 + flare * 1.6).toFixed(2)})`;
+        this.digits[i].style.filter = `brightness(${(1 + flare * 1.6).toFixed(2)})`;
       });
       // The shine sweeping over the logo on the bar after.
       const sh = ramp(t, B(SECTIONS.drop + 2), B(SECTIONS.drop + 3));
       this.shine.style.backgroundPosition = `${(130 - sh * 160).toFixed(1)}% 0`;
       this.shine.style.opacity = sh > 0 && sh < 1 ? '1' : '0';
     }
-    // REMASTERED lights up (a neon's flicker), THE CREDITS and the count follow.
-    const neonAt = B(SECTIONS.drop + 2);
-    const n = t - neonAt;
-    const flicker = n < 0 ? 0 : n < 0.08 ? 1 : n < 0.12 ? 0.15 : n < 0.2 ? 1 : n < 0.3 ? 0.45 : 1;
-    this.remastered.style.opacity = (flicker * (1 - leave)).toFixed(3);
-    this.remastered.style.visibility = n > 0 && t < end + 0.05 ? 'visible' : 'hidden';
-    const cr = easeOut(ramp(t, B(SECTIONS.drop + 3), B(SECTIONS.drop + 3) + 0.5));
-    this.credits.style.visibility = this.tag.style.visibility = cr > 0 && t < end + 0.05 ? 'visible' : 'hidden';
-    this.credits.style.opacity = (cr * (1 - leave)).toFixed(3);
-    this.credits.style.transform = `translateY(${((1 - cr) * 16).toFixed(1)}px)`;
-    const tg = easeOut(ramp(t, B(SECTIONS.drop + 3) + 2 * BEAT, B(SECTIONS.drop + 3) + 2 * BEAT + 0.5));
-    this.tag.style.opacity = (tg * (1 - leave)).toFixed(3);
+    // REMASTERED stamped in a letter a sixteenth; THE CREDITS on the next downbeat, the count typed in a beat after it.
+    const stampAt = B(SECTIONS.drop + 2);
+    const on = t < end - 0.05;
+    this.remastered.style.visibility = t >= stampAt && on ? 'visible' : 'hidden';
+    if (t >= stampAt && on) typeInto(this.remastered, 'REMASTERED', t, stampAt, BEAT / 4);
+    const cr = B(SECTIONS.drop + 3);
+    this.credits.style.visibility = t >= cr && on ? 'visible' : 'hidden';
+    this.tag.style.visibility = t >= cr + BEAT && on ? 'visible' : 'hidden';
+    if (t >= cr + BEAT && on) typeInto(this.tag, this.tagText, t, cr + BEAT, 0.02, BEAT * 3);
 
     // The strikes' sparks, once each (not when the time jumped past them).
     const fire = (at: number, f: () => void) => {

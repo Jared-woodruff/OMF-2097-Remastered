@@ -86,8 +86,8 @@ const HOLD_MIN = 0.25;
 /** Seconds after the final blow before the cut (at least, at most): the fall, a finishing move, the credit's card. */
 const AFTER_MIN = 5.2;
 const AFTER_MAX = 8.6;
-/** Bars of the end titles before the cut to the song's ending (at least). */
-const FINALE_MIN_BARS = 12;
+/** Bars of the end titles before the cut to the song's ending (at least): the winners, one a bar. */
+export const FINALE_MIN_BARS = 10;
 /** Seconds after the final hit: the ring-out and the last picture, then the picture switches off. */
 const END_HOLD = 5.6;
 const SWITCH_OFF = 0.9;

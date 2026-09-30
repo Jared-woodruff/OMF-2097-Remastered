@@ -1210,8 +1210,11 @@ export class ArenaScene extends Scene implements ArenaLike {
     this.playerHar[0].draw(4, 25);
     this.playerName[1].draw(161, 18);
     this.playerHar[1].draw(161, 25);
-    gs.getPlayer(0).score.render(gs.getPlayer(0).selectable);
-    gs.getPlayer(1).score.render(gs.getPlayer(1).selectable);
+    // (after a credits fight's knockout its credit's card has the top of the screen: the bonuses are not drawn under it)
+    if (!(gs.credits && this.state === ARENA_STATE_ENDING)) {
+      gs.getPlayer(0).score.render(gs.getPlayer(0).selectable);
+      gs.getPlayer(1).score.render(gs.getPlayer(1).selectable);
+    }
     if (this.trnText && !this.menuVisible) this.trnText.draw(0, 191);
     const run = gs.modeRun;
     if (run && this.runText) {

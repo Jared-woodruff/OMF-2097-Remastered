@@ -1,11 +1,13 @@
 // The remaster's credits as fights (EXTRAS > CREDITS): every credit pilots a robot in its own colors and wins its fight
-// against something the remaster had to beat. The fights are quick and brutal: the game's own computer fights at its
-// top level, in HYPER mode, sped up, the blows heavy. They are set up the same way every time (seeds, a single round,
-// player 1 hitting harder, the match rules' defaults), so the credit on the left always wins, and every fight takes the
-// same number of game ticks to its final blow: the credits let each arena go at the moment that lands the blow on the
-// beat of their song (creditsRun.ts). A test checks every fight, its winner and its ticks
-// (src/test/creditsBattles.test.ts). The robots and the arenas are the original game's, the robots painted in the
-// credits' colors. creditsView.ts shows the cards.
+// against something the remaster had to beat. The fights are real ones: the game's own computer on both sides at its
+// top level, at the game's normal speed, both robots as strong, and they go back and forth: the seeds were picked from
+// many (src/gen/dev/creditsSeeds.test.ts) for fights where both sides land hits and knock each other down, the lead
+// changes hands, and the credit wins it in the end, most of them with a finishing move. They are set up the same way
+// every time (the seeds, a single round, the match rules' defaults), so the credit on the left always wins, and every
+// fight takes the same number of game ticks to its final blow: the credits let each arena go at the moment that lands
+// the blow on the beat of their song (creditsRun.ts). A test checks every fight, its winner and its ticks
+// (src/test/creditsBattles.test.ts). The robots and the arenas are the original game's (the robots with the best HD
+// artwork), painted in the credits' colors. creditsView.ts shows the cards.
 import type { Pilot } from '../../formats/pilot';
 import { AiDifficulty, HarId, PILOT_INFO } from '../constants';
 import type { GameState } from '../gameState';
@@ -42,7 +44,7 @@ export interface CreditBattle {
   arena: number;
   seed: number;
   /**
-   * The game's ticks (dynamic ticks, 20 ms each at the credits' speed) from the arena's opening to the final blow, and
+   * The game's ticks (dynamic ticks, 28 ms each at the credits' speed) from the arena's opening to the final blow, and
    * to the end of its aftermath (the fall, a finishing move, the victory pose and the score): measured, and checked by
    * the test.
    */
@@ -57,56 +59,56 @@ export const CREDIT_BATTLES: CreditBattle[] = [
     role: 'HUMAN CODER', title: 'JARED WOODRUFF', detail: 'The idea, the direction and every call along the way', accent: '#6f9be0',
     emblem: 'avatar', link: { href: 'https://github.com/Jared-woodruff', label: 'github.com/Jared-woodruff' },
     winner: { name: 'JARED WOODRUFF', line2: 'HUMAN CODER', har: HAR.JAGUAR, colors: ['#2f5d9e', '#c9d6ea', '#e0b070'] },
-    loser: { name: 'TECH DEBT', line2: 'GARGOYLE', har: HAR.GARGOYLE, colors: ['#6e5a4a', '#8a4a2c', '#3c3530'] },
-    arena: 0, seed: 16, blow: 460, done: 739,
+    loser: { name: 'TECH DEBT', line2: 'THORN', har: HAR.THORN, colors: ['#6e5a4a', '#8a4a2c', '#3c3530'] },
+    arena: 0, seed: 14, blow: 820, done: 1132,
   },
   {
     role: 'AI CODER', title: 'CLAUDE OPUS 5.5', detail: 'Max Mode. Wrote the engine, the renderer, the new robots and this screen', accent: '#d97757',
     emblem: 'chip',
     winner: { name: 'CLAUDE OPUS 5.5', line2: 'AI CODER', har: HAR.KATANA, colors: ['#d97757', '#f4efe6', '#3d2b24'] },
-    loser: { name: 'SPAGHETTI CODE', line2: 'FLAIL', har: HAR.FLAIL, colors: ['#c0392b', '#f2c94c', '#7a2a1d'] },
-    arena: 2, seed: 1, blow: 464, done: 773,
+    loser: { name: 'SPAGHETTI CODE', line2: 'PYROS', har: HAR.PYROS, colors: ['#c0392b', '#f2c94c', '#7a2a1d'] },
+    arena: 2, seed: 51, blow: 844, done: 1119,
   },
   {
     role: 'AI IMAGE RENDERING', title: 'OPENAI GPT6-ASTRA', detail: 'Ultra Mode. Redrew 3,200 images of the original in HD', accent: '#10a37f',
     emblem: 'prism',
     winner: { name: 'OPENAI GPT6-ASTRA', line2: 'AI IMAGE RENDERING', har: HAR.SHADOW, colors: ['#2a2a2a', '#f2f2f2', '#10a37f'] },
-    loser: { name: 'PIXEL NOISE', line2: 'THORN', har: HAR.THORN, colors: ['#c2185b', '#00bcd4', '#fdd835'] },
-    arena: 4, seed: 23, blow: 410, done: 683,
+    loser: { name: 'PIXEL NOISE', line2: 'NOVA', har: HAR.NOVA, colors: ['#c2185b', '#00bcd4', '#fdd835'] },
+    arena: 4, seed: 32, blow: 643, done: 914,
   },
   {
     role: 'THE ANNOUNCERS', title: 'ELEVENLABS', detail: 'Victor and Kristen, performed with Eleven v4', accent: '#e8e8e8',
     emblem: 'wave',
     winner: { name: 'ELEVENLABS', line2: 'VICTOR & KRISTEN', har: HAR.PYROS, colors: ['#1c1c1c', '#f5f5f5', '#8a8a8a'] },
-    loser: { name: 'DEAD AIR', line2: 'GARGOYLE', har: HAR.GARGOYLE, colors: ['#6b6a3a', '#a39a5a', '#3d3c22'] },
-    arena: 3, seed: 22, blow: 433, done: 649,
+    loser: { name: 'DEAD AIR', line2: 'JAGUAR', har: HAR.JAGUAR, colors: ['#6b6a3a', '#a39a5a', '#3d3c22'] },
+    arena: 3, seed: 32, blow: 799, done: 1058,
   },
   {
     role: "THE CREDITS' SONG", title: 'HADAL STATIC', detail: '"Twenty Ninety-Seven (Remix)", the song playing now', accent: '#e83e8c',
     emblem: 'cover', link: { href: 'https://www.hadalstatic.com/releases/twenty-ninety-seven/', label: 'hadalstatic.com' },
-    winner: { name: 'HADAL STATIC', line2: 'TWENTY NINETY-SEVEN', har: HAR.ELECTRA, colors: ['#b8bec8', '#e83e8c', '#3db5f5'] },
+    winner: { name: 'HADAL STATIC', line2: 'TWENTY NINETY-SEVEN', har: HAR.CHRONOS, colors: ['#b8bec8', '#e83e8c', '#3db5f5'] },
     loser: { name: 'SILENCE', line2: 'KATANA', har: HAR.KATANA, colors: ['#9a9a9a', '#cfcfcf', '#6a6a6a'] },
-    arena: 0, seed: 14, blow: 448, done: 761,
+    arena: 0, seed: 42, blow: 714, done: 1000,
   },
   {
     role: 'REVERSE ENGINEERING', title: 'OPENOMF', detail: 'The open-source project whose research this port follows', accent: '#ffff55',
     emblem: 'code',
-    winner: { name: 'OPENOMF', line2: 'OPEN SOURCE', har: HAR.SHREDDER, colors: ['#2255aa', '#aaaaaa', '#ffff55'] },
+    winner: { name: 'OPENOMF', line2: 'OPEN SOURCE', har: HAR.THORN, colors: ['#2255aa', '#aaaaaa', '#ffff55'] },
     loser: { name: 'BLACK BOX', line2: 'SHADOW', har: HAR.SHADOW, colors: ['#262626', '#e07a1f', '#3a3a3a'] },
-    arena: 1, seed: 19, blow: 438, done: 820,
+    arena: 1, seed: 12, blow: 640, done: 1082,
   },
   {
     role: 'THE ORIGINAL GAME', title: 'DIVERSIONS ENTERTAINMENT', detail: 'One Must Fall 2097, 1994. Published by Epic MegaGames', accent: '#f0a030',
     emblem: 'disk',
     winner: { name: 'DIVERSIONS ENTMT', line2: 'ONE MUST FALL 1994', har: HAR.NOVA, pilotColors: 10 },
     loser: { name: 'TIME', line2: 'CHRONOS', har: HAR.CHRONOS, colors: ['#8a6d46', '#c9ae82', '#4a3b28'] },
-    arena: 3, seed: 32, blow: 436, done: 858,
+    arena: 3, seed: 45, blow: 632, done: 1018,
   },
 ];
 
 /** How the credits' fights are fought (the same whatever the player's settings). */
 export interface CreditsRules {
-  /** Player 1's and player 2's POWER (1..8): each sets how much the other robot can take; the credit hits harder. */
+  /** Player 1's and player 2's POWER (1..8): each sets how much the other robot can take. */
   power: [number, number];
   /** The computer's skill, on both sides (AiDifficulty). */
   ai: number;
@@ -116,16 +118,19 @@ export interface CreditsRules {
   hyper: boolean;
 }
 
-/** Quick and brutal: ULTIMATE against ULTIMATE in HYPER mode, at SPEED 7, the blows heavy. */
-export const CREDITS_RULES: CreditsRules = { power: [8, 6], ai: AiDifficulty.ULTIMATE, speed: 12, hyper: true };
-/** Game ticks (20 ms at that speed): the round starts once the VS card has had its moment (the arena's usual 30)... */
-export const CREDITS_READY_TICK = 95;
+/**
+ * Even fights at the game's own pace: ULTIMATE against ULTIMATE at the normal speed (SPEED 5), both robots as strong,
+ * no HYPER moves; the seeds pick fights that go back and forth (src/gen/dev/creditsSeeds.test.ts).
+ */
+export const CREDITS_RULES: CreditsRules = { power: [6, 6], ai: AiDifficulty.ULTIMATE, speed: 10, hyper: false };
+/** Game ticks (28 ms at that speed): the round starts as the VS card leaves (the arena's usual 30)... */
+export const CREDITS_READY_TICK = 64;
 /** ...and a won fight never ends by itself (the usual 80): the credits cut away from it on the music... */
 export const CREDITS_END_TICKS = 100_000;
 /** ...while a fight played on its own (the seed search, src/gen/dev) lingers on its winner, then fades out. */
 export const CREDITS_OWN_END_TICKS = 210;
 /** Milliseconds per game tick at the credits' speed. */
-export const CREDITS_TICK_MS = 20;
+export const CREDITS_TICK_MS = 28;
 
 /** A 16-shade ramp of a color, like the game's own: dark, the pure color at shade 9, then highlights. */
 export function colorRamp(hex: string): [number, number, number][] {

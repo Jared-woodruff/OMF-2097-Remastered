@@ -1,14 +1,17 @@
-// The credits' end titles, over the city at dawn (stage.ts), on the song: first THE WINNERS, the seven credits landing one
-// a bar, each with a picture of its fight's winner taken at the fight (creditsRun.ts rendered()); then, cut to the song's
-// last chorus (song.ts), the rest a phrase at a time (the original game, the music, what the remaster is built with,
-// thanks, the fine print) while the camera comes down to the statue; on the song's final hit the spotlight, the logo and
-// THANKS FOR PLAYING. Worked out from the song's position each frame (update).
+// The credits' end titles, over the city at dawn (stage.ts), on the song, in the game's look (look.ts): first THE
+// WINNERS, the seven credits drawn in one a bar, each with a picture of its fight's winner taken at the fight
+// (creditsRun.ts rendered()); then, from the song's last sixteen bars (song.ts ENDING_BAR), the rest a phrase at a time
+// in menu frames wiping open and shut (the original game, the music, what the remaster is built with, thanks, the fine
+// print) while the camera comes down to the statue; on the song's final hit the spotlight, the logo and THANKS FOR
+// PLAYING typing in. Worked out from the song's position each frame (update).
 import placements from '../../../public/credits/title/title.json';
+import { UI_FONT } from '../../platform/uiFont';
 import { APP_VERSION } from '../../platform/versionLabel';
 import { CREDIT_BATTLES, type CreditBattle } from './battles';
 import type { FinaleTimes } from './creditsRun';
 import { barAt, barTime, BEAT, ENDING_BAR } from './song';
-import { clamp01, easeIn, easeOut, easeOutBack, hit, ramp, window01 } from './motion';
+import { typeInto } from './look';
+import { clamp01, easeIn, easeOut, easeOutBack, hit, ramp } from './motion';
 
 /** The projects and tools the remaster builds on. */
 const BUILT_WITH: [string, string][] = [
@@ -34,7 +37,7 @@ const PARTS: { from: number; to: number; html: (links: boolean) => string }[] = 
       <p class="omff-dim">The original soundtrack plays through the game's own music engine</p>`,
   },
   {
-    from: 4, to: 7, html: () => `<h3>BUILT WITH</h3><div class="omff-grid">${BUILT_WITH.map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('')}</div>`,
+    from: 4, to: 7, html: () => `<h3>BUILT WITH</h3><div class="omff-grid">${BUILT_WITH.map(([n, l]) => `<div><b class="omfg-s omfg-white">${n}</b><span class="omfg-s omfg-dim">${l}</span></div>`).join('')}</div>`,
   },
   {
     from: 7, to: 9, html: () => `<h3>THANK YOU</h3><p class="omff-thanks">The OpenOMF project, for its years of research</p>
@@ -54,54 +57,50 @@ export const DESCEND_TO = 14;
 export const FINALE_CSS = `
 .omff { position: absolute; inset: 0; pointer-events: none; }
 .omff-gallery, .omff-part, .omff-last { visibility: hidden; }
-.omff a { pointer-events: auto; color: #9fe9ff; text-decoration: none; border-bottom: 1px solid rgba(159,233,255,.5); }
-.omff-gallery { position: absolute; left: 0; right: 0; top: calc(var(--oy) + 6 * var(--uy)); display: flex; flex-direction: column;
-  align-items: center; will-change: transform, opacity; }
-.omff h2, .omff h3 { margin: 0; font-weight: 800; letter-spacing: .55em; margin-right: -.55em; color: #ffd84a;
-  text-shadow: 0 0 16px rgba(255,190,60,.75), 0 2px 3px rgba(0,0,0,.8); }
-.omff h2 { font-size: calc(5.4 * var(--uy)); margin-bottom: calc(4.5 * var(--uy)); }
-.omff-cards { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(4 * var(--uy)) calc(5 * var(--ux));
-  width: calc(4 * 72 * var(--ux) + 3 * 5 * var(--ux)); }
-.omff-card { margin: 0; width: calc(72 * var(--ux)); will-change: transform, opacity, filter; }
-.omff-photo { position: relative; aspect-ratio: 3 / 2; border-radius: calc(1.2 * var(--ux)); overflow: hidden;
-  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--c) 45%, #0a0c1a), #05060d);
-  box-shadow: 0 0 0 calc(.5 * var(--ux)) color-mix(in srgb, var(--c) 80%, #fff), 0 0 calc(5 * var(--ux)) color-mix(in srgb, var(--c) 55%, transparent),
-    0 calc(2 * var(--uy)) calc(5 * var(--uy)) rgba(0,0,0,.6); }
+.omff a { pointer-events: auto; color: #9fd0ff; text-decoration: none; }
+.omff a:hover { color: #ffc840; text-decoration: underline; }
+.omff-gallery { position: absolute; left: 0; right: 0; top: calc(var(--oy) + 8 * var(--uy)); display: flex; flex-direction: column;
+  align-items: center; will-change: clip-path; }
+.omff-gallery h2 { margin: 0 0 calc(6 * var(--uy)); font-size: calc(7 * var(--uy)); letter-spacing: .4em; margin-right: -.4em; }
+.omff-cards { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(5 * var(--uy)) calc(6 * var(--ux));
+  width: calc(4 * 70 * var(--ux) + 3 * 6 * var(--ux)); }
+.omff-card { margin: 0; width: calc(70 * var(--ux)); visibility: hidden; }
+.omff-photo { position: relative; aspect-ratio: 3 / 2; overflow: hidden; background: #000; box-shadow: 0 0 0 var(--gb) var(--g-edge);
+  will-change: clip-path; }
 .omff-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.omff-photo .omff-em { position: absolute; left: 50%; top: 50%; width: 40%; transform: translate(-50%, -50%); color: var(--c); }
-.omff-card figcaption { margin-top: calc(1.6 * var(--uy)); text-align: center; }
-.omff-card b { display: block; font-weight: 700; font-size: calc(2.8 * var(--uy)); letter-spacing: .28em; margin-right: -.28em;
-  color: color-mix(in srgb, var(--c) 55%, #fff); text-shadow: 0 1px 2px #000; }
-.omff-card span { display: block; margin-top: .35em; font-weight: 900; font-size: calc(4.1 * var(--uy)); letter-spacing: .04em;
-  color: #fff; text-shadow: 0 0 12px color-mix(in srgb, var(--c) 80%, transparent), 0 2px 3px #000; white-space: nowrap; }
-.omff-part { position: absolute; left: 6vw; right: 6vw; top: calc(var(--oy) + 22 * var(--uy)); display: flex; flex-direction: column;
-  align-items: center; text-align: center; will-change: transform, opacity, filter; }
-.omff-part h3 { font-size: calc(5.4 * var(--uy)); margin-bottom: calc(4.5 * var(--uy)); }
-.omff-big { font-weight: 900; font-size: calc(13 * var(--uy)); letter-spacing: .05em; line-height: 1.05; color: #fff; margin-bottom: calc(2.5 * var(--uy));
-  text-shadow: 0 0 22px rgba(255,150,90,.7), 0 4px 0 rgba(40,10,20,.6), 0 3px 8px rgba(0,0,0,.7); }
-.omff-part p { margin: .45em 0; font-weight: 600; font-size: calc(4.3 * var(--uy)); letter-spacing: .05em; color: #fff4ea;
-  text-shadow: 0 2px 4px rgba(0,0,0,.85), 0 0 18px rgba(0,0,0,.6); max-width: 60em; }
-.omff-part .omff-dim { color: #f2e4ff; font-size: calc(3.4 * var(--uy)); }
-.omff-part .omff-thanks { font-size: calc(5.6 * var(--uy)); font-weight: 700; }
-.omff-part .omff-fine { font-size: calc(3.5 * var(--uy)); line-height: 1.6; font-weight: 500; }
+.omff-photo .omff-em { position: absolute; left: 50%; top: 50%; width: 40%; transform: translate(-50%, -50%); }
+.omff-photo .omfc-em { box-shadow: none; background: none; }
+.omff-card figcaption { margin-top: calc(2.2 * var(--uy)); padding: calc(1.6 * var(--uy)) calc(1.5 * var(--ux)); text-align: center; }
+.omff-card figcaption .omfg-s { display: block; font-size: max(8px, calc(2.6 * var(--uy))); letter-spacing: .06em; overflow: hidden;
+  text-overflow: clip; }
+.omff-part { position: absolute; left: calc(var(--ox) + 24 * var(--ux)); width: calc(272 * var(--ux)); top: calc(var(--oy) + 14 * var(--uy));
+  padding: calc(7 * var(--uy)) calc(11 * var(--ux)) calc(6 * var(--uy)); display: flex; flex-direction: column; align-items: center;
+  text-align: center; will-change: clip-path; }
+.omff-part h3 { margin: 0 0 calc(4 * var(--uy)); font: 900 calc(6 * var(--uy)) / 1.1 ${UI_FONT}; letter-spacing: .4em; margin-right: -.4em;
+  color: #00ff00; text-shadow: calc(.8 * var(--ux)) calc(.8 * var(--uy)) 0 #005800; }
+.omff-big { margin-bottom: calc(3 * var(--uy)); font: 900 calc(9.5 * var(--uy)) / 1.1 ${UI_FONT}; letter-spacing: .06em; color: #ffff00;
+  text-shadow: calc(.9 * var(--ux)) calc(.9 * var(--uy)) 0 #3a3a00; white-space: nowrap; }
+.omff-part p { margin: .35em 0; font: 500 max(12px, calc(3.4 * var(--uy))) / 1.6 ${UI_FONT}; letter-spacing: .02em; color: #dde2ec;
+  text-shadow: calc(.45 * var(--ux)) calc(.45 * var(--uy)) 0 #050608; max-width: 60em; }
+.omff-part .omff-dim { color: #aab2bd; font-size: max(11px, calc(3 * var(--uy))); }
+.omff-part .omff-thanks { font-weight: 700; font-size: max(13px, calc(4.2 * var(--uy))); color: #f2f4f7; }
+.omff-part .omff-fine { font-size: max(11px, calc(3.1 * var(--uy))); line-height: 1.7; }
+.omff-part .omff-fine b { color: #ffc840; font-weight: 700; }
 .omff-nb { white-space: nowrap; }
-.omff-grid { display: grid; grid-template-columns: repeat(2, minmax(0, calc(112 * var(--ux)))); gap: calc(2.8 * var(--uy)) calc(12 * var(--ux)); text-align: left; }
-.omff-grid div { display: flex; flex-direction: column; gap: .3em; padding-left: calc(2 * var(--ux)); border-left: calc(.6 * var(--ux)) solid #ffb35c; }
-.omff-grid b { font-weight: 800; font-size: calc(4.1 * var(--uy)); color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,.85); }
-.omff-grid span { font-weight: 600; font-size: calc(3.1 * var(--uy)); letter-spacing: .08em; color: #ffe0c2; text-shadow: 0 2px 3px rgba(0,0,0,.85); }
+.omff-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: calc(2.8 * var(--uy)) calc(12 * var(--ux)); width: 100%;
+  text-align: left; }
+.omff-grid div { display: flex; flex-direction: column; gap: .2em; }
+.omff-grid b { font-size: max(10px, calc(3.2 * var(--uy))); }
+.omff-grid span { font-size: max(9px, calc(2.6 * var(--uy))); letter-spacing: .1em; }
 .omff-last { position: absolute; inset: 0; }
 .omff-logo { position: absolute; left: calc(var(--ox) + 214 * var(--ux)); top: calc(var(--oy) + 16 * var(--uy)); width: calc(306 * var(--lx));
   height: calc(192 * var(--ly)); --lx: calc(var(--ux) * .52); --ly: calc(var(--uy) * .52); transform: translateX(-50%); transform-origin: 50% 50%; }
 .omff-logo img { position: absolute; display: block; }
-.omff-logo .omff-badge { filter: drop-shadow(0 0 calc(3 * var(--uy)) rgba(0,0,0,.85)); }
-.omff-logo .omff-digit { filter: drop-shadow(0 0 8px rgba(90,220,255,.8)); }
+.omff-logo .omff-badge { filter: drop-shadow(calc(1.2 * var(--ux)) calc(1.2 * var(--uy)) 0 rgba(0,0,0,.85)); }
 .omff-end { position: absolute; left: calc(var(--ox) + 214 * var(--ux)); top: calc(var(--oy) + 122 * var(--uy)); transform: translateX(-50%);
   text-align: center; white-space: nowrap; }
-.omff-end b { display: block; font-weight: 900; font-size: calc(8.2 * var(--uy)); letter-spacing: .1em; margin-right: -.1em; line-height: 1.1;
-  background: linear-gradient(180deg, #ffffff 10%, #ffd84a 55%, #ff7a3d 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
-  filter: drop-shadow(0 0 20px rgba(255,160,60,.6)) drop-shadow(0 3px 2px rgba(0,0,0,.7)); }
-.omff-end span { display: block; margin-top: calc(3 * var(--uy)); font-weight: 700; font-size: calc(2.6 * var(--uy)); letter-spacing: .5em;
-  margin-right: -.5em; color: #ffe9d6; text-shadow: 0 2px 3px rgba(0,0,0,.9); }
+.omff-end b { display: block; font-size: calc(8 * var(--uy)); letter-spacing: .1em; margin-right: -.1em; }
+.omff-end span { display: block; margin-top: calc(3 * var(--uy)); letter-spacing: .3em; margin-right: -.3em; }
 `;
 
 function esc(s: string): string {
@@ -123,12 +122,15 @@ export interface FinaleEvents {
 export class FinaleRoll {
   readonly el: HTMLDivElement;
   private gallery: HTMLDivElement;
+  private heading: HTMLElement;
   private cards: HTMLElement[];
   private photos: HTMLDivElement[];
   private parts: HTMLDivElement[];
   private last: HTMLDivElement;
   private logo: HTMLDivElement;
   private end: HTMLDivElement;
+  private thanks: HTMLElement;
+  private version: HTMLElement;
   private prev = -1;
 
   constructor(links: boolean, emblem: (b: CreditBattle) => string) {
@@ -136,14 +138,15 @@ export class FinaleRoll {
     el.className = 'omff';
     this.gallery = document.createElement('div');
     this.gallery.className = 'omff-gallery';
-    this.gallery.innerHTML = `<h2>THE WINNERS</h2><div class="omff-cards">${CREDIT_BATTLES.map((b) => `<figure class="omff-card"
-      style="--c: ${b.accent}"><div class="omff-photo"><div class="omff-em">${emblem(b)}</div></div><figcaption><b>${esc(b.role)}</b>
-      <span>${esc(b.title)}</span></figcaption></figure>`).join('')}</div>`;
+    this.gallery.innerHTML = `<h2 class="omfg-b omfg-green">THE WINNERS</h2><div class="omff-cards">${CREDIT_BATTLES.map((b) => `<figure class="omff-card"
+      style="--c: ${b.accent}"><div class="omff-photo"><div class="omff-em">${emblem(b)}</div></div><figcaption class="omfg">
+      <b class="omfg-s omfg-gold">${esc(b.role)}</b><span class="omfg-s omfg-white">${esc(b.title)}</span></figcaption></figure>`).join('')}</div>`;
+    this.heading = this.gallery.querySelector('h2')!;
     this.cards = [...this.gallery.querySelectorAll<HTMLElement>('.omff-card')];
     this.photos = [...this.gallery.querySelectorAll<HTMLDivElement>('.omff-photo')];
     this.parts = PARTS.map((p) => {
       const d = document.createElement('div');
-      d.className = 'omff-part';
+      d.className = 'omff-part omfg';
       d.innerHTML = p.html(links);
       return d;
     });
@@ -155,7 +158,9 @@ export class FinaleRoll {
       ([['digit2', 102], ['digit0', 129], ['digit9', 157], ['digit7', 185]] as [Placed, number][]).map(([n, x]) => logoImg(n, 'omff-digit', x, 113)).join('');
     this.end = document.createElement('div');
     this.end.className = 'omff-end';
-    this.end.innerHTML = `<b>THANKS FOR PLAYING</b><span>ONE MUST FALL 2097 REMASTERED · V${esc(APP_VERSION)}</span>`;
+    this.end.innerHTML = `<b class="omfg-b omfg-yellow"></b><span class="omfg-s omfg-grey"></span>`;
+    this.thanks = this.end.querySelector('b')!;
+    this.version = this.end.querySelector('span')!;
     this.last.append(this.logo, this.end);
     el.append(this.gallery, ...this.parts, this.last);
   }
@@ -176,42 +181,37 @@ export class FinaleRoll {
     this.el.style.display = '';
     const E0 = barTime(ENDING_BAR);
     const post = f.jumped && t >= E0 - 0.3;
-    // Before the cut: the winners, one a bar (faster when the cut comes sooner), leaving on the cut's last two beats.
+    // Before the cut: the winners, one a bar (faster when the cut comes sooner), each picture drawn down from the top
+    // and its caption under it; the whole wiping away over the cut's last two beats.
     const g0 = barAt(f.start);
     const room = Math.max(1, barAt(f.jump) - g0 - 1.5);
     const every = Math.min(1, room / (this.cards.length + 1));
-    const out = post ? 1 : ramp(t, f.jump - 2 * BEAT, f.jump - 0.05);
-    const galleryOn = !post && t > f.start - 0.1;
+    const out = post ? 1 : easeIn(ramp(t, f.jump - 2 * BEAT, f.jump - 0.05));
+    const galleryOn = !post && t > f.start - 0.1 && out < 1;
     this.gallery.style.visibility = galleryOn ? 'visible' : 'hidden';
     if (galleryOn) {
-      const title = easeOut(ramp(t, barTime(g0 + 0.25), barTime(g0 + 0.25) + 0.5));
-      (this.gallery.firstElementChild as HTMLElement).style.opacity = title.toFixed(3);
-      this.gallery.style.opacity = (1 - easeIn(out)).toFixed(3);
-      this.gallery.style.transform = `translateY(${(-easeIn(out) * 60).toFixed(1)}px) scale(${(1 + easeIn(out) * 0.08).toFixed(4)})`;
+      this.heading.style.visibility = t >= barTime(g0 + 0.25) ? 'inherit' : 'hidden';
+      if (t >= barTime(g0 + 0.25)) typeInto(this.heading, 'THE WINNERS', t, barTime(g0 + 0.25), BEAT / 4);
+      this.gallery.style.clipPath = `inset(0 0 0 ${(out * 100).toFixed(2)}%)`;
       this.cards.forEach((card, i) => {
         const at = barTime(g0 + 1 + i * every);
-        const x = ramp(t, at - 0.05, at + 0.45);
-        const s = easeOutBack(x, 1.5);
-        const develop = ramp(t, at, at + 1.1);
-        card.style.opacity = clamp01(x * 4).toFixed(3);
-        card.style.transform = `translateY(${((1 - s) * -40).toFixed(1)}px) rotate(${((1 - s) * (i % 2 ? 4 : -4)).toFixed(2)}deg) scale(${(0.8 + 0.2 * s).toFixed(4)})`;
-        card.style.filter = develop < 1 ? `brightness(${(1 + (1 - develop) * 2.2).toFixed(3)}) saturate(${(develop).toFixed(3)})` : '';
+        const x = ramp(t, at, at + 0.35);
+        card.style.visibility = t >= at ? 'inherit' : 'hidden';
+        this.photos[i].style.clipPath = `inset(0 0 ${((1 - x) * 100).toFixed(1)}% 0)`;
+        (card.lastElementChild as HTMLElement).style.visibility = x >= 1 ? 'inherit' : 'hidden';
       });
     }
-    // After the cut: the parts, a phrase each, drifting up.
+    // After the cut: the parts, a phrase each, their frames wiping open and shut.
     this.parts.forEach((el, i) => {
       const p = PARTS[i];
       const a = barTime(ENDING_BAR + p.from), b = barTime(ENDING_BAR + p.to);
-      const on = post && t > a - 0.1 && t < b + 0.1;
+      const on = post && t > a - 0.02 && t < b;
       el.style.visibility = on ? 'visible' : 'hidden';
       if (!on) return;
-      const v = window01(t, a, b, 0.45, 0.4);
-      const rise = ramp(t, a, b);
-      el.style.opacity = v.toFixed(3);
-      el.style.transform = `translateY(${((1 - easeOut(ramp(t, a, a + 0.6))) * 30 - rise * 26).toFixed(1)}px)`;
-      el.style.filter = v < 1 ? `blur(${((1 - v) * 6).toFixed(1)}px)` : '';
+      const open = easeOut(ramp(t, a, a + 0.22)), shut = easeIn(ramp(t, b - 0.24, b - 0.02));
+      el.style.clipPath = `inset(0 ${((1 - open) * 100).toFixed(2)}% 0 ${(shut * 100).toFixed(2)}%)`;
     });
-    // The final hit: the logo struck in, THANKS FOR PLAYING.
+    // The final hit: the logo struck in, THANKS FOR PLAYING typing in a beat later.
     const H = f.hit;
     const lastOn = post && t > H - 0.05;
     this.last.style.visibility = lastOn ? 'visible' : 'hidden';
@@ -220,9 +220,9 @@ export class FinaleRoll {
       this.logo.style.opacity = clamp01((t - H + 0.02) / 0.06).toFixed(3);
       this.logo.style.transform = `translateX(-50%) scale(${(1.5 - 0.5 * s).toFixed(4)})`;
       this.logo.style.filter = `brightness(${(1 + hit(t, H, 0.25) * 2).toFixed(3)})`;
-      const e = easeOut(ramp(t, H + BEAT, H + BEAT + 0.7));
-      this.end.style.opacity = e.toFixed(3);
-      this.end.style.transform = `translateX(-50%) translateY(${((1 - e) * 20).toFixed(1)}px)`;
+      typeInto(this.thanks, 'THANKS FOR PLAYING', t, H + BEAT, BEAT / 4, 4);
+      const v = `ONE MUST FALL 2097 REMASTERED · V${APP_VERSION}`;
+      typeInto(this.version, v, t, H + BEAT + 18 * (BEAT / 4) + 0.2, 0.025);
     }
     if (this.prev < H && t >= H && t - H < 0.3 && post) ev.finalHit();
     this.prev = t;

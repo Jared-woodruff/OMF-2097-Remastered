@@ -1,16 +1,18 @@
 // The remaster's credits on screen (EXTRAS > CREDITS, run by creditsRun.ts): HTML over the game, sharp at any resolution,
-// every picture worked out from the song's position each frame (the show's timetable, see CreditsShow), so that it all
-// lands on the music. The title (titleCard.ts) and the end titles (finaleRoll.ts) play over the main menu's painted city
-// (stage.ts), at night and at dawn. Over each fight: a cover sweeping across on the downbeat that ends the fight before,
-// the VS card slamming on a downbeat as the cover leaves, the game's picture punching on the downbeats, a flash on the
-// final blow (on its beat), then the credit's card with its WINS stamp; a now playing chip and the controls throughout.
-// Leaving, the picture switches off like an old TV.
+// in the game's own look (look.ts: its menu frames, the VS screen's box and colors, its typeface and hard shadows, text
+// typing in), every picture worked out from the song's position each frame (the show's timetable, see CreditsShow), so
+// that it all lands on the music. The title (titleCard.ts) and the end titles (finaleRoll.ts) play over the main menu's
+// painted city (stage.ts), at night and at dawn. Over each fight: a menu frame wiping across on the downbeat that ends
+// the fight before, naming the credit that comes next; the VS card, in the VS screen's colors, slamming on a downbeat as
+// the frame wipes on; after the final blow (on its beat) the credit's card, its name typing in, and its WINS stamp; a now
+// playing box and the controls throughout. Leaving, the picture switches off like an old TV.
 import type { Track } from '../../audio/audio';
 import { ensureUiFont, UI_FONT } from '../../platform/uiFont';
 import { CREDIT_BATTLES, type CreditBattle, type CreditEmblem } from './battles';
 import type { CreditsShow, FightTimes } from './creditsRun';
 import { FINALE_CSS, FinaleRoll, finaleLook } from './finaleRoll';
-import { beatPulse, clamp01, easeIn, easeOut, easeOutBack, hit, ramp, window01 } from './motion';
+import { LOOK_CSS, typeInto } from './look';
+import { easeIn, easeOut, hit, ramp } from './motion';
 import { barTime, BEAT, ENDING_BAR, nextBar, SECTIONS } from './song';
 import { Stage, type StageLook } from './stage';
 import { TITLE_CSS, TitleCard } from './titleCard';
@@ -42,38 +44,41 @@ export interface CreditsView {
 
 const AVATAR = 'credits/jared-woodruff.jpg';
 const SONG_COVER = 'credits/twenty-ninety-seven.jpg';
-const CHIP_BARS = 5;
-/** Seconds the controls and the hint stay up after the last input. */
+/** The now playing box's meter: columns, and lights in each. */
+const EQ_BANDS = 5;
+const EQ_LIGHTS = 5;
+/** Seconds the controls stay up after the last input. */
 const QUIET_AFTER = 4;
 const NUMBERS = ['ZERO', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN'];
+/** Seconds a letter: the names (a sixteenth note), the lines under them. */
+const TYPE_NAME = BEAT / 4;
+const TYPE_LINE = 0.024;
 
 /** The credits' emblems (in the credit's color, currentColor). */
 const EMBLEMS: Record<Exclude<CreditEmblem, 'avatar' | 'cover'>, string> = {
-  chip: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true">
-<path d="M36 26V12M50 26V6M64 26V12M36 74v14M50 74v20M64 74v14M26 36H12M26 50H6M26 64H12M74 36h14M74 50h20M74 64h14" stroke-width="3"/>
-<rect x="26" y="26" width="48" height="48" rx="9" stroke-width="3" fill="rgba(0,0,0,.4)"/>
-<g fill="currentColor" stroke="none"><circle cx="50" cy="6" r="3.2"/><circle cx="50" cy="94" r="3.2"/><circle cx="6" cy="50" r="3.2"/><circle cx="94" cy="50" r="3.2"/></g>
-<rect x="38" y="38" width="24" height="24" rx="5" fill="currentColor" stroke="none"/></svg>`,
-  prism: `<svg viewBox="0 0 100 100" fill="none" stroke-linecap="round" stroke-width="3.2" aria-hidden="true">
-<path d="M4 60 L41 52" stroke="#ffffff"/><path d="M50 16 L78 70 L22 70 Z" stroke="currentColor" fill="rgba(170,255,220,.12)"/>
-<path d="M63 47 L97 33" stroke="#ff4d7a"/><path d="M64 51 L97 44" stroke="#ffd84a"/><path d="M65 55 L97 55" stroke="#54ff7a"/>
-<path d="M66 59 L97 66" stroke="#33e6ff"/><path d="M67 63 L97 77" stroke="#9a6bff"/></svg>`,
+  chip: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-linecap="square" aria-hidden="true">
+<path d="M36 26V12M50 26V6M64 26V12M36 74v14M50 74v20M64 74v14M26 36H12M26 50H6M26 64H12M74 36h14M74 50h20M74 64h14" stroke-width="4"/>
+<rect x="26" y="26" width="48" height="48" stroke-width="4" fill="rgba(0,0,0,.5)"/>
+<rect x="38" y="38" width="24" height="24" fill="currentColor" stroke="none"/></svg>`,
+  prism: `<svg viewBox="0 0 100 100" fill="none" stroke-linecap="square" stroke-width="4" aria-hidden="true">
+<path d="M4 60 L41 52" stroke="#ffffff"/><path d="M50 16 L78 70 L22 70 Z" stroke="currentColor" fill="rgba(0,0,0,.5)"/>
+<path d="M63 47 L97 33" stroke="#ff5050"/><path d="M64 51 L97 44" stroke="#ffff00"/><path d="M65 55 L97 55" stroke="#00ff00"/>
+<path d="M66 59 L97 66" stroke="#55dcff"/><path d="M67 63 L97 77" stroke="#a070ff"/></svg>`,
   wave: `<svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">${[22, 40, 64, 48, 84, 58, 72, 38, 20]
-    .map((h, i) => `<rect x="${6 + i * 10.5}" y="${50 - h / 2}" width="7" height="${h}" rx="3.5"/>`).join('')}</svg>`,
-  code: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-<path d="M33 27 L11 50 L33 73 M67 27 L89 50 L67 73" stroke-width="8"/><path d="M58 17 L42 83" stroke-width="7"/></svg>`,
+    .map((h, i) => `<rect x="${6 + i * 10.5}" y="${50 - h / 2}" width="7" height="${h}"/>`).join('')}</svg>`,
+  code: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true">
+<path d="M33 27 L11 50 L33 73 M67 27 L89 50 L67 73" stroke-width="9"/><path d="M58 17 L42 83" stroke-width="8"/></svg>`,
   disk: `<svg viewBox="0 0 100 100" aria-hidden="true">
-<path d="M16 8h60l16 16v62a6 6 0 0 1-6 6H16a6 6 0 0 1-6-6V14a6 6 0 0 1 6-6z" fill="currentColor"/>
-<rect x="28" y="8" width="42" height="28" rx="2" fill="#20242e"/><rect x="55" y="12" width="9" height="20" rx="1.5" fill="currentColor"/>
-<rect x="20" y="50" width="60" height="36" rx="3" fill="#f4efe6"/>
-<path d="M28 61h44M28 69h44M28 77h28" stroke="#9aa0ad" stroke-width="3" stroke-linecap="round"/></svg>`,
+<path d="M10 8h66l16 16v68H10z" fill="currentColor"/>
+<rect x="28" y="8" width="42" height="28" fill="#20242e"/><rect x="55" y="12" width="9" height="20" fill="currentColor"/>
+<rect x="20" y="50" width="60" height="36" fill="#f2f4f7"/>
+<path d="M28 61h44M28 69h44M28 77h28" stroke="#7c8694" stroke-width="3"/></svg>`,
 };
 
-const X_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
-const NEXT_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 5l8 7-8 7zM12 5l8 7-8 7z"/></svg>`;
-
+// Positions in the game's pixels (320 x 200), see look.ts. The VS card and the credit's card sit under the fight's
+// HUD (its bars and names take the top 30 rows), clear of the robots' heads.
 const CSS = `
-.omfc { position: fixed; inset: 0; z-index: 18; overflow: hidden; pointer-events: none; user-select: none; color: #e8f0ff;
+.omfc { position: fixed; inset: 0; z-index: 18; overflow: hidden; pointer-events: none; user-select: none; color: #f2f4f7;
   font-family: ${UI_FONT}; --ux: 4.5px; --uy: 5.4px; --ox: 0px; --oy: 0px; }
 .omfc a, .omfc button { pointer-events: auto; }
 .omfc-stage { position: absolute; inset: 0; background: #03050f; }
@@ -88,108 +93,65 @@ const CSS = `
 .omfs::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: var(--veil, 0); mix-blend-mode: multiply;
   background: radial-gradient(ellipse at 50% 40%, #1a2350 0%, #0a0f28 45%, #020308 100%); }
 .omfc-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,.6)); }
-.omfc-grain { position: absolute; inset: -50%; pointer-events: none; opacity: .07; mix-blend-mode: overlay; }
 
-/* Over the fights. */
-.omfc-cover { position: absolute; inset: 0; visibility: hidden; will-change: clip-path;
-  background: linear-gradient(115deg, color-mix(in srgb, var(--c) 30%, #03040c) 0%, #04050e 55%, color-mix(in srgb, var(--o) 26%, #03040c) 100%); }
-.omfc-cover::after { content: ''; position: absolute; inset: 0; opacity: .5;
-  background: repeating-linear-gradient(115deg, rgba(255,255,255,.035) 0 2px, transparent 2px 22px); }
-.omfc-next { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; z-index: 1; will-change: transform, opacity; }
-.omfc-next-count { font-weight: 700; letter-spacing: .6em; margin-right: -.6em; font-size: calc(3.4 * var(--uy)); color: rgba(235,240,255,.85);
-  text-shadow: 0 1px 3px #000; }
-.omfc-next-role { margin-top: .15em; font-weight: 900; font-size: calc(16 * var(--uy)); letter-spacing: .06em; line-height: 1; color: transparent;
-  -webkit-text-stroke: calc(.35 * var(--uy)) color-mix(in srgb, var(--c) 80%, #fff); text-shadow: 0 0 40px color-mix(in srgb, var(--c) 45%, transparent);
-  white-space: nowrap; }
-.omfc-vs { --h: clamp(118px, 24vh, 300px); --vs: clamp(44px, 6.4vw, 140px); position: absolute; left: 0; right: 0; top: 20%; height: var(--h);
-  visibility: hidden; }
-.omfc-vs-band { position: absolute; top: 0; bottom: 0; width: calc(50% + var(--h) / 4 - .8vw); box-sizing: border-box; display: flex;
-  align-items: center; will-change: transform; }
-.omfc-vs-l { left: 0; justify-content: flex-end; padding: 0 calc(var(--h) / 4 + var(--vs) * .9 + 1.6vw) 0 3vw;
-  clip-path: polygon(0 0, 100% 0, calc(100% - var(--h) / 2) 100%, 0 100%);
-  background: linear-gradient(90deg, rgba(3,4,12,0), color-mix(in srgb, var(--c) 26%, #04050e) 36%, color-mix(in srgb, var(--c) 55%, #04050e));
-  box-shadow: inset 0 3px 0 var(--c), inset 0 -3px 0 var(--c); }
-.omfc-vs-r { right: 0; justify-content: flex-start; padding: 0 3vw 0 calc(var(--h) / 4 + var(--vs) * .9 + 1.6vw);
-  clip-path: polygon(calc(var(--h) / 2) 0, 100% 0, 100% 100%, 0 100%);
-  background: linear-gradient(270deg, rgba(3,4,12,0), color-mix(in srgb, var(--o) 26%, #04050e) 36%, color-mix(in srgb, var(--o) 55%, #04050e));
-  box-shadow: inset 0 3px 0 var(--o), inset 0 -3px 0 var(--o); }
-.omfc-vs-who { display: flex; flex-direction: column; max-width: 100%; }
-.omfc-vs-l .omfc-vs-who { align-items: flex-end; text-align: right; }
-.omfc-vs-r .omfc-vs-who { align-items: flex-start; text-align: left; }
-.omfc-vs-role { font-weight: 700; letter-spacing: .36em; font-size: clamp(10px, 1vw, 19px); color: color-mix(in srgb, var(--c) 60%, #fff);
-  text-shadow: 0 0 10px var(--c), 0 1px 2px #000; }
-.omfc-vs-l .omfc-vs-role { margin-right: -.36em; }
-.omfc-vs-r .omfc-vs-role { color: color-mix(in srgb, var(--o) 45%, #fff); text-shadow: 0 0 10px var(--o), 0 1px 2px #000; }
-.omfc-vs-name { margin: .12em 0 .3em; font-weight: 900; line-height: 1.05; letter-spacing: .03em; color: #fff; white-space: nowrap;
-  font-size: clamp(15px, min(3.4vw, calc((50vw - var(--vs) * .9 - 6vw) / var(--n) / .84)), 66px); text-shadow: 0 0 18px var(--c), 0 3px 0 rgba(0,0,0,.6); }
-.omfc-vs-r .omfc-vs-name { text-shadow: 0 0 18px var(--o), 0 3px 0 rgba(0,0,0,.6); }
-.omfc-vs-har { font-weight: 800; letter-spacing: .3em; font-size: clamp(9px, .8vw, 15px); padding: .4em .6em .4em .9em; border-radius: 999px;
-  color: #fff; background: rgba(0,0,0,.4); border: 1px solid color-mix(in srgb, var(--c) 70%, #fff); }
-.omfc-vs-r .omfc-vs-har { border-color: color-mix(in srgb, var(--o) 60%, #fff); }
-.omfc-vs-mid { position: absolute; left: 50%; top: 50%; z-index: 1; font-weight: 900; font-style: italic; font-size: var(--vs);
-  line-height: 1; padding: 0 .12em; background: linear-gradient(180deg, #fff 0%, #ffe9a8 36%, #ff9a3d 50%, #a8231c 55%, #ffcf70 72%, #fff 100%);
-  -webkit-background-clip: text; background-clip: text; color: transparent; will-change: transform, opacity;
-  filter: drop-shadow(0 0 16px rgba(255,150,60,.75)) drop-shadow(0 5px 0 rgba(0,0,0,.75)); }
-.omfc-vs-seam { position: absolute; left: 50%; top: -30%; width: calc(var(--h) * .75); height: 160%; transform: translateX(-50%);
-  mix-blend-mode: screen; opacity: 0; filter: drop-shadow(0 0 12px #7fd6ff); }
-.omfc-vs-count { position: absolute; left: 0; right: 0; bottom: calc(100% + clamp(6px, 1.2vh, 14px)); text-align: center; font-weight: 700;
-  letter-spacing: .45em; font-size: clamp(9px, .8vw, 14px); color: rgba(235,240,255,.9); text-shadow: 0 1px 3px #000, 0 0 12px rgba(0,0,0,.8); }
+/* Between the fights: the menu's frame over the whole screen, naming the credit coming up. */
+.omfc-cover { position: absolute; inset: 0; visibility: hidden; background-color: #000; box-shadow: none; will-change: clip-path;
+  background-position: calc(var(--ox) + 5 * var(--ux)) calc(var(--oy) + 5 * var(--uy)); }
+.omfc-cover-edge { position: absolute; top: 0; bottom: 0; left: 0; width: var(--gb); background: var(--g-edge); }
+.omfc-upnext { position: absolute; left: 0; right: 0; top: calc(var(--oy) + 82 * var(--uy)); text-align: center; }
+.omfc-upnext-role { margin-top: calc(3 * var(--uy)); font-size: calc(11 * var(--uy)); }
 
-.omfc-scrim { position: absolute; left: 0; right: 0; top: 0; height: 58%; pointer-events: none; opacity: 0;
-  background: linear-gradient(180deg, rgba(2,3,10,.88) 0%, rgba(2,3,10,.6) 45%, transparent 100%); }
-.omfc-card { --e: calc(22 * var(--uy)); position: absolute; left: calc(var(--ox) + 12 * var(--ux)); right: calc(var(--ox) + 12 * var(--ux));
-  top: calc(var(--oy) + 34 * var(--uy)); display: grid; grid-template-columns: var(--e) minmax(0, 1fr); column-gap: calc(7 * var(--ux));
-  align-items: center; visibility: hidden; }
-.omfc-card .omfc-em { will-change: transform, opacity; }
-.omfc-card-head { display: flex; align-items: center; gap: 1.2em; font-weight: 700; letter-spacing: .42em; font-size: calc(3.1 * var(--uy));
-  color: color-mix(in srgb, var(--c) 60%, #fff); text-shadow: 0 0 10px var(--c), 0 1px 2px #000; }
-.omfc-card-head i { flex: 1; height: 2px; background: linear-gradient(90deg, var(--c), transparent); box-shadow: 0 0 10px var(--c);
-  transform-origin: 0 50%; }
-.omfc-card-head em { font-style: normal; letter-spacing: .3em; font-size: .8em; color: rgba(225,232,255,.75); }
-.omfc-card-name { margin: calc(.6 * var(--uy)) 0 calc(1.4 * var(--uy)); font-weight: 900; line-height: 1.04; letter-spacing: .02em; white-space: nowrap;
-  font-size: min(calc(12.5 * var(--uy)), calc((100vw - 2 * var(--ox) - 60 * var(--ux)) / var(--n) / .86)); }
-.omfc-card-name span { display: inline-block; white-space: pre; color: #fff; will-change: transform, opacity;
-  text-shadow: 0 0 22px color-mix(in srgb, var(--c) 85%, transparent), 0 5px 0 rgba(0,0,0,.55); }
-.omfc-card-detail { font-weight: 500; font-size: calc(3.8 * var(--uy)); line-height: 1.4; letter-spacing: .02em; color: #dde3f4;
-  text-shadow: 0 2px 3px rgba(0,0,0,.9); }
-.omfc-card .omfc-link { display: inline-block; margin-top: calc(2 * var(--uy)); font-weight: 600; font-size: calc(2.9 * var(--uy));
-  letter-spacing: .08em; text-decoration: none; color: #fff; padding: .45em 1.1em; border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--c) 70%, transparent); background: color-mix(in srgb, var(--c) 16%, rgba(0,0,0,.4)); }
-.omfc-card a.omfc-link:hover { background: color-mix(in srgb, var(--c) 34%, transparent); box-shadow: 0 0 20px var(--c); }
-.omfc-stamp { position: absolute; right: 0; top: calc(-3 * var(--uy)); padding: .16em .55em .2em .67em; border: 3px solid var(--c); border-radius: 10px;
-  font-weight: 900; font-size: calc(6 * var(--uy)); letter-spacing: .12em; color: #fff; background: rgba(6,7,18,.88); text-shadow: 0 0 12px var(--c);
-  box-shadow: 0 0 22px color-mix(in srgb, var(--c) 60%, transparent); opacity: 0; will-change: transform, opacity; }
+/* The VS card: the VS screen's boxes, yellow names and green lines. */
+.omfc-vs { position: absolute; inset: 0; visibility: hidden; }
+.omfc-vs-box { position: absolute; top: calc(var(--oy) + 36 * var(--uy)); width: calc(126 * var(--ux)); height: calc(40 * var(--uy));
+  padding: calc(4 * var(--uy)) calc(7 * var(--ux)); display: flex; flex-direction: column; justify-content: center; will-change: transform; }
+.omfc-vs-l { left: calc(var(--ox) + 10 * var(--ux)); align-items: flex-end; text-align: right; }
+.omfc-vs-r { left: calc(var(--ox) + 184 * var(--ux)); align-items: flex-start; text-align: left; }
+.omfc-vs-box .omfg-s { font-size: max(10px, calc(3.4 * var(--uy))); }
+.omfc-vs-name { margin: calc(1.6 * var(--uy)) 0 calc(1.8 * var(--uy)); font-size: min(calc(8.4 * var(--uy)), calc(112 * var(--ux) / var(--n) / .9)); }
+.omfc-vs-mid { position: absolute; left: calc(var(--ox) + 160 * var(--ux)); top: calc(var(--oy) + 56 * var(--uy)); font-size: calc(10 * var(--uy));
+  letter-spacing: .02em; transform: translate(-50%, -50%); will-change: transform, opacity; }
+.omfc-vs-seam { position: absolute; left: calc(var(--ox) + 160 * var(--ux)); top: calc(var(--oy) + 18 * var(--uy)); height: calc(78 * var(--uy));
+  transform: translateX(-50%); mix-blend-mode: screen; opacity: 0; }
+
+/* After the fight: the credit's card, a menu frame under the HUD. */
+.omfc-card { position: absolute; left: calc(var(--ox) + 10 * var(--ux)); top: calc(var(--oy) + 33 * var(--uy)); width: calc(300 * var(--ux));
+  min-height: calc(52 * var(--uy)); padding: calc(5 * var(--uy)) calc(6 * var(--ux)); display: grid; align-items: center;
+  grid-template-columns: calc(42 * var(--uy)) minmax(0, 1fr); column-gap: calc(6 * var(--ux)); visibility: hidden; will-change: clip-path; }
+.omfc-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1em; }
+.omfc-card-row { display: flex; align-items: center; justify-content: space-between; gap: calc(4 * var(--ux));
+  margin: calc(1 * var(--uy)) 0 calc(1.6 * var(--uy)); }
+.omfc-card-name { min-width: 0; font-size: min(calc(8.6 * var(--uy)), calc(186 * var(--ux) / var(--n) / .9)); }
+.omfc-card-detail { font-size: max(9px, calc(3 * var(--uy))); letter-spacing: .1em; white-space: normal; line-height: 1.5; }
+.omfc-card .omfc-link { display: inline-block; margin-top: calc(1.2 * var(--uy)); font-size: max(9px, calc(2.7 * var(--uy))); text-decoration: none; }
+.omfc-card a.omfc-link:hover { color: var(--g-gold); text-decoration: underline; }
+.omfc-stamp { flex: none; padding: calc(1.4 * var(--uy)) calc(3.5 * var(--ux)) calc(1 * var(--uy)); font-size: calc(6.4 * var(--uy));
+  letter-spacing: .1em; background: #000; box-shadow: inset 0 0 0 var(--gb) var(--g-yellow); opacity: 0; will-change: transform, opacity; }
 .omfc-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
 
-/* Emblems. */
-.omfc-em { position: relative; width: 100%; aspect-ratio: 1; color: var(--c); }
-.omfc-em svg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 0 10px color-mix(in srgb, var(--c) 70%, transparent)); }
+/* Emblems: in a square frame, like the game's pictures. */
+.omfc-em { position: relative; width: 100%; aspect-ratio: 1; color: var(--c); box-sizing: border-box; background: #000;
+  box-shadow: 0 0 0 var(--gb) var(--g-edge); will-change: clip-path; }
+.omfc-em svg { display: block; width: 76%; height: 76%; margin: 12%; overflow: visible; }
 .omfc-em img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.omfc-em-avatar img { border-radius: 50%; box-shadow: 0 0 0 3px var(--c), 0 0 24px var(--c); }
-.omfc-em-cover img { border-radius: 12%; box-shadow: 0 0 0 2px color-mix(in srgb, var(--c) 70%, #fff), 0 0 24px var(--c); }
 
-/* The now playing chip, the controls and the hint. */
-.omfc-playing { position: absolute; left: clamp(10px, 1.6vw, 28px); bottom: clamp(10px, 2vh, 26px); display: flex; align-items: center; gap: .9em;
-  padding: .55em 1.1em .55em .55em; border-radius: 14px; background: rgba(10,8,34,.62); border: 1px solid rgba(255,61,242,.4);
-  box-shadow: 0 0 22px rgba(255,61,242,.25); backdrop-filter: blur(6px); opacity: 0; font-size: clamp(9px, .72vw, 13px); }
-.omfc-playing img { width: 3.6em; height: 3.6em; border-radius: 8px; object-fit: cover; }
-.omfc-playing b { display: block; font-weight: 700; letter-spacing: .3em; font-size: .78em; color: #ff9af2; }
-.omfc-playing span { display: block; margin-top: .3em; font-weight: 800; letter-spacing: .06em; color: #fff; }
-.omfc-playing em { display: block; margin-top: .2em; font-style: normal; font-weight: 600; letter-spacing: .2em; color: #9fe9ff; font-size: .85em; }
-.omfc-eq { display: flex; align-items: flex-end; gap: 3px; height: 2.4em; width: 3.2em; margin-left: .4em; }
-.omfc-eq i { flex: 1; height: 100%; border-radius: 3px 3px 1px 1px; transform-origin: bottom; transform: scaleY(.06);
-  background: linear-gradient(0deg, #2f5bff, #33e6ff 55%, #ff3df2); box-shadow: 0 0 10px rgba(51,230,255,.5); }
-.omfc-ctl { position: absolute; right: clamp(10px, 1.6vw, 28px); bottom: clamp(10px, 2vh, 26px); display: flex; gap: .6em; transition: opacity .8s; }
-.omfc-btn { display: flex; align-items: center; gap: .65em; font: 700 clamp(11px, .85vw, 16px)/1 ${UI_FONT}; letter-spacing: .22em; color: #d3e2ff;
-  cursor: pointer; background: rgba(10,16,52,.62); border: 1px solid rgba(80,120,255,.5); border-radius: 999px; padding: .8em 1.3em;
-  backdrop-filter: blur(6px); transition: color .2s, border-color .2s, box-shadow .2s; }
-.omfc-btn:hover { color: #fff; border-color: #33e6ff; box-shadow: 0 0 20px rgba(51,230,255,.55); }
-.omfc-btn svg { width: 1.1em; height: 1.1em; }
-.omfc-hint { position: absolute; left: 0; right: 0; bottom: clamp(16px, 2.8vh, 34px); text-align: center; pointer-events: none;
-  font-weight: 600; font-size: clamp(10px, .8vw, 14px); letter-spacing: .3em; color: rgba(215,225,255,.8); text-shadow: 0 1px 3px #000;
-  transition: opacity .8s; }
-.omfc-quiet .omfc-ctl, .omfc-quiet .omfc-hint { opacity: 0; }
-@media (max-width: 900px) { .omfc-hint { display: none; } .omfc-btn span { display: none; } }
+/* The now playing box (its meter's lights), and the controls. */
+.omfc-playing { position: absolute; left: calc(var(--ox) + 6 * var(--ux)); top: calc(var(--oy) + 174 * var(--uy)); display: flex;
+  align-items: center; gap: calc(3 * var(--ux)); padding: calc(2.5 * var(--uy)) calc(3.5 * var(--ux)); opacity: 0; }
+.omfc-playing .omfg-s { font-size: max(8px, calc(2.4 * var(--uy))); letter-spacing: .12em; line-height: 1.32; }
+.omfc-playing img { width: calc(13 * var(--uy)); height: calc(13 * var(--uy)); object-fit: cover; box-shadow: 0 0 0 var(--gb) var(--g-edge); }
+.omfc-eq { display: flex; gap: calc(.9 * var(--ux)); height: calc(12 * var(--uy)); margin-left: calc(1 * var(--ux)); }
+.omfc-eq b { display: flex; flex-direction: column-reverse; gap: calc(.7 * var(--uy)); width: calc(2.4 * var(--ux)); }
+.omfc-eq i { flex: 1; background: var(--g-green); opacity: .16; }
+.omfc-eq i:nth-child(4) { background: var(--g-yellow); }
+.omfc-eq i:nth-child(5) { background: #ff3a30; }
+.omfc-eq i.on { opacity: 1; }
+.omfc-ctl { position: absolute; left: calc(var(--ox) + 314 * var(--ux)); top: calc(var(--oy) + 183 * var(--uy)); transform: translateX(-100%);
+  display: flex; gap: calc(3 * var(--ux)); transition: opacity .8s; }
+.omfc-btn { cursor: pointer; border: 0; padding: calc(1.8 * var(--uy)) calc(4 * var(--ux)); font-size: max(9px, calc(2.6 * var(--uy))); }
+.omfc-btn b { font-weight: 700; color: var(--g-dim); margin-right: .6em; }
+.omfc-btn:hover { background-color: var(--g-sel); color: var(--g-gold); --sh: var(--g-ink); }
+.omfc-quiet .omfc-ctl { opacity: 0; }
 
 /* Switching off, like an old TV: the picture folds to a line, the line to a dot, the dot goes out. */
 @keyframes omfc-off { 0% { transform: none; filter: none; } 42% { transform: scale(1, .004); filter: brightness(2.6); }
@@ -201,33 +163,19 @@ function esc(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 }
 
-/** A credit's emblem (the avatar, the song's cover, or a drawing in its color). */
+/** A credit's emblem (the avatar, the song's cover, or a drawing in its color), in its frame. */
 export function emblemHtml(kind: CreditEmblem): string {
-  if (kind === 'avatar') return `<div class="omfc-em omfc-em-avatar"><img alt="" src="${AVATAR}" draggable="false"></div>`;
-  if (kind === 'cover') return `<div class="omfc-em omfc-em-cover"><img alt="" src="${SONG_COVER}" draggable="false"></div>`;
+  if (kind === 'avatar') return `<div class="omfc-em"><img alt="" src="${AVATAR}" draggable="false"></div>`;
+  if (kind === 'cover') return `<div class="omfc-em"><img alt="" src="${SONG_COVER}" draggable="false"></div>`;
   return `<div class="omfc-em">${EMBLEMS[kind]}</div>`;
 }
 
 function link(b: CreditBattle, links: boolean): string {
   if (!b.link) return '';
+  const label = esc(b.link.label.toUpperCase());
   return links
-    ? `<a class="omfc-link" href="${b.link.href}" target="_blank" rel="noopener noreferrer">${esc(b.link.label)}</a>`
-    : `<span class="omfc-link">${esc(b.link.label)}</span>`;
-}
-
-/** Film grain: a tile of noise, drawn once. */
-function grainUrl(): string {
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const g = c.getContext('2d')!;
-  const d = g.createImageData(128, 128);
-  for (let i = 0; i < d.data.length; i += 4) {
-    const v = Math.random() * 255;
-    d.data[i] = d.data[i + 1] = d.data[i + 2] = v;
-    d.data[i + 3] = 255;
-  }
-  g.putImageData(d, 0, 0);
-  return c.toDataURL();
+    ? `<a class="omfc-link omfg-s omfg-pale" href="${b.link.href}" target="_blank" rel="noopener noreferrer">${label}</a>`
+    : `<span class="omfc-link omfg-s omfg-pale">${label}</span>`;
 }
 
 export function openCreditsView(opts: CreditsViewOptions): CreditsView {
@@ -235,7 +183,8 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
     ensureUiFont();
     const style = document.createElement('style');
     style.id = 'omfc-style';
-    style.textContent = CSS + TITLE_CSS + FINALE_CSS;
+    // (the game's look first: the parts' own rules refine it)
+    style.textContent = LOOK_CSS + CSS + TITLE_CSS + FINALE_CSS;
     document.head.appendChild(style);
   }
   const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -243,35 +192,34 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
   const root = document.createElement('div');
   root.className = 'omfc';
   root.innerHTML = `<div class="omfc-stage"><div class="omfc-vignette"></div></div>
-<div class="omfc-cover"></div>
-<div class="omfc-scrim"></div>
-<div class="omfc-card"></div>
+<div class="omfc-card omfg"></div>
+<div class="omfc-cover omfg"><div class="omfc-upnext"><div class="omfc-upnext-count omfg-s omfg-gold"></div>
+  <div class="omfc-upnext-role omfg-b omfg-green"></div></div><i class="omfc-cover-edge"></i></div>
 <div class="omfc-vs"></div>
 <div class="omfc-flash"></div>
-<div class="omfc-playing"><img alt="" src="${SONG_COVER}"><div><b>NOW PLAYING</b><span>TWENTY NINETY-SEVEN (REMIX)</span><em>HADAL STATIC</em></div>
-  <div class="omfc-eq">${'<i></i>'.repeat(CHIP_BARS)}</div></div>
-<div class="omfc-ctl"><button class="omfc-btn omfc-next" type="button"><span>NEXT</span>${NEXT_SVG}</button>
-  <button class="omfc-btn omfc-back" type="button">${X_SVG}<span>BACK</span></button></div>
-<div class="omfc-hint">ENTER / A &nbsp;NEXT &nbsp;&nbsp;·&nbsp;&nbsp; ESC / B &nbsp;BACK</div>
-<div class="omfc-grain"></div>`;
+<div class="omfc-playing omfg"><img alt="" src="${SONG_COVER}"><div><div class="omfg-s omfg-gold">NOW PLAYING</div>
+  <div class="omfg-s omfg-white">TWENTY NINETY-SEVEN (REMIX)</div><div class="omfg-s omfg-pale">HADAL STATIC</div></div>
+  <div class="omfc-eq">${`<b>${'<i></i>'.repeat(EQ_LIGHTS)}</b>`.repeat(EQ_BANDS)}</div></div>
+<div class="omfc-ctl"><button class="omfc-btn omfc-next omfg omfg-s omfg-green" type="button"><b>ENTER</b>NEXT</button>
+  <button class="omfc-btn omfc-back omfg omfg-s omfg-green" type="button"><b>ESC</b>BACK</button></div>`;
   document.body.appendChild(root);
   const q = <T extends HTMLElement = HTMLElement>(sel: string) => root.querySelector<T>(sel)!;
   const stageEl = q('.omfc-stage');
   const cover = q('.omfc-cover');
-  const scrim = q('.omfc-scrim');
+  const coverEdge = q('.omfc-cover-edge');
+  const nextCount = q('.omfc-upnext-count');
+  const nextRole = q('.omfc-upnext-role');
   const cardEl = q('.omfc-card');
   const vsEl = q('.omfc-vs');
   const flashEl = q('.omfc-flash');
   const playing = q('.omfc-playing');
-  const eq = [...root.querySelectorAll<HTMLElement>('.omfc-eq i')];
-  const grain = q('.omfc-grain');
-  grain.style.background = `url(${grainUrl()})`;
+  const eq = [...root.querySelectorAll<HTMLElement>('.omfc-eq b')].map((b) => [...b.querySelectorAll<HTMLElement>('i')]);
   const stage = new Stage(calm);
   const title = new TitleCard(count);
   const finale = new FinaleRoll(opts.links, (b) => emblemHtml(b.emblem));
   stageEl.prepend(stage.el);
   stageEl.append(title.el, finale.el);
-  // (the light in front: over the city, and over the game in the fights)
+  // (the light in front: over the city)
   root.insertBefore(stage.front, flashEl);
   const screen = document.getElementById('screen');
   let song = opts.song;
@@ -279,11 +227,11 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
   let level = 0;
   let quiet = QUIET_AFTER;
   let shown = -1;
-  let cardLetters: HTMLSpanElement[] = [];
-  let stamp: HTMLElement | null = null;
-  let cardEmblem: HTMLElement | null = null;
-  let cardHead: { line: HTMLElement; detail: HTMLElement; link: HTMLElement | null } | null = null;
-  let vsParts: { l: HTMLElement; r: HTMLElement; mid: HTMLElement; seam: HTMLImageElement; count: HTMLElement } | null = null;
+  let card: {
+    b: CreditBattle; emblem: HTMLElement | null; role: HTMLElement; name: HTMLElement; detail: HTMLElement; link: HTMLElement | null;
+    stamp: HTMLElement;
+  } | null = null;
+  let vsParts: { l: HTMLElement; r: HTMLElement; mid: HTMLElement; seam: HTMLImageElement } | null = null;
   let prevT = -1;
   /** Flashes of light (their song time and strength): each event's once. */
   const flashes: [number, number, number][] = [];
@@ -300,7 +248,7 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
     root.classList.remove('omfc-quiet');
     quiet = QUIET_AFTER;
   };
-  /** The game's 320 x 200 picture in the page (as the renderer fits it), for the cards and the flashes. */
+  /** The game's 320 x 200 picture in the page (as the renderer fits it), for the cards. */
   const place = () => {
     const r = screen?.getBoundingClientRect() ?? { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
     let uy = r.height / 200, ux = uy * (5 / 6);
@@ -312,11 +260,10 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
     root.style.setProperty('--uy', `${uy}px`);
     root.style.setProperty('--ox', `${r.left + (r.width - 320 * ux) / 2}px`);
     root.style.setProperty('--oy', `${r.top + (r.height - 200 * uy) / 2}px`);
-    return { ux, uy, ox: r.left + (r.width - 320 * ux) / 2, oy: r.top + (r.height - 200 * uy) / 2 };
   };
-  let px = place();
+  place();
   const onResize = () => {
-    px = place();
+    place();
     stage.resize();
   };
   window.addEventListener('resize', onResize);
@@ -335,144 +282,104 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
   q('.omfc-back').addEventListener('click', () => opts.onExit());
 
   let nextFor = -1;
-  /** The cover's heading: the fight coming up. */
+  /** The cover's lines: the credit coming up. */
   const makeNext = (n: number) => {
     nextFor = n;
-    const b = CREDIT_BATTLES[n];
-    cover.style.cssText = `--c: ${b.accent}; --o: ${b.loser.colors?.[0] ?? '#8a8a8a'}`;
-    cover.innerHTML = `<div class="omfc-next"><div class="omfc-next-count">CREDIT ${n + 1} OF ${CREDIT_BATTLES.length}</div>
-      <div class="omfc-next-role">${esc(b.role)}</div></div>`;
+    nextCount.textContent = `CREDIT ${n + 1} OF ${CREDIT_BATTLES.length}`;
+    nextRole.dataset.typed = '';
   };
 
   /** The cards of fight n (made when it comes on). */
   const makeCards = (n: number) => {
     const b = CREDIT_BATTLES[n];
     shown = n;
-    const o = b.loser.colors?.[0] ?? '#8a8a8a';
-    for (const el of [vsEl, cardEl, scrim]) el.style.cssText = `--c: ${b.accent}; --o: ${o}`;
-    const side = (cls: string, role: string, name: string, har: string) => `<div class="omfc-vs-band ${cls}"><div class="omfc-vs-who">
-      <div class="omfc-vs-role">${esc(role)}</div><div class="omfc-vs-name" style="--n: ${name.length}">${esc(name)}</div>
-      <div class="omfc-vs-har">${esc(har.toUpperCase())}</div></div></div>`;
-    vsEl.innerHTML = `<div class="omfc-vs-count">CREDIT ${n + 1} OF ${CREDIT_BATTLES.length}</div>
-      ${side('omfc-vs-l', b.role, b.winner.name, opts.harName(b.winner.har))}${side('omfc-vs-r', 'OPPONENT', b.loser.name, opts.harName(b.loser.har))}
-      <img class="omfc-vs-seam" alt="" src="credits/title/strike.webp"><div class="omfc-vs-mid">VS</div>`;
+    cardEl.style.setProperty('--c', b.accent);
+    const side = (cls: string, role: string, name: string, har: string) => `<div class="omfc-vs-box ${cls} omfg-vs">
+      <div class="omfg-s omfg-green">${esc(role)}</div><div class="omfc-vs-name omfg-b omfg-yellow" style="--n: ${name.length}">${esc(name)}</div>
+      <div class="omfg-s omfg-green">${esc(har.toUpperCase())}</div></div>`;
+    vsEl.innerHTML = `${side('omfc-vs-l', b.role, b.winner.name, opts.harName(b.winner.har))}${side('omfc-vs-r', 'OPPONENT', b.loser.name, opts.harName(b.loser.har))}
+      <img class="omfc-vs-seam" alt="" src="credits/title/strike.webp"><div class="omfc-vs-mid omfg-b omfg-yellow">VS.</div>`;
     vsParts = { l: vsEl.querySelector('.omfc-vs-l')!, r: vsEl.querySelector('.omfc-vs-r')!, mid: vsEl.querySelector('.omfc-vs-mid')!,
-      seam: vsEl.querySelector('.omfc-vs-seam')!, count: vsEl.querySelector('.omfc-vs-count')! };
-    cardEl.innerHTML = `${emblemHtml(b.emblem)}<div><div class="omfc-card-head"><span>${esc(b.role)}</span><i></i><em>${n + 1} / ${CREDIT_BATTLES.length}</em></div>
-      <div class="omfc-card-name" style="--n: ${b.title.length}">${[...b.title].map((ch) => `<span>${esc(ch)}</span>`).join('')}</div>
-      <div class="omfc-card-detail">${esc(b.detail)}</div>${link(b, opts.links)}</div><div class="omfc-stamp">WINS</div>`;
-    cardLetters = [...cardEl.querySelectorAll<HTMLSpanElement>('.omfc-card-name span')];
-    stamp = cardEl.querySelector('.omfc-stamp');
-    cardEmblem = cardEl.querySelector('.omfc-em');
-    cardHead = { line: cardEl.querySelector('.omfc-card-head i')!, detail: cardEl.querySelector('.omfc-card-detail')!, link: cardEl.querySelector('.omfc-link') };
+      seam: vsEl.querySelector('.omfc-vs-seam')! };
+    cardEl.innerHTML = `${emblemHtml(b.emblem)}<div><div class="omfc-card-head"><span class="omfc-card-role omfg-s omfg-gold">${esc(b.role)}</span>
+      <span class="omfg-s omfg-dim">${n + 1} / ${CREDIT_BATTLES.length}</span></div>
+      <div class="omfc-card-row"><div class="omfc-card-name omfg-b omfg-white" style="--n: ${b.title.length}"></div>
+      <div class="omfc-stamp omfg-b omfg-yellow">WINS</div></div>
+      <div class="omfc-card-detail omfg-s omfg-grey"></div>${link(b, opts.links)}</div>`;
+    card = {
+      b, emblem: cardEl.querySelector('.omfc-em'), role: cardEl.querySelector('.omfc-card-role')!, name: cardEl.querySelector('.omfc-card-name')!,
+      detail: cardEl.querySelector('.omfc-card-detail')!, link: cardEl.querySelector('.omfc-link'), stamp: cardEl.querySelector('.omfc-stamp')!,
+    };
   };
 
-  /** Over fight n (its timetable f, the one before it `prev`) at song time t: the cover, the VS card, the blow, the card. */
-  const fightOverlay = (t: number, n: number, f: FightTimes | null, prevCut: number, fighters: [number, number][] | null) => {
+  /**
+   * Over fight n (its timetable f) at song time t: the cover (from `coverFrom`, naming fight `upcoming`), the VS card,
+   * the card.
+   */
+  const fightOverlay = (t: number, n: number, f: FightTimes | null, coverFrom: number, upcoming: number) => {
     if (n !== shown) makeCards(n);
-    // The cover: sweeping across on the downbeat that ended the fight before, until this one's VS card.
-    const coverFrom = prevCut, coverTo = f ? f.vs : Infinity;
-    const inCover = t >= coverFrom && t < coverTo + 0.2;
+    // The cover: the menu's frame wiping across over the beat before a fight's cut (its edge the frame's blue line), so
+    // that it covers the screen as the arena changes; the next credit typing in; it wipes on across as the next fight's
+    // VS card slams.
+    const coverTo = f && upcoming === n ? f.vs : Infinity;
+    const inCover = upcoming < CREDIT_BATTLES.length && t >= coverFrom && t < coverTo + 0.2;
     cover.style.visibility = inCover ? 'visible' : 'hidden';
     if (inCover) {
-      const upcoming = f ? n : Math.min(n + 1, CREDIT_BATTLES.length - 1);
       if (upcoming !== nextFor) makeNext(upcoming);
-      const sweep = easeOut(ramp(t, coverFrom, coverFrom + BEAT));
+      const inn = easeOut(ramp(t, coverFrom, coverFrom + BEAT));
       const gone = easeIn(ramp(t, coverTo - 0.02, coverTo + 0.18));
-      const edge = sweep * 130 - 15;
-      cover.style.clipPath = `polygon(${(gone * 115 - 15).toFixed(2)}% 0, ${edge.toFixed(2)}% 0, ${(edge - 15).toFixed(2)}% 100%, ${(gone * 115 - 30).toFixed(2)}% 100%)`;
-      const head = cover.firstElementChild as HTMLElement | null;
-      if (head) {
-        const inn = easeOut(ramp(t, coverFrom + BEAT * 0.5, coverFrom + BEAT * 1.6));
-        const drift = Math.min(t - coverFrom, 8) * 6;
-        head.style.opacity = (inn * (1 - ramp(t, coverTo - 0.35, coverTo - 0.05))).toFixed(3);
-        head.style.transform = `translateY(-50%) translateX(${((1 - inn) * 80 - drift).toFixed(1)}px)`;
-      }
+      cover.style.clipPath = `inset(0 ${((1 - inn) * 100).toFixed(2)}% 0 ${(gone * 100).toFixed(2)}%)`;
+      const edge = inn < 1 ? inn : gone;
+      coverEdge.style.transform = `translateX(calc(${(edge * 100).toFixed(2)}vw - 50%))`;
+      coverEdge.style.opacity = inn < 1 || (gone > 0 && gone < 1) ? '1' : '0';
+      nextCount.style.visibility = t >= coverFrom + BEAT * 1.5 ? 'inherit' : 'hidden';
+      typeInto(nextRole, CREDIT_BATTLES[upcoming].role, t, coverFrom + BEAT * 2, TYPE_NAME, 60);
     }
     if (!f) {
       vsEl.style.visibility = cardEl.style.visibility = 'hidden';
-      scrim.style.opacity = '0';
       return;
     }
-    // The VS card: in just before its downbeat, the VS slamming on it, out as the round is about to start.
-    const vsIn = easeOut(ramp(t, f.vs - 0.22, f.vs));
-    const vsOut = easeIn(ramp(t, f.go + 1.5, f.go + 1.8));
-    const vsOn = t > f.vs - 0.22 && t < f.go + 1.85;
+    // The VS card: the boxes sliding in to meet on the downbeat, VS. stamped on it (the intro's lightning behind), out
+    // as the round is about to start.
+    const vsOn = t > f.vs - 0.2 && t < f.go + 1.8;
     vsEl.style.visibility = vsOn ? 'visible' : 'hidden';
     if (vsOn && vsParts) {
-      vsParts.l.style.transform = `translateX(${((1 - vsIn) * -104 - vsOut * 104).toFixed(2)}%)`;
-      vsParts.r.style.transform = `translateX(${((1 - vsIn) * 104 + vsOut * 104).toFixed(2)}%)`;
-      const slam = easeOutBack(ramp(t, f.vs, f.vs + 0.3), 2.6);
-      vsParts.mid.style.opacity = (t >= f.vs ? 1 - vsOut : 0).toFixed(3);
-      vsParts.mid.style.transform = `translate(-50%, -52%) scale(${(2.4 - 1.4 * slam).toFixed(4)})`;
-      vsParts.seam.style.opacity = (hit(t, f.vs, 0.12) * (0.7 + 0.3 * Math.sin(t * 160))).toFixed(3);
-      vsParts.count.style.opacity = (ramp(t, f.vs, f.vs + 0.4) * (1 - vsOut)).toFixed(3);
+      const inn = easeOut(ramp(t, f.vs - 0.2, f.vs));
+      const out = easeIn(ramp(t, f.go + 1.5, f.go + 1.8));
+      vsParts.l.style.transform = `translateX(${((inn - 1) * 160 - out * 160).toFixed(2)}%)`;
+      vsParts.r.style.transform = `translateX(${((1 - inn) * 160 + out * 160).toFixed(2)}%)`;
+      const stamp = ramp(t, f.vs, f.vs + 0.08);
+      vsParts.mid.style.opacity = t >= f.vs && out < 0.5 ? '1' : '0';
+      vsParts.mid.style.transform = `translate(-50%, -50%) scale(${(1 + (1 - stamp) * 1.1).toFixed(3)})`;
+      vsParts.seam.style.opacity = (hit(t, f.vs, 0.1) * (0.7 + 0.3 * Math.sin(t * 160))).toFixed(3);
     }
-    // The credit's card: a beat after the blow; its name a letter a sixteenth; WINS stamped on the next downbeat.
+    // The credit's card: a beat after the blow, wiping open; the picture drawn down, the name typing in a letter a
+    // sixteenth, the lines under it after; WINS stamped on the downbeat after the name; the cover wipes over it.
     const cardAt = f.blow + BEAT;
-    const cardOut = ramp(t, f.cut - 0.3, f.cut - 0.05);
-    const cardOn = t > cardAt - 0.05 && t < f.cut;
+    const cardOn = t > cardAt - 0.02 && t < f.cut;
     cardEl.style.visibility = cardOn ? 'visible' : 'hidden';
-    scrim.style.opacity = (window01(t, cardAt - 0.1, f.cut, 0.35, 0.3)).toFixed(3);
-    if (cardOn) {
-      cardEl.style.opacity = (1 - cardOut).toFixed(3);
-      cardEl.style.transform = `translateY(${(-easeIn(cardOut) * 30).toFixed(1)}px)`;
-      const em = easeOutBack(ramp(t, cardAt, cardAt + 0.35), 2);
-      if (cardEmblem) {
-        cardEmblem.style.opacity = clamp01(em * 3).toFixed(3);
-        cardEmblem.style.transform = `scale(${(0.4 + 0.6 * em).toFixed(4)}) rotate(${((1 - em) * -20).toFixed(1)}deg)`;
-      }
-      cardLetters.forEach((s, i) => {
-        const at = cardAt + 0.08 + i * (BEAT / 4);
-        const x = easeOutBack(ramp(t, at, at + 0.22), 2.2);
-        s.style.opacity = clamp01(x * 2).toFixed(3);
-        s.style.transform = `translateY(${((1 - x) * 26).toFixed(1)}px) scale(${(0.6 + 0.4 * x).toFixed(3)})`;
-      });
-      if (cardHead) {
-        cardHead.line.style.transform = `scaleX(${easeOut(ramp(t, cardAt, cardAt + 2 * BEAT)).toFixed(3)})`;
-        cardHead.detail.style.opacity = easeOut(ramp(t, cardAt + 2 * BEAT, cardAt + 2 * BEAT + 0.4)).toFixed(3);
-        if (cardHead.link) cardHead.link.style.opacity = easeOut(ramp(t, cardAt + 3 * BEAT, cardAt + 3 * BEAT + 0.4)).toFixed(3);
-      }
-      const stampAt = barTime(nextBar(cardAt + 2 * BEAT));
-      if (stamp) {
-        const s = easeOutBack(ramp(t, stampAt, stampAt + 0.3), 2.4);
-        stamp.style.opacity = (t >= stampAt ? 1 : 0).toString();
-        stamp.style.transform = `rotate(8deg) scale(${(2.4 - 1.4 * s).toFixed(4)})`;
-      }
+    if (cardOn && card) {
+      const open = easeOut(ramp(t, cardAt, cardAt + 0.18));
+      cardEl.style.clipPath = `inset(0 ${((1 - open) * 100).toFixed(2)}% 0 0)`;
+      if (card.emblem) card.emblem.style.clipPath = `inset(0 0 ${((1 - ramp(t, cardAt + 0.1, cardAt + 0.4)) * 100).toFixed(1)}% 0)`;
+      card.role.style.visibility = t >= cardAt + 0.1 ? 'inherit' : 'hidden';
+      const nameAt = cardAt + 0.15;
+      typeInto(card.name, card.b.title, t, nameAt, TYPE_NAME, 0.6);
+      const typed = nameAt + card.b.title.length * TYPE_NAME;
+      typeInto(card.detail, card.b.detail.toUpperCase(), t, Math.max(typed, cardAt + 2 * BEAT), TYPE_LINE);
+      if (card.link) card.link.style.visibility = t >= Math.max(typed, cardAt + 2 * BEAT) + card.b.detail.length * TYPE_LINE ? 'inherit' : 'hidden';
+      const stampAt = barTime(nextBar(typed + 0.05));
+      const s = ramp(t, stampAt, stampAt + 0.08);
+      card.stamp.style.opacity = t >= stampAt ? '1' : '0';
+      card.stamp.style.transform = `scale(${(1 + (1 - s) * 0.9).toFixed(3)})`;
     }
-    // The game's picture: punching on the downbeats, harder on the blow (toward the loser), shaking.
-    if (screen && !calm) {
-      const blow = hit(t, f.blow, 0.28);
-      const shake = blow * 10;
-      const punch = (t > f.go + 3 && t < f.cut ? beatPulse(t, 0.12) * 0.012 : 0) + blow * 0.07;
-      if (fighters && blow > 0.001) {
-        const [lx, ly] = fighters[1];
-        screen.style.transformOrigin = `${(px.ox + lx * px.ux).toFixed(1)}px ${(px.oy + (ly - 40) * px.uy).toFixed(1)}px`;
-      } else {
-        screen.style.transformOrigin = '50% 50%';
-      }
-      screen.style.transform = punch > 0.0005 || shake > 0.05
-        ? `translate(${(Math.sin(t * 97) * shake).toFixed(1)}px, ${(Math.cos(t * 71) * shake).toFixed(1)}px) scale(${(1 + punch).toFixed(4)})`
-        : '';
-    }
-    // The blow's flash, sparks and ring; the VS card's flash.
-    once(`blow${n}`, t, f.blow, () => {
-      addFlash(f.blow, 0.38, 0.12);
-      if (fighters) {
-        const [lx, ly] = fighters[1];
-        const x = px.ox + lx * px.ux, y = px.oy + (ly - 45) * px.uy;
-        stage.burst(x, y, 70, 1.4);
-        stage.shock(x, y, CREDIT_BATTLES[n].accent);
-      }
-    });
-    once(`vs${n}`, t, f.vs, () => addFlash(f.vs, 0.22, 0.12));
   };
 
   return {
     update(show: CreditsShow, dt: number): void {
       const t = show.t;
       if (leaving) return;
-      // The music's levels: the chip's equalizer, the embers.
+      // The music's levels: the meter, the embers.
       if (song) {
         song.analyser.getByteFrequencyData(bins);
         const band = (a: number, b: number) => {
@@ -483,14 +390,15 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
         level = band(1, 96);
         const from = 1, to = 120;
         let next = from;
-        eq.forEach((el, i) => {
+        eq.forEach((lights, i) => {
           const a = Math.max(next, Math.floor(from * Math.pow(to / from, i / eq.length)));
           const b = Math.max(a + 1, Math.floor(from * Math.pow(to / from, (i + 1) / eq.length)));
           next = b;
-          el.style.transform = `scaleY(${(0.06 + band(a, b) * 0.94).toFixed(3)})`;
+          const lit = Math.round(Math.min(1, band(a, b) * 1.15) * EQ_LIGHTS);
+          lights.forEach((el, k) => el.classList.toggle('on', k < lit));
         });
       }
-      playing.style.opacity = song ? (ramp(t, barTime(1), barTime(2)) * (show.finale && t >= show.finale.hit ? 1 - ramp(t, show.finale.hit, show.finale.hit + 1) : 1)).toFixed(3) : '0';
+      playing.style.opacity = song ? (ramp(t, barTime(1), barTime(1) + 0.01) * (show.finale && t >= show.finale.hit ? 1 - ramp(t, show.finale.hit, show.finale.hit + 1) : 1)).toFixed(3) : '0';
       if (quiet > 0 && (quiet -= dt) <= 0) root.classList.add('omfc-quiet');
 
       // What covers the screen: the title (till its end) or the end titles; the fights between.
@@ -521,13 +429,11 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
       stageEl.classList.toggle('omfc-click', !!look);
       if (!inTitle) title.hide();
       if (!inFinale) finale.el.style.display = 'none';
-      // (fights: the stage's layers hidden, its front light over the game)
       stage.update(look ?? { lift: 0, pan: 0, zoom: 1, dawn: 0, lit: 0, veil: 1, shake: 0, searchlights: 0, stars: 0 }, t, dt, level);
       if (inTitle) {
         title.update(t, show.titleEnd, {
           strike: (at, x, y, big) => {
-            stage.burst(x, y, big ? 90 : 26, big ? 1.5 : 0.8);
-            stage.shock(x, y);
+            if (big) stage.burst(x, y, 60, 1.3);
             addFlash(at, big ? 0.9 : 0.25);
           },
         });
@@ -538,15 +444,14 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
           finalHit: () => {
             addFlash(fin.hit, 1);
             const [x, y] = stage.toScreen(108, 70, 0.5);
-            stage.burst(x, y, 110, 1.6);
-            stage.shock(x, y, 'rgba(255,220,150,.95)');
+            stage.burst(x, y, 90, 1.5);
           },
         });
-        once('finale', t, fin.start, () => addFlash(fin.start, 0.7));
-        if (fin.jumped) once('jump', t, barTime(ENDING_BAR), () => addFlash(barTime(ENDING_BAR), 0.65));
+        once('finale', t, fin.start, () => addFlash(fin.start, 0.5));
+        if (fin.jumped) once('jump', t, barTime(ENDING_BAR), () => addFlash(barTime(ENDING_BAR), 0.5));
       }
-      // The title's end: a white cut to the first fight.
-      if (show.titleEnd > 0) once('titleEnd', t, show.titleEnd, () => addFlash(show.titleEnd, 0.8));
+      // The title's end: a white cut to the first fight (the logo's lightning).
+      if (show.titleEnd > 0) once('titleEnd', t, show.titleEnd, () => addFlash(show.titleEnd, 0.6));
 
       // Over the fights.
       const n = show.fighting;
@@ -554,19 +459,17 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
       if (inFights) {
         const prev = n > 0 ? show.fights[n - 1] : null;
         const f = show.fights[n];
-        // (the cover from the fight before's cut, or from this one's cut while the next arena opens)
-        const prevCut = f && t >= f.cut ? f.cut : prev ? prev.cut : show.titleEnd > 0 ? Infinity : -1;
-        fightOverlay(t, n, f && t >= f.cut ? null : f, prevCut, show.fighters);
+        // (the cover: coming in for the next fight over this one's last beat, or still up from the fight before's)
+        const next = !!f && t >= f.cut - BEAT;
+        const coverFrom = next ? f!.cut - BEAT : prev ? prev.cut - BEAT : Infinity;
+        fightOverlay(t, n, f && t >= f.cut ? null : f, coverFrom, next ? n + 1 : n);
       } else {
         cover.style.visibility = vsEl.style.visibility = cardEl.style.visibility = 'hidden';
-        scrim.style.opacity = '0';
-        if (screen) screen.style.transform = '';
       }
       let flash = 0;
       for (const [at, k, decay] of flashes) flash = Math.max(flash, k * hit(t, at, decay));
       while (flashes.length && (t - flashes[0][0] > 3 || flashes[0][0] - t > 400)) flashes.shift();
       flashEl.style.opacity = (calm ? flash * 0.3 : flash).toFixed(3);
-      grain.style.transform = `translate(${((t * 7919) % 50).toFixed(0)}px, ${((t * 104729) % 50).toFixed(0)}px)`;
       prevT = t;
     },
 
@@ -592,10 +495,7 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
       window.removeEventListener('pointermove', wake);
       window.removeEventListener('pointerdown', wake);
       window.removeEventListener('keydown', wake);
-      if (screen) {
-        screen.classList.remove('omfc-off-screen');
-        screen.style.transform = screen.style.transformOrigin = '';
-      }
+      screen?.classList.remove('omfc-off-screen');
       root.remove();
     },
   };

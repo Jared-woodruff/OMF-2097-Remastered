@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { SceneId } from '../game/constants';
 import { CREDIT_BATTLES, CREDITS_RULES } from '../game/credits/battles';
-import { CreditsRun, TITLE_END_BAR } from '../game/credits/creditsRun';
+import { CreditsRun, FINALE_MIN_BARS, TITLE_END_BAR } from '../game/credits/creditsRun';
 import { barAt, barTime, BEAT, ENDING_BAR, nextBar, SECTIONS, SONG_LENGTH } from '../game/credits/song';
 import { createGame, hasGameData, HeadlessRunner } from './harness';
 
@@ -75,7 +75,7 @@ describe.skipIf(!hasGameData)('the credits show (headless, on its own time)', ()
     expect(run.phase).toBe('finale');
     const f = run.finale!;
     expect(f.jumpBar % 4).toBe(0);
-    expect(f.jumpBar).toBeGreaterThanOrEqual(Math.round(barAt(f.start)) + 12);
+    expect(f.jumpBar).toBeGreaterThanOrEqual(Math.round(barAt(f.start)) + FINALE_MIN_BARS);
     // (the credits' own time jumps to the ending's bar on the cut)
     let jumped = -1;
     for (let ms = 0; ms < 120_000 && gs.credits === run; ms += 10) {
