@@ -251,7 +251,7 @@ move and hit point, and the HD artwork), ready to try in training or against the
 `.omfbot` files.
 
 <p align="center">
-  <img src="docs/media/workshop.jpg" alt="The robot workshop: a GLACIER frame with a SPECTRE head and TEMPEST's moves" width="100%">
+  <img src="docs/media/workshop.jpg" alt="The robot workshop: VANGUARD, a HELIX frame with a SPECTRE head and TEMPEST's moves" width="100%">
 </p>
 
 #### Custom tournaments
