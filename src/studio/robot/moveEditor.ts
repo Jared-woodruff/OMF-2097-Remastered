@@ -4,8 +4,9 @@
 import type { AfMoveData } from '../../formats/af';
 import type { AnimationData } from '../../formats/animation';
 import { decodeScript } from '../../script/script';
-import { REQUIRED_MOVES } from '../../mods/types';
+import { HD_REFERENCE_COLORS, REQUIRED_MOVES } from '../../mods/types';
 import { AnimPanel, type AnimPanelHost } from '../animPanel';
+import { spriteStem } from '../hd';
 import type { StudioApp } from '../app';
 import { RAMP_ENTRIES, robotPalette, ROBOT_ENTRIES } from '../colors';
 import { confirmDialog, field, fill, h, modal, numberInput, select, toast } from '../dom';
@@ -88,6 +89,12 @@ export class MoveEditor {
       changed: (structure) => {
         this.app.changed(structure);
         if (structure) this.renderList();
+      },
+      hd: {
+        get: () => robotRef.hd,
+        set: (hd) => (robotRef.hd = hd),
+        palette: () => robotPalette(robotRef.hd?.colors ?? HD_REFERENCE_COLORS),
+        stem: (id, sprite) => spriteStem('m', id, sprite),
       },
     };
     this.panel = new AnimPanel(host);

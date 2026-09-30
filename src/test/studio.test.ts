@@ -15,11 +15,15 @@ import { getFile } from '../resources/files';
 import { copyAnims, relatedAnims, renumberString } from '../studio/arena/animEditor';
 import { modAi, storyPersonality } from '../controller/personalities';
 import { loadLanguage } from '../resources/resources';
-import { decodePng } from '../util/png';
+import { decodePng, encodePng } from '../util/png';
+import { spriteHash } from '../mods/package';
+import { HD_PAD, HD_SCALE } from '../mods/types';
+import { followEdit, hdTemplate, parseStem, spriteStem } from '../studio/hd';
+import { robotPalette } from '../studio/colors';
 import { originalPilot } from '../studio/pilot/originals';
 import { BIO_BOX, ENDING_BOX, ENDING_LAST_BOX, endingPages, VICTORY_BOX, VS_BOX, wordsFit } from '../studio/pilot/words';
 import { projectProblems } from '../studio/checks';
-import { newProject, openPackage, packageFromProject, projectFromPackage } from '../studio/project';
+import { emptyHd, newProject, openPackage, packageFromProject, projectFromPackage } from '../studio/project';
 import { blankRobot } from '../studio/robot/newRobot';
 import { copyMove, pictureFromIdle, setPicture as setRobotPicture } from '../studio/robot/model';
 import { detach, setPicture, sharedGroup } from '../studio/sprites';
@@ -117,7 +121,7 @@ describe.skipIf(!hasGameData)('OMF Studio projects', () => {
     for (const af of made) {
       expect(() => checkFighter(saveAF(af), 'robot')).not.toThrow();
       const p = newProject();
-      p.robots.push({ id: 'x', af, info: { name: 'X', description: '', moves: {}, ai: { projectile: [], charge: [], push: [] } } });
+      p.robots.push({ id: 'x', af, hd: null, info: { name: 'X', description: '', moves: {}, ai: { projectile: [], charge: [], push: [] } } });
       expect(projectProblems(p).filter((x) => x.level === 'error')).toEqual([]);
       // Its pictures can be made from its idle animation.
       const cell = pictureFromIdle(af, 'cell')!;
@@ -140,12 +144,12 @@ describe.skipIf(!hasGameData)('OMF Studio projects', () => {
     expect(projectProblems(p).some((x) => /no robots, arenas or pilots/.test(x.text))).toBe(true);
     const af = blankRobot();
     af.moves[11] = null;
-    p.robots.push({ id: 'x', af, info: { name: 'X', description: '', moves: {}, ai: { projectile: [], charge: [], push: [] } } });
+    p.robots.push({ id: 'x', af, hd: null, info: { name: 'X', description: '', moves: {}, ai: { projectile: [], charge: [], push: [] } } });
     expect(projectProblems(p).some((x) => x.level === 'error' && /idle animation/.test(x.text))).toBe(true);
     p.manifest.id = 'Bad Id';
     expect(projectProblems(p).some((x) => /id may only/.test(x.text))).toBe(true);
     // Words the screens would cut off: a warning that opens the pilot's words.
-    p.pilots.push({ id: 'y', info: readPilotInfo({ name: 'Y', bio: 'A very long bio that goes on and on. '.repeat(6) }, 'y'), portrait: null, face: null });
+    p.pilots.push({ id: 'y', info: readPilotInfo({ name: 'Y', bio: 'A very long bio that goes on and on. '.repeat(6) }, 'y'), portrait: null, face: null, hd: null });
     const long = projectProblems(p).find((x) => /bio is too long/.test(x.text));
     expect(long?.level).toBe('warning');
     expect(long?.target).toEqual({ kind: 'pilot', index: 0, move: 2 });
@@ -184,7 +188,7 @@ describe.skipIf(!hasGameData)('OMF Studio projects', () => {
       expect(!!p.info.ending[0]).toBe(id < 10);
       const project = newProject();
       project.manifest.name = 'Copy';
-      project.pilots.push({ id: 'copy', ...p });
+      project.pilots.push({ id: 'copy', ...p, hd: null });
       const back = await readModPackage(await writeModPackage(packageFromProject(project)));
       expect(back.pilots[0].info).toEqual(p.info);
     }
@@ -206,6 +210,58 @@ describe.skipIf(!hasGameData)('OMF Studio projects', () => {
     }
     // A bio twice as long does not.
     expect(wordsFit(BIO_BOX, `${(await originalPilot(0)).info.bio} `.repeat(2))).toBe(false);
+  });
+
+  it('HD pictures go with their sprites\' pixels, into the package and back', async () => {
+    const p = projectFromPackage(await buildSampleMod());
+    const robot = p.robots[0];
+    const idle = robot.af.moves[11]!.animation.sprites;
+    const [a, b] = [idle[0], idle[1]];
+    const size = (s: typeof a) => [(s.width + 2 * HD_PAD) * HD_SCALE.x, (s.height + 2 * HD_PAD) * HD_SCALE.y];
+    // A template is the sprite blown up to the HD size, with its margin.
+    const t = await decodePng(await hdTemplate(a.pixels(), a.width, a.height, robotPalette([0, 1, 4]), HD_PAD));
+    expect([t.w, t.h]).toEqual(size(a));
+    const pic = (s: typeof a) => encodePng(size(s)[0], size(s)[1], new Uint8Array(size(s)[0] * size(s)[1] * 4).fill(90));
+    robot.hd = emptyHd();
+    robot.hd.sprites.set(spriteHash(a), await pic(a));
+    robot.hd.sprites.set(spriteHash(b), await pic(b));
+    // (a picture no sprite has any more is left out)
+    robot.hd.sprites.set('0123456789abcdef', await pic(a));
+    const pkg = packageFromProject(p);
+    expect(pkg.robots[0].hd!.info.sprites.slice(0, 2).map((e) => [e.anim, e.sprite, e.file])).toEqual([[11, 0, 'hd/m11-a.png'], [11, 1, 'hd/m11-b.png']]);
+    // (a picture several sprites share is stored once)
+    expect(new Set(pkg.robots[0].hd!.info.sprites.map((e) => e.file)).size).toBe(pkg.robots[0].hd!.files.size);
+    const back = projectFromPackage(await readModPackage(await writeModPackage(pkg)));
+    expect([...back.robots[0].hd!.sprites.keys()].sort()).toEqual([spriteHash(a), spriteHash(b)].sort());
+    // Drawn on, a sprite takes its picture along while it keeps its size; not once its size changed.
+    const before = spriteHash(a);
+    const px = a.pixels().slice();
+    px[px.findIndex((v) => v !== 0)] = 40;
+    setPicture([a], px, a.width, a.height);
+    expect(followEdit(robot.hd, before, a)).toMatch(/goes with the changed sprite/);
+    expect(robot.hd.sprites.has(spriteHash(a))).toBe(true);
+    const before2 = spriteHash(a);
+    setPicture([a], new Uint8Array(4).fill(40), 2, 2);
+    expect(followEdit(robot.hd, before2, a)).toMatch(/size changed/);
+    expect(robot.hd.sprites.has(spriteHash(a))).toBe(false);
+    // Picture names: a robot's move and sprite, an arena's animation and sprite.
+    expect([spriteStem('m', 11, 0), spriteStem('a', 30, 1)]).toEqual(['m11-a', 'a30-b']);
+    expect([parseStem('m', 'M11-A'), parseStem('a', 'a30-b'), parseStem('m', 'a30-b'), parseStem('m', 'm11-a-hd')]).toEqual([[11, 0], [30, 1], null, null]);
+  });
+
+  it('HD pictures that no longer have the shape of their pictures stay out of the package', async () => {
+    const p = projectFromPackage(await buildSampleMod());
+    const arena = p.arenas[0], pilot = p.pilots[0];
+    // (the sample's arena has widescreen sides: 576 x 200)
+    arena.hd = { ...emptyHd(), background: await encodePng(1440, 600, new Uint8Array(1440 * 600 * 4)) };
+    pilot.hd = { ...emptyHd(), portrait: await encodePng(10, 10, new Uint8Array(400)) };
+    const pkg = packageFromProject(p);
+    expect(pkg.arenas[0].hd!.info.background).toBe('hd/background.png');
+    expect(pkg.pilots[0].hd).toBeNull();
+    // Without widescreen sides the background has another shape: its HD picture is left out.
+    arena.wid = null;
+    expect(packageFromProject(p).arenas[0].hd).toBeNull();
+    await expect(readModPackage(await writeModPackage(packageFromProject(p)))).resolves.toBeTruthy();
   });
 
   it('a project from a package keeps its content ids', async () => {

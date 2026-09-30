@@ -1,8 +1,8 @@
 // The animation panel of OMF Studio's editors: one animation of a file (a robot's move, an arena's animation) with a
 // preview at the game's pace (its hit points, onion skin), its frames and their tags, its raw string, and its sprites,
-// drawn in the pixel editor. What differs between robots and arenas comes from the host: the stage (robots stand on a
-// floor; an arena's animations are placed over its background), the palette and the colors sprites may use, and the
-// cards with the host's own fields.
+// drawn in the pixel editor, and their HD pictures (the remastered look's). What differs between robots and arenas
+// comes from the host: the stage (robots stand on a floor; an arena's animations are placed over its background), the
+// palette and the colors sprites may use, and the cards with the host's own fields.
 import type { AnimationData } from '../formats/animation';
 import type { Palette } from '../formats/palette';
 import type { Sprite } from '../formats/sprite';
@@ -13,6 +13,10 @@ import {
   fixSeparators, formatAnim, frameAtTick, newFrame, newTag, parseAnim, setFrame, tagHasValue, totalTicks, type AnimTokens,
 } from './anim';
 import { indexedCanvas } from './colors';
+import { spriteHash } from '../mods/package';
+import { followEdit, hdBitmap, hdTemplate } from './hd';
+import { hdPictureRow } from './hdCard';
+import { emptyHd, type HdDoc } from './project';
 import { field, fill, h, modal, numberInput, pickFiles, select, toast } from './dom';
 import { editPixels } from './pixel';
 import { TAG_HELP, tagChoices } from './robot/moves';
@@ -75,6 +79,28 @@ export interface AnimPanelHost {
   noun: string;
   /** The tags its animations use most, listed first when a tag is added. */
   tags?: string[];
+  /** Its sprites' HD pictures (robots' and arenas'). */
+  hd?: HdHost;
+}
+
+/** Where the panel finds the sprites' HD pictures (project.ts HdDoc). */
+export interface HdHost {
+  get(): HdDoc | null;
+  set(hd: HdDoc): void;
+  /** The colors templates are drawn in. */
+  palette(): Palette;
+  /** A sprite's picture's file name stem ("m11-a"). */
+  stem(id: number, sprite: number): string;
+}
+
+const hashes = new WeakMap<Uint8Array, string>();
+
+/** A sprite's fingerprint (kept while its pixels are the same). */
+function hashOf(s: Sprite): string {
+  if (!s.data) return spriteHash(s);
+  let hash = hashes.get(s.data);
+  if (!hash) hashes.set(s.data, (hash = spriteHash(s)));
+  return hash;
 }
 
 export class AnimPanel {
@@ -91,6 +117,10 @@ export class AnimPanel {
   private onion = false;
   private showHits = true;
   private zoomed = true;
+  /** The stage shows the sprites' HD pictures where they have one. */
+  private showHd = true;
+  private bitmaps = new Map<Uint8Array, ImageBitmap | null>();
+  private hdRow = h('div', { style: { marginTop: '10px' } });
   private stageCanvas = h('canvas', { class: 'pix', style: { width: '100%', height: '100%', display: 'block' } });
   private center = h('div', { class: 'col', style: { flex: '1 1 480px', minWidth: '0', padding: '12px 12px 20px' } });
   private right = h('div', { style: { flex: '0 0 340px', minWidth: '0', padding: '0 12px 20px' } });
@@ -113,6 +143,8 @@ export class AnimPanel {
       h('label', { class: 'muted' }, h('input', { type: 'checkbox', onchange: (e: Event) => ((this.onion = (e.target as HTMLInputElement).checked), this.draw()) }), ' Onion skin'),
       h('label', { class: 'muted', title: 'Zoom on the animation, or show the whole stage' },
         h('input', { type: 'checkbox', checked: this.zoomed, onchange: (e: Event) => ((this.zoomed = (e.target as HTMLInputElement).checked), this.draw()) }), ' Zoom'),
+      host.hd ? h('label', { class: 'muted', title: 'Show the sprites\' HD pictures (the remastered look\'s) where they have one, in the colors they are painted in' },
+        h('input', { type: 'checkbox', checked: this.showHd, onchange: (e: Event) => ((this.showHd = (e.target as HTMLInputElement).checked), this.draw()) }), ' HD') : null,
       this.tickInfo);
     fill(this.center, stageBox, controls,
       h('div', { class: 'card', style: { marginBottom: '0' } }, h('h2', null, 'FRAMES', h('span', { class: 'spacer' }),
@@ -126,7 +158,7 @@ export class AnimPanel {
         h('button', { class: 'btn small', onclick: () => this.addSprite(true), title: 'A copy of the selected sprite' }, 'Duplicate'),
         h('button', { class: 'btn small', onclick: () => void this.importSprites(), title: 'New sprites from PNG pictures' }, 'Import PNG'),
         h('button', { class: 'btn small', onclick: () => void this.exportSprite(), title: 'Save the selected sprite as a PNG' }, 'Export PNG'),
-        h('button', { class: 'btn small danger', onclick: () => void this.deleteSprite() }, 'Delete')), this.sprites));
+        h('button', { class: 'btn small danger', onclick: () => void this.deleteSprite() }, 'Delete')), this.sprites, host.hd ? this.hdRow : null));
     // (the frame panel goes under the preview when the window is narrow)
     this.el = h('div', { style: { overflow: 'auto', minWidth: '0' } }, h('div', { style: { display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start' } }, this.center, this.right));
   }
@@ -192,6 +224,19 @@ export class AnimPanel {
       this.images.set(s, c);
     }
     return c;
+  }
+
+  /** A sprite's HD picture ready to draw, or null (none, or still being decoded: the stage is drawn again then). */
+  private hdBitmapOf(s: Sprite): ImageBitmap | null {
+    const bytes = !s.isEmpty() && this.host.hd?.get()?.sprites.get(hashOf(s));
+    if (!bytes) return null;
+    if (this.bitmaps.has(bytes)) return this.bitmaps.get(bytes)!;
+    this.bitmaps.set(bytes, null);
+    void hdBitmap(bytes).then((b) => {
+      this.bitmaps.set(bytes, b);
+      this.draw();
+    });
+    return null;
   }
 
   private spriteOf(frameIndex: number): Sprite | null {
@@ -273,7 +318,14 @@ export class AnimPanel {
       if (!img) return;
       g.globalAlpha = alpha;
       const px = st.centred ? st.left + (st.width - s.width) / 2 : x0 + s.posX, py = st.centred ? (st.height - s.height) / 2 : y0 + s.posY;
-      g.drawImage(img, ox + px * k, oy + py * k, s.width * k, s.height * k);
+      // (its HD picture covers the sprite and the margin around it)
+      const hd = this.showHd ? this.hdBitmapOf(s) : null;
+      const pad = this.host.hd?.get()?.pad ?? 0;
+      if (hd) {
+        g.imageSmoothingEnabled = true;
+        g.drawImage(hd, ox + (px - pad) * k, oy + (py - pad) * k, (s.width + 2 * pad) * k, (s.height + 2 * pad) * k);
+        g.imageSmoothingEnabled = false;
+      } else g.drawImage(img, ox + px * k, oy + py * k, s.width * k, s.height * k);
       g.globalAlpha = 1;
     };
     if (a && this.tokens.frames.length) {
@@ -519,9 +571,43 @@ export class AnimPanel {
         box.append(h('div', { style: { flex: '1', display: 'grid', placeItems: 'center' } }, img));
       } else box.append(h('div', { class: 'faint', style: { flex: '1', display: 'grid', placeItems: 'center' } }, 'empty'));
       const shared = sharedGroup(all, s).length;
+      const hd = !s.isEmpty() && this.host.hd?.get()?.sprites.has(hashOf(s));
       box.append(h('div', { style: { fontSize: '11px', display: 'flex', gap: '4px' } }, h('b', null, String.fromCharCode(65 + i)),
-        shared > 1 ? h('span', { class: 'badge', title: `The same picture as ${shared - 1} other sprite(s) of the file` }, `×${shared}`) : null));
+        shared > 1 ? h('span', { class: 'badge', title: `The same picture as ${shared - 1} other sprite(s) of the file` }, `×${shared}`) : null,
+        hd ? h('span', { class: 'badge ok', title: 'It has an HD picture (the remastered look\'s)' }, 'HD') : null));
       return box;
+    }));
+    this.renderHdRow();
+  }
+
+  /** The selected sprite's HD picture. */
+  private renderHdRow(): void {
+    const hd = this.host.hd;
+    const s = this.anim?.sprites[this.spriteSel];
+    if (!hd) return;
+    if (!s || s.isEmpty()) {
+      fill(this.hdRow, h('span', { class: 'faint', style: { fontSize: '12px' } }, 'HD picture: the sprite is empty.'));
+      return;
+    }
+    const pad = () => hd.get()?.pad ?? emptyHd().pad;
+    fill(this.hdRow, h('div', { class: 'faint', style: { fontSize: '12px', marginBottom: '4px' } },
+      `Sprite ${String.fromCharCode(65 + this.spriteSel)}'s HD picture (the remastered look's): the sprite and ${pad()} pixels around it`),
+    hdPictureRow({
+      what: `sprite ${String.fromCharCode(65 + this.spriteSel)}`, file: `${hd.stem(this.id, this.spriteSel)}.png`,
+      get: () => hd.get()?.sprites.get(hashOf(s)) ?? null,
+      set: (bytes) => {
+        const doc = hd.get() ?? emptyHd();
+        if (bytes) doc.sprites.set(hashOf(s), bytes);
+        else doc.sprites.delete(hashOf(s));
+        hd.set(doc);
+      },
+      native: () => [s.width + 2 * pad(), s.height + 2 * pad()],
+      template: () => hdTemplate(s.pixels(), s.width, s.height, hd.palette(), pad()),
+      changed: () => {
+        this.host.changed(false);
+        this.renderSprites();
+        this.draw();
+      },
     }));
   }
 
@@ -562,6 +648,7 @@ export class AnimPanel {
       fileName: this.host.spriteFile(this.id, this.spriteSel),
     });
     if (!result) return;
+    const before = empty ? '' : hashOf(s);
     const dx = result.posX - s.posX, dy = result.posY - s.posY;
     if (everywhere) {
       setPicture(group, result.pixels, result.w, result.h);
@@ -579,6 +666,8 @@ export class AnimPanel {
       const other = a.coords.filter((c) => c.frameId !== this.spriteSel);
       a.coords = [...other, ...result.hitPoints.map((p) => ({ x: p.x, y: p.y, nullValue: 0, frameId: this.spriteSel }))];
     }
+    const note = before ? followEdit(this.host.hd?.get() ?? null, before, s) : null;
+    if (note) toast(note, false, 6000);
     this.images.clear();
     this.host.changed(true);
     this.renderSprites();

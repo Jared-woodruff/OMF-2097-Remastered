@@ -138,15 +138,49 @@ function surface(p: IndexedPicture, key: string): Surface {
 }
 
 /**
+ * What a portrait surface shows of a mod pilot's pictures: its portrait or its face, all of it (`crop` null) or a part
+ * (in the picture's pixels). The HD artwork draws the same part of the pilot's HD picture (mods/hdArt.ts).
+ */
+export interface PortraitPart {
+  kind: 'portrait' | 'face';
+  crop: { x: number; y: number; w: number; h: number } | null;
+}
+
+type PortraitHook = (pilotId: number, surf: Surface, pal: Palette, part: PortraitPart) => void;
+let portraitHook: PortraitHook | null = null;
+
+/** Called with every portrait surface made for a mod pilot, in the screen's palette (the remastered look's HD pictures). */
+export function setPortraitHook(hook: PortraitHook | null): void {
+  portraitHook = hook;
+}
+
+/** The part of a picture a `cover` fit of w x h shows (fitPicture), or null when it shows more than the picture. */
+function coverPart(img: PngImage, w: number, h: number): PortraitPart['crop'] {
+  const k = Math.max(w / img.w, h / img.h);
+  if (k > 1) return null;
+  const sw = Math.max(1, Math.round(img.w * k));
+  const ox = Math.round((sw - w) / 2);
+  return { x: ox / k, y: 0, w: w / k, h: h / k };
+}
+
+/**
  * A mod pilot's portrait in a screen's colors (fitPicture). `face`: the pilot select grid's face picture when the
  * pilot has one (placed in the cell's middle as it is). Null for a pilot without a portrait.
  */
 export function pilotPortrait(pilotId: number, pal: Palette, w: number, h: number, mode: 'fit' | 'cover', background = 0, face = false): Surface | null {
   const p = modPilot(pilotId);
-  if (face && p?.face) return surface(placePicture(p.face, pal, PORTRAIT_ENTRIES, w, h, background), `mod-pilot/${pilotId}/face`);
+  if (face && p?.face) {
+    const surf = surface(placePicture(p.face, pal, PORTRAIT_ENTRIES, w, h, background), `mod-pilot/${pilotId}/face`);
+    // (an HD face stands for a face of the cell's size)
+    if (p.face.w === w && p.face.h === h) portraitHook?.(pilotId, surf, pal, { kind: 'face', crop: null });
+    return surf;
+  }
   const img = p?.portrait;
   if (!img) return null;
-  return surface(fitPicture(img, pal, PORTRAIT_ENTRIES, w, h, mode, background), `mod-pilot/${pilotId}/${mode}/${w}x${h}`);
+  const surf = surface(fitPicture(img, pal, PORTRAIT_ENTRIES, w, h, mode, background), `mod-pilot/${pilotId}/${mode}/${w}x${h}`);
+  const crop = mode === 'fit' ? null : coverPart(img, w, h);
+  if (mode === 'fit' || crop) portraitHook?.(pilotId, surf, pal, { kind: 'portrait', crop });
+  return surf;
 }
 
 /**
@@ -183,5 +217,7 @@ export function addEndingPortrait(ani: Animation, pilotId: number, pal: Palette)
   const pic = endingPicture(img, pal, endingEntries(ani.sprites.map((sp) => sp.surface?.data)));
   const { x, y, w, h } = ENDING_PORTRAIT;
   while (ani.sprites.length < pilotId) ani.sprites.push(new RSprite(ani.sprites.length, 0, 0, null));
-  ani.sprites[pilotId] = new RSprite(pilotId, x + ((w - pic.w) >> 1), y + ((h - pic.h) >> 1), surface(pic, `mod-pilot/${pilotId}/ending`));
+  const surf = surface(pic, `mod-pilot/${pilotId}/ending`);
+  portraitHook?.(pilotId, surf, pal, { kind: 'portrait', crop: null });
+  ani.sprites[pilotId] = new RSprite(pilotId, x + ((w - pic.w) >> 1), y + ((h - pic.h) >> 1), surf);
 }

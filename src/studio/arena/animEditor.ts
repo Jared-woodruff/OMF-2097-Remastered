@@ -12,6 +12,7 @@ import { encodeSprite, Sprite } from '../../formats/sprite';
 import { getFile } from '../../resources/files';
 import { formatAnim, parseAnim, tagText } from '../anim';
 import { AnimPanel, type AnimPanelHost, TICK_MS } from '../animPanel';
+import { spriteStem } from '../hd';
 import type { StudioApp } from '../app';
 import { arenaPalette, indexedCanvas, nearestEntry, referenceArena } from '../colors';
 import { confirmDialog, field, fill, h, modal, numberInput, pickFiles, select, toast } from '../dom';
@@ -181,6 +182,12 @@ export class ArenaAnimEditor {
     const host: AnimPanelHost = {
       noun: 'animation',
       tags: ARENA_TAGS,
+      hd: {
+        get: () => arenaRef.hd,
+        set: (hd) => (arenaRef.hd = hd),
+        palette: () => arenaPalette(arenaRef.bk),
+        stem: (id, sprite) => spriteStem('a', id, sprite),
+      },
       all: () => arenaRef.bk.anims.map((a) => a?.animation),
       get: (i) => arenaRef.bk.anims[i]?.animation ?? null,
       palette: () => arenaPalette(arenaRef.bk),

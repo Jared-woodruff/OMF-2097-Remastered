@@ -1,8 +1,9 @@
 // A robot in OMF Studio: its overview (name, stats, how the computer fights with it, its pictures, what it still
 // needs) and its moves (moveEditor.ts).
-import { PICTURE_MOVES, REQUIRED_MOVES } from '../../mods/types';
+import { HD_REFERENCE_COLORS, PICTURE_MOVES, REQUIRED_MOVES } from '../../mods/types';
 import type { Editor, StudioApp } from '../app';
 import { MOVE_LABELS } from '../checks';
+import { hdSpritesCard } from '../hdCard';
 import { indexedCanvas, rampColor, robotPalette } from '../colors';
 import { field, fill, h, numberInput, textInput, toast } from '../dom';
 import type { RobotDoc } from '../project';
@@ -159,6 +160,11 @@ function overview(app: StudioApp, robot: RobotDoc, openMove: (id: number) => voi
     h('div', { class: 'card' }, h('h2', null, 'WHAT IT NEEDS'), checklist),
     h('div', { class: 'card' }, h('h2', null, 'PICTURES'),
       h('div', { class: 'row', style: { alignItems: 'flex-start', gap: '30px' } }, picture('cell'), picture('vs'))),
+    hdSpritesCard({
+      app, prefix: 'm', anims: () => af.moves, get: () => robot.hd, set: (hd) => (robot.hd = hd),
+      palette: () => robotPalette(robot.hd?.colors ?? HD_REFERENCE_COLORS), name: `${robot.id}-hd-templates.zip`, colors: true,
+      changed: () => app.changed(false),
+    }),
     h('div', { class: 'card' }, h('h2', null, 'THE COMPUTER\'S TACTICS'),
       h('p', { class: 'muted', style: { marginTop: '0' } }, 'Which of its special moves the computer uses when it wants to shoot from afar, charge in, ' +
         'or push the other robot back. Without any, it fights with its moves in general.'),

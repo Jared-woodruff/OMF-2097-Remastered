@@ -198,16 +198,30 @@ export class HdAssets {
 
   /** Loads an image as an artwork texture (at the artwork resolution setting); w x h is its logical size. */
   async loadImage(url: string, w: number, h: number, mips = true): Promise<HdTexture> {
-    const gl = this.gl!;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+    return this.loadBlob(await res.blob(), w, h, mips);
+  }
+
+  /** Frees a texture made by loadImage or loadBlob. */
+  freeTexture(t: HdTexture): void {
+    this.gl?.deleteTexture(t.tex);
+  }
+
+  /**
+   * Makes an artwork texture of an image file's contents (a PNG or WebP picture), at the artwork resolution setting;
+   * `limit` scales it down further when it is bigger than that (w x h, its logical size, is what it stands for).
+   */
+  async loadBlob(blob: Blob, w: number, h: number, mips = true, limit = Infinity): Promise<HdTexture> {
+    const gl = this.gl!;
     const opts: ImageBitmapOptions = { premultiplyAlpha: 'premultiply', colorSpaceConversion: 'none' };
-    if (this.textureScale < 1) {
-      opts.resizeWidth = Math.max(1, Math.round(w * this.textureScale));
-      opts.resizeHeight = Math.max(1, Math.round(h * this.textureScale));
+    const k = Math.min(this.textureScale, limit / Math.max(w, h));
+    if (k < 1) {
+      opts.resizeWidth = Math.max(1, Math.round(w * k));
+      opts.resizeHeight = Math.max(1, Math.round(h * k));
       opts.resizeQuality = 'high';
     }
-    const bmp = await createImageBitmap(await res.blob(), opts);
+    const bmp = await createImageBitmap(blob, opts);
     const tex = gl.createTexture()!;
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, bmp);

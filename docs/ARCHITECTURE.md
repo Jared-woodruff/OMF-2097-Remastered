@@ -27,7 +27,7 @@ OpenOMF project (MIT, https://github.com/omf2097/openomf); rendering and platfor
 | `src/game/modes/`, `src/game/records/` | Arcade, survival, time attack and the workshop's test fight (`run.ts`), their results page; statistics and achievements. |
 | `src/game/workshop/`, `src/gen/workshop.ts` | The robot workshop: robot descriptions, building them into fighters at run time, the editor page. |
 | `src/game/tournament/custom*.ts` | Custom tournaments made from the installed ones, and their page. |
-| `src/mods/` | Mods (see [MODDING.md](MODDING.md)): the `.omfmod` package format (`types.ts`, `package.ts`), the installed mods (`store.ts`, IndexedDB), the numbers their content plays under (`ids.ts`), loading them at start-up (`registry.ts`), pilots' portraits in each screen's colors (`portraits.ts`), the Mods page, and a sample mod. |
+| `src/mods/` | Mods (see [MODDING.md](MODDING.md)): the `.omfmod` package format (`types.ts`, `package.ts`), the installed mods (`store.ts`, IndexedDB), the numbers their content plays under (`ids.ts`), loading them at start-up (`registry.ts`), pilots' portraits in each screen's colors (`portraits.ts`), their HD pictures in the remastered look (`hdArt.ts`), the Mods page, and a sample mod. |
 | `src/studio/`, `studio.html` | OMF Studio, the modding tool: a second page sharing the formats, the generators and the storage (see below). |
 | `src/util/zip.ts`, `src/util/png.ts` | Zip archives and PNG images read and written without the browser (the game data import, mods, Studio's art). |
 
@@ -322,8 +322,11 @@ shared effect moves and arenas the shared palette, remap rows, announcements and
 `setHarName`/`HAR_NAMES` and `harName()`, the rest in the registry that `roster.ts` asks (the select grids' extra rows,
 `arenaList()` for the rotation and the VS screen, `pilotInfo()`/`pilotNameOf()`/`pilotBio()` for pilots). Arenas are the
 last block of `SceneId` (`ARENA0 + n` for any n below `MAX_ARENAS`), and code keyed by an original arena asks
-`arenaBase()` (built-in rules) or `arenaLook()` (remastered ambience and acoustics). The engine keeps what it loaded,
-so turning mods on or off applies at the next start.
+`arenaBase()` (built-in rules) or `arenaLook()` (remastered ambience and acoustics). A mod's HD pictures
+(`hd.json`) are loaded when a screen needs them (`mods/hdArt.ts`, from `onSceneChange` like the generated robots'
+artwork, and from the portrait surfaces the screens make) and registered with the HD artwork by the fingerprints of
+the classic pictures they stand for, against the palette they were painted in; freed a few screens after the last
+that wanted them. The engine keeps what it loaded, so turning mods on or off applies at the next start.
 
 OMF Studio (`studio.html`, `src/studio`) is a separate page on the same origin: plain TypeScript and DOM, 2D canvases
 for its pictures (no `GameState`: the engine's singletons are the game's). A project is a mod package open for
@@ -337,7 +340,8 @@ its hosts, each adding its own cards (a move's input and combat fields; an anima
 chains). A pilot's words are laid out by the game's own text code in the boxes of the screens that show them
 (`pilot/words.ts`), its portrait fitted into each screen's colors by the game's own functions (`mods/portraits.ts`),
 and its personality edited as the fields the original pilots have (`controller/personalities.ts`, the table the
-game's `resetPilotPersonality` applies). **Test** puts the built package in the game's storage as the mod being
+game's `resetPilotPersonality` applies). HD pictures are held by the fingerprints of the sprites they stand for, so
+they follow their pixels (`hd.ts`: templates, shape checks, WebP; `hdCard.ts`: the cards). **Test** puts the built package in the game's storage as the mod being
 tested and opens `index.html?modtest&t=…&h1=mod:<id>…` in a frame: the game loads it over the installed mods and starts
 the fight, or the one-player game at its pilot select screen, its VS screen or its ending (`testContent()` in the
 registry turns the names into numbers; `gs.modTest` shows the arena's hazards and Kreissack whatever the settings).

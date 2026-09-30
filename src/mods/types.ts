@@ -11,6 +11,7 @@
 //                                  screen's palette)
 //   pilots/<id>/face.png           optional: its face in the pilot select grid (51 x 36; see-through where the cursor's
 //                                  color shows, like the originals'); made from the portrait when there is none
+//   <robots|arenas|pilots>/<id>/hd.json   optional: its HD pictures for the remastered look (ModHdInfo), in hd/
 //
 // Robots and arenas may leave out what every one of them shares (the effect moves 7, 8, 12-14 and 55-57 of a fighter
 // file; the round banners, shared colors and sounds of an arena): the game adds the original game's, like it does for
@@ -154,6 +155,98 @@ export interface ModPilotVs {
 export const REQUIRED_MOVES = [1, 2, 3, 4, 5, 6, 9, 10, 11, 48, 49];
 /** The pictures a robot brings in its fighter file: the robot select screen's cell (51 x 36) and the VS screen's image. */
 export const PICTURE_MOVES = { cell: 60, vs: 61 } as const;
+
+/** HD pictures are 5 times as wide and 6 times as tall as the native pixels they stand for (the remaster's artwork). */
+export const HD_SCALE = { x: 5, y: 6 } as const;
+/** Native pixels of margin a sprite's HD picture covers around the sprite, unless hd.json says otherwise. */
+export const HD_PAD = 4;
+/** The largest HD picture, either side. */
+export const HD_MAX = 4096;
+/**
+ * The robot colors (primary, secondary, tertiary) HD pictures are painted in unless hd.json says otherwise: the
+ * remaster's reference, three clearly different hues (the game tells a robot's color ramps apart by hue).
+ */
+export const HD_REFERENCE_COLORS: [number, number, number] = [0, 1, 4];
+
+/** A sprite's HD picture: the animation (a robot's move, an arena's animation), the sprite (0 = A) and its file. */
+export interface ModHdSprite {
+  anim: number;
+  sprite: number;
+  file: string;
+  /** The fingerprint of the pixels of the sprite it was made for (the game leaves it out when they changed). */
+  hash: string | null;
+}
+
+/** hd.json: a robot's, arena's or pilot's HD pictures (docs/MODDING.md). */
+export interface ModHdInfo {
+  /** Robots: the robot colors its pictures are painted in (primary, secondary, tertiary: 0-15). */
+  colors: [number, number, number];
+  /** Native pixels of margin its sprite pictures cover around their sprites. */
+  pad: number;
+  sprites: ModHdSprite[];
+  /** Arenas: the background (with its widescreen sides when it has them). */
+  background: string | null;
+  /** Pilots: the portrait, and the pilot select grid's face. */
+  portrait: string | null;
+  face: string | null;
+}
+
+/** A file of hd.json: a picture in its hd folder. */
+export const HD_FILE_PATTERN = /^hd\/[A-Za-z0-9._-]{1,64}\.(png|webp)$/;
+
+function hdFile(o: Json, key: string, where: string): string | null {
+  const v = o[key];
+  if (v === undefined || v === null) return null;
+  if (typeof v !== 'string' || !HD_FILE_PATTERN.test(v)) throw new ModError(`${where}: "${key}" must name a PNG or WebP picture in hd/.`);
+  return v;
+}
+
+export function readHdInfo(v: unknown, where: string): ModHdInfo {
+  const o = obj(v, where);
+  const colors = o.colors ?? HD_REFERENCE_COLORS;
+  if (!Array.isArray(colors) || colors.length !== 3 || colors.some((c) => typeof c !== 'number' || !Number.isInteger(c) || c < 0 || c > 15)) {
+    throw new ModError(`${where}: "colors" must be three colors from 0 to 15.`);
+  }
+  const list = o.sprites ?? [];
+  if (!Array.isArray(list)) throw new ModError(`${where}: "sprites" must be a list.`);
+  const seen = new Set<string>();
+  const sprites = list.map((x, i): ModHdSprite => {
+    const e = obj(x, `${where}: sprite ${i + 1}`);
+    const at = `${where}: sprite ${i + 1}`;
+    const s: ModHdSprite = {
+      anim: int(e, 'anim', at, 0, 69), sprite: int(e, 'sprite', at, 0, 254), file: hdFile(e, 'file', at) ?? '', hash: null,
+    };
+    if (!s.file) throw new ModError(`${at}: "file" is missing.`);
+    if (e.hash !== undefined && e.hash !== null) {
+      if (typeof e.hash !== 'string' || !/^[0-9a-f]{16}$/.test(e.hash)) throw new ModError(`${at}: "hash" must be 16 hexadecimal digits.`);
+      s.hash = e.hash;
+    }
+    const key = `${s.anim}/${s.sprite}`;
+    if (seen.has(key)) throw new ModError(`${where} names animation ${s.anim}, sprite ${s.sprite} twice.`);
+    seen.add(key);
+    return s;
+  });
+  return {
+    colors: [...colors] as [number, number, number],
+    pad: int(o, 'pad', where, 0, 8, HD_PAD),
+    sprites,
+    background: hdFile(o, 'background', where),
+    portrait: hdFile(o, 'portrait', where),
+    face: hdFile(o, 'face', where),
+  };
+}
+
+/**
+ * Whether an HD picture of w x h has the shape of the native area it stands for (nw x nh native pixels, at 5 x 6), and
+ * is big enough to be HD (at least twice the native pixels) and small enough to load. Returns what is wrong, or null.
+ */
+export function hdShapeProblem(w: number, h: number, nw: number, nh: number): string | null {
+  const ew = nw * HD_SCALE.x, eh = nh * HD_SCALE.y;
+  if (w > HD_MAX || h > HD_MAX) return `it is bigger than ${HD_MAX} x ${HD_MAX}`;
+  if (Math.abs((w / h) / (ew / eh) - 1) > 0.02) return `it must have the shape of ${ew} x ${eh} (${nw} x ${nh} native pixels at 5 x 6)`;
+  if (w < nw * 2) return `it must be at least ${nw * 2} pixels wide to be HD (${ew} x ${eh} is the remaster's size)`;
+  return null;
+}
 
 export const ID_PATTERN = /^[a-z0-9][a-z0-9._-]{0,63}$/;
 export const CONTENT_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,31}$/;

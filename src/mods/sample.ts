@@ -196,6 +196,7 @@ export async function buildSampleMod(): Promise<ModPackage> {
         ai: { projectile: [MOVE.SPECIAL3], charge: [MOVE.SPECIAL1], push: [MOVE.SPECIAL2] },
       },
       af: buildWorkshopFighter(ROBOT, 0),
+      hd: null,
     }],
     arenas: [{
       id: 'dusk-rooftop',
@@ -210,6 +211,7 @@ export async function buildSampleMod(): Promise<ModPackage> {
       },
       bk: arena.bk,
       wid: arena.wid,
+      hd: null,
     }],
     pilots: [{
       id: 'vega',
@@ -241,6 +243,7 @@ export async function buildSampleMod(): Promise<ModPackage> {
       },
       portrait: await samplePortrait(),
       face: await sampleFace(),
+      hd: null,
     }],
   };
 }

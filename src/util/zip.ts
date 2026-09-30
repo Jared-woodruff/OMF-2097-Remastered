@@ -115,7 +115,13 @@ export function crc32(data: Uint8Array): number {
 /** Every entry's date: 1 January 2097 (DOS dates count from 1980), so the same files always make the same archive. */
 const DOS_DATE = ((2097 - 1980) << 9) | (1 << 5) | 1;
 
-/** A zip archive of the files, in the given order (each one deflated when that makes it smaller). */
+/** Checksums of stored pictures (their bytes never change in place: a changed picture is a new array). */
+const pictureCrcs = new WeakMap<Uint8Array, number>();
+
+/**
+ * A zip archive of the files, in the given order (each one deflated when that makes it smaller; PNG, WebP and JPEG
+ * pictures are stored: they are compressed already).
+ */
 export async function zip(files: Iterable<[string, Uint8Array]>): Promise<Uint8Array> {
   const enc = new TextEncoder();
   const parts: Uint8Array[] = [];
@@ -124,10 +130,15 @@ export async function zip(files: Iterable<[string, Uint8Array]>): Promise<Uint8A
   let count = 0;
   for (const [path, data] of files) {
     const name = enc.encode(path);
-    const deflated = data.length > 64 ? await deflateRaw(data) : null;
+    const picture = /\.(png|webp|jpe?g)$/i.test(path);
+    const deflated = data.length > 64 && !picture ? await deflateRaw(data) : null;
     const packed = deflated && deflated.length < data.length ? deflated : data;
     const method = packed === data ? 0 : 8;
-    const crc = crc32(data);
+    let crc = picture ? pictureCrcs.get(data) : undefined;
+    if (crc === undefined) {
+      crc = crc32(data);
+      if (picture) pictureCrcs.set(data, crc);
+    }
     const local = new Uint8Array(30 + name.length);
     const lv = new DataView(local.buffer);
     lv.setUint32(0, 0x04034b50, true);

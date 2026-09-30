@@ -16,12 +16,15 @@ import { decodePng, encodeIndexedPng } from '../../util/png';
 import { encodeSprite } from '../../formats/sprite';
 import { saveFile } from '../../platform/files';
 import { soundsCard } from '../robot/sounds';
+import { hdTemplate } from '../hd';
+import { hdPictureRow, hdSpritesCard } from '../hdCard';
 import { sharedGroup } from '../sprites';
+import { spriteHash } from '../../mods/package';
 import { ARENA_EFFECTS, ARENA_OWN, ArenaAnimEditor } from './animEditor';
 import type { Editor, StudioApp } from '../app';
 import { arenaPalette, indexedCanvas, nearestEntry, referenceArena } from '../colors';
 import { field, fill, h, modal, pickFiles, select, textInput, toast } from '../dom';
-import { freeContentId, type ArenaDoc } from '../project';
+import { emptyHd, freeContentId, type ArenaDoc } from '../project';
 
 const ORIGINAL_NAMES = ['STADIUM', 'DANGER ROOM', 'POWER PLANT', 'FIRE PIT', 'DESERT'];
 const BASES: [number, string][] = [[-1, 'None'], [0, 'Stadium (light on the robots)'], [1, 'Danger Room'], [2, 'Power Plant (electric walls)'],
@@ -115,7 +118,19 @@ function overview(app: StudioApp, arena: ArenaDoc, openAnim: (id: number) => voi
     h('div', { class: 'card' }, h('h2', null, 'BACKGROUND', h('span', { class: 'spacer' }),
       h('button', { class: 'btn small primary', onclick: () => void replacePicture(app, arena).then((ok) => ok && drawPicture()) }, 'Replace from a PNG'),
       h('button', { class: 'btn small', onclick: () => void exportPicture(arena) }, 'Export PNG')),
-      pictureBox),
+      pictureBox,
+      // The remastered look's picture of it: the whole background, with its widescreen sides when it has them.
+      h('div', { style: { marginTop: '10px' } }, hdPictureRow({
+        what: 'the background', file: `${arena.id}-background-hd-template.png`,
+        get: () => arena.hd?.background ?? null,
+        set: (bytes) => ((arena.hd ??= emptyHd()).background = bytes),
+        native: () => [wide(arena) ? 576 : 320, 200],
+        template: () => {
+          const wpx = wide(arena);
+          return hdTemplate(wpx ?? arena.bk.background, wpx ? 576 : 320, 200, arenaPalette(arena.bk), 0);
+        },
+        changed: () => app.changed(false),
+      }))),
     h('div', { class: 'card' }, h('h2', null, 'WHAT MOVES', h('span', { class: 'spacer' }),
       h('button', { class: 'btn small', onclick: () => openAnim(-1) }, 'Animations')),
       h('p', { class: 'muted', style: { marginTop: '0' } }, loops.length || hazards.length
@@ -123,6 +138,10 @@ function overview(app: StudioApp, arena: ArenaDoc, openAnim: (id: number) => voi
           hazards.length ? `At random during fights (hazards on): ${hazards.map(({ a, id }) => `animation ${id} (1 in ${a!.probability}${a!.hazardDamage && a!.animation.coords.length ? `, ${a!.hazardDamage} damage` : ''})`).join(', ')}.` : '']
           .filter(Boolean).join(' ')
         : 'Nothing yet: a still arena. Its Animations tab adds looping animations and hazards.')),
+    hdSpritesCard({
+      app, prefix: 'a', anims: () => arena.bk.anims, get: () => arena.hd, set: (hd) => (arena.hd = hd), palette: () => arenaPalette(arena.bk),
+      name: `${arena.id}-hd-templates.zip`, colors: false, changed: () => app.changed(false),
+    }),
     soundsCard(arena.bk.soundTable, () => app.changed(false), {
       strings: arena.bk.anims.flatMap((a) => (a ? [a.animation.animString, ...a.animation.extraStrings] : [])),
       shared: (i) => [1, 2, 3, 10, 11, 12, 13, 14, 15, 16].includes(i),
@@ -178,6 +197,7 @@ async function replacePicture(app: StudioApp, arena: ArenaDoc): Promise<boolean>
     const after = arenaPalette(arena.bk);
     const map = new Map<number, number>();
     const entries = [...ARENA_OWN, ...ARENA_EFFECTS];
+    let hdKept = 0;
     for (const a of arena.bk.anims) {
       for (const sp of a?.animation.sprites ?? []) {
         if (sp.isEmpty() || sp.missing) continue;
@@ -194,14 +214,26 @@ async function replacePicture(app: StudioApp, arena: ArenaDoc): Promise<boolean>
           }
         }
         if (changedPx) {
+          const oldHash = spriteHash(sp);
           const data = encodeSprite(px, sp.width, sp.height);
           // (copies of the picture elsewhere in the file follow it)
           for (const x of sharedGroup(arena.bk.anims.map((b) => b?.animation), sp)) x.setData(data, sp.width, sp.height);
+          // (and so does its HD picture: the sprite kept its shape)
+          const hd = arena.hd?.sprites.get(oldHash);
+          if (hd) {
+            arena.hd!.sprites.set(spriteHash(sp), hd);
+            hdKept++;
+          }
         }
       }
     }
     app.changed(false);
     if (arena.bk.anims.some((a) => a)) toast('The arena\'s colors changed with the picture: its animations\' colors were matched to the new ones.', false, 6000);
+    if (hdKept) toast(`Its animations' HD pictures stay with their sprites: redo them if the new colors show.`, false, 6000);
+    if (arena.hd?.background) {
+      arena.hd.background = null;
+      toast('Its HD background was painted for the old picture: bring in one for the new picture.', false, 6000);
+    }
     return true;
   } catch (err) {
     toast(`The picture could not be used: ${(err as Error)?.message ?? err}`, true);
@@ -267,7 +299,7 @@ export async function newArenaDialog(app: StudioApp): Promise<ArenaDoc | null> {
     const music = (gen?.music ?? `ARENA${from}.PSM`) as typeof info.music;
     const ambience = (['stadium', 'danger room', 'power plant', 'fire pit', 'desert', 'orbital', 'ice cave', 'rooftop', 'abyss'][from] ?? 'none') as typeof info.ambience;
     return {
-      id, bk, wid: gen ? getGenerated(`ARENA${from}.WID`) : null,
+      id, bk, wid: gen ? getGenerated(`ARENA${from}.WID`) : null, hd: null,
       info: { ...info, music, ambience, base: from < 5 ? from : -1,
         description: from < 5 ? langGet(66 + from).replace(/\n$/, '') : gen?.description ?? '' },
     };
@@ -279,5 +311,5 @@ export async function newArenaDialog(app: StudioApp): Promise<ArenaDoc | null> {
     palettes: [], remaps: [], soundTable: new Uint8Array(30),
   };
   const wid = fromPicture(bk, pic.rgb, pic.w, pic.h);
-  return { id, bk, wid, info };
+  return { id, bk, wid, info, hd: null };
 }

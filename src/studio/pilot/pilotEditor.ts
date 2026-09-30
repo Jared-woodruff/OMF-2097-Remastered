@@ -12,7 +12,10 @@ import { MOD_ENDING } from '../../game/pilotWords';
 import {
   endingEntries, endingPicture, FACE_SIZE, fitPicture, placePicture, PORTRAIT_ENTRIES, PORTRAIT_SIZE, type IndexedPicture,
 } from '../../mods/portraits';
-import { MOD_AI_RANGES, MOD_SEXES, type ModPilotAi, type ModPilotInfo } from '../../mods/types';
+import { hdShapeProblem, MOD_AI_RANGES, MOD_SEXES, type ModPilotAi, type ModPilotInfo } from '../../mods/types';
+import { imageSize } from '../../util/imageSize';
+import { pictureTemplate } from '../hd';
+import { hdPictureRow } from '../hdCard';
 import { saveFile } from '../../platform/files';
 import { getFile } from '../../resources/files';
 import { decodePng, encodePng } from '../../util/png';
@@ -20,7 +23,7 @@ import type { Editor, StudioApp } from '../app';
 import { indexedCanvas, rampColor, robotPalette } from '../colors';
 import { field, fill, h, modal, numberInput, pickFiles, select, textInput, toast } from '../dom';
 import { editPixels } from '../pixel';
-import { freeContentId, type PilotDoc } from '../project';
+import { emptyHd, freeContentId, type PilotDoc } from '../project';
 import { pngToPixels } from '../sprites';
 import { originalAnswer, originalName, originalPilot } from './originals';
 import { BIO_BOX, ENDING_BOX, ENDING_LAST_BOX, endingPages, scenePalette, VICTORY_BOX, VS_BOX, wordsCanvas, wordsFit, type WordBox } from './words';
@@ -136,10 +139,41 @@ function pictures(c: Ctx): HTMLElement {
         face ? 'its own face' : img ? 'cut from the portrait by the game (no face of its own)' : ''));
   };
   void draw();
-  const changed = () => {
-    app.changed(false);
-    void draw();
+  // (an HD picture of another shape than its picture now has is left out: it was painted for the old one)
+  const checkHd = () => {
+    const hd = pilot.hd;
+    if (!hd) return;
+    const p = pilot.portrait && imageSize(pilot.portrait), f = pilot.face && imageSize(pilot.face);
+    const fits = (bytes: Uint8Array, w: number, hh: number) => {
+      const s = imageSize(bytes);
+      return !!s && !hdShapeProblem(s.w, s.h, w, hh);
+    };
+    if (hd.portrait && !(p && fits(hd.portrait, p.w, p.h))) {
+      hd.portrait = null;
+      toast('The portrait\'s shape changed: its HD picture was left out. Bring in one for the new portrait.', false, 6000);
+    }
+    if (hd.face && !(f && f.w === FACE_SIZE.w && f.h === FACE_SIZE.h && fits(hd.face, f.w, f.h))) {
+      hd.face = null;
+      toast('The face changed: its HD picture was left out. Bring in one for the new face.', false, 6000);
+    }
   };
+  const changed = () => {
+    checkHd();
+    app.changed(false);
+    c.redraw();
+  };
+  const hdRow = (which: 'portrait' | 'face') => h('div', { style: { marginTop: '12px' } }, hdPictureRow({
+    what: `the ${which}`, file: `${pilot.id}-${which}-hd-template.png`,
+    get: () => pilot.hd?.[which] ?? null,
+    set: (bytes) => ((pilot.hd ??= emptyHd())[which] = bytes),
+    native: () => {
+      const s = pilot[which] && imageSize(pilot[which]!);
+      // (an HD face stands for a face of the grid's cell size)
+      return s && (which === 'portrait' || (s.w === FACE_SIZE.w && s.h === FACE_SIZE.h)) ? [s.w, s.h] : null;
+    },
+    template: async () => (pilot[which] ? pictureTemplate(pilot[which]!) : null),
+    changed: () => app.changed(false),
+  }));
   const importPng = async (which: 'portrait' | 'face') => {
     const [f] = await pickFiles('.png,image/png');
     if (!f) return;
@@ -194,12 +228,10 @@ function pictures(c: Ctx): HTMLElement {
     pilot[which] ? h('button', { class: 'btn small', onclick: () => void exportPng(which) }, 'Export PNG') : null,
     which === 'face' && pilot.portrait ? h('button', { class: 'btn small', onclick: async () => {
       pilot.face = await faceFromPortrait(pilot.portrait!);
-      c.redraw();
       changed();
     } }, 'Cut from the portrait') : null,
     pilot[which] ? h('button', { class: 'btn small danger', onclick: () => {
       pilot[which] = null;
-      c.redraw();
       changed();
     } }, 'Remove') : null);
   return h('div', { class: 'page' },
@@ -208,11 +240,11 @@ function pictures(c: Ctx): HTMLElement {
     h('div', { class: 'card' }, h('h2', null, 'PORTRAIT'),
       h('p', { class: 'muted', style: { marginTop: '0' } }, 'The pilot select, VS and victory screens show it up to 88 x 69 (a bigger picture, up to 160 x 160, ' +
         'is scaled down), the ending in the originals\' 86 x 61 frame.'),
-      portraitRow, actions('portrait')),
+      portraitRow, actions('portrait'), hdRow('portrait')),
     h('div', { class: 'card' }, h('h2', null, 'FACE'),
       h('p', { class: 'muted', style: { marginTop: '0' } }, 'The pilot select screen\'s grid shows a 51 x 36 face, see-through around the head like the ' +
         'originals\' (the cursor\'s color shows there). Without one, the game cuts it from the portrait.'),
-      faceRow, actions('face')));
+      faceRow, actions('face'), hdRow('face')));
 }
 
 // ---- overview --------------------------------------------------------------------------------------------------------
@@ -511,5 +543,5 @@ export async function newPilotDialog(app: StudioApp): Promise<PilotDoc | null> {
   };
   const clean = (name.trim() || (start === 'copy' ? originalName(from) : 'New pilot')).slice(0, 16);
   made.info.name = clean;
-  return { id: freeContentId(clean, app.project!.pilots.map((p) => p.id)), ...made };
+  return { id: freeContentId(clean, app.project!.pilots.map((p) => p.id)), ...made, hd: null };
 }

@@ -21,7 +21,12 @@ import { parseBK, saveBK } from '../formats/bk';
 import { harData } from '../game/objects/har';
 import { getFile } from '../resources/files';
 import { copyAnims } from '../studio/arena/animEditor';
-import { ModError, readManifest, readPilotInfo } from '../mods/types';
+import { HD_PAD, HD_SCALE, ModError, readManifest, readPilotInfo } from '../mods/types';
+import { spriteHash } from '../mods/package';
+import { hdRegion, portraitBasePalette, robotBasePalette } from '../mods/hdArt';
+import { imageSize } from '../util/imageSize';
+import { Palette } from '../formats/palette';
+import { robotPalette } from '../studio/colors';
 import { modPersonality, STORY_PERSONALITIES } from '../controller/personalities';
 import { resetPilotPersonality } from '../controller/ai';
 import { Pilot } from '../formats/pilot';
@@ -67,6 +72,26 @@ describe('PNG images', () => {
     // index 0 see-through
     expect(img.rgba[3]).toBe(0);
     expect(img.rgba[7]).toBe(255);
+  });
+});
+
+describe('picture headers', () => {
+  it('give PNG and WebP pictures\' sizes without decoding them', async () => {
+    expect(imageSize(await encodePng(7, 5, new Uint8Array(7 * 5 * 4)))).toEqual({ type: 'png', w: 7, h: 5 });
+    const webp = (chunk: string, body: number[]) => {
+      const b = new Uint8Array(40);
+      b.set([...'RIFF'].map((c) => c.charCodeAt(0)), 0);
+      b.set([...'WEBP'].map((c) => c.charCodeAt(0)), 8);
+      b.set([...chunk].map((c) => c.charCodeAt(0)), 12);
+      b.set(body, 20);
+      return b;
+    };
+    // Extended (canvas 300 x 200), lossy key frame (640 x 480), lossless (1024 x 768).
+    expect(imageSize(webp('VP8X', [0, 0, 0, 0, 43, 1, 0, 199, 0, 0]))).toEqual({ type: 'webp', w: 300, h: 200 });
+    expect(imageSize(webp('VP8 ', [0, 0, 0, 0x9d, 0x01, 0x2a, 0x80, 0x02, 0xe0, 0x01]))).toEqual({ type: 'webp', w: 640, h: 480 });
+    const bits = (1024 - 1) | ((768 - 1) << 14);
+    expect(imageSize(webp('VP8L', [0x2f, bits & 255, (bits >>> 8) & 255, (bits >>> 16) & 255, (bits >>> 24) & 255]))).toEqual({ type: 'webp', w: 1024, h: 768 });
+    expect(imageSize(new TextEncoder().encode('not a picture at all, not at all'))).toBeNull();
   });
 });
 
@@ -436,5 +461,85 @@ describe.skipIf(!hasGameData)('animations of mod arenas', () => {
       }
       expect(orbs).toBeGreaterThan(0);
     }
+  });
+});
+
+describe.skipIf(!hasGameData)('HD pictures of mods', () => {
+  beforeAll(() => {
+    installBrowserShims();
+    loadGameData();
+  });
+
+  /** A PNG of w x h. */
+  const picture = (w: number, h: number) => encodePng(w, h, new Uint8Array(w * h * 4).fill(200));
+  const json = (v: unknown) => new TextEncoder().encode(JSON.stringify(v));
+
+  /** The sample package as files, with a robot's hd.json and pictures. */
+  async function withRobotHd(hd: unknown, pictures: [string, Uint8Array][]): Promise<Uint8Array> {
+    const files = await unzip(await writeModPackage(await buildSampleMod()));
+    files.set('robots/sentinel/hd.json', json(hd));
+    for (const [f, data] of pictures) files.set(`robots/sentinel/${f}`, data);
+    return zip(files);
+  }
+
+  it('go with the sprites they were made for, in their shape', async () => {
+    const sample = await buildSampleMod();
+    const idle = parseAF(sample.robots[0].af).moves[11]!.animation.sprites[0];
+    const nw = idle.width + 2 * HD_PAD, nh = idle.height + 2 * HD_PAD;
+    const good = await picture(nw * HD_SCALE.x, nh * HD_SCALE.y);
+    const pkg = await readModPackage(await withRobotHd({
+      sprites: [
+        { anim: 11, sprite: 0, file: 'hd/idle-a.png', hash: spriteHash(idle) },
+        // (made for pixels the sprite no longer has: left out)
+        { anim: 11, sprite: 1, file: 'hd/idle-b.png', hash: '0123456789abcdef' },
+      ],
+    }, [['hd/idle-a.png', good], ['hd/idle-b.png', good]]));
+    const hd = pkg.robots[0].hd!;
+    expect(hd.info.colors).toEqual([0, 1, 4]);
+    expect(hd.info.sprites.map((e) => e.file)).toEqual(['hd/idle-a.png']);
+    expect([...hd.files.keys()]).toEqual(['hd/idle-a.png']);
+    // Written and read again, as it was.
+    const back = await readModPackage(await writeModPackage(pkg));
+    expect(back.robots[0].hd!.info).toEqual(hd.info);
+    expect(Array.from(back.robots[0].hd!.files.get('hd/idle-a.png')!)).toEqual(Array.from(good));
+    // Any size of that shape, but not another shape, a missing picture or a sprite the robot does not have.
+    await expect(readModPackage(await withRobotHd({ sprites: [{ anim: 11, sprite: 0, file: 'hd/a.png' }] },
+      [['hd/a.png', await picture(nw * HD_SCALE.x * 2, nh * HD_SCALE.y * 2)]]))).resolves.toBeTruthy();
+    await expect(readModPackage(await withRobotHd({ sprites: [{ anim: 11, sprite: 0, file: 'hd/a.png' }] },
+      [['hd/a.png', await picture(nw * HD_SCALE.x, nh * HD_SCALE.x)]]))).rejects.toThrow(/shape of/);
+    await expect(readModPackage(await withRobotHd({ sprites: [{ anim: 11, sprite: 0, file: 'hd/a.png' }] }, []))).rejects.toThrow(/has no robots\/sentinel\/hd\/a.png/);
+    await expect(readModPackage(await withRobotHd({ sprites: [{ anim: 40, sprite: 0, file: 'hd/a.png' }] },
+      [['hd/a.png', good]]))).rejects.toThrow(/move 40, sprite A/);
+  });
+
+  it('of an arena\'s background have its whole shape, with its widescreen sides', async () => {
+    const files = await unzip(await writeModPackage(await buildSampleMod()));
+    files.set('arenas/dusk-rooftop/hd.json', json({ background: 'hd/background.webp' }));
+    // (the sample's arena has widescreen sides: 576 x 200 at 5 x 6, here at half the remaster's resolution)
+    const bg = await picture(1440, 600);
+    files.set('arenas/dusk-rooftop/hd/background.webp', new TextEncoder().encode('not a picture, not at all, no'));
+    await expect(readModPackage(await zip(files))).rejects.toThrow(/not a PNG or WebP/);
+    files.set('arenas/dusk-rooftop/hd.json', json({ background: 'hd/background.png' }));
+    files.set('arenas/dusk-rooftop/hd/background.png', bg);
+    const pkg = await readModPackage(await zip(files));
+    expect(pkg.arenas[0].hd!.info.background).toBe('hd/background.png');
+    files.set('arenas/dusk-rooftop/hd/background.png', await picture(1600, 1200));
+    await expect(readModPackage(await zip(files))).rejects.toThrow(/2880 x 1200/);
+  });
+
+  it('are drawn against the colors they were painted in', () => {
+    // A robot's: the chosen ramps and the colors every fight shares, like Studio's templates.
+    const rgb = robotBasePalette([0, 1, 4]);
+    const studio = robotPalette([0, 1, 4]);
+    for (const i of [1, 15, 16, 31, 32, 47, 0x60, 0xa0, 0xf9]) expect([rgb[i * 3], rgb[i * 3 + 1], rgb[i * 3 + 2]]).toEqual([studio.r(i), studio.g(i), studio.b(i)]);
+    // A portrait's: the screen's, the dimmed copies holding the bright colors.
+    const pal = new Palette();
+    for (let i = 0; i < 256; i++) pal.set(i, i, 255 - i, i >> 1);
+    const base = portraitBasePalette(pal);
+    expect([base[5 * 3], base[5 * 3 + 1], base[5 * 3 + 2]]).toEqual([0xa5, 255 - 0xa5, 0xa5 >> 1]);
+    expect([base[0xb0 * 3], base[0xb0 * 3 + 1]]).toEqual([0xb0, 255 - 0xb0]);
+    // The part of an HD portrait a cut of the portrait stands for.
+    expect(hdRegion({ x: 10, y: 0, w: 51, h: 36 }, 88, 69, 440, 414)).toEqual([50, 0, 255, 216]);
+    expect(hdRegion(null, 88, 69, 440, 414)).toEqual([0, 0, 440, 414]);
   });
 });

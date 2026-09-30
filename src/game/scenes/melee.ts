@@ -1011,6 +1011,8 @@ export class MeleeScene extends Scene {
       if (face) {
         const dim = new Surface(face.w, face.h, face.data.map((v) => (v >= 0xa1 ? v - 0xa0 : v)), 0);
         dim.source = { kind: 'generated', key: `melee/pilot-dim/${id}` };
+        // (the remastered renderer draws it from the face's artwork, through the dimmed colors)
+        dim.hdSource = { surf: face, x: 0, y: 0, gray: false };
         this.pilotPortraits[id] = { x: 11 + 62 * column, y: 115 + 42 * row, disabledOffset: 0, enabled: face, disabled: dim };
         g.cells.push({ surf: dim, x: 62 * column });
       }

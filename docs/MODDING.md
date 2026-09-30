@@ -45,6 +45,12 @@ Studio makes content in the game's own formats, pixel for pixel, and tests it in
     ending;
   - the computer's personality when it fights as the pilot: how it goes about a fight, the attacks it likes, how it
     moves and how readily it learns the player's habits (the original pilots' as a start).
+- **HD artwork** for the remastered look: the pictures it draws instead of upscaling the classic ones. A robot's or
+  arena's **HD ARTWORK** card exports every sprite as a template (blown up to the HD size, in the colors the pictures
+  are painted in) to paint over or run through an upscaler, and brings the pictures back in by their names (one by
+  one or in a zip); a sprite's own HD picture, a background's and a pilot's portrait and face have a row of their own
+  (**Import HD**, **HD template**). The animation preview shows the HD pictures (its **HD** box), sprites with one
+  have an **HD** badge, and a picture follows its sprite when the sprite is drawn on.
 - **Test** plays the mod in the game over Studio: a fight against the computer, the computer against itself,
   training, in any arena, or the one-player game from its pilot select screen, its VS screen (the pilot against one
   of the original ones) or its ending. **Build file** saves the `.omfmod` file to share; **Install in game** installs it on this
@@ -64,6 +70,7 @@ arenas/<id>/arena.wid            optional: its widescreen background
 pilots/<id>/pilot.json           a pilot's name, stats, colors, style, words and ending
 pilots/<id>/portrait.png         optional: its portrait
 pilots/<id>/face.png             optional: its face in the pilot select grid
+<robots|arenas|pilots>/<id>/hd.json   optional: its HD pictures (below), in hd/
 ```
 
 `<id>` is a folder name: lower case letters, digits, `-` and `_` (32 characters at most).
@@ -156,10 +163,31 @@ originals use `Z`).
 | `moveJump`, `moveForward`, `moveBack` | how much it likes to jump, walk forward and walk back, -100 to 100 |
 | `learning`, `forget` | how readily it learns the player's habits (0-15; the originals 0.7-3) and forgets them (0-3) |
 
+### HD pictures (hd.json)
+
+The remastered look draws a content's HD pictures instead of upscaling its classic pictures. They are 5 times as wide
+and 6 times as tall as the classic pixels they stand for (the 320 × 200 screen shows at 4:3), or any size of that
+shape at least twice as wide as the classic picture (larger ones are sharper; 4096 pixels a side at most), PNG or WebP
+files in the content's `hd` folder. What `hd.json` holds (every field optional):
+
+| Field | |
+|---|---|
+| `sprites` | robots and arenas: `{ "anim", "sprite", "file", "hash" }` for each sprite with an HD picture: a robot's move or an arena's animation, the sprite (0 = A), the picture, and the fingerprint of the sprite it was made for |
+| `pad` | classic pixels of margin a sprite's picture covers around the sprite (0-8, 4 unless it says otherwise): a sprite of w × h has a picture of (w + 2 pad) × 5 by (h + 2 pad) × 6 |
+| `colors` | robots: the robot colors the pictures are painted in (primary, secondary, tertiary: 0-15; 0, 1, 4 unless it says otherwise) |
+| `background` | arenas: the whole background: 2880 × 1200 with the widescreen file (576 × 200), 1600 × 1200 without |
+| `portrait`, `face` | pilots: the portrait (its portrait.png's shape, 5 × 6) and the face (255 × 216: a 51 × 36 face.png) |
+
+The game recolors a robot's pictures from the colors they are painted in to each pilot's, keeping their shading and
+highlights (it tells the robot's three color ramps apart by hue: paint them in three clearly different hues), and
+fades, flashes and lights every picture through the palette changes of the classic one. `hash` (Studio writes it) is
+the classic sprite's pixel fingerprint (src/video/hd/pixelHash.ts): a picture made for a sprite whose pixels changed
+since is left out, as a picture for a sprite that does not exist or of the wrong shape is refused.
+
 ## How the game loads mods
 
 At start-up the game reads every installed mod that is on and checks it like OMF Studio does (the manifest, every
-file's format, the animations a robot needs). Each robot, arena and pilot gets a number the engine knows it by, and
+file's format, the animations a robot needs, the HD pictures' shapes). Each robot, arena and pilot gets a number the engine knows it by, and
 keeps it (saved replays, records and the training setup name it): robots 24-63, arenas 9-31, pilots 16-63. A mod that
 cannot be loaded is left out, with its reason on the Mods page. A replay of a fight with content of a mod that is off
 says so instead of playing.

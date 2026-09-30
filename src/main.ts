@@ -12,8 +12,9 @@ import { registerPlaceholders } from './game/scenes/placeholder';
 import { getFile, preloadAll } from './resources/files';
 import { loadGenerated } from './resources/generated';
 import { GeneratedArtwork } from './gen/hdArtwork';
+import { ModArtwork } from './mods/hdArt';
 import { MOVE } from './gen/fighter/moveset';
-import { arenaAvailable, arenaLook, EXTRA_HAR_IDS, extraRobotsEnabled, pilotExists, pilotInfo, pilotNameOf } from './game/roster';
+import { arenaAvailable, arenaLook, EXTRA_HAR_IDS, extraRobotsEnabled, modHarIds, pilotExists, pilotInfo, pilotNameOf } from './game/roster';
 import { loadMods, testContent } from './mods/registry';
 import { installModFiles, ModsPage } from './mods/modsPage';
 import { MOD_EXTENSION } from './mods/package';
@@ -157,6 +158,8 @@ async function main(): Promise<void> {
   hdAssets.enabled = settings().video.hdArtwork;
   // The remaster's robots get their HD artwork rendered on the GPU (between frames, as scenes need it).
   const genArt = new GeneratedArtwork(renderer.gl, hdAssets);
+  // (the mods' HD pictures: in the remastered look, with HD artwork on)
+  const modArt = new ModArtwork(hdAssets, () => renderer.options.mode === 'remastered' && hdAssets.enabled);
   const params = new URLSearchParams(location.search);
   if (params.has('viewer')) {
     startViewer(renderer);
@@ -262,22 +265,33 @@ async function main(): Promise<void> {
   // The main menu's parallax scene (loaded when the menu is first shown in remastered mode).
   const menuScene = new MenuScene();
   const menuLoading = () => renderer.options.mode === 'remastered' && gs.thisId === SceneId.MENU && menuScene.loading;
-  // The generated robots' artwork: all of the fighting robots, the select screen's cells and idle animations.
+  // The generated robots' artwork and the mods' HD pictures: all of the fighting robots, the arena, the select
+  // screen's cells and idle animations (the mod pilots' portraits come with the screens that show them).
   const wantGenerated = () => {
     const fight = gs.sc.isArena() || gs.thisId === SceneId.VS;
-    if (fight) genArt.want([0, 1].map((i) => gs.getPlayer(i).pilot?.harId ?? -1));
-    if (gs.sc.isArena() && gs.sc.bk) genArt.wantArena(gs.sc.bk);
-    else if (gs.thisId === SceneId.MELEE && extraRobotsEnabled()) genArt.want(EXTRA_HAR_IDS, [MOVE.PORTRAIT_CELL, ANIM_IDLE]);
+    const hars = [0, 1].map((i) => gs.getPlayer(i).pilot?.harId ?? -1);
+    if (fight) {
+      genArt.want(hars);
+      modArt.want(hars);
+    }
+    if (gs.sc.isArena() && gs.sc.bk) {
+      genArt.wantArena(gs.sc.bk);
+      modArt.wantArena(gs.thisId - SceneId.ARENA0, gs.sc.bk);
+    } else if (gs.thisId === SceneId.MELEE) {
+      if (extraRobotsEnabled()) genArt.want(EXTRA_HAR_IDS, [MOVE.PORTRAIT_CELL, ANIM_IDLE]);
+      modArt.want(modHarIds(), [MOVE.PORTRAIT_CELL, ANIM_IDLE]);
+    }
   };
   gs.onSceneChange = () => {
     renderer.resetAtlas();
     hdAssets.preload(artworkFor());
+    modArt.sceneChanged();
     wantGenerated();
     // A scene whose artwork is not there yet (a fight entered without the VS screen, which loads it beforehand, the
     // first visit of a screen): the game waits on the scene's black first frame until it is (a few seconds at most),
     // so nothing starts blurry and sharpens a moment later.
     if (renderer.options.mode === 'remastered' && gs.thisId === SceneId.MENU) menuScene.load(MENU_LAYERS);
-    if (renderer.options.mode === 'remastered' && (hdAssets.loading(sceneArtwork()) || menuLoading())) {
+    if (renderer.options.mode === 'remastered' && (hdAssets.loading(sceneArtwork()) || menuLoading() || modArt.loading)) {
       engine.waiting = true;
       artworkWaitEnd = performance.now() + ARTWORK_WAIT_MS;
     }
@@ -299,6 +313,8 @@ async function main(): Promise<void> {
   bootStatus('LOADING ARTWORK', 0.9);
   if (renderer.options.mode === 'remastered') menuScene.load(MENU_LAYERS);
   await hdAssets.whenReady(artworkFor(), 4000);
+  // (a mod's pictures too: Studio's tests start in a fight)
+  for (const end = performance.now() + 4000; modArt.loading && performance.now() < end;) await new Promise((r) => setTimeout(r, 30));
   if (gs.thisId === SceneId.MENU) await menuScene.whenReady(4000);
   bootStatus('READY', 1);
 
@@ -384,7 +400,9 @@ async function main(): Promise<void> {
         onMenu = null;
         open();
       }
-      if (engine.waiting && ((!hdAssets.loading(sceneArtwork()) && !menuLoading()) || performance.now() > artworkWaitEnd)) engine.waiting = false;
+      if (engine.waiting && ((!hdAssets.loading(sceneArtwork()) && !menuLoading() && !modArt.loading) || performance.now() > artworkWaitEnd)) {
+        engine.waiting = false;
+      }
       dispatchPointer();
       touch.update(settings().keys.touch, touchWanted());
       help.update();
@@ -717,6 +735,8 @@ async function main(): Promise<void> {
     audio,
     hdAssets,
     genArt,
+    /** The mods' HD pictures. */
+    modArt,
     /** Advances the simulation by `ms` of game time (in small chunks, so long steps are not capped). */
     step(ms: number) {
       for (let t = 0; t < ms; t += 20) engine.advance(Math.min(20, ms - t));

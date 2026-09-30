@@ -10,7 +10,7 @@ import { provideGenerated } from '../resources/generated';
 import { forgetBk, forgetFighter, harFileName, setHarName } from '../resources/resources';
 import { decodePng, type PngImage } from '../util/png';
 import { modContentId } from './ids';
-import { readModPackage, type ModPackage } from './package';
+import { readModPackage, type ModHd, type ModPackage } from './package';
 import { listMods, testMod } from './store';
 import { ModError, type ModArenaInfo, type ModPilotInfo, type ModRobotInfo } from './types';
 
@@ -20,6 +20,8 @@ export interface ModRobot {
   mod: string;
   harId: number;
   info: ModRobotInfo;
+  /** Its HD pictures (hdArt.ts), if it has any. */
+  hd: ModHd | null;
 }
 
 export interface ModArena {
@@ -28,6 +30,7 @@ export interface ModArena {
   /** Arena number (scene SceneId.ARENA0 + index). */
   index: number;
   info: ModArenaInfo;
+  hd: ModHd | null;
 }
 
 export interface ModPilot {
@@ -38,6 +41,7 @@ export interface ModPilot {
   portrait: PngImage | null;
   /** The pilot select grid's face (else made from the portrait). */
   face: PngImage | null;
+  hd: ModHd | null;
 }
 
 /** What became of an installed mod when the game started. */
@@ -70,7 +74,6 @@ export const modArenas = (): ModArena[] => [...arenas.values()];
 export const modPilots = (): ModPilot[] => [...pilots.values()];
 export const modState = (id: string): ModState | undefined => states.get(id);
 
-/** One of a mod pilot's lines (the n-th, else its first; '' when it has none). */
 /** Registers a package's content (a mod's content that is already there is replaced). Throws ModError. */
 export async function registerModPackage(pkg: ModPackage): Promise<void> {
   const m = pkg.manifest;
@@ -99,7 +102,7 @@ export async function registerModPackage(pkg: ModPackage): Promise<void> {
     forgetFighter(harId);
     HAR_NAMES[harId] = r.info.name;
     setHarName(harId, r.info.name);
-    robots.set(harId, { key: `${m.id}/${r.id}`, mod: m.id, harId, info: r.info });
+    robots.set(harId, { key: `${m.id}/${r.id}`, mod: m.id, harId, info: r.info, hd: r.hd });
   });
   pkg.arenas.forEach((a, i) => {
     const index = arenaIds[i];
@@ -109,11 +112,11 @@ export async function registerModPackage(pkg: ModPackage): Promise<void> {
     provideGenerated(`ARENA${index}.BK`, bk);
     forgetBk(`ARENA${index}.BK`);
     if (a.wid) provideGenerated(`ARENA${index}.WID`, a.wid);
-    arenas.set(index, { key: `${m.id}/${a.id}`, mod: m.id, index, info: a.info });
+    arenas.set(index, { key: `${m.id}/${a.id}`, mod: m.id, index, info: a.info, hd: a.hd });
   });
   pkg.pilots.forEach((p, i) => {
     const pilotId = pilotIds[i];
-    pilots.set(pilotId, { key: `${m.id}/${p.id}`, mod: m.id, pilotId, info: p.info, portrait: portraits[i], face: faces[i] });
+    pilots.set(pilotId, { key: `${m.id}/${p.id}`, mod: m.id, pilotId, info: p.info, portrait: portraits[i], face: faces[i], hd: p.hd });
   });
   states.set(m.id, { id: m.id, loaded: true, error: null });
 }
