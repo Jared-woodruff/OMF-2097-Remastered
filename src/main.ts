@@ -3,7 +3,7 @@ import { audio } from './audio/audio';
 import { initInput, setKeyState } from './controller/input';
 import { startViewer } from './debug/viewer';
 import { Engine } from './engine';
-import { ANIM_IDLE, ARENA_COUNT, PILOT_INFO, SceneId } from './game/constants';
+import { ANIM_IDLE, PILOT_INFO, SceneId } from './game/constants';
 import { GameState, hasScene } from './game/gameState';
 import { setPilotColors } from './game/pilotColors';
 import { loadSettings, saveSettings, settings } from './game/settings';
@@ -35,6 +35,7 @@ import { firstRunSetup } from './platform/setupScreen';
 import { drainPointer, initMouse, pushPointer } from './controller/mouse';
 import { renderedFrames } from './game/gui/widgets';
 import { startTraining } from './game/scenes/mainmenu/menuTraining';
+import { seedQuickFight, setupQuickFight } from './game/quickFight';
 import { applyPadSettings } from './game/controls';
 import { addTracks, audioFiles } from './audio/customMusic';
 import { toast } from './platform/toast';
@@ -102,25 +103,6 @@ function resize(): void {
   const dpr = window.devicePixelRatio || 1;
   canvas.width = Math.max(1, Math.round(canvas.clientWidth * dpr));
   canvas.height = Math.max(1, Math.round(canvas.clientHeight * dpr));
-}
-
-/** Sets up a quick fight from URL parameters: ?fight=0&p1=0&p2=1&h1=0&h2=5 */
-function setupQuickFight(gs: GameState, params: URLSearchParams): SceneId {
-  const arena = Math.max(0, Math.min(ARENA_COUNT - 1, parseInt(params.get('fight') ?? '0', 10) || 0));
-  for (let i = 0; i < 2; i++) {
-    const p = gs.getPlayer(i);
-    const pilotId = parseInt(params.get(`p${i + 1}`) ?? String(i), 10) || 0;
-    const harId = parseInt(params.get(`h${i + 1}`) ?? String(i === 0 ? 0 : 5), 10) || 0;
-    const info = PILOT_INFO[pilotId];
-    p.pilot.pilotId = pilotId;
-    p.pilot.harId = harId;
-    p.pilot.power = info.power;
-    p.pilot.agility = info.agility;
-    p.pilot.endurance = info.endurance;
-    p.pilot.name = langGet(20 + pilotId);
-    setPilotColors(p.pilot, info.color1, info.color2, info.color3);
-  }
-  return SceneId.ARENA0 + arena;
 }
 
 /** Font family name of the remastered typeface. */
@@ -202,7 +184,9 @@ async function main(): Promise<void> {
   if (params.has('fight')) {
     startScene = setupQuickFight(gs, params);
     gs.arena = startScene - SceneId.ARENA0;
-    if (params.has('ai')) gs.setupAi(1);
+    // (&seed: the same fight every time, the computer on both sides; see quickFight.ts)
+    if (import.meta.env.DEV && params.has('seed')) seedQuickFight(gs, params);
+    else if (params.has('ai')) gs.setupAi(1);
   }
   // ?training: straight into training mode with the last used setup.
   if (params.has('training')) {
