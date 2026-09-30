@@ -6,7 +6,7 @@
   <a href="https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest"><img src="docs/media/btn-download.png" alt="Download (free, for Windows)" height="56"></a>
   <a href="#trailer"><img src="docs/media/btn-trailer.png" alt="Trailer" height="56"></a>
   <a href="docs/manual/OMF-2097-Remastered-Manual.pdf"><img src="docs/media/btn-manual.png" alt="Manual (PDF)" height="56"></a>
-  <a href="docs/MODDING.md"><img src="docs/media/btn-modding.png" alt="Modding: mods and OMF Studio" height="56"></a>
+  <a href="#mods"><img src="docs/media/btn-modding.png" alt="Modding: mods and OMF Studio" height="56"></a>
 </p>
 
 <p align="center">
@@ -14,11 +14,12 @@
   <a href="#classic-remastered"><img src="docs/media/nav-modes.png" alt="02 Classic / Remastered" height="30"></a>
   <a href="#effects"><img src="docs/media/nav-effects.png" alt="03 Effects" height="30"></a>
   <a href="#gameplay"><img src="docs/media/nav-gameplay.png" alt="04 Gameplay" height="30"></a>
-  <a href="#screens"><img src="docs/media/nav-screens.png" alt="05 Screens" height="30"></a>
-  <a href="#artwork"><img src="docs/media/nav-artwork.png" alt="06 HD artwork" height="30"></a>
-  <a href="#get-started"><img src="docs/media/nav-start.png" alt="07 Get started" height="30"></a>
-  <a href="#under-the-hood"><img src="docs/media/nav-tech.png" alt="08 Under the hood" height="30"></a>
-  <a href="#credits"><img src="docs/media/nav-credits.png" alt="09 Credits" height="30"></a>
+  <a href="#mods"><img src="docs/media/nav-mods.png" alt="05 Mods and OMF Studio" height="30"></a>
+  <a href="#screens"><img src="docs/media/nav-screens.png" alt="06 Screens" height="30"></a>
+  <a href="#artwork"><img src="docs/media/nav-artwork.png" alt="07 HD artwork" height="30"></a>
+  <a href="#get-started"><img src="docs/media/nav-start.png" alt="08 Get started" height="30"></a>
+  <a href="#under-the-hood"><img src="docs/media/nav-tech.png" alt="09 Under the hood" height="30"></a>
+  <a href="#credits"><img src="docs/media/nav-credits.png" alt="10 Credits" height="30"></a>
 </p>
 
 <br>
@@ -31,7 +32,7 @@ https://github.com/user-attachments/assets/f226b2fa-c56a-4cce-b47a-8917a0448cf6
   <sub>A fan trailer with no narrator. It starts in 1994: a beige PC boots, the game is installed from two floppy disks,
   and it runs in its own pixels to its main menu theme (played by this port's music engine). Then, 32 years later, the
   picture sweeps into HD on the drop of Hadal Static's <i>Twenty Ninety-Seven (Remix)</i>: fights at ULTIMATE at the
-  game's own pace, the classic look against the new one, the new robots and arenas, every feature and the fought-out
+  game's own pace, the classic look against the new one, the new robots and arenas mod, every feature and the fought-out
   credits, cut to the song's bars (turn the sound on). <a href="docs/media/trailer.mp4">Watch it in 1080p60</a>.</sub>
 </p>
 
@@ -58,8 +59,9 @@ engine in TypeScript and WebGL2 that plays the **original game data**, runs in a
     <td width="33%" valign="top">
       <h3><img src="docs/media/icon-modern.png" alt="" width="26" align="top"> Modern</h3>
       Replays and clips, a training lab with frame data and combo trials, a robot workshop, arcade, survival and time
-      attack modes, custom tournaments, mods made with OMF Studio, gamepads with rumble, touch controls, one-button
-      specials, and a browser version that works offline.
+      attack modes, custom tournaments, mods and the OMF Studio mod tools (with a mod of four new robots and four
+      arenas to play and take apart), gamepads with rumble, touch controls, one-button specials, and a browser version
+      that works offline.
     </td>
   </tr>
 </table>
@@ -83,9 +85,9 @@ and the command lists come from the game's own data.
 The whole game is here, playing the original data files:
 
 - **All 11 robots** (HARs) with every move, special and throw, **10 pilots plus Major Kreissack**, and the CPU
-  opponent's personalities and difficulty levels, plus **four new robots** you can turn on (below).
+  opponent's personalities and difficulty levels.
 - **The five arenas and their hazards**: the Stadium, the spiked Danger Room, the Power Plant's electrified fences,
-  the Fire Pit's fireballs and the Desert's strafing jets, plus **four new arenas** you can turn on (below).
+  the Fire Pit's fireballs and the Desert's strafing jets.
 - **Every mode**: one player, two players, demo, the full **tournament** career with the mechlab, upgrades, training
   and newsroom, the scoreboard, the intro and all endings.
 - **The original music and sound**: the PSM soundtrack through a port of the MASI driver, the original samples, and
@@ -97,55 +99,9 @@ The whole game is here, playing the original data files:
   <img src="docs/media/arenas.jpg" alt="The five arenas: Stadium, Danger Room, Power Plant, Fire Pit and The Desert" width="100%">
 </p>
 
-### New for the remaster: four robots, four arenas
-
-Built for this remaster in the spirit of the originals, and packaged as a mod that comes with the game. They are **off
-by default**, so the game plays exactly like the original until you opt in: turn on *New robots and arenas* in
-**Extras › Mods**, or on the first start's setup screen.
-
-<p align="center">
-  <img src="docs/media/new-robots.jpg" alt="The new robots on the VS screen: GLACIER, TEMPEST, HELIX and SPECTRE" width="100%">
-</p>
-
-| Robot | Style | Special moves |
-| --- | --- | --- |
-| **GLACIER** | Heavy ice juggernaut: slow, strong, tough | **Ice Lance** ↓↘→ P, **Glacial Ram** ↓↙← K, **Frost Spikes** ↓↘→ K |
-| **TEMPEST** | Light and fast wind robot, high floaty jumps | **Gale Blast** ↓↙← P, **Cyclone Kick** ↓↘→ K, **Sky Dive** ↓ K in the air |
-| **HELIX** | Industrial driller with a spiral drill and a claw | **Drill Rush** ↓↘→ P, **Corkscrew** →↓↘ P, **Drill Bit** ↓↙← P |
-| **SPECTRE** | Phantom with forearm lasers and a cloak of blades | **Photon Beam** ↓↘→ P, **Phase Shift** ↓↙← K, **Shadow Strike** ↓↘→ K |
-
-They are built like the originals: faceted armor over slim, ribbed joints, in the player's three colors used the
-original way (the armor, the joints, a few signature accents). Their classic sprites are rendered from 3D models and
-shaded like the originals' 1994 renders; their HD artwork, every frame of their animations, was painted over those
-renders by an image generation model, held to each sprite's outline and color zones so it takes the players' colors
-like the originals' artwork. Each has the full basic move set, a throw, a scrap and a destruction finisher, CPU
-tactics for its specials and names in the pause menu's move list. Turned on, they sit in a third row of the robot
-select screen (move down past the second row), join the CPU opponents, and turn up among the robots Plug offers to
-trade in tournaments, with their own turning model and select buttons in the mechlab.
-
-<p align="center">
-  <img src="docs/media/new-arenas.jpg" alt="The new arenas: Orbital, Ice Cave, Rooftop and Abyss" width="100%">
-</p>
-
-- **Orbital**: a space station's hangar deck with the Earth in the window. Dust floats, sparks drift in the low
-  gravity and the stars twinkle.
-- **Ice Cave**: a frozen cavern under the aurora. Snow blows in, frost mist creeps over the ice and the crystals
-  sparkle.
-- **Rooftop**: a skyscraper roof in the rain, above a neon city. Raindrops splash on the wet roof, lightning flashes
-  over the skyline and the neon sign flickers.
-- **Abyss**: a glass dome on the sea floor. Bubbles rise, caustics ripple over the floor and light falls from above.
-
-<p align="center">
-  <img src="docs/media/new-arenas.gif" alt="Fights in the new arenas: Orbital, Ice Cave, Rooftop and Abyss" width="100%">
-</p>
-
-Turned on, they join the arena rotation of one and two player games and tournaments. All four have true widescreen backgrounds (not
-mirrored edges), HD versions, their own acoustics and music. The new
-robots bring their own effects too: frost and ice shards, whirlwinds, drill sparks and shavings, laser glow and a
-phase-shift shimmer. Everything new is original: the robots and arenas are 3D models in [`src/gen`](src/gen), ray
-traced into the game's own formats, and an image generation model painted their HD artwork and the arenas' backgrounds
-over those renders; all of it is packed into their mod's file in [`public/mods/`](public/mods) (see
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/BUILDING.md](docs/BUILDING.md)).
+Four more robots and four more arenas were made for the remaster. They are not part of the game itself: they come
+with it as a mod, to play when you want them, and to open in OMF Studio to see how a mod is made (see
+[Mods & OMF Studio](#mods)).
 
 <br>
 
@@ -222,7 +178,7 @@ Remastered fights get a layer of modern effects, driven by what actually happens
 | **Particles** | Sparks and impact flares on hits and blocks, dust from falls, throws and wall slams. |
 | **Lighting** | Impacts, fire, energy and projectiles light up the arena and the robots; each arena lights the robots' edges. |
 | **Impact FX** | Shockwaves on heavy hits, and the knockout camera with flash and chromatic aberration. |
-| **Atmosphere** | Embers and heat haze, blowing sand, drifting dust, floodlight glow and camera flashes in the crowd; in the new arenas snow, frost mist, aurora light, rain and splashes, lightning, neon flicker, bubbles and caustics. |
+| **Atmosphere** | Embers and heat haze, blowing sand, drifting dust, floodlight glow and camera flashes in the crowd; in the arenas of the new robots and arenas mod, snow, frost mist, aurora light, rain and splashes, lightning, neon flicker, bubbles and caustics. |
 
 In widescreen the arena's painting reaches past the fighting area, whose edges are those of the original screen: they
 show as faint energy curtains in the arena's light, which glow where a robot is held against them and flare and ripple
@@ -288,10 +244,11 @@ as an **animated GIF**.
 
 #### Robot workshop
 
-Build your own robots from the new robots' parts: the frame of one, the head of another, the special moves and
-finishers of a third, a size, a weight class and three colors, with a live picture as you go. The game builds a full
-fighter from it on the spot (every sprite, move and hit point, and the HD artwork), ready to try in training or
-against the computer. Robots are shared as small `.omfbot` files.
+Build your own robots from the parts of the new robots (GLACIER, TEMPEST, HELIX and SPECTRE; their mod does not need
+to be on): the frame of one, the head of another, the special moves and finishers of a third, a size, a weight class
+and three colors, with a live picture as you go. The game builds a full fighter from it on the spot (every sprite,
+move and hit point, and the HD artwork), ready to try in training or against the computer. Robots are shared as small
+`.omfbot` files.
 
 <p align="center">
   <img src="docs/media/workshop.jpg" alt="The robot workshop: a GLACIER frame with a SPECTRE head and TEMPEST's moves" width="100%">
@@ -300,26 +257,9 @@ against the computer. Robots are shared as small `.omfbot` files.
 #### Custom tournaments
 
 Make your own tournaments from the installed ones: fewer opponents (spread over the ranks, the champion always among
-them), their robots as they were or on the new robots, more or less prize money. They show up in **Tournament play**
-like the others and are shared as `.omftrn` files. The new arenas join the tournament's arenas too when they are on.
-
-#### Mods and OMF Studio
-
-New robots, arenas and pilots made by players, installed from `.omfmod` files (drop one on the game, or **Extras ›
-Mods**). They play like the game's own: every animation, move and hit point, in classic and remastered graphics, on
-the select screens, in the arena rotation, the modes and replays. The remaster's four new robots and arenas are a mod
-too, one that comes with the game: the same page turns them on and off.
-
-**OMF Studio**, the game's mod tools (**Extras › OMF Studio**; setup can add its shortcuts), makes them in the game's
-own formats, pixel for pixel: robots from a copy of one of the game's (the new ones too, with their HD artwork), from
-the workshop's parts or from a blank figure, drawn frame by frame in the game's palette with their hit points, their
-moves' inputs, damage and reactions; arenas from a copy or a picture; pilots with portraits, lines and an ending.
-**Test** plays the mod in the game right away, and **The new robots and arenas** opens a copy of their mod to take
-apart. See [docs/MODDING.md](docs/MODDING.md).
-
-<p align="center">
-  <img src="docs/media/studio.jpg" alt="OMF Studio: a robot's special move, its frames, tags, input and hit points" width="100%">
-</p>
+them), their robots as they were or on the new robots (with their mod on), more or less prize money. They show up in
+**Tournament play** like the others and are shared as `.omftrn` files. The mod's arenas join the tournament's arenas
+too when it is on.
 
 #### Presentation
 
@@ -373,7 +313,7 @@ apart. See [docs/MODDING.md](docs/MODDING.md).
 
 - **Set up at the first start**: when the game has loaded for the first time (and once after an update from an earlier
   version), a setup screen lets you pick the graphics, the effects, the announcer, the music, the new robots and arenas
-  and the keyboard layout, or take the original 1994 style in one press. It is all in **Options** afterwards.
+  mod and the keyboard layout, or take the original 1994 style in one press. It is all in **Options** afterwards.
 - **A tidier main menu**: the original's three ways to play first, then **More modes** (arcade, survival, time attack,
   training, your own tournaments), **Extras** (the robot workshop, mods, OMF Studio, replays, records, the scoreboard,
   the demo, the credits), **Options** (every setting, grouped: gameplay, controls, graphics, sound, language), Help and
@@ -393,8 +333,97 @@ apart. See [docs/MODDING.md](docs/MODDING.md).
 
 <br>
 
+<a id="mods"></a>
+<p align="center"><a href="#mods"><img src="docs/media/banner-mods.jpg" alt="05 · Mods & OMF Studio" width="100%"></a></p>
+
+New robots, arenas and pilots come as **mods**: `.omfmod` files the game installs when one is dropped on it (or in
+**Extras › Mods**, which also turns them on and off). They play like the game's own: every animation, move and hit
+point, in classic and remastered graphics, on the select screens, in the arena rotation, the modes and replays.
+**OMF Studio**, the game's mod tools, makes them, and the game comes with one to show what a mod can be: **the new
+robots and arenas**.
+
+### The new robots and arenas
+
+Four robots and four arenas built for the remaster in the spirit of the originals. They are not part of the game
+itself, which stays the 1994 original: they are a mod that is installed with the game and **off** until you turn on
+*New robots and arenas* in **Extras › Mods** (or on the first start's setup screen). It is made like any other mod,
+so it is also a complete example of one: open it in OMF Studio (**The new robots and arenas** on its start screen)
+to see how every animation, move, hit point and HD picture is put together, or change them and make them your own.
+
+<p align="center">
+  <img src="docs/media/new-robots.jpg" alt="The new robots on the VS screen: GLACIER, TEMPEST, HELIX and SPECTRE" width="100%">
+</p>
+
+| Robot | Style | Special moves |
+| --- | --- | --- |
+| **GLACIER** | Heavy ice juggernaut: slow, strong, tough | **Ice Lance** ↓↘→ P, **Glacial Ram** ↓↙← K, **Frost Spikes** ↓↘→ K |
+| **TEMPEST** | Light and fast wind robot, high floaty jumps | **Gale Blast** ↓↙← P, **Cyclone Kick** ↓↘→ K, **Sky Dive** ↓ K in the air |
+| **HELIX** | Industrial driller with a spiral drill and a claw | **Drill Rush** ↓↘→ P, **Corkscrew** →↓↘ P, **Drill Bit** ↓↙← P |
+| **SPECTRE** | Phantom with forearm lasers and a cloak of blades | **Photon Beam** ↓↘→ P, **Phase Shift** ↓↙← K, **Shadow Strike** ↓↘→ K |
+
+They are built like the originals: faceted armor over slim, ribbed joints, in the player's three colors used the
+original way (the armor, the joints, a few signature accents). Their classic sprites are rendered from 3D models and
+shaded like the originals' 1994 renders; their HD artwork, every frame of their animations, was painted over those
+renders by an image generation model, held to each sprite's outline and color zones so it takes the players' colors
+like the originals' artwork. Each has the full basic move set, a throw, a scrap and a destruction finisher, CPU
+tactics for its specials and names in the pause menu's move list. With the mod on, they sit in a third row of the
+robot select screen (move down past the second row), join the CPU opponents, and turn up among the robots Plug offers
+to trade in tournaments, with their own turning model and select buttons in the mechlab.
+
+<p align="center">
+  <img src="docs/media/new-arenas.jpg" alt="The new arenas: Orbital, Ice Cave, Rooftop and Abyss" width="100%">
+</p>
+
+- **Orbital**: a space station's hangar deck with the Earth in the window. Dust floats, sparks drift in the low
+  gravity and the stars twinkle.
+- **Ice Cave**: a frozen cavern under the aurora. Snow blows in, frost mist creeps over the ice and the crystals
+  sparkle.
+- **Rooftop**: a skyscraper roof in the rain, above a neon city. Raindrops splash on the wet roof, lightning flashes
+  over the skyline and the neon sign flickers.
+- **Abyss**: a glass dome on the sea floor. Bubbles rise, caustics ripple over the floor and light falls from above.
+
+<p align="center">
+  <img src="docs/media/new-arenas.gif" alt="Fights in the new arenas: Orbital, Ice Cave, Rooftop and Abyss" width="100%">
+</p>
+
+With the mod on, the arenas join the arena rotation of one and two player games and tournaments. All four have true
+widescreen backgrounds (not mirrored edges), HD versions, their own acoustics and music, and the robots bring their
+own effects: frost and ice shards, whirlwinds, drill sparks and shavings, laser glow and a phase-shift shimmer.
+Everything in the mod is original: the robots and arenas are 3D models in [`src/gen`](src/gen), ray traced into the
+game's own formats, and an image generation model painted their HD artwork and the arenas' backgrounds over those
+renders; it is all packed into the mod's file in [`public/mods/`](public/mods) (see
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/BUILDING.md](docs/BUILDING.md)).
+
+### OMF Studio
+
+**OMF Studio** (**Extras › OMF Studio**; setup can also add its own shortcuts) makes mods in the game's own formats,
+pixel for pixel, and tests them in the game itself. Its start screen opens a new mod, a mod file, a small sample, or a
+copy of the new robots and arenas.
+
+<p align="center">
+  <img src="docs/media/studio-mod.jpg" alt="OMF Studio with the new robots and arenas mod open: its four robots and four arenas" width="100%">
+</p>
+
+- **Robots** start as a copy of one of the game's (the new ones too, with their HD artwork), from the robot
+  workshop's parts, or as a blank figure. They are drawn frame by frame in the game's palette, with their hit points,
+  their moves' inputs, damage and reactions, and their stats shown against the original robots'.
+- **Arenas** start as a copy or from a picture, with their hazards, scenery and music; **pilots** get portraits,
+  lines, a personality for the computer to fight with, and an ending.
+- **HD artwork** for the remastered look: templates to paint over, or pictures rendered from a robot's 3D model.
+- **Test** plays the mod in the game over Studio: a fight, the computer against itself, training, or the one-player
+  game. **Install in game** installs it, **Build file** makes the `.omfmod` file to share, and every change can be
+  undone.
+
+<p align="center">
+  <img src="docs/media/studio.jpg" alt="OMF Studio: GLACIER's special move ICE LANCE, its frames, tags, input and HD pictures" width="100%">
+</p>
+
+The mod format, OMF Studio's editors and how the game loads mods are in [docs/MODDING.md](docs/MODDING.md).
+
+<br>
+
 <a id="screens"></a>
-<p align="center"><a href="#screens"><img src="docs/media/banner-screens.jpg" alt="05 · Every screen, every mode" width="100%"></a></p>
+<p align="center"><a href="#screens"><img src="docs/media/banner-screens.jpg" alt="06 · Every screen, every mode" width="100%"></a></p>
 
 <p align="center">
   <img src="docs/media/menus.gif" alt="The main menu, the options, the controls menu and the controls screen" width="49%">
@@ -424,7 +453,7 @@ background, so text stays readable over detailed HD artwork.
 <br>
 
 <a id="artwork"></a>
-<p align="center"><a href="#artwork"><img src="docs/media/banner-artwork.jpg" alt="06 · HD artwork pipeline" width="100%"></a></p>
+<p align="center"><a href="#artwork"><img src="docs/media/banner-artwork.jpg" alt="07 · HD artwork pipeline" width="100%"></a></p>
 
 The HD artwork was produced with an image generation model from the original images, then imported into texture
 atlases the game loads on demand:
@@ -443,7 +472,7 @@ flowchart LR
 - **Live colors**: each HD pixel is mapped through the palette change of the original pixel it belongs to, so the
   artwork follows player color choices, fades, flashes and tints exactly like the original sprites.
 - **Streaming**: bundles per scene, robot and shared effects load on demand, and scene changes preload the next ones.
-- **The new robots and arenas** have a pack of their own (`npm run newart:export` / `newart:import`): each arena is
+- **The new robots and arenas mod** has a pack of its own (`npm run newart:export` / `newart:import`): each arena is
   painted again as one widescreen picture, and each robot gets a design sheet and then every frame redrawn from it,
   clipped to the sprite's outline when imported into their mod.
 
@@ -455,7 +484,7 @@ a pack of your own.
 <br>
 
 <a id="get-started"></a>
-<p align="center"><a href="#get-started"><img src="docs/media/banner-start.jpg" alt="07 · Get started" width="100%"></a></p>
+<p align="center"><a href="#get-started"><img src="docs/media/banner-start.jpg" alt="08 · Get started" width="100%"></a></p>
 
 **To play**, download version 0.1.5 for Windows: the
 [installer](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/download/v0.1.5/OMF-2097-Remastered-0.1.5-setup.exe), or the portable
@@ -521,7 +550,7 @@ resolution.
 <br>
 
 <a id="under-the-hood"></a>
-<p align="center"><a href="#under-the-hood"><img src="docs/media/banner-tech.jpg" alt="08 · Under the hood" width="100%"></a></p>
+<p align="center"><a href="#under-the-hood"><img src="docs/media/banner-tech.jpg" alt="09 · Under the hood" width="100%"></a></p>
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': {'background': '#04061f', 'primaryColor': '#0b1142', 'primaryTextColor': '#e7eaf3', 'primaryBorderColor': '#0000f3', 'secondaryColor': '#060926', 'tertiaryColor': '#04061f', 'lineColor': '#5a6cff', 'clusterBkg': '#060926', 'clusterBorder': '#2b3bcf', 'edgeLabelBackground': '#04061f'}}}%%
@@ -553,7 +582,7 @@ flowchart LR
 <br>
 
 <a id="credits"></a>
-<p align="center"><a href="#credits"><img src="docs/media/banner-credits.jpg" alt="09 · Credits and legal" width="100%"></a></p>
+<p align="center"><a href="#credits"><img src="docs/media/banner-credits.jpg" alt="10 · Credits and legal" width="100%"></a></p>
 
 - **The remaster**: [Jared Woodruff](https://github.com/Jared-woodruff) (human coder), Claude Opus 5.5 in Max Mode (AI
   coder), OpenAI GPT6-ASTRA in Ultra Mode (AI image rendering of the HD artwork).
