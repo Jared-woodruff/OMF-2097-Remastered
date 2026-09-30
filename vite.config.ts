@@ -38,6 +38,11 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    // Big generated and working folders (screen recordings, the art packs, the original game, the desktop build) are
+    // not the app's source: watching their tens of thousands of files kept the dev server busy.
+    watch: {
+      ignored: ['**/.captures/**', '**/hd-pack/**', '**/newart-pack/**', '**/menu-pack/**', '**/omf21cd/**', '**/src-tauri/target/**', '**/dist/**'],
+    },
   },
   build: {
     target: 'es2022',
