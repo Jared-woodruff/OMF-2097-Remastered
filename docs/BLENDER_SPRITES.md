@@ -49,7 +49,7 @@ python tools/blender/score.py --robot HELIX --renders <folder rendered with --pa
 | Brightness (the sprites: 101) | 79.8 | 80.7 |
 | Color difference from the sprite (0–255, median) | 45.4 | **35.9** |
 | Color zones kept (median; none below 0.8 in either) | 0.963 | **0.994** |
-| Zone masks agreeing with the sprites' zones | 99.2 % of 189,676 pixels | – |
+| Zone masks agreeing with the sprites' zones | 98.8 % of 189,676 pixels | – |
 
 Export: 1 s (148 poses, 15,204 triangles, 0.7 MB). Rendering all 126 frames and their masks: 31 s on an RTX 4080
 (OptiX), after a one-time kernel compile of about 80 s.
@@ -62,7 +62,7 @@ What it shows:
   than the dithered sources do. The current paintings of the same frames score 0.173 (the robots in the rework pack:
   0.23 to 0.27).
 - **Placement and zones are exact.** The poses, rectangles and silhouettes are the game's own; the masks agree with
-  the sprites on 99.2 % of the zone pixels (the rest are dithered and edge pixels).
+  the sprites on 98.8 % of the zone pixels (the rest are dithered and edge pixels).
 - **The gap is detail.** A rendering shows the generator's model as it is (prisms, boxes, blades), where the
   paintings invent panel lines, bolts, cables, a spiral drill, tread boots and wear. The color difference from the
   sprite is higher because the frames are lit again rather than traced from the sprite's own shading (brightness

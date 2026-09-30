@@ -49,27 +49,32 @@ def make_pack(src: Path, ids: set, pictures: Path, out: Path) -> list:
 
 
 def mask_agreement(pack: Path, renders: Path, jobs: list) -> dict:
-    """Share of the sources' zone pixels (classified by hue, like validate.py) whose mask shows the same zone most."""
+    """Share of the sources' zone pixels (classified by hue, like validate.py) that their mask covers and shows as the
+    same zone. A frame whose mask is missing counts as missing all of its zone pixels (and is listed)."""
     hit = total = 0
-    worst = []
+    worst, missing = [], []
     for job in jobs:
-        mask_path = renders / (job['output'][:-len('.hd.png')] + '.mask.png')
-        if not mask_path.exists():
-            continue
         src = np.asarray(Image.open(pack / job['source']).convert('RGBA'), np.float64) / 255
-        mask = np.asarray(Image.open(mask_path).convert('RGBA'), np.float64) / 255
-        mask[..., :3] *= mask[..., 3:4]
-        small = downscale(mask, src.shape[1], src.shape[0])
         hs, ss, vs = rgb_to_hsv(src[..., :3])
-        n = h = 0
-        for zone, zh in REF_HUES.items():
-            m = (src[..., 3] > 0.5) & (ss > 0.35) & (vs > 0.15) & (hue_dist(hs, zh) < 25)
-            n += int(m.sum())
-            h += int((small[..., :3].argmax(-1)[m] == MASK_CHANNEL[zone]).sum())
+        zones = {zone: (src[..., 3] > 0.5) & (ss > 0.35) & (vs > 0.15) & (hue_dist(hs, zh) < 25) for zone, zh in REF_HUES.items()}
+        n = sum(int(m.sum()) for m in zones.values())
+        h = 0
+        mask_path = renders / (job['output'][:-len('.hd.png')] + '.mask.png')
+        if mask_path.exists():
+            mask = np.asarray(Image.open(mask_path).convert('RGBA'), np.float64) / 255
+            mask[..., :3] *= mask[..., 3:4]
+            small = downscale(mask, src.shape[1], src.shape[0])[..., :3]
+            # Only where the zones cover most of the pixel: uncovered pixels (all channels 0) would pick channel 0.
+            covered = small.sum(-1) > 0.5
+            best = small.argmax(-1)
+            h = sum(int((m & covered & (best == MASK_CHANNEL[zone])).sum()) for zone, m in zones.items())
+        else:
+            missing.append(job['id'])
         hit, total = hit + h, total + n
         worst.append((h / max(1, n), job['id']))
     worst.sort()
-    return {'agreement': round(hit / max(1, total), 4), 'pixels': total, 'worst': [(round(a, 3), j) for a, j in worst[:5]]}
+    return {'agreement': round(hit / max(1, total), 4), 'pixels': total, 'missing': missing,
+            'worst': [(round(a, 3), j) for a, j in worst[:5]]}
 
 
 def validation_summary(pack: Path) -> dict:
@@ -134,6 +139,8 @@ def main():
         print(f"{label.format(src=b['validate']['lum_src']):42s}{fmt(b[group][key]):>10s}{fmt(c[group][key]):>10s}")
     m = b['masks']
     print(f"zone masks agreeing with the sources' zones: {m['agreement']:.3f} of {m['pixels']} pixels")
+    if m['missing']:
+        print(f"{len(m['missing'])} zone masks missing (counted as disagreeing), e.g. {m['missing'][0]}")
     print(out / 'score.json')
 
 
