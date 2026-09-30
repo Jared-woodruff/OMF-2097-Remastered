@@ -10,6 +10,7 @@ import { blit, encodePng, fill, indexedToRgba, newImage, pad, resizeCubic, scale
 import { describeMove, FIGHTERS, GAME_CONTEXT, NEGATIVE, NEGATIVE_BG_UI, NEGATIVE_SPRITE, SCENES, STYLE } from './prompts';
 import { animNote, NEGATIVE_TEXT_SPRITE } from './notes';
 import { writeDocs } from './docs';
+import { deliveredRefusal } from './delivered.mjs';
 import {
   ARENA_H, ARENA_W, arenaPrompt, designPrompt, effectPrompt, framePrompt, NEW_ARENAS, NEW_ROBOT_FILES, NEW_ROBOTS,
   NEWART_NEGATIVE_ARENA, NEWART_NEGATIVE_ROBOT, writeArenaPrompt, writeNewArtDocs,
@@ -18,6 +19,8 @@ import {
 const OUT = process.env.OMF_HDPACK_OUT;
 /** The new-art pack (`npm run newart:export`): only the remaster's robots, redrawn with new detail, and its arenas. */
 const NEWART = process.env.OMF_HDPACK_NEWART === '1';
+/** `-- --force`: empty the output folder even when it holds delivered paintings (*.hd.png). */
+const FORCE = process.env.OMF_HDPACK_FORCE === '1';
 const NEW_FILES = new Set(Object.values(NEW_ROBOT_FILES));
 
 type Mode = 'recreate' | 'upscale' | 'outpaint' | 'design' | 'redraw';
@@ -131,6 +134,10 @@ const hdRect = (r: { x: number; y: number; w: number; h: number }) =>
   `x ${r.x * SCALE_X}–${(r.x + r.w) * SCALE_X}, y ${r.y * SCALE_Y}–${(r.y + r.h) * SCALE_Y}`;
 
 it.skipIf(!hasGameData || !OUT)('export HD asset pack', () => {
+  // Not over delivered paintings: they would be deleted just below (the run scripts check it first, this is for a
+  // direct run).
+  const refusal = FORCE ? null : deliveredRefusal(OUT!, NEWART ? 'newart:export' : 'hd:export');
+  if (refusal) throw new Error(refusal);
   loadGameData();
   // Empty the output folder (its contents only: on Windows the folder itself may be another process's working directory).
   fs.mkdirSync(OUT!, { recursive: true });

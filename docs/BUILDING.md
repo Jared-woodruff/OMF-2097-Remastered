@@ -35,9 +35,14 @@ The imported artwork in `public/hd/` comes with the repository. To replace it wi
 README):
 
 ```sh
+npm run hd:export                     # writes the pack for the image model to hd-pack/ (sources, guides, prompts, specs)
+npm run hd:export -- path/to/folder   # or to another folder
 npm run hd:import                     # reads hd-pack/, writes public/hd/ (needs Python 3 with numpy and Pillow)
 npm run hd:import -- path/to/pack     # or another pack folder
 ```
+
+The export empties its folder first, so it stops when the folder holds delivered `*.hd.png` files (they are not in
+git): export to another folder, or add `-- --force` to delete them. `npm run newart:export` (below) does the same.
 
 The web and desktop builds include `public/hd/` when it exists; without it, the remastered mode upscales the
 original images procedurally.
