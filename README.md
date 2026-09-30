@@ -33,14 +33,14 @@
 
 <a id="trailer"></a>
 
-https://github.com/user-attachments/assets/c7715827-5b9f-4f16-b4f2-b15734fc5be4
+https://github.com/user-attachments/assets/28c270cb-914c-4055-b586-22dd4cd6e859
 
 <p align="center">
-  <sub>A fan trailer with no narrator. It starts in 1994: a DOS prompt, then the original game in its own pixels on a
-  beige CRT, to its main menu theme (played by this port's music engine). Then, 32 years later, the picture sweeps into
-  HD on the drop of Hadal Static's <i>Twenty Ninety-Seven (Remix)</i>: fights at ULTIMATE, the classic look against
-  the new one, the new robots and arenas, and every feature, cut to the song's bars (turn the sound on).
-  <a href="docs/media/trailer.mp4">Watch it in 1080p60</a>.</sub>
+  <sub>A fan trailer with no narrator. It starts in 1994: a beige PC boots, the game is installed from two floppy disks,
+  and it runs in its own pixels to its main menu theme (played by this port's music engine). Then, 32 years later, the
+  picture sweeps into HD on the drop of Hadal Static's <i>Twenty Ninety-Seven (Remix)</i>: fights at ULTIMATE, the
+  classic look against the new one, the new robots and arenas, and every feature, cut to the song's bars (turn the
+  sound on). <a href="docs/media/trailer.mp4">Watch it in 1080p60</a>.</sub>
 </p>
 
 <br>
@@ -108,7 +108,8 @@ The whole game is here, playing the original data files:
 ### New for the remaster: four robots, four arenas
 
 Built for this remaster in the spirit of the originals. They are **off by default**, so the game plays exactly like the
-original until you opt in: turn them on in **Gameplay › New content** (robots and arenas separately).
+original until you opt in: turn them on in **Options › New content** (robots and arenas separately), or on the first
+start's setup screen.
 
 <p align="center">
   <img src="docs/media/new-robots.jpg" alt="The new robots on the VS screen: GLACIER, TEMPEST, HELIX and SPECTRE" width="100%">
@@ -237,7 +238,7 @@ when one is slammed into them.
 > [!NOTE]
 > The effects are purely cosmetic. They never touch the game state or its random number generators, so a fight
 > plays out exactly the same with them on or off, and a test checks that. Each group can be switched off in
-> **Configuration › Video › Remastered options**.
+> **Options › Graphics › Effects**.
 
 <br>
 
@@ -314,7 +315,7 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
 - **Main menu** (remastered graphics): the robot on its stage is a parallax scene of painted layers under a slowly
   drifting camera that leans toward the mouse, lit live like the original: the spotlight sweeps over the robot and the
   tower's top, its beam hangs in the haze, searchlights cross the sky and cameras flash in the crowd.
-- **Two announcers**: a male and a female voice (**Configuration › Audio › Announcer**) call the rounds, "Fight!",
+- **Two announcers**: a male and a female voice (**Options › Sound › Announcer**) call the rounds, "Fight!",
   knockouts, perfects, scraps and destructions, and the winners: Victor, deep and ominous, and Kristen, icy and
   commanding (voices from the [ElevenLabs](https://elevenlabs.io) library, performed with Eleven v4 and directed line
   by line). While one of them speaks, the original game's own announcer ("Ready", "Round", "Fight") stays quiet; turn
@@ -354,13 +355,21 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
 
 #### And also
 
+- **Set up at the first start**: when the game has loaded for the first time (and once after an update from an earlier
+  version), a setup screen lets you pick the graphics, the effects, the announcer, the music, the new robots and arenas
+  and the keyboard layout, or take the original 1994 style in one press. It is all in **Options** afterwards.
+- **A tidier main menu**: the original's three ways to play first, then **More modes** (arcade, survival, time attack,
+  training, your own tournaments), **Extras** (the robot workshop, replays, records, the scoreboard, the demo, the
+  credits), **Options** (every setting, grouped: gameplay, new content, controls, graphics, sound, language), Help and
+  Quit.
 - **Move lists** in the pause menu: the special moves, throws and finishing moves of both robots, read from the
   game's own move tables and shown with direction arrows.
 - **The advanced options the original promised**: *Defensive throws*, *Knock down* and *Block damage* were listed in
   the 1994 menus but never implemented by OpenOMF. They now work as the original help text describes.
 - **Gamepad rumble** on hits, blocks, throws, wall slams and knockouts.
 - **Mouse support** in every menu: hover to select, click to activate, scroll to change values, right click to go back.
-- **F1 help at any time**, as the original help pages promised, with the game paused behind it.
+- **F1 help at any time**, as the original help pages promised, with the game paused behind it. In remastered
+  graphics the help pages are set in the remastered typeface, as readable pages beside a list of their topics.
 - **The German texts as written**: umlauts in the remastered typeface, the help pages' highlighted words in their
   colors on the same line, and pages longer than the screen continued over more pages.
 - **Auto pause**: switching to another window or tab pauses a fight.
@@ -371,7 +380,7 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
 <p align="center"><a href="#screens"><img src="docs/media/banner-screens.jpg" alt="05 · Every screen, every mode" width="100%"></a></p>
 
 <p align="center">
-  <img src="docs/media/menus.gif" alt="The main menu, the configuration menu and the controls screen" width="49%">
+  <img src="docs/media/menus.gif" alt="The main menu, the options, the controls menu and the controls screen" width="49%">
   <img src="docs/media/select.gif" alt="Pilot and robot selection" width="49%">
 </p>
 <p align="center">
@@ -380,7 +389,7 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
 </p>
 <p align="center">
   <img src="docs/media/screen-pause.jpg" alt="The pause menu over a fight" width="49%">
-  <img src="docs/media/screen-help.jpg" alt="The help pages over the dimmed main menu" width="49%">
+  <img src="docs/media/screen-help.jpg" alt="The help pages in the remastered typeface, a list of their topics beside them" width="49%">
 </p>
 <p align="center">
   <img src="docs/media/screen-controls-keyboard.jpg" alt="The controls screen: every action on the keyboard for both players" width="49%">
@@ -470,23 +479,23 @@ Prerequisites and details for every platform are in [docs/BUILDING.md](docs/BUIL
 &nbsp;·&nbsp; <kbd>Print Screen</kbd> (or <kbd>F12</kbd> in the desktop app) saves a screenshot at your display's
 resolution.
 
-- **Configuration › Controls** (also in the pause menu) shows the keyboard and the Xbox controller with every action
-  on its key or button. The keyboard has the classic layout above and a **modern** one (WASD for player 1), and keys
-  can be rebound in **Configuration › Input**.
+- **Options › Controls › Keys and buttons** (also in the pause menu) shows the keyboard and the Xbox controller with
+  every action on its key or button. The keyboard has the classic layout above and a **modern** one (WASD for player
+  1), and keys can be rebound in **Options › Controls › Player 1 input**.
 - **Xbox controllers** (and other standard gamepads) work out of the box, even alongside the keyboard: X / Y / RB
   punch and A / B / RT kick in the modern layout, or the original's two-button scheme in the classic one.
-- **One-button specials** (**Configuration › Special button**, on by default): the special button with no
+- **One-button specials** (**Options › Controls › Special button**, on by default): the special button with no
   direction, forward, back, down or up does the robot's first to fifth special move, and its air special in a jump;
   the move list shows which is which. The original inputs work as always. On a controller it is LT (and LB or RT).
 - **Touch controls** for phones and tablets: a stick that appears under your left thumb, punch, kick and special
-  buttons and a pause button. They show up once the screen is touched (**Configuration › Touch pad**).
+  buttons and a pause button. They show up once the screen is touched (**Options › Controls › Touch pad**).
 - **Training**: <kbd>F4</kbd> reset positions, <kbd>F5</kbd> record the dummy, <kbd>F6</kbd> play the recording (or a
   trial's demo), <kbd>F8</kbd> frame data, <kbd>F9</kbd> hitboxes.
 - **Replays**: <kbd>Space</kbd> pause, <kbd>←</kbd> <kbd>→</kbd> step (or skip five seconds while playing),
   <kbd>↑</kbd> <kbd>↓</kbd> speed, <kbd>R</kbd> restart, <kbd>I</kbd> / <kbd>O</kbd> clip start and end, <kbd>V</kbd>
   save a video, <kbd>G</kbd> save a GIF, <kbd>K</kbd> keep, <kbd>H</kbd> hide the bar. The desktop app saves clips and
   files in *Downloads\OMF 2097 Remastered*.
-- **Sound effects and music volume** are in **Configuration › Audio** and the pause menu, with the **announcer**.
+- **Sound effects and music volume** are in **Options › Sound** and the pause menu, with the **announcer**.
   **My music** plays your own songs in fights or everywhere: drop audio files onto the window (or pick them in the
   Audio menu).
 

@@ -118,7 +118,7 @@ page('Before you play', `
     lightning). If you or anyone in your family has had a seizure, ask a doctor before playing. Stop playing at once and
     see a doctor if you feel dizzy, see things oddly, twitch, or lose awareness.</p>
     <p class="small">Play in a well-lit room, sit well back from the screen, and take a 10 to 15 minute break every hour.
-    The remastered effects (flashes included) can be turned off in <b>Configuration &rsaquo; Video options &rsaquo; Remastered options</b>.</p>
+    The remastered effects (flashes included) can be turned off in <b>Options &rsaquo; Graphics &rsaquo; Effects</b>.</p>
   </div>
   <h2>About this manual</h2>
   <p>Welcome, pilot. This booklet covers everything in <b>One Must Fall 2097 Remastered</b>: the original 1994 game,
@@ -245,19 +245,17 @@ page('Getting started', `
 // 7. The main menu.
 page('The main menu', `
   ${title('Chapter 3', 'The main menu')}
-  <p>Use the arrow keys (or the mouse, or a gamepad) to choose, ${key('ENTER')} to select and ${key('ESC')} to go back.</p>
+  <p>Use the arrow keys (or the mouse, or a gamepad) to choose, ${key('ENTER')} to select and ${key('ESC')} to go back.
+  The first time the game starts, a setup screen asks how you want it to look and sound; it is all in <b>Options</b> later.</p>
   <table>
-    <tr><th style="width:36%">Entry</th><th>What it does</th></tr>
+    <tr><th style="width:30%">Entry</th><th>What it does</th></tr>
     <tr><td><b>One player game</b></td><td>You against the computer's pilots, one after another.</td></tr>
     <tr><td><b>Two player game</b></td><td>Two pilots, one keyboard (or pads). The loser buys the pizza.</td></tr>
     <tr><td><b>Tournament play</b></td><td>The career: create a pilot, win prize money, upgrade your robot, climb the circuit (page 23).</td></tr>
-    <tr><td><b>Training</b></td><td>The training lab: a dummy to practice on, with frame data and combo trials (page 26).</td></tr>
-    <tr><td><b>Configuration</b></td><td>Language, controls for both players, video and audio options (the announcer's voice too), rumble, touch controls.</td></tr>
-    <tr><td><b>Gameplay</b></td><td>Game speed, the number of rounds, the computer's skill, advanced rules, the new robots and arenas.</td></tr>
-    <tr><td><b>Extras</b></td><td>Replays, arcade, survival and time attack, records, the robot workshop, custom tournaments and the credits.</td></tr>
+    <tr><td><b>More modes</b></td><td>Arcade, survival and time attack (page 25), the training lab (page 26) and your own tournaments.</td></tr>
+    <tr><td><b>Extras</b></td><td>The robot workshop, replays, records and achievements, the scoreboard, the demo and the credits.</td></tr>
+    <tr><td><b>Options</b></td><td>Every setting: gameplay (speed, rounds, the computer's skill, advanced rules), the new robots and arenas, controls, graphics, sound and language.</td></tr>
     <tr><td><b>Help</b></td><td>The game's help pages (also ${key('F1')}, anywhere).</td></tr>
-    <tr><td><b>Demo</b></td><td>Sit back and watch the computer fight itself.</td></tr>
-    <tr><td><b>Scoreboard</b></td><td>The best one-player scores.</td></tr>
     <tr><td><b>Quit</b></td><td>For the faint of heart.</td></tr>
   </table>
   <figure><img src="${img('shot-select.jpg')}"><figcaption><b>CHOOSE YOUR ROBOT</b> &nbsp;Pick a pilot, then a HAR. Each
@@ -267,7 +265,7 @@ page('The main menu', `
 // 8-9. Controls.
 page('Controls', `
   ${title('Chapter 4', 'Controls')}
-  <p>The game knows two keyboard layouts (<b>Configuration &rsaquo; Controls</b>): the original <b>classic</b> layout, and a
+  <p>The game knows two keyboard layouts (<b>Options &rsaquo; Controls &rsaquo; Keys and buttons</b>): the original <b>classic</b> layout, and a
   <b>modern</b> one for today's keyboards. Every key can be changed.</p>
   <table>
     <tr><th></th><th>Classic P1</th><th>Classic P2</th><th>Modern P1</th></tr>
@@ -289,7 +287,7 @@ page('Controls', `
     <tr><td><b>Pause</b></td><td colspan="2">${key('START')}</td></tr>
   </table>
   <div class="tip" data-label="ONE-BUTTON SPECIALS">
-    <p>New to fighting games? Turn on <b>Configuration &rsaquo; Special button</b>: the special key (or pad button) fires a
+    <p>New to fighting games? Turn on <b>Options &rsaquo; Controls &rsaquo; Special button</b>: the special key (or pad button) fires a
     special move of your robot, a different one for each direction you hold. The motions still work too.</p>
   </div>
 `);
@@ -315,7 +313,7 @@ page('Controls', `
   <h2>The mouse</h2>
   <p>Every menu works with the mouse: point and click, right-click to go back. On a touch screen, an on-screen joystick and
   buttons appear for fights.</p>
-  <figure><img src="${img('shot-menus.jpg')}"><figcaption><b>CONTROLS</b> &nbsp;Configuration &rsaquo; Controls shows every key
+  <figure><img src="${img('shot-menus.jpg')}"><figcaption><b>CONTROLS</b> &nbsp;Options &rsaquo; Controls &rsaquo; Keys and buttons shows every key
   of both players on a keyboard, and every button on the controller page.</figcaption></figure>
 `);
 
@@ -366,7 +364,7 @@ page('Fighting basics', `
     makes the robot faster, and <b>endurance</b> makes it harder to stun.</p>
   </div>
   <div class="tip" data-label="PRO TIP">
-    <p>Watch the demo (main menu &rsaquo; Demo) with the move list in mind. The computer pilots use every special move of
+    <p>Watch the demo (Extras &rsaquo; Demo) with the move list in mind. The computer pilots use every special move of
     their robots, and they are not shy about it.</p>
   </div>
   <figure><img src="${img('shot-knockout.jpg')}"><figcaption><b>KNOCKOUT</b> &nbsp;The final blow: a flash, a shockwave and the
@@ -430,7 +428,7 @@ function newBlock([id, har, cls, text]) {
 page('New challengers', `
   ${title('Chapter 7', 'New challengers')}
   <p>Built for the Remastered Edition in the spirit of the originals, and painted in HD like them. Turn them on in
-  <b>Gameplay &rsaquo; New content</b>: they join the robot select screen (a third row), the computer's opponents and the
+  <b>Options &rsaquo; New content</b>: they join the robot select screen (a third row), the computer's opponents and the
   robots Plug offers to trade.</p>
   ${NEW.map(newBlock).join('')}
 `);
@@ -510,7 +508,7 @@ page('Tournament play', `
   <figure><img src="${img('shot-vs.jpg')}"><figcaption><b>THE HOLDING BAY</b> &nbsp;Before every fight, the two robots face
   each other in the holding bay, and so do their pilots.</figcaption></figure>
   <h2>Custom tournaments</h2>
-  <p>Make your own circuits from the installed tournaments (<b>Extras &rsaquo; Custom tournaments</b>): fewer opponents
+  <p>Make your own circuits from the installed tournaments (<b>More modes &rsaquo; My tournaments</b>): fewer opponents
   (spread over the ranks, the champion always among them), their robots as they were or on the new robots, more or less
   prize money. They appear in Tournament play like the others, and can be shared as <b>.omftrn</b> files.</p>
   <div class="tip" data-label="PRO TIP">
@@ -543,7 +541,7 @@ page('Arcade modes', `
 // 26. Training lab.
 page('The training lab', `
   ${title('Chapter 12', 'The training lab')}
-  <p><b>Training</b> puts you against a dummy that never gets knocked out, with health refilling after every combo. The
+  <p><b>Training</b> (in <b>More modes</b>) puts you against a dummy that never gets knocked out, with health refilling after every combo. The
   pause menu's <b>Training lab</b> holds the tools:</p>
   <ul>
     <li><b>Frame data</b> ${key('F8')}: a frame meter for both robots and the startup, active and recovery frames of your
@@ -598,8 +596,8 @@ page('The remastered look', `
   <p>Fights get a layer of modern effects driven by what happens in the fight: sparks and flares on hits, light from
   impacts, fire and projectiles, shockwaves, the knockout camera, and each arena's own atmosphere (embers, blowing sand,
   floodlights, snow, rain, bubbles). They never change the fight itself. Each group can be switched off in
-  <b>Configuration &rsaquo; Video options &rsaquo; Remastered options</b>, along with bloom, the fight camera, the HUD
-  style and the typeface.</p>
+  <b>Options &rsaquo; Graphics &rsaquo; Effects</b>, with bloom; the fight camera, the HUD style and the typeface are in
+  <b>Options &rsaquo; Graphics &rsaquo; Remastered</b>.</p>
   <p>In widescreen the arena reaches past the original screen, but the fight stays inside it: faint <b>energy
   curtains</b> mark its edges, glowing where a robot is held against them and rippling when one is slammed into them.</p>
   <div class="tip" data-label="SLOW COMPUTER?">
@@ -645,7 +643,7 @@ page('Troubleshooting', `
     <tr><th style="width:38%">Problem</th><th>Solution</th></tr>
     <tr><td><b>Windows says it protected my PC.</b></td><td>The download is not signed yet. Choose <b>More info</b>, then <b>Run anyway</b>.</td></tr>
     <tr><td><b>The game runs slowly.</b></td><td>Press ${key('F2')} for the classic look, or turn off effects in the remastered options.</td></tr>
-    <tr><td><b>My gamepad does nothing.</b></td><td>Press any button on it once: the game only sees a pad after a button press. Check <b>Configuration &rsaquo; Controls</b>.</td></tr>
+    <tr><td><b>My gamepad does nothing.</b></td><td>Press any button on it once: the game only sees a pad after a button press. Check <b>Options &rsaquo; Controls</b>.</td></tr>
     <tr><td><b>There is no sound.</b></td><td>Click or press a key once: browsers only start sound after you do. Check the audio options' volumes.</td></tr>
     <tr><td><b>Where are my screenshots?</b></td><td>In <b>Downloads\\OMF 2097 Remastered</b>, with exported replays and clips.</td></tr>
     <tr><td><b>I cannot find Nova.</b></td><td>That is between you and the robot select screen.</td></tr>
@@ -732,8 +730,12 @@ console.log(`manual: ${pages.length} pages`);
 
 const port = 9361;
 const profile = path.join(WORK, 'profile');
-const edge = spawn(EDGE, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--allow-file-access-from-files', 'about:blank'],
-  { stdio: 'ignore' });
+// A bare browser: a fresh Edge profile would otherwise be signed into the Windows account, synced, and given its
+// extensions.
+const edge = spawn(EDGE, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--allow-file-access-from-files',
+  '--disable-sync', '--disable-extensions', '--no-first-run', '--no-default-browser-check', '--disable-background-networking',
+  '--disable-features=msImplicitSignin,msEdgeSyncConsent,EdgeCollections,msEdgeShopping', '--inprivate', 'about:blank'],
+{ stdio: 'ignore' });
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 let target;
 for (let i = 0; i < 100 && !target; i++) {
@@ -788,4 +790,7 @@ try {
 } catch {}
 if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(edge.pid), '/T', '/F'], { stdio: 'ignore' });
 else edge.kill();
+// (the browser profile goes too: a fresh one each time)
+await sleep(500);
+try { fs.rmSync(profile, { recursive: true, force: true }); } catch {}
 console.log(`manual: ${path.relative(ROOT, OUT)} (${Math.round(fs.statSync(OUT).size / 1024)} KB)`);
