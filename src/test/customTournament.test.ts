@@ -7,6 +7,9 @@ import { buildCustomTournament, customTournaments, fileNameOf, readTournamentSpe
 import { loadTournament } from '../resources/resources';
 import { trnlistInit, trnLoad } from '../resources/trnmanager';
 import { createGame, hasGameData } from './harness';
+import { CustomTournamentsPage } from '../game/tournament/customPage';
+import { Page } from '../game/gui/page';
+import { FontSize, HAlign } from '../game/gui/text';
 
 beforeEach(() => resetCustomTournaments());
 
@@ -46,5 +49,44 @@ describe.skipIf(!hasGameData)('custom tournaments', () => {
     expect(trnLoad(fileNameOf(2))?.locales[0].title).toBe('LOCAL LEAGUE');
     setCustomTournament(2, null);
     expect(trnlistInit().map((t) => t.filename)).not.toContain(fileNameOf(2));
+  });
+});
+
+describe.skipIf(!hasGameData)('MY TOURNAMENTS (the page)', () => {
+  it('keeps every text inside its frame, with six saved tournaments of the longest names and every message', () => {
+    createGame(SceneId.MENU);
+    for (let i = 0; i < 6; i++) setCustomTournament(i, { v: 1, name: 'W'.repeat(24), base: 'WORLD.TRN', size: 1, robots: 0, prize: 2 });
+    const page = new CustomTournamentsPage();
+    const texts: { str: string; left: number; right: number }[] = [];
+    const proto = Page.prototype as unknown as { drawText: (...a: unknown[]) => void };
+    const draw = proto.drawText;
+    proto.drawText = function (this: unknown, key: unknown, str: unknown, x: unknown, y: unknown, font: unknown, color: unknown, align: unknown) {
+      const w = (this as { t: (k: unknown, s: unknown, f: unknown, c: unknown) => { width(): number } }).t(key, str, font ?? FontSize.SMALL, color).width();
+      const at = x as number;
+      const left = align === HAlign.CENTER ? at - w / 2 : align === HAlign.RIGHT ? at - w : at;
+      texts.push({ str: String(str), left, right: left + w });
+      return draw.call(this, key, str, x, y, font, color, align);
+    };
+    try {
+      const p = page as unknown as { status: string; slot: number; row: number; spec: unknown; render(): void };
+      const messages = ['', 'NOTHING COULD BE LOADED (OR NO FREE SLOT)', 'PRESS DELETE AGAIN TO DELETE THIS TOURNAMENT', 'THE NEW ROBOTS ARE NOT INSTALLED'];
+      for (const status of messages) {
+        p.status = status;
+        p.slot = -1;
+        p.render();
+        p.slot = 0;
+        p.spec = customTournaments()[0];
+        for (let row = 0; row < 6; row++) {
+          p.row = row;
+          p.render();
+        }
+      }
+    } finally {
+      proto.drawText = draw;
+    }
+    expect(texts.length).toBeGreaterThan(50);
+    // (the frame: native x 8..312, its border one pixel wide)
+    const out = texts.filter((t) => t.left < 10 || t.right > 310).map((t) => `${t.str} (${t.left.toFixed(0)}..${t.right.toFixed(0)})`);
+    expect(out).toEqual([]);
   });
 });

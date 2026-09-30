@@ -18,6 +18,9 @@ import {
 type Row = 'name' | 'base' | 'size' | 'robots' | 'prize' | 'file';
 const ROWS: Row[] = ['name', 'base', 'size', 'robots', 'prize', 'file'];
 const LABELS: Record<Row, string> = { name: 'NAME', base: 'MADE FROM', size: 'OPPONENTS', robots: 'THEIR ROBOTS', prize: 'PRIZE MONEY', file: 'SAVE FILE' };
+/** The list's rows (native pixels): the first one's top, and their height (a name, and under it what it is). */
+const LIST_Y = 40;
+const LIST_ROW = 21;
 
 function baseTitle(file: string): string {
   try {
@@ -179,7 +182,7 @@ export class CustomTournamentsPage extends Page {
   override pointer(x: number, y: number, kind: PointerKind): boolean {
     if (kind !== 'click') return false;
     if (this.slot < 0) {
-      const i = Math.floor((y - 42) / 16);
+      const i = Math.floor((y - LIST_Y + 3) / LIST_ROW);
       if (i >= 0 && i < CUSTOM_SLOTS && x > 20 && x < 300) {
         if (i === this.sel) this.open(i);
         else this.sel = i;
@@ -212,20 +215,21 @@ export class CustomTournamentsPage extends Page {
 
   private renderList(): void {
     this.drawFrame('TOURNAMENTS');
-    this.drawText('st', this.status || 'YOUR OWN TOURNAMENTS: PLAY THEM FROM TOURNAMENT PLAY', 160, 25, FontSize.SMALL,
+    this.drawText('st', this.status || 'PLAY YOUR OWN TOURNAMENTS FROM TOURNAMENT PLAY', 160, 25, FontSize.SMALL,
       this.confirmDelete ? PC.red : PC.dim, HAlign.CENTER);
     const list = customTournaments();
     for (let i = 0; i < CUSTOM_SLOTS; i++) {
       const s = list[i];
-      const y = 42 + i * 16;
+      const y = LIST_Y + i * LIST_ROW;
       const sel = i === this.sel;
-      if (sel) this.box(22, y - 3, 276, 14, PC.select);
-      this.drawText(`n${i}`, `${i + 1}`, 30, y, FontSize.SMALL, PC.dim);
+      if (sel) this.box(22, y - 3, 276, LIST_ROW - 1, PC.select);
+      this.drawText(`n${i}`, `${i + 1}`, 30, s ? y + 1 : y + 4, FontSize.SMALL, PC.dim);
       if (s) {
-        this.drawText(`s${i}`, s.name, 44, y - 1, FontSize.BIG, sel ? PC.white : PC.grey);
-        this.drawText(`d${i}`, `${SIZE_NAMES[s.size]}, ${ROBOT_NAMES[s.robots]}`, 292, y, FontSize.SMALL, sel ? PC.gold : PC.dim, HAlign.RIGHT);
+        // (the name, and under it what it is: side by side they ran into each other)
+        this.drawText(`s${i}`, s.name, 44, y, FontSize.BIG, sel ? PC.white : PC.grey);
+        this.drawText(`d${i}`, `${SIZE_NAMES[s.size]}, ${ROBOT_NAMES[s.robots]}`, 44, y + 10, FontSize.SMALL, sel ? PC.gold : PC.dim);
       } else {
-        this.drawText(`s${i}`, 'EMPTY: ENTER MAKES A NEW TOURNAMENT', 44, y, FontSize.SMALL, sel ? PC.grey : PC.dark);
+        this.drawText(`s${i}`, 'EMPTY: ENTER MAKES A NEW TOURNAMENT', 44, y + 4, FontSize.SMALL, sel ? PC.grey : PC.dark);
       }
     }
     this.drawText('h1', 'ENTER MAKE / EDIT   E SAVE FILE   I LOAD FILES', 160, 172, FontSize.SMALL, PC.dim, HAlign.CENTER);
@@ -254,6 +258,6 @@ export class CustomTournamentsPage extends Page {
     });
     const hint = this.status || (ROWS[this.row] === 'name' ? 'TYPE A NAME (- FOR A SPACE)   ESC LIST' : '< > CHANGE   ESC LIST');
     this.drawText('h', hint, 160, 150, FontSize.SMALL, this.status ? PC.gold : PC.dim, HAlign.CENTER);
-    this.drawText('h2', 'JOIN IT FROM TOURNAMENT PLAY: IT IS IN THE LIST OF TOURNAMENTS', 160, 172, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    this.drawText('h2', 'JOIN IT FROM THE LIST IN TOURNAMENT PLAY', 160, 172, FontSize.SMALL, PC.dim, HAlign.CENTER);
   }
 }
