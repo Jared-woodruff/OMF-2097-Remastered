@@ -21,7 +21,6 @@ import { HD_PAD, HD_SCALE } from '../mods/types';
 import { followEdit, hdTemplate, parseStem, spriteStem } from '../studio/hd';
 import { modelJobs, unpremultiply } from '../studio/robot/hdModel';
 import { GEN_ROBOTS } from '../gen/roster';
-import { getGenerated } from '../resources/generated';
 import { readRobotInfo } from '../mods/types';
 import { robotPalette } from '../studio/colors';
 import { originalPilot } from '../studio/pilot/originals';
@@ -31,7 +30,7 @@ import { emptyHd, newProject, openPackage, packageFromProject, projectFromPackag
 import { blankRobot } from '../studio/robot/newRobot';
 import { copyMove, pictureFromIdle, setPicture as setRobotPicture } from '../studio/robot/model';
 import { detach, setPicture, sharedGroup } from '../studio/sprites';
-import { GAMEDATA_DIR, hasGameData, installBrowserShims, loadGameData } from './harness';
+import { extrasPackage, GAMEDATA_DIR, hasGameData, installBrowserShims, loadGameData } from './harness';
 
 /** Everything the game reads from a fighter file, for comparing two files. */
 function afMeaning(af: AfFile): unknown {
@@ -71,7 +70,7 @@ describe.skipIf(!hasGameData)('OMF Studio projects', () => {
   });
 
   it('open a mod, and build it again as it was', async () => {
-    const sample = await buildSampleMod();
+    const sample = await buildSampleMod(await extrasPackage());
     const bytes = await writeModPackage(sample);
     const p = await openPackage(bytes);
     expect(projectProblems(p).filter((x) => x.level === 'error')).toEqual([]);
@@ -217,7 +216,7 @@ describe.skipIf(!hasGameData)('OMF Studio projects', () => {
   });
 
   it('HD pictures go with their sprites\' pixels, into the package and back', async () => {
-    const p = projectFromPackage(await buildSampleMod());
+    const p = projectFromPackage(await buildSampleMod(await extrasPackage()));
     const robot = p.robots[0];
     const idle = robot.af.moves[11]!.animation.sprites;
     const [a, b] = [idle[0], idle[1]];
@@ -254,7 +253,7 @@ describe.skipIf(!hasGameData)('OMF Studio projects', () => {
   });
 
   it('HD pictures that no longer have the shape of their pictures stay out of the package', async () => {
-    const p = projectFromPackage(await buildSampleMod());
+    const p = projectFromPackage(await buildSampleMod(await extrasPackage()));
     const arena = p.arenas[0], pilot = p.pilots[0];
     // (the sample's arena has widescreen sides: 576 x 200)
     arena.hd = { ...emptyHd(), background: await encodePng(1440, 600, new Uint8Array(1440 * 600 * 4)) };
@@ -269,10 +268,10 @@ describe.skipIf(!hasGameData)('OMF Studio projects', () => {
   });
 
   it('a robot built from the workshop\'s parts has its 3D model\'s sprites to render in HD', async () => {
-    const sample = await buildSampleMod();
+    const sample = await buildSampleMod(await extrasPackage());
     const p = projectFromPackage(sample);
     const robot = p.robots[0];
-    // (robot.json names the parts: the game keeps them, and ignores them)
+    // (robot.json names the parts: the game draws what it has no pictures of from their 3D model)
     expect(robot.info.workshop).toMatchObject({ body: 0, head: 3, moves: 2 });
     expect(readRobotInfo({ name: 'X' }, 'r').workshop).toBeNull();
     const all = new Set(robot.af.moves.flatMap((m) => m?.animation.sprites.filter((s) => !s.isEmpty()).map(spriteHash) ?? []));
@@ -288,8 +287,9 @@ describe.skipIf(!hasGameData)('OMF Studio projects', () => {
     expect([after.jobs.length, after.other]).toEqual([all.size - 1, 1]);
     expect(after.jobs.some((j) => j.hash === spriteHash(idle))).toBe(false);
     // The remaster's robots are workshop parts too: a copy of one renders from them.
+    const extras = await extrasPackage();
     GEN_ROBOTS.forEach((g, k) => {
-      const af = parseAF(getGenerated(`FIGHTR${g.id}.AF`)!);
+      const af = parseAF(extras.robots[k].af);
       const r = modelJobs({ v: 1, name: g.name, body: k, head: k, moves: k, size: 1, weight: 1, colors: [0, 1, 4] }, af);
       expect(r.other, g.name).toBe(0);
     });
@@ -300,7 +300,7 @@ describe.skipIf(!hasGameData)('OMF Studio projects', () => {
   });
 
   it('a project from a package keeps its content ids', async () => {
-    const sample = await buildSampleMod();
+    const sample = await buildSampleMod(await extrasPackage());
     const p = projectFromPackage(sample);
     expect(p.robots.map((r) => r.id)).toEqual(['sentinel']);
     expect(p.arenas.map((a) => a.id)).toEqual(['dusk-rooftop']);

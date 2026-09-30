@@ -1,14 +1,20 @@
-// The mods the game plays. When it starts, every installed mod that is on (store.ts) is read and its content joins the
-// game like the remaster's own: each robot, arena and pilot gets its number (ids.ts), its files are provided under the
-// names the engine loads (FIGHTRn.AF, ARENAn.BK / .WID, see resources/generated.ts) and its names and texts are
-// registered. The rest of the game asks here what is there (roster.ts: the select screens, the arena rotation, the
-// computer's opponents). A mod that cannot be loaded is left out with its reason (the MODS page shows it); turning mods
-// on or off takes effect the next time the game starts (the engine keeps what it loaded).
+// The mods the game plays. When it starts, every mod that is on is read and its content joins the game: the mods that
+// come with the game first (bundled.ts: the remaster's new robots and arenas), then the installed ones (store.ts). Each
+// robot, arena and pilot gets its number (ids.ts), its files are provided under the names the engine loads (FIGHTRn.AF,
+// ARENAn.BK / .WID, see resources/generated.ts) and its names and texts are registered; a robot built from the robot
+// workshop's parts (robot.json's "workshop") joins the generator's robots too, for what the game draws from their 3D
+// models (the mech lab's turning robot, HD pictures its package has none for). The rest of the game asks here what is
+// there (roster.ts: the select screens, the arena rotation, the computer's opponents). A mod that cannot be loaded is
+// left out with its reason (the MODS page shows it); turning mods on or off takes effect the next time the game starts
+// (the engine keeps what it loaded).
 import { HAR_NAMES } from '../game/constants';
+import { registerGenRobot, unregisterGenRobot } from '../gen/roster';
+import { workshopRobot } from '../gen/workshop';
 import { APP_VERSION } from '../platform/versionLabel';
-import { provideGenerated } from '../resources/generated';
+import { forgetGenerated, provideGenerated } from '../resources/generated';
 import { forgetBk, forgetFighter, harFileName, setHarName } from '../resources/resources';
 import { decodePng, type PngImage } from '../util/png';
+import { bundledEnabled, bundledMods, fetchBundled, migrateNewContent, type BundledMod } from './bundled';
 import { modContentId } from './ids';
 import { readModPackage, type ModHd, type ModPackage } from './package';
 import { listMods, testMod } from './store';
@@ -103,6 +109,8 @@ export async function registerModPackage(pkg: ModPackage): Promise<void> {
     HAR_NAMES[harId] = r.info.name;
     setHarName(harId, r.info.name);
     robots.set(harId, { key: `${m.id}/${r.id}`, mod: m.id, harId, info: r.info, hd: r.hd });
+    if (r.info.workshop) registerGenRobot(workshopRobot(r.info.workshop, harId));
+    pictured.delete(harId);
   });
   pkg.arenas.forEach((a, i) => {
     const index = arenaIds[i];
@@ -123,18 +131,63 @@ export async function registerModPackage(pkg: ModPackage): Promise<void> {
 
 /** Forgets a mod's content (its files stay provided: a new registration replaces them). */
 function unregisterMod(id: string): void {
+  for (const [k, v] of robots) if (v.mod === id && v.info.workshop) unregisterGenRobot(k);
   for (const map of [robots, arenas, pilots] as Map<number, { mod: string }>[]) {
     for (const [k, v] of map) if (v.mod === id) map.delete(k);
   }
 }
 
+const pictured = new Map<number, Set<string>>();
+
+/** The fingerprints of a mod robot's sprites its package has HD pictures for (the game renders no others for them). */
+export function modPictured(harId: number): Set<string> {
+  let set = pictured.get(harId);
+  if (!set) {
+    set = new Set((robots.get(harId)?.hd?.info.sprites ?? []).map((e) => e.hash).filter((h): h is string => !!h));
+    pictured.set(harId, set);
+  }
+  return set;
+}
+
+/** Reads and registers a mod that comes with the game; its state tells how it went. */
+async function loadBundledMod(b: BundledMod): Promise<void> {
+  try {
+    await registerModPackage(await readModPackage(await fetchBundled(b), APP_VERSION));
+  } catch (err) {
+    unregisterMod(b.id);
+    states.set(b.id, { id: b.id, loaded: false, error: err instanceof ModError ? err.message : `It could not be loaded (${(err as Error)?.message ?? err}).` });
+    console.error(`[mods] ${b.id}:`, err);
+  }
+}
+
+/**
+ * Loads a mod that comes with the game now, if it is on and not loaded (the first start's setup turns the new robots
+ * and arenas on before the game begins).
+ */
+export async function loadBundled(id: string): Promise<void> {
+  if (modState(id)?.loaded || !bundledEnabled(id)) return;
+  if ((await listMods()).some((m) => m.id === id)) return;
+  const b = (await bundledMods()).find((x) => x.id === id);
+  if (b) await loadBundledMod(b);
+}
+
 /**
  * Loads the installed mods that are on (at start-up), and with `test` the package OMF Studio is testing (over an
- * installed mod with its id). Never throws: a mod that fails is left out with its reason (the test package's is
- * returned).
+ * installed mod with its id) and the mods that come with the game it names (`bundled`: OMF Studio's test in one of the
+ * new arenas, say, even with their mod off; the setting stays as it is). Never throws: a mod that fails is left out
+ * with its reason (the test package's is returned).
  */
-export async function loadMods(test = false): Promise<string | null> {
-  for (const rec of await listMods()) {
+export async function loadMods(test = false, bundled: string[] = []): Promise<string | null> {
+  const installed = await listMods();
+  migrateNewContent();
+  // The mods that come with the game, first (their robots and arenas right after the game's own), unless the player
+  // installed a version of their own.
+  for (const b of await bundledMods()) {
+    if (installed.some((m) => m.id === b.id)) continue;
+    states.set(b.id, { id: b.id, loaded: false, error: null });
+    if (bundledEnabled(b.id) || (test && bundled.includes(b.id))) await loadBundledMod(b);
+  }
+  for (const rec of installed) {
     const state: ModState = { id: rec.id, loaded: false, error: null };
     states.set(rec.id, state);
     if (!rec.enabled) continue;
@@ -174,8 +227,18 @@ export function testContent(kind: 'robot' | 'arena' | 'pilot', ref: string | nul
   return kind === 'robot' ? (found as ModRobot).harId : kind === 'arena' ? (found as ModArena).index : (found as ModPilot).pilotId;
 }
 
-/** Forgets every mod (tests). */
+/** Forgets every mod, and the files it provided (tests). */
 export function resetMods(): void {
+  for (const [k, v] of robots) {
+    if (v.info.workshop) unregisterGenRobot(k);
+    forgetGenerated(harFileName(k));
+    forgetFighter(k);
+  }
+  for (const k of arenas.keys()) {
+    for (const f of [`ARENA${k}.BK`, `ARENA${k}.WID`]) forgetGenerated(f);
+    forgetBk(`ARENA${k}.BK`);
+  }
+  pictured.clear();
   robots.clear();
   arenas.clear();
   pilots.clear();

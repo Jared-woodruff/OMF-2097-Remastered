@@ -1,8 +1,11 @@
 // Headless test harness: runs the game logic in Node (vitest) with the original data files, no browser needed.
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { provideFile } from '../resources/files';
-import { provideGenerated } from '../resources/generated';
+import { EXTRAS_FILE, EXTRAS_NUMBERS } from '../mods/extras';
+import { readModPackage, type ModPackage } from '../mods/package';
+import { registerModPackage } from '../mods/registry';
 import { loadLanguage } from '../resources/resources';
 import { PILOT_INFO, SceneId } from '../game/constants';
 import { GameState } from '../game/gameState';
@@ -44,20 +47,81 @@ if (process.env.TEXT_AUDIT) {
 }
 
 export const GAMEDATA_DIR = path.resolve(__dirname, '../../public/gamedata');
-export const GENERATED_DIR = path.resolve(__dirname, '../../public/gen');
+/** The mods that come with the game (public/mods: the remaster's new robots and arenas). */
+export const MODS_DIR = path.resolve(__dirname, '../../public/mods');
 export const hasGameData = fs.existsSync(path.join(GAMEDATA_DIR, 'FIGHTR0.AF'));
+export const hasExtras = fs.existsSync(path.join(MODS_DIR, EXTRAS_FILE));
+
+let extras: Promise<ModPackage> | null = null;
+
+/** The new robots and arenas' mod package (public/mods). */
+export function extrasPackage(): Promise<ModPackage> {
+  extras ??= readModPackage(new Uint8Array(fs.readFileSync(path.join(MODS_DIR, EXTRAS_FILE))));
+  return extras;
+}
+
+let extrasFiles: Map<string, Buffer> | null = null;
+
+/**
+ * A file of the new robots and arenas' mod by the name the engine loads it by (FIGHTR11.AF, ARENA5.BK, ARENA5.WID), read
+ * from its package at once (the development tools that are not asynchronous), or null.
+ */
+export function extrasFileSync(name: string): Uint8Array | null {
+  if (!extrasFiles) {
+    // (a zip's central directory: every file's place, stored or deflated)
+    const buf = fs.readFileSync(path.join(MODS_DIR, EXTRAS_FILE));
+    let end = buf.length - 22;
+    while (end >= 0 && buf.readUInt32LE(end) !== 0x06054b50) end--;
+    extrasFiles = new Map();
+    let p = buf.readUInt32LE(end + 16);
+    for (let i = buf.readUInt16LE(end + 10); i > 0; i--) {
+      const method = buf.readUInt16LE(p + 10), size = buf.readUInt32LE(p + 20), nameLen = buf.readUInt16LE(p + 28);
+      const local = buf.readUInt32LE(p + 42);
+      const start = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
+      const data = buf.subarray(start, start + size);
+      extrasFiles.set(buf.toString('utf8', p + 46, p + 46 + nameLen), method === 0 ? data : zlib.inflateRawSync(data));
+      p += 46 + nameLen + buf.readUInt16LE(p + 30) + buf.readUInt16LE(p + 32);
+    }
+  }
+  const up = name.toUpperCase();
+  const robot = /^FIGHTR(\d+)\.AF$/.exec(up), arena = /^ARENA(\d+)\.(BK|WID)$/.exec(up);
+  const folder = (kind: 'robot' | 'arena', n: number) => Object.entries(EXTRAS_NUMBERS[kind]).find(([, v]) => v === n)?.[0];
+  const file = robot ? `robots/${folder('robot', Number(robot[1]))}/fighter.af`
+    : arena ? `arenas/${folder('arena', Number(arena[1]))}/arena.${arena[2].toLowerCase()}` : null;
+  const data = file && extrasFiles.get(file);
+  return data ? new Uint8Array(data) : null;
+}
+
+let served = false;
+
+/** Answers fetch('mods/...') from public/mods, like the web server does (the mods that come with the game). */
+export function serveBundledMods(): void {
+  if (served) return;
+  served = true;
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    if (!url.startsWith('mods/')) return real(input, init);
+    // (a package is asked for by its fingerprint: file?sig)
+    const file = path.join(MODS_DIR, url.slice('mods/'.length).replace(/\?.*$/, ''));
+    return fs.existsSync(file) ? new Response(new Uint8Array(fs.readFileSync(file))) : new Response(null, { status: 404 });
+  }) as typeof fetch;
+}
+
+/** Plays the new robots and arenas: their mod registered as the game loads it when it is on (HARs 11-14, arenas 5-8). */
+export async function loadExtras(): Promise<void> {
+  loadGameData();
+  await registerModPackage(await extrasPackage());
+}
 
 let loaded = false;
 
-/** Loads every original data file into the in-memory file cache, and the remaster's generated files. */
+/** Loads every original data file into the in-memory file cache. */
 export function loadGameData(): void {
   if (loaded) return;
   for (const f of fs.readdirSync(GAMEDATA_DIR)) {
     if (f === 'manifest.json') continue;
     provideFile(f, new Uint8Array(fs.readFileSync(path.join(GAMEDATA_DIR, f))));
-  }
-  if (fs.existsSync(GENERATED_DIR)) {
-    for (const f of fs.readdirSync(GENERATED_DIR)) provideGenerated(f, new Uint8Array(fs.readFileSync(path.join(GENERATED_DIR, f))));
   }
   loadLanguage();
   loaded = true;

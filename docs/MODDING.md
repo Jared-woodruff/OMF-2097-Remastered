@@ -8,6 +8,11 @@ the modes, replays and the move list.
 - **Install a mod**: drop its `.omfmod` file on the game, or open **Extras › Mods** and press **I**. Mods are on once
   installed; **Extras › Mods** turns them on and off, saves them as files and removes them. Changes play from the next
   start (**R** restarts the game).
+- **The remaster's new robots and arenas** (GLACIER, TEMPEST, HELIX and SPECTRE; Orbital, Ice Cave, Rooftop and
+  Abyss) are a mod too, one that comes with the game: *New robots and arenas*, first on the Mods page, off until it is
+  turned on there (or on the first start's setup screen). It cannot be removed, only turned off, and a mod installed
+  with the same id takes its place. It is made with the same package format as any mod, so it is also the fullest
+  example there is: OMF Studio opens a copy of it (**The new robots and arenas** on its start screen).
 - **Make one**: open **Extras › OMF Studio** (the desktop app opens it in its own window; the installer can also add
   its shortcuts), or `studio.html` next to the web version.
 
@@ -19,8 +24,9 @@ the top bar says whether the game can play it (a click lists the checks, each on
 robot, arena and pilot has a button that tests it in the game (**Fight with it**, **Fight in it**, **Play as them**).
 Projects save themselves as they change (**Ctrl+S** saves at once).
 
-- **Robots** start as a copy of one of the game's robots, from the robot workshop's parts (a 3D model posed and drawn
-  into every frame, like the remaster's own robots), or as a blank figure to draw over. The editor has:
+- **Robots** start as a copy of one of the game's robots (the new ones included, with their HD pictures), from the
+  robot workshop's parts (a 3D model posed and drawn into every frame, like the remaster's own robots), or as a blank
+  figure to draw over. The editor has:
   - the robot's name, stats (health, endurance, speeds) and the special moves the computer uses for its tactics;
   - its moves: all 70 slots of its fighter file, each with its animation (a preview at the game's pace with the hit
     points, the frames and their tags, the raw animation string), its input (a builder: directions as they are
@@ -30,7 +36,8 @@ Projects save themselves as they change (**Ctrl+S** saves at once).
     as PNG files (an indexed PNG exported by Studio keeps its colors exactly after editing it in another program);
   - its pictures on the robot select and VS screens (made from its idle frame, or drawn);
   - a list of what it still needs.
-- **Arenas** start as a copy of one of the game's arenas, or from a picture (576 × 200 with the widescreen sides, or
+- **Arenas** start as a copy of one of the game's arenas (the new ones too, with their HD backgrounds), or from a
+  picture (576 × 200 with the widescreen sides, or
   320 × 200): Studio picks the arena's 64 colors and makes the shading tables the game needs. An arena names its music
   (one of the game's songs), its ambience (the remastered effects and echo of one of the game's arenas) and, if any,
   the original arena whose built-in rules it follows. Its animations are the 50 slots of its scene file, edited over
@@ -100,7 +107,7 @@ pilots/<id>/face.png             optional: its face in the pilot select grid
 | `description` | shown in the mech lab |
 | `moves` | names of the special moves by move id, e.g. `{ "15": "DRILL RUSH" }` (the move list shows them) |
 | `ai` | `{ "projectile": [...], "charge": [...], "push": [...] }`: move ids the computer uses for those tactics |
-| `workshop` | optional: the robot workshop's parts it was built from (`body`, `head` and `moves`: 0-3, GLACIER, TEMPEST, HELIX, SPECTRE; `size` and `weight`: 0-2), for OMF Studio to render its HD pictures from their 3D model; the game does not use it |
+| `workshop` | optional: the robot workshop's parts it was built from (`body`, `head` and `moves`: 0-3, GLACIER, TEMPEST, HELIX, SPECTRE; `size` and `weight`: 0-2): the game turns the robot in the mech lab and renders its HD pictures from their 3D model where the mod has none (OMF Studio too) |
 
 The fighter file must have the animations the engine plays: 1 jump, 2 stand up, 3 stunned, 4 crouch, 5 and 6 blocks,
 9 the damage sheet, 10 walk, 11 idle, 48 victory and 49 defeat. Move 60 is the robot select screen's picture (51 × 36,
@@ -194,10 +201,13 @@ since is left out, as a picture for a sprite that does not exist or of the wrong
 
 ## How the game loads mods
 
-At start-up the game reads every installed mod that is on and checks it like OMF Studio does (the manifest, every
-file's format, the animations a robot needs, the HD pictures' shapes). Each robot, arena and pilot gets a number the engine knows it by, and
-keeps it (saved replays, records and the training setup name it): robots 24-63, arenas 9-31, pilots 16-63. A mod that
-cannot be loaded is left out, with its reason on the Mods page. A replay of a fight with content of a mod that is off
-says so instead of playing.
+At start-up the game reads the mods that come with it (`public/mods/index.json` lists them; a package is only
+fetched when its mod is on) and every installed mod that is on, and checks them like OMF Studio does (the manifest,
+every file's format, the animations a robot needs, the HD pictures' shapes). Each robot, arena and pilot gets a number the engine knows it by, and
+keeps it (saved replays, records and the training setup name it): robots 24-63, arenas 9-31, pilots 16-63. The new
+robots and arenas keep the numbers they had before they were a mod (robots 11-14, arenas 5-8), so replays and saves
+from earlier versions still find them. A mod that cannot be loaded is left out, with its reason on the Mods page. A
+replay of a fight with content of a mod that is off says so instead of playing, and a tournament pilot on a robot of
+a mod that is off does not fight (the mech lab says which mod to turn on).
 
 The code is in `src/mods` (the package format, the store, the registry, the Mods page) and `src/studio` (OMF Studio).

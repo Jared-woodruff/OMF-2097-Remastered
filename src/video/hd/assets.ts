@@ -69,8 +69,8 @@ export interface HdImage {
   sub?: HdSource;
 }
 
-export const HAR_BUNDLES = ['JAGUAR', 'SHADOW', 'THORN', 'PYROS', 'ELECTRA', 'KATANA', 'SHREDDER', 'FLAIL', 'GARGOYLE', 'CHRONOS', 'NOVA',
-  'GLACIER', 'TEMPEST', 'HELIX', 'SPECTRE'];
+/** The original robots' artwork bundles, by HAR id (the new robots' pictures come with their mod, see mods/hdArt.ts). */
+export const HAR_BUNDLES = ['JAGUAR', 'SHADOW', 'THORN', 'PYROS', 'ELECTRA', 'KATANA', 'SHREDDER', 'FLAIL', 'GARGOYLE', 'CHRONOS', 'NOVA'];
 
 /** GPU memory the loaded bundles may use before unused ones are released. */
 const BUDGET_BYTES = 1200 * 1024 * 1024;

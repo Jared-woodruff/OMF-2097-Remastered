@@ -3,7 +3,8 @@ the arenas' guides from their current paintings, the reference sheets (the origi
 content now), and the zip to hand to the image AI.
 
 Usage: python tools/newart/prepare.py <pack folder>      (npm run newart:export runs it)
-Needs Pillow. The originals' references come from the HD asset pack (hd-pack/), the arenas' paintings from public/gen.
+Needs Pillow. The originals' references come from the HD asset pack (hd-pack/), the arenas' paintings from their mod's
+package (public/mods).
 """
 import json
 import re
@@ -15,7 +16,8 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 HD_PACK = ROOT / 'hd-pack'
-GEN = ROOT / 'public' / 'gen'
+sys.path.insert(0, str(ROOT / 'tools' / 'extras'))
+from extras_files import arena_background  # noqa: E402
 # (the in-game comparison shots: a new robot beside an original in a new arena; made by the scratchpad recorder)
 IN_GAME = ROOT / '.captures' / 'newcontent'
 
@@ -88,7 +90,7 @@ def main():
     current = []
     for job in (j for j in manifest['jobs'] if j['kind'] == 'arena'):
         file = re.search(r'\((ARENA\d)\)', job['title']).group(1)
-        painting = Image.open(GEN / f'{file}-WIDE.webp').convert('RGB')
+        painting = arena_background(file)
         if painting.size != (ARENA_W, ARENA_H):
             painting = painting.resize((ARENA_W, ARENA_H), Image.LANCZOS)
         folder = pack / Path(job['guide']).parent

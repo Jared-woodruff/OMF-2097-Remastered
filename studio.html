@@ -317,6 +317,16 @@
       .tile.add .pic { background: none; color: var(--green2); border-bottom-style: dashed; }
       .tile.add .label { color: var(--dim); }
       .tile.add:hover .label { color: var(--green); }
+      /* a choice between pictures (what a new robot or arena is copied from): smaller tiles, the chosen one green */
+      .pick .kind-head { margin: 14px 0 8px; }
+      .pick > div:first-child .kind-head { margin-top: 0; }
+      .pick .tiles { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 8px; }
+      .pick .tiles.wide { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+      .pick .tile .pic { height: 96px; }
+      .pick .tiles.wide .tile .pic { height: auto; aspect-ratio: 16 / 10; }
+      .pick .tile .label { justify-content: center; padding: 6px 8px; font-size: 10px; }
+      .pick .tile.sel { border-color: var(--green2); background: rgba(0, 36, 8, .72); box-shadow: 0 0 0 1px var(--green2), 0 0 16px rgba(0, 255, 0, .18); }
+      .pick .tile.sel .label { color: var(--green); text-shadow: 1px 1px 0 var(--green-dk); }
 
       /* Start screen */
       .start { position: relative; height: 100%; overflow: auto; display: grid; place-items: start center; padding: 44px 24px 60px;
@@ -343,7 +353,7 @@
       .choice b { display: block; font: 800 13px var(--title); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 6px; color: #fff; text-shadow: 1px 1px 0 var(--ink); }
       .choice.sel b { color: var(--green); text-shadow: 1px 1px 0 var(--green-dk); }
       .choice span { color: var(--dim); font-size: 13px; }
-      .choices.big { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+      .choices.big { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
       .choices.big .choice { padding: 20px 20px 18px 20px; display: grid; grid-template-columns: auto 1fr; column-gap: 16px; align-items: start; }
       .choices.big .choice .icon { grid-row: span 2; width: 46px; height: 46px; padding: 10px; border-radius: 50%; color: var(--green);
                                    border: 1px solid rgba(0, 210, 0, .5); background: rgba(0, 90, 0, .22); box-shadow: 0 0 14px rgba(0, 255, 0, .12); }

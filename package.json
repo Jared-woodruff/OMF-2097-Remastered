@@ -33,6 +33,7 @@
     "hd:export": "node tools/hd-pack/run.mjs",
     "hd:import": "node tools/hd-pack/import.mjs",
     "gen": "node tools/gen-content.mjs",
+    "extras": "node tools/extras-mod.mjs",
     "gen:hd": "python tools/arena-hd.py",
     "menu:export": "node tools/menu-pack/run.mjs",
     "menu:import": "python tools/menu-pack/import.py",

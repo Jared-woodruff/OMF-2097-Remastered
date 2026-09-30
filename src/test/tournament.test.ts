@@ -25,7 +25,8 @@ import {
 } from '../resources/sgmanager';
 import { trnlistInit } from '../resources/trnmanager';
 import { globalRandom } from '../util/random';
-import { createGame, hasGameData, HeadlessRunner, installBrowserShims, loadGameData } from './harness';
+import { createGame, hasGameData, HeadlessRunner, installBrowserShims, loadExtras, loadGameData } from './harness';
+import { resetMods } from '../mods/registry';
 
 const held = new Set<string>();
 
@@ -511,8 +512,8 @@ describe.skipIf(!hasGameData)('tournament: mechlab', () => {
     expect(sc.mech!.curAnimation!.id).toBe(15 + HarId.PYROS);
   });
 
-  it('trades for one of the remaster\'s robots when they are on', () => {
-    settings().gameplay.extraRobots = true;
+  it('trades for one of the remaster\'s robots when their mod is on', async () => {
+    await loadExtras();
     try {
       const chr0 = newTournamentChr('TRADER');
       chr0.pilot.money = 30000;
@@ -547,12 +548,12 @@ describe.skipIf(!hasGameData)('tournament: mechlab', () => {
       expect(chr.pilot.money).toBe(30000 + tradeValue - HAR_PRICES[HarId.GLACIER]);
       expect(sc.mech!.curAnimation!.id).toBe(15 + HarId.GLACIER);
     } finally {
-      settings().gameplay.extraRobots = false;
+      resetMods();
     }
   });
 
-  it('the BUY menu opens with any of the remaster robots (MECHLAB.BK has pictures for twelve)', () => {
-    settings().gameplay.extraRobots = true;
+  it('the BUY menu opens with any of the remaster robots (MECHLAB.BK has pictures for twelve)', async () => {
+    await loadExtras();
     createGame(SceneId.MENU);
     try {
       for (const har of [HarId.GLACIER, HarId.TEMPEST, HarId.HELIX, HarId.SPECTRE]) {
@@ -567,8 +568,23 @@ describe.skipIf(!hasGameData)('tournament: mechlab', () => {
         expect(menu.objs.length, `robot ${har}`).toBeGreaterThan(0);
       }
     } finally {
-      settings().gameplay.extraRobots = false;
+      resetMods();
     }
+  });
+
+  it('a pilot on a robot of a mod that is off does not fight: the mech lab says where to turn it on', async () => {
+    await loadExtras();
+    const chr0 = newTournamentChr('ICEMAN');
+    chr0.pilot.harId = HarId.GLACIER;
+    storage.write(sgFileName('ICEMAN'), chrSave(chr0));
+    settings().tournament.lastName = 'ICEMAN';
+    resetMods();
+    const { gs, run, sc } = openMechlab();
+    expect(gs.getPlayer(0).pilot.harId).toBe(HarId.GLACIER);
+    clickButton(run, sc, 0); // ARENA
+    run.advance(200);
+    expect(gs.nextId).not.toBe(SceneId.VS);
+    expect(sc.hint.text.str).toMatch(/GLACIER IS FROM A MOD THAT IS OFF/);
   });
 
   it('shows popups when there is nothing to load or delete', () => {

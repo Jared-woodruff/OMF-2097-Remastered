@@ -15,7 +15,7 @@ import type { ChrFile } from '../game/tournament/chr';
 import { langGet } from '../resources/resources';
 import { globalRandom } from '../util/random';
 import { drawList } from '../video/draw';
-import { createGame, hasGameData, HeadlessRunner } from './harness';
+import { createGame, hasGameData, HeadlessRunner, loadExtras } from './harness';
 
 function tap(run: HeadlessRunner, code = 'Enter'): void {
   setKeyState(code, true);
@@ -81,7 +81,8 @@ describe.skipIf(!hasGameData)('newsroom text generation', () => {
     expect(newsroomFormat('~3/~4', gargoyle)).toBe('Gargoyle/Shredder');
   });
 
-  it('names the arena fought in and the new robots (remaster)', () => {
+  it('names the arena fought in and the new robots (their mod)', async () => {
+    await loadExtras();
     const gs = createGame(SceneId.MENU);
     expect(newsroomFormat(langGet(131), { ...CRYSTAL_VS_STEFFAN, arena: 4 }))
       .toBe('Wow, this was a close one.  Crystal and Steffan traded blows in the Desert until...');

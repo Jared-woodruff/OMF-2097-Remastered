@@ -17,7 +17,7 @@ Thumbs.db
 .idea/
 .captures/
 
-# The image AI packs' working files (source images, prompts; public/hd/ and public/gen/ hold the imported artwork)
+# The image AI packs' working files (source images, prompts; public/hd/ and public/mods/ hold the imported artwork)
 /hd-pack/
 /menu-pack/
 /newart-pack/

@@ -1,0 +1,28 @@
+{
+  "format": 1,
+  "mods": [
+    {
+      "file": "omf2097r.extras.omfmod",
+      "id": "omf2097r.extras",
+      "name": "New robots and arenas",
+      "version": "1.0",
+      "author": "OMF 2097 Remastered",
+      "description": "Made for the remaster: four robots with their own special moves and finishers, and four arenas with their own weather and echo.",
+      "robots": [
+        "GLACIER",
+        "TEMPEST",
+        "HELIX",
+        "SPECTRE"
+      ],
+      "arenas": [
+        "ORBITAL",
+        "ICE CAVE",
+        "ROOFTOP",
+        "ABYSS"
+      ],
+      "pilots": [],
+      "bytes": 20096519,
+      "sig": "cd39d75b8112"
+    }
+  ]
+}

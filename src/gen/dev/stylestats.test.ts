@@ -5,7 +5,7 @@ import path from 'node:path';
 import { describe, it } from 'vitest';
 import { parseAF } from '../../formats/af';
 import { getFile } from '../../resources/files';
-import { hasGameData, loadGameData } from '../../test/harness';
+import { extrasFileSync, hasGameData, loadGameData } from '../../test/harness';
 
 const NAMES = ['JAGUAR', 'SHADOW', 'THORN', 'PYROS', 'ELECTRA', 'KATANA', 'SHREDDER', 'FLAIL', 'GARGOYLE', 'CHRONOS', 'NOVA', 'GLACIER', 'TEMPEST', 'HELIX', 'SPECTRE'];
 
@@ -14,7 +14,7 @@ describe.skipIf(!process.env.STYLE_STATS || !hasGameData)('style stats', () => {
     loadGameData();
     const rows: string[] = [];
     for (let id = 0; id < 15; id++) {
-      const data = id >= 11 ? new Uint8Array(fs.readFileSync(path.join('public/gen', `FIGHTR${id}.AF`))) : getFile(`FIGHTR${id}.AF`);
+      const data = id >= 11 ? extrasFileSync(`FIGHTR${id}.AF`)! : getFile(`FIGHTR${id}.AF`);
       const af = parseAF(data);
       const ramp = [0, 0, 0];
       const shade = new Array(16).fill(0);

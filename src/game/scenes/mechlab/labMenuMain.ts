@@ -22,6 +22,7 @@ export function labMenuMainArena(_c: SpriteButton, s: MechlabScene): void {
     // make a new AI controller
     const pilot = enemy.pilot;
     const p1 = s.gs.getPlayer(0);
+    if (!s.robotsThere([p1.pilot.harId, pilot.harId])) return;
     const p2 = s.gs.getPlayer(1);
     p2.selectable = false;
     gamePlayerSetPilot(p2, pilot);

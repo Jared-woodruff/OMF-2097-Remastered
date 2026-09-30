@@ -427,9 +427,9 @@ function newBlock([id, har, cls, text]) {
 }
 page('New challengers', `
   ${title('Chapter 7', 'New challengers')}
-  <p>Built for the Remastered Edition in the spirit of the originals, and painted in HD like them. Turn them on in
-  <b>Options &rsaquo; New content</b>: they join the robot select screen (a third row), the computer's opponents and the
-  robots Plug offers to trade.</p>
+  <p>Built for the Remastered Edition in the spirit of the originals, and painted in HD like them. They come as a mod:
+  turn it on in <b>Extras &rsaquo; Mods</b>, and they join the robot select screen (a third row), the computer's
+  opponents and Plug's trades.</p>
   ${NEW.map(newBlock).join('')}
 `);
 

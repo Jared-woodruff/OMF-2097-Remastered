@@ -1,12 +1,15 @@
 // The first start's setup: after loading, the loading screen's logo moves up and the player picks how the remaster
-// looks and sounds (graphics, effects, announcer, music, the new robots and arenas, the keyboard layout), or takes a
-// preset. Everything stays in OPTIONS afterwards. Keyboard (arrows, ENTER), mouse and gamepad.
+// looks and sounds (graphics, effects, announcer, music, the keyboard layout) and whether the new robots and arenas
+// play (their mod, EXTRAS > MODS), or takes a preset. Everything stays in OPTIONS afterwards. Keyboard (arrows, ENTER),
+// mouse and gamepad.
 import { app } from '../app';
 import { audio } from '../audio/audio';
 import { previewAnnouncer } from '../audio/announcer';
 import { connectedPads, readPad } from '../controller/input';
 import { applyKeyLayout } from '../game/controls';
 import { defaultSettings, saveSettings, settings } from '../game/settings';
+import { bundledEnabled, setBundledEnabled } from '../mods/bundled';
+import { EXTRAS_MOD_ID } from '../mods/extras';
 import { ensureUiFont, UI_FONT } from './uiFont';
 
 interface Choice {
@@ -83,14 +86,9 @@ function rows(): Row[] {
       },
     },
     {
-      title: 'NEW ROBOTS', hint: 'Glacier, Tempest, Helix and Spectre, made for the remaster.',
+      title: 'NEW ROBOTS AND ARENAS', hint: 'Glacier, Tempest, Helix and Spectre, and four arenas, made for the remaster (a mod: EXTRAS › MODS).',
       choices: [{ label: 'OFF', value: 'off' }, { label: 'ON', value: 'on' }],
-      get: () => (s().gameplay.extraRobots ? 'on' : 'off'), set: (v) => (s().gameplay.extraRobots = v === 'on'),
-    },
-    {
-      title: 'NEW ARENAS', hint: 'Orbital, Ice Cave, Rooftop and Abyss join the arena rotation.',
-      choices: [{ label: 'OFF', value: 'off' }, { label: 'ON', value: 'on' }],
-      get: () => (s().gameplay.extraArenas ? 'on' : 'off'), set: (v) => (s().gameplay.extraArenas = v === 'on'),
+      get: () => (bundledEnabled(EXTRAS_MOD_ID) ? 'on' : 'off'), set: (v) => setBundledEnabled(EXTRAS_MOD_ID, v === 'on'),
     },
     {
       title: 'KEYBOARD', hint: 'Controllers work right away. Both players can share one keyboard.',
@@ -112,8 +110,7 @@ function applyPreset(kind: 'original' | 'recommended'): void {
   s.sound.announcer = v ? 'off' : d.sound.announcer;
   s.sound.enhancedMusic = !v;
   audio.setQuality(v ? 'classic' : 'enhanced');
-  s.gameplay.extraRobots = false;
-  s.gameplay.extraArenas = false;
+  setBundledEnabled(EXTRAS_MOD_ID, false);
   applyKeyLayout('classic');
 }
 

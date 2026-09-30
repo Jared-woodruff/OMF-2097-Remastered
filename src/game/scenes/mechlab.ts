@@ -2,14 +2,14 @@
 // choice, SIM opponents), the lower half the current tournament menu; the pilot's HAR spins in between.
 // New pilots go through name -> photo -> difficulty -> tournament; the character is saved to a CHR save game.
 // Port of the reference scenes/mechlab.c (menus and dashboards are in ./mechlab/).
-import { ORIGINAL_HAR_TYPES } from '../constants';
+import { HAR_NAMES, ORIGINAL_HAR_TYPES } from '../constants';
 import { mechAnimation } from '../../gen/mechlabModel';
 import type { CtrlEvent } from '../../controller/controller';
 import { isDown } from '../../controller/input';
 import { KeyboardController } from '../../controller/keyboard';
 import { Pilot } from '../../formats/pilot';
 import { Animation, RSprite } from '../../resources/animation';
-import { bkGetInfo, langGet } from '../../resources/resources';
+import { bkGetInfo, hasFighter, langGet } from '../../resources/resources';
 import { sgLoadPilot, sgSave } from '../../resources/sgmanager';
 import { TAG_BACKGROUND, TAG_MENU, TAG_NONE, video } from '../../video/draw';
 import type { Surface } from '../../video/surface';
@@ -226,6 +226,17 @@ export class MechlabScene extends Scene {
   /** mechlab_set_hint() */
   setHint(hint: string): void {
     this.hint.setText(hint);
+  }
+
+  /**
+   * Whether a fight's robots are in the game (a mod's robot is not while its mod is off, say the new robots a pilot
+   * fights in or was put against): if not, the hint says which and where to turn it on.
+   */
+  robotsThere(harIds: number[]): boolean {
+    const missing = harIds.find((id) => !hasFighter(id));
+    if (missing === undefined) return true;
+    this.setHint(`${(HAR_NAMES[missing] ?? 'ITS ROBOT').toUpperCase()} IS FROM A MOD THAT IS OFF: TURN IT ON IN EXTRAS > MODS.`);
+    return false;
   }
 
   /** mechlab_spin_har(): stop (after finishing the current turn, facing front) or resume the HAR rotation. */

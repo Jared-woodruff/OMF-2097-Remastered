@@ -132,6 +132,8 @@ export function workshopRobot(spec: WorkshopSpec, id: number): GenRobot {
     specials: moves.specials,
     finisher: moves.finisher,
     specialNames: moves.specialNames,
+    bodyOf: body.id,
+    movesOf: moves.id,
   };
 }
 

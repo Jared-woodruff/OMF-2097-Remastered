@@ -1,7 +1,9 @@
-// Remastered artwork for the generated robots, made on the GPU while the game runs: every sprite of their fighter
+// Remastered artwork for the robots built from the generator's 3D models (the robot workshop's, and mod robots made
+// of its parts: the new robots' mod among them), made on the GPU while the game runs: every sprite of their fighter
 // files is rendered again from the same pose at the HD artwork scale (gen/hdRender.ts) and registered by its pixel
 // fingerprint, so the remastered renderer draws it like the installed artwork of the original robots (recolored to
-// the players' colors, faded, flashed...). Until a sprite's rendering is done, the renderer upscales it as usual.
+// the players' colors, faded, flashed...). Sprites a mod has HD pictures of are left to them. Until a sprite's
+// rendering is done, the renderer upscales it as usual.
 import type { Palette } from '../formats/palette';
 import { altPalettes, fighterFile, hasFighter, loadBk } from '../resources/resources';
 import type { HdAssets } from '../video/hd/assets';
@@ -11,8 +13,7 @@ import { MOVE } from './fighter/moveset';
 import { HD_SX, HD_SY, HD_UNIT, HdPageSet, RobotHdRenderer } from './hdRender';
 import type { PlacedShape } from './robot';
 import { fighterOf, genRobot } from './roster';
-import { genArenaByFile } from './scene/arenas';
-import type { Bk } from '../resources/resources';
+import { modPictured } from '../mods/registry';
 
 /** Native pixels of transparent margin around each rendering (room for the anti-aliased edges). */
 const PAD = 2;
@@ -145,6 +146,8 @@ export class GeneratedArtwork {
     const r = genRobot(art.harId)!;
     const af = fighterFile(art.harId);
     const have = new Set([...art.hashes, ...art.jobs.map((j) => j.hash)]);
+    // (the pictures a mod robot's package has: its own artwork, see mods/hdArt.ts)
+    const pictured = modPictured(art.harId);
     const want = moves ? new Set(moves) : null;
     for (const m of fighterOf(r).moves) {
       if (want && !want.has(m.id)) continue;
@@ -154,8 +157,8 @@ export class GeneratedArtwork {
         const sp = am.animation.sprites[i];
         if (!sp || sp.isEmpty() || (!gs.pose && !gs.props?.length)) return;
         const hash = pixelHash(sp.width, sp.height, sp.pixels());
-        // Installed artwork (the HD asset pack) is used instead: no need to render it.
-        if (have.has(hash) || this.hd.hasInstalled(hash)) return;
+        // Installed artwork (the HD asset pack) or a mod's picture is used instead: no need to render it.
+        if (have.has(hash) || pictured.has(hash) || this.hd.hasInstalled(hash)) return;
         have.add(hash);
         art.jobs.push({
           hash,
@@ -174,30 +177,6 @@ export class GeneratedArtwork {
       return k < 0 ? PRIORITY.length + id : k;
     };
     art.jobs.sort((a, b) => rank(a.moveId) - rank(b.moveId));
-  }
-
-  private arenas = new Map<string, 'loading' | 'ready' | 'failed'>();
-
-  /**
-   * The HD background of a generated arena (images made with the dev tool, see gen/dev/arenaHd.ts): loaded when the
-   * arena is about to show, registered against its native background and palette.
-   */
-  wantArena(bk: Bk): void {
-    const a = genArenaByFile(bk.file);
-    if (!a || this.arenas.has(a.file)) return;
-    this.arenas.set(a.file, 'loading');
-    const base = `gen/${a.file.replace(/\.BK$/, '')}`;
-    const hash = pixelHash(bk.background.w, bk.background.h, bk.background.data);
-    const palette = this.hd.addBasePalette(bk.palettes[0].colors);
-    Promise.all([this.hd.loadImage(`${base}-HD.webp`, 1600, 1200), this.hd.loadImage(`${base}-WIDE.webp`, 2880, 1200)])
-      .then(([image, wide]) => {
-        this.hd.registerBackground(hash, image, wide, palette);
-        this.arenas.set(a.file, 'ready');
-      })
-      .catch((err) => {
-        console.warn(`[gen] no HD background for ${a.file}:`, err);
-        this.arenas.set(a.file, 'failed');
-      });
   }
 
   /** Development: renders `n` queued sprites and waits for the GPU; returns milliseconds per sprite. */

@@ -1,8 +1,7 @@
 // Mechlab dashboards: the pilot/HAR stats dashboard (also used while picking a photo / difficulty and while
 // browsing save games) and the SIM opponent dashboard. Port of the reference mechlab/lab_dash_main.c.
-import { genRobot } from '../../../gen/roster';
-import { modRobot } from '../../../mods/registry';
 import { ORIGINAL_HAR_TYPES } from '../../constants';
+import { specialNames } from '../../roster';
 import { createAiController } from '../../../controller/ai';
 import type { Pilot } from '../../../formats/pilot';
 import { harName, langGet } from '../../../resources/resources';
@@ -284,6 +283,7 @@ export function labDashSimDone(_menu: TrnMenu, submenu: TrnMenu): void {
     const difficulty = tournamentAiDifficulty(p1.pilot.difficulty);
     const p2Pilot = gamePlayerGetPilot(p2);
     if (!p2Pilot) return; // (no opponent with that rank: the reference would crash)
+    if (!dw.scene.robotsThere([p1.pilot.harId, p2Pilot.harId])) return;
     const ctrl = createAiController(gs, difficulty, p2Pilot, p2Pilot.pilotId);
     p1.score.setDifficulty(difficulty);
     p2.setCtrl(ctrl);
@@ -406,7 +406,7 @@ export function labDashSimCreate(s: MechlabScene, dw: DashboardWidgets): XYSizer
 function harMovesText(harId: number): string {
   if (harId < ORIGINAL_HAR_TYPES) return langGet(492 + harId);
   // (in the originals' style: "Ice Lance")
-  const names = Object.values(genRobot(harId)?.specialNames ?? modRobot(harId)?.info.moves ?? {}).map((n) => n.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()));
+  const names = Object.values(specialNames(harId)).map((n) => n.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()));
   return `SPECIAL MOVES:\n\n${names.join('\n\n')}`;
 }
 

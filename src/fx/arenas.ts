@@ -163,7 +163,7 @@ const DESERT: ArenaFx = {
 };
 
 // ---- The remaster's arenas ---------------------------------------------------------------------------------------
-// Their backgrounds are paintings (public/gen/ARENAn-WIDE.webp): what twinkles, blinks and glows sits on what the
+// Their backgrounds are paintings (their mod's HD backgrounds): what twinkles, blinks and glows sits on what the
 // painting shows there (positions measured on the paintings: native x = painting x / 5 - 128, y = painting y / 6).
 
 /** Stars of the Orbital's painting, in the window above the Earth. */

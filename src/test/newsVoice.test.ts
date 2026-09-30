@@ -11,15 +11,16 @@ import { langGet } from '../resources/resources';
 import { parseTournament } from '../formats/tournament';
 import { arenaNewsName } from '../game/roster';
 import { newsReadNames } from '../game/scenes/newsroom';
-import { hasGameData, loadGameData } from './harness';
+import { hasExtras, hasGameData, loadExtras } from './harness';
 
 const TEMPLATES = [77, 78, 79, ...Array.from({ length: 48 }, (_, i) => 87 + i)];
 
-describe.skipIf(!hasGameData)('newsreader', () => {
+describe.skipIf(!hasGameData || !hasExtras)('newsreader', () => {
   let plan: NewsPlan;
   let have: (id: string) => boolean;
-  beforeAll(() => {
-    loadGameData();
+  beforeAll(async () => {
+    // (the new robots and arenas are read too: their mod is on)
+    await loadExtras();
     plan = buildNewsPlan();
     const ids = new Set([...plan.texts.flatMap((t) => t.segments.flatMap((s) => (s.id ? [s.id] : []))), ...plan.names.map((n) => n.id)]);
     have = (id) => ids.has(id);

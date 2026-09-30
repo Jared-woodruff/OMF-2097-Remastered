@@ -8,7 +8,8 @@ import type { ChrFile } from '../game/tournament/chr';
 import { PLUG_WIN_BIG, playerPilot, type VsScene } from '../game/scenes/vs';
 import { langGet, loadBk, loadPic } from '../resources/resources';
 import { drawList } from '../video/draw';
-import { createGame, hasGameData, HeadlessRunner } from './harness';
+import { createGame, hasGameData, HeadlessRunner, loadExtras } from './harness';
+import { resetMods } from '../mods/registry';
 import { arenaList, EXTRA_HAR_IDS, randomHarPool } from '../game/roster';
 import { globalRandom } from '../util/random';
 
@@ -205,9 +206,8 @@ describe.skipIf(!hasGameData)('vs (headless)', () => {
     expect(playerPilot(gs.getPlayer(1))).toBeNull();
   });
 
-  it('Plug offers the remaster\'s robots only when they are on', () => {
-    const offers = (extras: boolean): number => {
-      settings().gameplay.extraRobots = extras;
+  it('Plug offers the remaster\'s robots only when their mod is on', async () => {
+    const offers = (): number => {
       let all = 0;
       for (let seed = 1; seed <= 12; seed++) {
         globalRandom.setSeed(seed);
@@ -224,12 +224,13 @@ describe.skipIf(!hasGameData)('vs (headless)', () => {
       return all;
     };
     try {
-      expect(offers(false) >>> ORIGINAL_HAR_TYPES).toBe(0);
-      const all = offers(true);
+      expect(offers() >>> ORIGINAL_HAR_TYPES).toBe(0);
+      await loadExtras();
+      const all = offers();
       expect(all >>> 15).toBe(0);
       expect(EXTRA_HAR_IDS.some((id) => all & (1 << id))).toBe(true);
     } finally {
-      settings().gameplay.extraRobots = false;
+      resetMods();
     }
   });
 

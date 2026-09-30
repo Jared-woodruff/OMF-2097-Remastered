@@ -171,7 +171,7 @@ pixels in one of two ways, switchable at any time (F2, pause menu, VIDEO options
   headings and paragraphs and code page 437 decoded, is HTML over the frame at the game's scale, in the remaster's
   typeface, beside the topics).
 - The main menu (`src/game/scenes/mainmenu/menuMain.ts`): the original's three ways to play, then MORE MODES
-  (`menuModes.ts`), EXTRAS (`menuExtras.ts`), OPTIONS (`menuOptions.ts`: GAMEPLAY, NEW CONTENT, CONTROLS, GRAPHICS with
+  (`menuModes.ts`), EXTRAS (`menuExtras.ts`), OPTIONS (`menuOptions.ts`: GAMEPLAY, CONTROLS, GRAPHICS with
   its CLASSIC STYLE / REMASTERED / EFFECTS submenus, SOUND, LANGUAGE), HELP and QUIT. `GameState.menuReturn` reopens
   EXTRAS or MORE MODES when their screens and runs end.
 - Menus are audited by `src/test/menuLayout.test.ts` (entries fit their frame, help texts fit the help panel), and
@@ -187,7 +187,9 @@ pixels in one of two ways, switchable at any time (F2, pause menu, VIDEO options
 ## Generated content: the new robots and arenas
 
 The four new robots (HARs 11-14) and arenas (5-8) are made from source code in `src/gen`, into the original game's
-own file formats, so the engine runs them like the originals.
+own file formats, so the engine runs them like the originals. They come with the game as a mod, off until the player
+turns it on (`mods/extras.ts`; the package is `public/mods/omf2097r.extras.omfmod`, see Mods below): the game itself
+only plays the originals, and the mod proves the modding system with content as complete as the originals'.
 
 - **Shapes** (`gen/geometry.ts`): signed distance functions (boxes, ellipsoids, capsules, cylinders, cones, wedges,
   tapered boxes, faceted prisms) ray traced by marching from bounding spheres; the same functions run in GLSL
@@ -204,8 +206,9 @@ own file formats, so the engine runs them like the originals.
   style), including the 24-frame damage sheet whose meaning all robots' moves rely on.
 - **Moves** (`gen/fighter/moveset.ts`, `gen/roster/*.ts`): animation strings with the originals' timing and reaction
   idioms, specials, projectiles and finishers. `gen/fighter/build.ts` renders every pose (`gen/raster.ts`), stores
-  identical sprites once, and derives hit points from the striking limbs' pixels. `npm run gen` writes
-  `public/gen/FIGHTR11.AF`..`FIGHTR14.AF`; `src/test/genRobots.test.ts` checks they are up to date.
+  identical sprites once, and derives hit points from the striking limbs' pixels. `npm run gen` makes
+  `FIGHTR11.AF`..`FIGHTR14.AF` and puts them in the mod's package; `src/test/genRobots.test.ts` checks the package's
+  are up to date.
 - **Arenas** (`gen/scene/`): 3D scenes (materials with procedural patterns, point lights with soft shadows, a mirror
   bounce, fog, stars, aurora) seen through the original arenas' camera (`scene/types.ts`), rendered on the CPU
   (`scene/render.ts`), quantized to the arena's 64 own colors plus the 90 every arena shares (`scene/palette.ts`, which
@@ -214,22 +217,29 @@ own file formats, so the engine runs them like the originals.
   (`scene/gpu.ts`) through a dev-server tool (`?genarenahd`, then `npm run gen:hd`), or from an image model
   (`npm run newart:export` / `newart:import`, `tools/newart/`): its painting also replaces the rendering the scene
   file is indexed from (`scene/art/ARENAn.png`).
-- **Loading** (`resources/generated.ts`, `resources.ts`): the generated files hold only their own content; the parts
-  every robot or arena shares (sparks, scrap metal, blasts; the round announcements, shared palette entries, the
-  robots' remap rows, sounds) are copied from the player's FIGHTR0.AF / ARENA0.BK when loaded.
+- **Packaging** (`gen/dev/extras.test.ts`, `npm run extras`; `npm run gen` runs it): the fighter and scene files, the
+  robots' painted HD pictures (cut out of their HD bundles, by the fingerprint of the sprite each stands for) and the
+  arenas' widescreen HD backgrounds go into the package, with robot.json (names, special move names, CPU tactics and
+  the `workshop` description of the 3D parts each robot is built from) and arena.json (texts, music, ambience). What
+  is not given is kept from the package already there, and the same inputs give the same bytes.
+- **Loading** (`mods/registry.ts`, `resources/generated.ts`, `resources.ts`): like any mod. The files hold only their
+  own content; the parts every robot or arena shares (sparks, scrap metal, blasts; the round announcements, shared
+  palette entries, the robots' remap rows, sounds) are copied from the player's FIGHTR0.AF / ARENA0.BK when loaded.
 - **HD art** (`gen/hdArtwork.ts`): the robots' sprites are rendered again on the GPU at the HD artwork scale (as
   smooth polished metal: rounded facets and rims, a reflected studio, contact shadows, like the originals' HD
   artwork) from the
-  same poses (a few per frame, as scenes need them) and registered in `hd/assets.ts` by pixel fingerprint, like
-  installed artwork, which comes first where it exists (frames redrawn by an image model through the new-art pack);
-  the arenas' HD backgrounds load from `public/gen/*.webp`.
-- **In the game**: `game/roster.ts` (which robots and arenas can be picked: the OPTIONS › NEW CONTENT toggles, off by
-  default; settings saved before they became opt-in load with them off, see `loadSettings`), the robot select
-  screen's third row (`melee.ts`), VS images and arena previews (`vs.ts`), CPU tactics (`controller/ai.ts`), move
-  names (`gui/moveList.ts`), arena ambience (`fx/arenas.ts`) and special move effects (`fx/robotFx.ts`). In
-  tournaments Plug offers them in trades (`vs.ts`); the mechlab's turning robot and select buttons for them are
-  rendered by `gen/mechlabModel.ts` (the buttons in the originals' grays inside an original button's frame, with
-  remastered artwork made on the spot).
+  same poses (a few per frame, as scenes need them) and registered in `hd/assets.ts` by pixel fingerprint, for the
+  sprites the mod has no painted picture of (`modPictured`: the frames an image model redrew through the new-art pack
+  come first); the arenas' HD backgrounds are the mod's.
+- **In the game**: `game/roster.ts` (which robots and arenas can be picked: the originals and the loaded mods'; the
+  mod is off by default, and players who had turned the new robots or arenas on in an earlier version find it on:
+  `migrateNewContent` in `mods/bundled.ts`), the robot select screen's third row (`melee.ts`), VS images and arena
+  previews (`vs.ts`), CPU tactics (`controller/ai.ts`), move names (robot.json, `roster.specialNames`), arena ambience
+  (`fx/arenas.ts`) and special move effects (`fx/robotFx.ts`), which stay keyed by their numbers. In tournaments Plug
+  offers them in trades (`vs.ts`); the mechlab's turning robot and select buttons for them are rendered by
+  `gen/mechlabModel.ts` from the robot's `workshop` description (the buttons in the originals' grays inside an
+  original button's frame, with remastered artwork made on the spot). A tournament pilot on a robot of a mod that is
+  off does not fight: the mech lab says which mod to turn on.
 
 ## Remaster modes and tools
 
@@ -314,10 +324,12 @@ own file formats, so the engine runs them like the originals.
 Mods (`src/mods`) are zip archives of the game's own formats: a robot is a fighter file (AF) and a JSON file of what
 the game cannot read from it (its name, special move names, which specials the computer uses for its tactics); an
 arena a scene file (BK), its widescreen background and a JSON file (texts, music, ambience, the original arena whose
-built-in rules it follows); a pilot a JSON file and PNG pictures. At start-up (`main.ts`, after the generated content,
-before the language) `loadMods()` reads the installed mods that are on, checks them like OMF Studio does, gives their
-content numbers (kept in localStorage by `<mod id>/<content id>`, because replays, records and the training setup save
-them) and registers it the way the remaster's own content is: files through `provideGenerated` (so robots get the
+built-in rules it follows); a pilot a JSON file and PNG pictures. At start-up (`main.ts`, before the language)
+`loadMods()` reads the mods that come with the game (`mods/bundled.ts`: `public/mods/index.json` lists them, and a
+package is fetched only when its mod is on; the service worker keeps it by its signature) and the installed mods that
+are on, checks them like OMF Studio does, gives their content numbers (kept in localStorage by `<mod id>/<content id>`,
+because replays, records and the training setup save them; the new robots and arenas keep the numbers they had before
+they were a mod, `mods/extras.ts`) and registers it: files through `provideGenerated` (so robots get the
 shared effect moves and arenas the shared palette, remap rows, announcements and sounds at load), names through
 `setHarName`/`HAR_NAMES` and `harName()`, the rest in the registry that `roster.ts` asks (the select grids' extra rows,
 `arenaList()` for the rotation and the VS screen, `pilotInfo()`/`pilotNameOf()`/`pilotBio()` for pilots). Arenas are the
@@ -326,7 +338,10 @@ last block of `SceneId` (`ARENA0 + n` for any n below `MAX_ARENAS`), and code ke
 (`hd.json`) are loaded when a screen needs them (`mods/hdArt.ts`, from `onSceneChange` like the generated robots'
 artwork, and from the portrait surfaces the screens make) and registered with the HD artwork by the fingerprints of
 the classic pictures they stand for, against the palette they were painted in; freed a few screens after the last
-that wanted them. The engine keeps what it loaded, so turning mods on or off applies at the next start.
+that wanted them. A robot whose robot.json describes the workshop's parts it is built from (`workshop`) is registered
+with `gen/roster` like the workshop's robots: the mechlab's turning model and buttons, and HD pictures rendered from
+its 3D model for the sprites the mod has no picture of. The engine keeps what it loaded, so turning mods on or off
+applies at the next start (the first start's setup loads the new robots and arenas' mod at once when it is picked).
 
 OMF Studio (`studio.html`, `src/studio`) is a separate page on the same origin: plain TypeScript and DOM, 2D canvases
 for its pictures (no `GameState`: the engine's singletons are the game's), in the game's look (`studio.html`'s styles:

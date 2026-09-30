@@ -10,7 +10,7 @@ import { ShapeKind } from '../gen/geometry';
 import { genRobot } from '../gen/roster';
 import { langGet } from '../resources/resources';
 import { ComboSim } from './comboSim';
-import { hasGameData } from './harness';
+import { hasExtras, hasGameData, loadExtras } from './harness';
 
 beforeEach(() => resetWorkshop());
 
@@ -33,8 +33,10 @@ describe('workshop files', () => {
   });
 });
 
-describe.skipIf(!hasGameData)('workshop robots', () => {
-  it('builds a mixed robot into a fighter that lands its special moves', () => {
+describe.skipIf(!hasGameData || !hasExtras)('workshop robots', () => {
+  it('builds a mixed robot into a fighter that lands its special moves', async () => {
+    // (HELIX, whose moves it has, from the new robots' mod)
+    await loadExtras();
     const spec: WorkshopSpec = { ...defaultSpec(), name: 'MIXER', body: 0, head: 3, moves: 2, size: 2, weight: 2, colors: [1, 2, 3] };
     setWorkshopSpec(0, spec);
     const id = harIdOf(0);

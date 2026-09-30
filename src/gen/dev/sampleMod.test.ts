@@ -5,7 +5,7 @@ import path from 'node:path';
 import { describe, it } from 'vitest';
 import { MOD_EXTENSION, writeModPackage } from '../../mods/package';
 import { buildSampleMod, SAMPLE_MOD_ID } from '../../mods/sample';
-import { hasGameData, loadGameData } from '../../test/harness';
+import { extrasPackage, hasGameData, loadGameData } from '../../test/harness';
 
 const OUT = process.env.MOD_OUT;
 
@@ -14,7 +14,7 @@ describe.skipIf(!OUT || !hasGameData)('sample mod', () => {
     loadGameData();
     const file = path.join(OUT!, `${SAMPLE_MOD_ID}${MOD_EXTENSION}`);
     fs.mkdirSync(OUT!, { recursive: true });
-    fs.writeFileSync(file, await writeModPackage(await buildSampleMod()));
+    fs.writeFileSync(file, await writeModPackage(await buildSampleMod(await extrasPackage())));
     console.log(`wrote ${file}`);
   });
 });

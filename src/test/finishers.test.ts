@@ -3,10 +3,10 @@
 // (reported as the left wall, it was moved across the arena), Shadow's corner walk with the beaten robot at a wall (it
 // never arrived and the fight never ended), the new robots' finishers (their victim scripts never held on to the
 // beaten robot).
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { HarId } from '../game/constants';
 import { playFinish } from './finisherPlay';
-import { hasGameData } from './harness';
+import { hasExtras, hasGameData, loadExtras } from './harness';
 
 /** [winner, loser, arena, seed] */
 const FIGHTS: [number, number, number, number][] = [
@@ -16,7 +16,10 @@ const FIGHTS: [number, number, number, number][] = [
   [HarId.GLACIER, HarId.JAGUAR, 1, 2],
 ];
 
-describe.skipIf(!hasGameData)('finishing moves', () => {
+describe.skipIf(!hasGameData || !hasExtras)('finishing moves', () => {
+  // (the new robots and arenas take part: their mod is on)
+  beforeAll(() => loadExtras());
+
   it.each(FIGHTS)('robot %i beats robot %i in arena %i (seed %i) and finishes it', (w, l, arena, seed) => {
     const r = playFinish(w, l, arena, seed);
     expect(r.over, 'the fight ends').toBe(true);

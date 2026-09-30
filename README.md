@@ -107,9 +107,9 @@ The whole game is here, playing the original data files:
 
 ### New for the remaster: four robots, four arenas
 
-Built for this remaster in the spirit of the originals. They are **off by default**, so the game plays exactly like the
-original until you opt in: turn them on in **Options › New content** (robots and arenas separately), or on the first
-start's setup screen.
+Built for this remaster in the spirit of the originals, and packaged as a mod that comes with the game. They are **off
+by default**, so the game plays exactly like the original until you opt in: turn on *New robots and arenas* in
+**Extras › Mods**, or on the first start's setup screen.
 
 <p align="center">
   <img src="docs/media/new-robots.jpg" alt="The new robots on the VS screen: GLACIER, TEMPEST, HELIX and SPECTRE" width="100%">
@@ -152,7 +152,8 @@ mirrored edges), HD versions, their own acoustics and music. The new
 robots bring their own effects too: frost and ice shards, whirlwinds, drill sparks and shavings, laser glow and a
 phase-shift shimmer. Everything new is original: the robots and arenas are 3D models in [`src/gen`](src/gen), ray
 traced into the game's own formats, and an image generation model painted their HD artwork and the arenas' backgrounds
-over those renders (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/BUILDING.md](docs/BUILDING.md)).
+over those renders; all of it is packed into their mod's file in [`public/mods/`](public/mods) (see
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/BUILDING.md](docs/BUILDING.md)).
 
 <br>
 
@@ -314,13 +315,15 @@ like the others and are shared as `.omftrn` files. The new arenas join the tourn
 
 New robots, arenas and pilots made by players, installed from `.omfmod` files (drop one on the game, or **Extras ›
 Mods**). They play like the game's own: every animation, move and hit point, in classic and remastered graphics, on
-the select screens, in the arena rotation, the modes and replays.
+the select screens, in the arena rotation, the modes and replays. The remaster's four new robots and arenas are a mod
+too, one that comes with the game: the same page turns them on and off.
 
 **OMF Studio**, the game's mod tools (**Extras › OMF Studio**; setup can add its shortcuts), makes them in the game's
-own formats, pixel for pixel: robots from a copy of one of the game's, from the workshop's parts or from a blank
-figure, drawn frame by frame in the game's palette with their hit points, their moves' inputs, damage and reactions;
-arenas from a copy or a picture; pilots with portraits, lines and an ending. **Test** plays the mod in the game right
-away. See [docs/MODDING.md](docs/MODDING.md).
+own formats, pixel for pixel: robots from a copy of one of the game's (the new ones too, with their HD artwork), from
+the workshop's parts or from a blank figure, drawn frame by frame in the game's palette with their hit points, their
+moves' inputs, damage and reactions; arenas from a copy or a picture; pilots with portraits, lines and an ending.
+**Test** plays the mod in the game right away, and **The new robots and arenas** opens a copy of their mod to take
+apart. See [docs/MODDING.md](docs/MODDING.md).
 
 <p align="center">
   <img src="docs/media/studio.jpg" alt="OMF Studio: a robot's special move, its frames, tags, input and hit points" width="100%">
@@ -380,8 +383,8 @@ away. See [docs/MODDING.md](docs/MODDING.md).
   version), a setup screen lets you pick the graphics, the effects, the announcer, the music, the new robots and arenas
   and the keyboard layout, or take the original 1994 style in one press. It is all in **Options** afterwards.
 - **A tidier main menu**: the original's three ways to play first, then **More modes** (arcade, survival, time attack,
-  training, your own tournaments), **Extras** (the robot workshop, replays, records, the scoreboard, the demo, the
-  credits), **Options** (every setting, grouped: gameplay, new content, controls, graphics, sound, language), Help and
+  training, your own tournaments), **Extras** (the robot workshop, mods, OMF Studio, replays, records, the scoreboard,
+  the demo, the credits), **Options** (every setting, grouped: gameplay, controls, graphics, sound, language), Help and
   Quit.
 - **Move lists** in the pause menu: the special moves, throws and finishing moves of both robots, read from the
   game's own move tables and shown with direction arrows.
@@ -449,9 +452,10 @@ flowchart LR
 - **Streaming**: bundles per scene, robot and shared effects load on demand, and scene changes preload the next ones.
 - **The new robots and arenas** have a pack of their own (`npm run newart:export` / `newart:import`): each arena is
   painted again as one widescreen picture, and each robot gets a design sheet and then every frame redrawn from it,
-  clipped to the sprite's outline when imported.
+  clipped to the sprite's outline when imported into their mod.
 
-The imported artwork is part of this repository (`public/hd/`, shared on the game's freeware terms, see
+The imported artwork is part of this repository (`public/hd/`, and the new robots' and arenas' in their mod's file in
+`public/mods/`, shared on the game's freeware terms, see
 [NOTICE.md](NOTICE.md)); the pack's working files are not. See [docs/BUILDING.md](docs/BUILDING.md) to make and import
 a pack of your own.
 

@@ -1,7 +1,7 @@
 // A sample mod made from the game's own generators, with no original art in it: a robot put together the robot
-// workshop's way (GLACIER's frame, SPECTRE's head, HELIX's moves), an arena (the remaster's rooftop at dusk: its own
-// colors changed, a warning light blinking on a mast and an electric arc now and then) and a pilot. The tests install
-// and play it; OMF Studio offers it as an example.
+// workshop's way (GLACIER's frame, SPECTRE's head, HELIX's moves), an arena (the new robots and arenas mod's rooftop at
+// dusk: its own colors changed, a warning light blinking on a mast and an electric arc now and then) and a pilot. The
+// tests install and play it; OMF Studio offers it as an example.
 import { parseBK, saveBK, type BkAnimData, type BkFile } from '../formats/bk';
 import { AnimationData } from '../formats/animation';
 import { encodeSprite, Sprite } from '../formats/sprite';
@@ -12,7 +12,6 @@ import { GEN_ROBOTS } from '../gen/roster';
 import { buildRemaps, OWN_COUNT, OWN_FIRST } from '../gen/scene/palette';
 import { buildWorkshopFighter, type WorkshopSpec } from '../gen/workshop';
 import { getFile } from '../resources/files';
-import { getGenerated } from '../resources/generated';
 import { APP_VERSION } from '../platform/versionLabel';
 import { encodePng } from '../util/png';
 import type { ModPackage } from './package';
@@ -30,11 +29,11 @@ function dusk(r: number, g: number, b: number): [number, number, number] {
   return warm.map((v, i) => Math.max(0, Math.min(252, Math.round((v * 0.7 + [r, g, b][i] * 0.3) * 0.92)))) as [number, number, number];
 }
 
-/** The rooftop at dusk (needs the generated arenas' files and the original ARENA0.BK, like the game). */
-function duskRooftop(): { bk: Uint8Array; wid: Uint8Array | null } {
-  const src = getGenerated('ARENA7.BK');
-  if (!src) throw new Error('The remaster\'s arenas are not there (public/gen).');
-  const bk = parseBK(src);
+/** The rooftop at dusk, from the new robots and arenas mod's ROOFTOP (and the original ARENA0.BK, like the game). */
+function duskRooftop(extras: ModPackage): { bk: Uint8Array; wid: Uint8Array | null } {
+  const src = extras.arenas.find((a) => a.id === 'rooftop');
+  if (!src) throw new Error('The new robots and arenas\' mod has no ROOFTOP.');
+  const bk = parseBK(src.bk);
   const ref = parseBK(getFile('ARENA0.BK'));
   const full = ref.palettes[0].clone();
   full.copyRange(bk.palettes[0], OWN_FIRST, OWN_COUNT);
@@ -48,7 +47,7 @@ function duskRooftop(): { bk: Uint8Array; wid: Uint8Array | null } {
   bk.palettes = [own];
   bk.remaps = [ownRemaps];
   addAnimations(bk, full);
-  return { bk: saveBK(bk), wid: getGenerated('ARENA7.WID') };
+  return { bk: saveBK(bk), wid: src.wid };
 }
 
 /** The sample arena's animations: slot 30 loops from the start (the light), slot 31 appears at random (the arc). */
@@ -169,9 +168,10 @@ export function sampleFace(): Promise<Uint8Array> {
   return encodePng(W, H, rgba);
 }
 
-export async function buildSampleMod(): Promise<ModPackage> {
+/** The sample mod (`extras`: the new robots and arenas mod's package, whose rooftop its arena is made from). */
+export async function buildSampleMod(extras: ModPackage): Promise<ModPackage> {
   const moves = GEN_ROBOTS[ROBOT.moves].specialNames;
-  const arena = duskRooftop();
+  const arena = duskRooftop(extras);
   return {
     manifest: {
       format: MOD_FORMAT,

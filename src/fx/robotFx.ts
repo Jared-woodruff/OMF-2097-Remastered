@@ -1,12 +1,14 @@
 // Effects of the remaster's robots' special moves: frost and ice shards (GLACIER), wind (TEMPEST), drill sparks and
 // shavings (HELIX), laser glow and phase shimmer (SPECTRE). Read each frame from what their HARs and projectiles are
-// doing; cosmetic only, like everything the effects director makes.
+// doing; cosmetic only, like everything the effects director makes. Robots built from the workshop's parts (the
+// workshop's, and mods' like the new robots' own) have the effects of the robot whose moves they have.
 import { GROUP_PROJECTILE, HarId } from '../game/constants';
 import type { GameState } from '../game/gameState';
 import type { GameObject } from '../game/object';
 import { harData, isHar } from '../game/objects/har';
 import { projectileGetAfData } from '../game/objects/projectile';
 import { MOVE } from '../gen/fighter/moveset';
+import { genRobot } from '../gen/roster';
 import { ParticleKind } from '../video/fx/types';
 import type { ParticleSystem } from './particles';
 
@@ -36,6 +38,18 @@ const STEEL_END: Rgba = [0.5, 0.52, 0.55, 0];
 const LASER: Rgba = [0.95, 0.6, 1, 0.9];
 const LASER_END: Rgba = [0.6, 0.2, 1, 0];
 
+/** The remaster's robot (GLACIER .. SPECTRE) whose special moves' effects a HAR has, or -1. */
+export function effectsOf(harId: number): number {
+  const r = genRobot(harId);
+  return r ? r.movesOf ?? r.id : -1;
+}
+
+/** The remaster's robot whose frame a HAR has (its fists' effects), or -1. */
+export function frameOf(harId: number): number {
+  const r = genRobot(harId);
+  return r ? r.bodyOf ?? r.id : -1;
+}
+
 /** Adds a timed light (the director's). */
 export type LightFn = (x: number, y: number, radius: number, r: number, g: number, b: number, life: number) => void;
 
@@ -62,11 +76,11 @@ export class RobotFx {
       if (!b || !o.curAnimation) continue;
       const anim = o.curAnimation.id;
       if (isHar(o)) {
-        const id = harData(o).id;
-        if (id >= HarId.GLACIER) this.har(o, id, anim, b, ps, dt, light);
+        const id = effectsOf(harData(o).id);
+        if (id >= 0) this.har(o, id, anim, b, ps, dt, light);
       } else if (o.group & GROUP_PROJECTILE) {
-        const id = projectileGetAfData(o)?.id ?? -1;
-        if (id >= HarId.GLACIER) this.projectile(o, id, anim, b, ps, dt, light);
+        const id = effectsOf(projectileGetAfData(o)?.id ?? -1);
+        if (id >= 0) this.projectile(o, id, anim, b, ps, dt, light);
       }
     }
   }

@@ -82,7 +82,7 @@ export class CustomTournamentsPage extends Page {
       case 'size': s.size = wrap(s.size, SIZE_NAMES.length); break;
       case 'robots':
         if (!newRobotsAvailable()) {
-          this.status = 'THE NEW ROBOTS ARE NOT INSTALLED';
+          this.status = 'TURN ON THE NEW ROBOTS AND ARENAS FIRST (EXTRAS > MODS)';
           return;
         }
         s.robots = wrap(s.robots, ROBOT_NAMES.length);

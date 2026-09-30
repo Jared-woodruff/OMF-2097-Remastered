@@ -8,24 +8,30 @@ import { parseBK } from '../formats/bk';
 import { decodeScript } from '../script/script';
 import { tagName } from '../script/tags';
 import { formatAnim, newFrame, newTag, parseAnim, setFrame } from '../studio/anim';
-import { GAMEDATA_DIR, GENERATED_DIR, hasGameData } from './harness';
+import { extrasPackage, GAMEDATA_DIR, hasExtras, hasGameData } from './harness';
 
-/** Every animation and extra string of the original and generated files. */
-function allStrings(): string[] {
+/** Every animation and extra string of the original game's files and the new robots and arenas' mod. */
+async function allStrings(): Promise<string[]> {
   const out: string[] = [];
-  for (const dir of [GAMEDATA_DIR, GENERATED_DIR]) {
-    if (!fs.existsSync(dir)) continue;
-    for (const f of fs.readdirSync(dir)) {
-      const data = new Uint8Array(fs.readFileSync(path.join(dir, f)));
-      const anims = /\.AF$/i.test(f) ? parseAF(data).moves.map((m) => m?.animation) : /\.BK$/i.test(f) ? parseBK(data).anims.map((a) => a?.animation) : [];
-      for (const a of anims) if (a) out.push(a.animString, ...a.extraStrings);
-    }
+  const add = (anims: ({ animString: string; extraStrings: string[] } | null | undefined)[]) => {
+    for (const a of anims) if (a) out.push(a.animString, ...a.extraStrings);
+  };
+  for (const f of fs.readdirSync(GAMEDATA_DIR)) {
+    const data = new Uint8Array(fs.readFileSync(path.join(GAMEDATA_DIR, f)));
+    if (/\.AF$/i.test(f)) add(parseAF(data).moves.map((m) => m?.animation));
+    else if (/\.BK$/i.test(f)) add(parseBK(data).anims.map((a) => a?.animation));
+  }
+  if (hasExtras) {
+    const pkg = await extrasPackage();
+    for (const r of pkg.robots) add(parseAF(r.af).moves.map((m) => m?.animation));
+    for (const a of pkg.arenas) add(parseBK(a.bk).anims.map((x) => x?.animation));
   }
   return out.filter((s) => s.length > 0);
 }
 
+const strings = hasGameData ? await allStrings() : [];
+
 describe.skipIf(!hasGameData)('animation string tokens', () => {
-  const strings = allStrings();
 
   it('write every string of the game back exactly', () => {
     expect(strings.length).toBeGreaterThan(1000);

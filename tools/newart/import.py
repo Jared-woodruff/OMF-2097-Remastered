@@ -1,9 +1,9 @@
 """Imports the new-art pack's deliveries into the game, step 1 (npm run newart:import [-- <pack folder>] runs it all):
 
-- Arenas (arenas/<NAME>/arena.hd.png): the painting becomes the arena's HD backgrounds (public/gen/ARENAn-WIDE.webp,
-  and its 4:3 middle ARENAn-HD.webp) and, scaled to the native 576 x 200, the picture its scene file is made from
-  (src/gen/scene/art/ARENAn.png: `npm run gen` rebuilds ARENAn.BK and .WID from it, the classic graphics and the
-  colors the HD painting is recolored through).
+- Arenas (arenas/<NAME>/arena.hd.png): the painting becomes the arena's HD background (<pack>/out/arenas/ARENAn-WIDE.webp,
+  for the new robots and arenas' mod package: tools/newart/import.mjs puts it there) and, scaled to the native 576 x 200,
+  the picture its scene file is made from (src/gen/scene/art/ARENAn.png: `npm run gen` rebuilds ARENAn.BK and .WID from
+  it, the classic graphics and the colors the HD painting is recolored through).
 - Robots (tier2_fighters/<ROBOT>/mNN_<move>/fNNN.hd.png): each frame at its size and clipped to its source's
   silhouette (one native pixel of slack), the spine's core drawn in behind it where the sprite shows the torso apart
   from the hips (<pack>/spine_cores.json, from src/gen/dev/spineCore.test.ts), copied into the HD asset pack
@@ -24,12 +24,10 @@ from PIL import Image, ImageFilter
 
 Image.MAX_IMAGE_PIXELS = None
 ROOT = Path(__file__).resolve().parent.parent.parent
-GEN = ROOT / 'public' / 'gen'
 ART = ROOT / 'src' / 'gen' / 'scene' / 'art'
 HD_PACK = ROOT / 'hd-pack'
 
 ARENA_W, ARENA_H = 2880, 1200
-CLASSIC = (640, 2240)
 NATIVE = (576, 200)
 SX, SY = 5, 6
 
@@ -46,11 +44,12 @@ def import_arena(pack: Path, job: dict, report: list) -> str:
     similarity = np.corrcoef(small(img), small(Image.open(pack / job['guide'])))[0, 1]
     if similarity < 0.4:
         report.append(f"{job['output']}: the composition differs from guide.png (similarity {similarity:.2f}): check the floor line and the landmarks")
-    img.save(GEN / f'{file}-WIDE.webp', 'WEBP', quality=90, method=6)
-    img.crop((CLASSIC[0], 0, CLASSIC[1], ARENA_H)).save(GEN / f'{file}-HD.webp', 'WEBP', quality=90, method=6)
+    out = pack / 'out' / 'arenas'
+    out.mkdir(parents=True, exist_ok=True)
+    img.save(out / f'{file}-WIDE.webp', 'WEBP', quality=90, method=6)
     ART.mkdir(parents=True, exist_ok=True)
     img.resize(NATIVE, Image.LANCZOS).save(ART / f'{file}.png', optimize=True)
-    print(f"{job['id']}: {file}-WIDE.webp, {file}-HD.webp, src/gen/scene/art/{file}.png")
+    print(f"{job['id']}: out/arenas/{file}-WIDE.webp, src/gen/scene/art/{file}.png")
     return file
 
 

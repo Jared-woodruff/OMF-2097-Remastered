@@ -5,7 +5,6 @@
 import { loadStoredGameFiles } from '../platform/gameData';
 import { APP_VERSION } from '../platform/versionLabel';
 import { preloadAll } from '../resources/files';
-import { loadGenerated } from '../resources/generated';
 import { loadLanguage } from '../resources/resources';
 import { StudioApp } from './app';
 import { h } from './dom';
@@ -26,7 +25,6 @@ async function main(): Promise<void> {
       h('div', { style: { textAlign: 'center' } }, h('a', { class: 'btn go', href: './index.html' }, '▶ Open the game')))));
     return;
   }
-  await loadGenerated();
   try {
     loadLanguage();
   } catch {

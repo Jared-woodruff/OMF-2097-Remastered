@@ -6,7 +6,7 @@ import { describe, it } from 'vitest';
 import { parseAF } from '../../formats/af';
 import { getFile } from '../../resources/files';
 import { altPalettes } from '../../resources/resources';
-import { hasGameData, loadGameData } from '../../test/harness';
+import { extrasFileSync, hasGameData, loadGameData } from '../../test/harness';
 import type { IndexedSprite } from '../raster';
 import { writeSheet } from './png';
 
@@ -29,7 +29,7 @@ describe.skipIf(!OUT || !hasGameData)('robot lineup', () => {
     for (const [move, frame] of MOVES) {
       const sprites: IndexedSprite[] = [];
       for (const id of HARS) {
-        const data = id >= 11 ? new Uint8Array(fs.readFileSync(path.join('public/gen', `FIGHTR${id}.AF`))) : getFile(`FIGHTR${id}.AF`);
+        const data = id >= 11 ? extrasFileSync(`FIGHTR${id}.AF`)! : getFile(`FIGHTR${id}.AF`);
         const af = parseAF(data);
         const s = af.moves[move]?.animation.sprites.filter((sp) => !sp.isEmpty())[frame];
         if (!s) continue;

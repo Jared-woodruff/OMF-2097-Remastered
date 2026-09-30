@@ -175,14 +175,11 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
 
   it('OPTIONS holds every setting; back from a run or training, MORE MODES is open again', () => {
     open('OPTIONS');
+    // (the new robots and arenas are a mod: EXTRAS > MODS turns them on)
     expect(current().items.filter((c) => c instanceof Button).map((c) => (c as Button).text.str)).toEqual(
-      ['GAMEPLAY', 'NEW CONTENT', 'CONTROLS', 'GRAPHICS', 'SOUND', 'LANGUAGE', 'DONE']);
-    open('NEW CONTENT');
-    expect(selectedText()).toBe('NEW ROBOTS OFF');
-    press('ArrowDown');
-    expect(selectedText()).toBe('NEW ARENAS OFF');
+      ['GAMEPLAY', 'CONTROLS', 'GRAPHICS', 'SOUND', 'LANGUAGE', 'DONE']);
     press('Escape');
-    expect(selectedText()).toBe('NEW CONTENT');
+    expect(selectedText()).toBe('OPTIONS');
 
     gs.menuReturn = 'modes';
     gs.swapScene(SceneId.MENU);

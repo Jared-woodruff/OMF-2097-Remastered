@@ -1,15 +1,19 @@
 """Prepares the manual's pictures (tools/manual/img/, committed) from the game's HD artwork and screenshots.
 
 Needs the HD asset pack (hd-pack/, the image model's deliveries: robots, pilots, the logo), the imported artwork
-(public/hd, public/gen) and the trailer's footage (.captures/trailer2, recorded from the game). The manual itself is
+(public/hd, and the new robots and arenas' mod package in public/mods) and the trailer's footage (.captures/trailer2, recorded from the game). The manual itself is
 built from img/ with `npm run manual`, so this only runs when the pictures change.
 
 Usage: python tools/manual/prepare.py
 """
 import json
 import os
+import sys
 
 from PIL import Image, ImageDraw, ImageFilter, ImageEnhance
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'extras'))
+from extras_files import arena_background_4_3  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 IMG = os.path.join(ROOT, 'tools', 'manual', 'img')
@@ -120,11 +124,11 @@ def main():
         bg.alpha_composite(p)
         save_jpg(bg, f'pilot-{i}.jpg', 420, 86)
 
-    # Arenas: the HD backgrounds (the new ones from public/gen).
+    # Arenas: the HD backgrounds (the new ones from their mod's package: the 4:3 middle of its widescreen paintings).
     for a in range(9):
-        path = (os.path.join(ROOT, 'public', 'hd', f'scene-ARENA{a}', 'bg_0.webp') if a < 5
-                else os.path.join(ROOT, 'public', 'gen', f'ARENA{a}-HD.webp'))
-        save_jpg(Image.open(path).convert('RGB'), f'arena-{a}.jpg', 720, 82)
+        img = (Image.open(os.path.join(ROOT, 'public', 'hd', f'scene-ARENA{a}', 'bg_0.webp')).convert('RGB') if a < 5
+               else arena_background_4_3(f'ARENA{a}'))
+        save_jpg(img, f'arena-{a}.jpg', 720, 82)
 
     # Screenshots from the trailer footage.
     shots = {

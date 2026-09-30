@@ -1,7 +1,5 @@
-// The remaster's generated robots (HARs 11-14, src/gen): their fighter files are complete and up to date, and they
-// fight: full AI matches against each other and against the original robots.
-import fs from 'node:fs';
-import path from 'node:path';
+// The remaster's generated robots (src/gen; their mod plays them as HARs 11-14): their fighter files are complete and
+// the mod's are up to date, and they fight: full AI matches against each other and against the original robots.
 import { describe, expect, it } from 'vitest';
 import { saveAF } from '../formats/af';
 import { HarEventType, HarId, SceneId, STATIC_TICKS } from '../game/constants';
@@ -12,7 +10,8 @@ import { fighterOf, GEN_ROBOTS } from '../gen/roster';
 import { afGetMove, langGet, loadAf } from '../resources/resources';
 import { globalRandom } from '../util/random';
 import { drawList } from '../video/draw';
-import { createGame, GENERATED_DIR, hasGameData, loadGameData } from './harness';
+import { EXTRAS_NUMBERS } from '../mods/extras';
+import { createGame, extrasPackage, hasExtras, hasGameData, loadExtras } from './harness';
 
 function runUntil(gs: GameState, done: () => boolean, maxMs: number): number {
   let ms = 0, staticWait = 0, dynamicWait = 0;
@@ -69,9 +68,9 @@ function aiFight(hars: [number, number], seed: number, arena = 0): Result {
   return r;
 }
 
-describe.skipIf(!hasGameData)('generated robots', () => {
-  it('have every move the engine needs', () => {
-    loadGameData();
+describe.skipIf(!hasGameData || !hasExtras)('generated robots', () => {
+  it('have every move the engine needs', async () => {
+    await loadExtras();
     for (const r of GEN_ROBOTS) {
       const af = loadAf(r.id);
       for (const id of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 48, 49, 55, 56, 57, 60, 61]) {
@@ -90,19 +89,21 @@ describe.skipIf(!hasGameData)('generated robots', () => {
     }
   });
 
-  it('are up to date with their definitions (npm run gen:robots)', () => {
+  it('are up to date with their definitions in their mod (npm run gen)', async () => {
+    const pkg = await extrasPackage();
     for (const r of GEN_ROBOTS) {
       const { af } = buildFighter(fighterOf(r));
       af.fighterId = r.id;
       af.upwardsJumpFrameLimit = 2;
       const built = saveAF(af);
-      const file = new Uint8Array(fs.readFileSync(path.join(GENERATED_DIR, `FIGHTR${r.id}.AF`)));
-      expect(Buffer.compare(Buffer.from(built), Buffer.from(file)), `${r.name}: run npm run gen:robots`).toBe(0);
+      const folder = Object.entries(EXTRAS_NUMBERS.robot).find(([, n]) => n === r.id)![0];
+      const file = pkg.robots.find((x) => x.id === folder)!.af;
+      expect(Buffer.compare(Buffer.from(built), Buffer.from(file)), `${r.name}: run npm run gen`).toBe(0);
     }
   }, 60000);
 
-  it('fight each other and the original robots to a finish', () => {
-    loadGameData();
+  it('fight each other and the original robots to a finish', async () => {
+    await loadExtras();
     const pairs: [number, number][] = [
       [HarId.GLACIER, HarId.TEMPEST],
       [HarId.HELIX, HarId.SPECTRE],

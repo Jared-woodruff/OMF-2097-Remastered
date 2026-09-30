@@ -11,8 +11,8 @@ export function menuExtrasCreate(s: MainMenuScene): Menu {
   menu.attach(Label.title('EXTRAS'));
   menu.attach(new Button('ROBOT WORKSHOP', 'Build your own robots from the parts of the new robots, try them out and share them ' +
     'as files.', false, false, () => app.showWorkshop()));
-  menu.attach(new Button('MODS', 'Robots, arenas and pilots made by players with OMF Studio: install mod files and turn them ' +
-    'on or off.', false, false, () => app.showMods()));
+  menu.attach(new Button('MODS', 'More robots, arenas and pilots: the new robots and arenas made for the remaster, and mods made ' +
+    'by players with OMF Studio. Turn them on or off, install mod files.', false, false, () => app.showMods()));
   menu.attach(new Button('OMF STUDIO', 'The mod tools: make your own robots, arenas and pilots, pixel for pixel, and play them in ' +
     'the game.', false, false, () => void openStudio()));
   menu.attach(new Button('REPLAYS', 'Watch your saved fights again, slow them down, step through them and save clips.', false, false,

@@ -38,7 +38,6 @@ import { ArenaPauseMenu } from '../gui/pauseMenu';
 import { InputDisplay } from '../gui/inputDisplay';
 import type { Af } from '../../resources/resources';
 import { arenaScreengrabWinner, harScreencapsCompress, harScreencapsReset, SCREENCAP_BLOW, SCREENCAP_POSE } from '../harScreencap';
-import { GEN_ARENAS } from '../../gen/scene/arenas';
 import { arenaBase, arenaMusic, nextArena } from '../roster';
 import { modArena } from '../../mods/registry';
 import { recSerialize } from '../../formats/rec';
@@ -122,7 +121,6 @@ export class ArenaScene extends Scene implements ArenaLike {
     gs.fightStats = emptyFightStats();
     gs.fightStats.arena = id - SceneId.ARENA0;
     const music: Record<number, string> = { 8: 'ARENA0.PSM', 16: 'ARENA1.PSM', 32: 'ARENA2.PSM', 64: 'ARENA3.PSM', 128: 'ARENA4.PSM' };
-    for (const a of GEN_ARENAS) music[a.fileId] = a.music;
     // (a mod arena names its song; the credits play theirs)
     const track = arenaMusic(gs.fightStats.arena) ?? music[bk.fileId];
     if (track && !gs.credits) gs.playMusic(track);

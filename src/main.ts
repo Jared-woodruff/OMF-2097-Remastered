@@ -10,12 +10,12 @@ import { loadSettings, saveSettings, settings } from './game/settings';
 import './game/scenes/index';
 import { registerPlaceholders } from './game/scenes/placeholder';
 import { getFile, preloadAll } from './resources/files';
-import { loadGenerated } from './resources/generated';
 import { GeneratedArtwork } from './gen/hdArtwork';
 import { ModArtwork } from './mods/hdArt';
 import { MOVE } from './gen/fighter/moveset';
-import { arenaAvailable, arenaLook, EXTRA_HAR_IDS, extraRobotsEnabled, modHarIds, pilotExists, pilotInfo, pilotNameOf } from './game/roster';
-import { loadMods, testContent } from './mods/registry';
+import { arenaAvailable, arenaLook, modHarIds, pilotExists, pilotInfo, pilotNameOf } from './game/roster';
+import { loadBundled, loadMods, testContent } from './mods/registry';
+import { EXTRAS_MOD_ID, testNamesExtras } from './mods/extras';
 import { installModFiles, ModsPage } from './mods/modsPage';
 import { MOD_EXTENSION } from './mods/package';
 import { loadStoredGameFiles, provideGameFiles } from './platform/gameData';
@@ -135,13 +135,12 @@ async function main(): Promise<void> {
     boot.style.display = '';
     bootStatus('LOADING GAME DATA', 0.8);
   }
-  // The remaster's own content (the new robots), shipped with the app.
-  bootStatus('PREPARING THE ROBOTS', 0.82);
-  await loadGenerated();
-  // The installed mods that are on: their robots, arenas and pilots join the game (src/mods); ?modtest: OMF Studio's
-  // test fight, with the project it is testing.
+  // The mods that are on: their robots, arenas and pilots join the game (src/mods): the ones that come with the game
+  // (the remaster's new robots and arenas) and the installed ones; ?modtest: OMF Studio's test fight, with the project
+  // it is testing (and the new robots and arenas when it names them).
+  bootStatus('LOADING THE MODS', 0.82);
   const bootParams = new URLSearchParams(location.search);
-  const modTestError = await loadMods(bootParams.has('modtest'));
+  const modTestError = await loadMods(bootParams.has('modtest'), testNamesExtras(bootParams) ? [EXTRAS_MOD_ID] : []);
   loadSettings();
   try {
     loadLanguage(settings().language);
@@ -275,10 +274,9 @@ async function main(): Promise<void> {
       modArt.want(hars);
     }
     if (gs.sc.isArena() && gs.sc.bk) {
-      genArt.wantArena(gs.sc.bk);
       modArt.wantArena(gs.thisId - SceneId.ARENA0, gs.sc.bk);
     } else if (gs.thisId === SceneId.MELEE) {
-      if (extraRobotsEnabled()) genArt.want(EXTRA_HAR_IDS, [MOVE.PORTRAIT_CELL, ANIM_IDLE]);
+      genArt.want(modHarIds(), [MOVE.PORTRAIT_CELL, ANIM_IDLE]);
       modArt.want(modHarIds(), [MOVE.PORTRAIT_CELL, ANIM_IDLE]);
     }
   };
@@ -712,6 +710,8 @@ async function main(): Promise<void> {
   // open with parameters).
   if (!settings().setupDone && !['scene', 'fight', 'training', 'credits', 'nosetup'].some((p) => params.has(p))) {
     await firstRunSetup(boot);
+    // (the new robots and arenas turned on there play right away)
+    await loadBundled(EXTRAS_MOD_ID);
   }
   hideBoot();
   engine.start();

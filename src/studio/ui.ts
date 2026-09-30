@@ -1,25 +1,59 @@
 // OMF Studio's shared pieces: the small pictures of a project's robots, arenas and pilots (lists, the mod's page, the
-// editors' heads), the editors' head (the picture, the name, what the checks say, testing it) and the start screen's
-// title (the remaster's logo over "STUDIO").
+// editors' heads), a choice between pictures (what a new robot or arena is copied from), the editors' head (the
+// picture, the name, what the checks say, testing it) and the start screen's title (the remaster's logo over "STUDIO").
+import type { AfFile } from '../formats/af';
+import type { BkFile } from '../formats/bk';
 import type { StudioApp } from './app';
 import { arenaPalette, indexedCanvas, robotPalette } from './colors';
-import { h, icon } from './dom';
+import { fill, h, icon } from './dom';
 import type { ArenaDoc, PilotDoc, RobotDoc } from './project';
 
-/** A robot's idle frame in the colors robots are shown in, or null (no idle animation yet). */
-export function robotPicture(r: RobotDoc, colors: [number, number, number]): HTMLCanvasElement | null {
-  const s = r.af.moves[11]?.animation.sprites.find((x) => !x.isEmpty() && x.width < 1000);
+/** A fighter file's idle frame in the colors robots are shown in, or null (no idle animation yet). */
+export function afPicture(af: AfFile, colors: [number, number, number]): HTMLCanvasElement | null {
+  const s = af.moves[11]?.animation.sprites.find((x) => !x.isEmpty() && x.width < 1000);
   if (!s) return null;
   const c = indexedCanvas(s.pixels(), s.width, s.height, robotPalette(colors));
   c.className = 'pix';
   return c;
 }
 
-/** An arena's background (the classic screen). */
-export function arenaPicture(a: ArenaDoc): HTMLCanvasElement {
-  const c = indexedCanvas(a.bk.background, 320, 200, arenaPalette(a.bk), true);
+/** A robot's idle frame in the colors robots are shown in, or null (no idle animation yet). */
+export const robotPicture = (r: RobotDoc, colors: [number, number, number]): HTMLCanvasElement | null => afPicture(r.af, colors);
+
+/** A scene file's background (the classic screen). */
+export function bkPicture(bk: BkFile): HTMLCanvasElement {
+  const c = indexedCanvas(bk.background, 320, 200, arenaPalette(bk), true);
   c.className = 'pix';
   return c;
+}
+
+/** An arena's background (the classic screen). */
+export const arenaPicture = (a: ArenaDoc): HTMLCanvasElement => bkPicture(a.bk);
+
+/** A group of pictures to choose from, under its title (`picture`: null shows the kind's icon, until it is made). */
+export interface PictureGroup<T> {
+  title: string;
+  items: { value: T; name: string; picture: HTMLElement | null }[];
+}
+
+/**
+ * Pictures to choose one of (the game's robots or arenas a new one is copied from), in groups, the chosen one marked
+ * (arenas' backgrounds in wider tiles). `redraw()` shows pictures made since.
+ */
+export function pictureChoice<T>(kind: ContentKind, groups: PictureGroup<T>[], get: () => T, set: (v: T) => void): { el: HTMLElement; redraw: () => void } {
+  const el = h('div', { class: 'pick' });
+  const wide = kind === 'arena';
+  const redraw = () => fill(el, groups.filter((g) => g.items.length).map((g) => h('div', null,
+    h('div', { class: 'kind-head' }, g.title),
+    h('div', { class: `tiles${wide ? ' wide' : ''}` }, g.items.map((it) => h('button', {
+      type: 'button', class: `tile${get() === it.value ? ' sel' : ''}`, title: it.name, 'aria-pressed': String(get() === it.value),
+      onclick: () => {
+        set(it.value);
+        redraw();
+      },
+    }, h('div', { class: `pic${wide ? ' cover' : ''}` }, it.picture ?? icon(kind)), h('div', { class: 'label' }, h('span', null, it.name))))))));
+  redraw();
+  return { el, redraw };
 }
 
 /** Addresses of pilots' pictures (kept: a list drawn again shows them at once). */

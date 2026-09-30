@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, it } from 'vitest';
 import { parseAF } from '../../formats/af';
+import { extrasFileSync } from '../../test/harness';
 import { GEN_ROBOTS } from '../roster';
 import { rampColors, writePng } from './png';
 
@@ -13,7 +14,7 @@ describe.skipIf(!OUT)('robot overview', () => {
   it('writes a page per robot', () => {
     for (const r of GEN_ROBOTS) {
       if (process.env.ROBOT && r.name !== process.env.ROBOT.toUpperCase()) continue;
-      const af = parseAF(new Uint8Array(fs.readFileSync(path.join('public/gen', `FIGHTR${r.id}.AF`))));
+      const af = parseAF(extrasFileSync(`FIGHTR${r.id}.AF`)!);
       const color = rampColors(r.colors);
       const Z = Number(process.env.ZOOM ?? 2);
       const rows: { id: number; sprites: { w: number; h: number; x: number; y: number; px: Uint8Array }[] }[] = [];

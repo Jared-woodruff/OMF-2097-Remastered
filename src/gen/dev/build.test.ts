@@ -1,5 +1,6 @@
 // Writes the remaster's generated content: the new robots' fighter files and the new arenas' scene files and
-// widescreen backgrounds (GEN_OUT=<dir> npx vitest run src/gen/dev/build; `npm run gen` writes them to public/gen).
+// widescreen backgrounds (GEN_OUT=<dir> npx vitest run src/gen/dev/build; `npm run gen` puts them in their mod's
+// package, public/mods).
 // An arena with a painting (src/gen/scene/art/ARENAn.png, 576 x 200: the image AI's, from `npm run newart:import`) is
 // made from it instead of its rendering. ROBOT=<name> / ARENA=<names or files, comma-separated> limit it to those;
 // SKIP_ARENAS=1 / SKIP_ROBOTS=1 skip a kind. Skipped in normal test runs.

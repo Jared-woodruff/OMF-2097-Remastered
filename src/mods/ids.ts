@@ -1,13 +1,15 @@
 // The numbers mod content plays under. The engine knows robots, arenas and pilots by small numbers, and saves them
 // (replays, records, the training setup), so each mod robot, arena and pilot keeps the number it got the first time it
-// was loaded: kept in the browser's storage, by "<mod id>/<content id>".
+// was loaded: kept in the browser's storage, by "<mod id>/<content id>". The remaster's new robots and arenas (a mod that
+// comes with the game, extras.ts) keep the numbers they had when they were part of the game.
+import { EXTRAS_MOD_ID, EXTRAS_NUMBERS, reservedNumber } from './extras';
 
 export type ModKind = 'robot' | 'arena' | 'pilot';
 
 /**
- * The numbers each kind gets. Robots: after the originals (0-10), the remaster's (11-14) and the workshop's (15-22), up
- * to 63 (the scoreboard's files keep 6 bits). Arenas: after the originals (0-4) and the remaster's (5-8), up to 31 (a
- * replay keeps 5 bits). Pilots: after the originals (0-10), up to 63.
+ * The numbers each kind gets. Robots: after the originals (0-10), the remaster's (11-14, its mod's) and the workshop's
+ * (15-22), up to 63 (the scoreboard's files keep 6 bits). Arenas: after the originals (0-4) and the remaster's (5-8), up
+ * to 31 (a replay keeps 5 bits). Pilots: after the originals (0-10), up to 63.
  */
 export const MOD_ID_RANGES: Record<ModKind, { first: number; last: number }> = {
   robot: { first: 24, last: 63 },
@@ -54,6 +56,8 @@ function save(): void {
  * other is free). Null when every number is taken.
  */
 export function modContentId(kind: ModKind, key: string, taken: Set<number>): number | null {
+  const fixed = reservedNumber(kind, key);
+  if (fixed !== undefined) return fixed;
   const m = load()[kind];
   const had = m[key];
   if (had !== undefined && !taken.has(had)) return had;
@@ -77,6 +81,9 @@ export function modContentId(kind: ModKind, key: string, taken: Set<number>): nu
 
 /** The content a number was last given to (to explain a replay whose robot is missing), or null. */
 export function modContentKey(kind: ModKind, id: number): string | null {
+  if (kind !== 'pilot') {
+    for (const [folder, n] of Object.entries(EXTRAS_NUMBERS[kind])) if (n === id) return `${EXTRAS_MOD_ID}/${folder}`;
+  }
   for (const [k, v] of Object.entries(load()[kind])) if (v === id) return k;
   return null;
 }

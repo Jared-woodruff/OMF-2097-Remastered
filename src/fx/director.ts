@@ -12,7 +12,7 @@ import { vga } from '../video/vga';
 import { arenaFx, flicker, FX_FLOOR, type ArenaCtx, type ArenaFx } from './arenas';
 import { arenaLook } from '../game/roster';
 import { ParticleSystem } from './particles';
-import { RobotFx } from './robotFx';
+import { frameOf, RobotFx } from './robotFx';
 import { HarId } from '../game/constants';
 
 /** Seconds of effect time per game tick (noise animation). */
@@ -262,8 +262,10 @@ export class FxDirector {
       case FxType.PROJECTILE_HIT:
       case FxType.HAZARD_HIT:
         this.impact(e.x, e.y, e.dir, p, HOT, HOT_END, e.type !== FxType.HIT);
-        // GLACIER's blows knock ice off its fists.
-        if (e.type === FxType.HIT && e.playerId >= 0 && gs.getPlayer(1 - e.playerId).pilot?.harId === HarId.GLACIER) this.iceChips(e.x, e.y, e.dir, p);
+        // GLACIER's blows knock ice off its fists (and those of robots built on its frame).
+        if (e.type === FxType.HIT && e.playerId >= 0 && frameOf(gs.getPlayer(1 - e.playerId).pilot?.harId ?? -1) === HarId.GLACIER) {
+          this.iceChips(e.x, e.y, e.dir, p);
+        }
         if (e.type === FxType.HAZARD_HIT && cfg.electricWalls) this.electric(e.x, e.y, p);
         break;
       case FxType.BLOCK:

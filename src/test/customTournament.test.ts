@@ -6,7 +6,7 @@ import { EXTRA_HAR_IDS } from '../game/roster';
 import { buildCustomTournament, customTournaments, fileNameOf, readTournamentSpec, resetCustomTournaments, setCustomTournament } from '../game/tournament/custom';
 import { loadTournament } from '../resources/resources';
 import { trnlistInit, trnLoad } from '../resources/trnmanager';
-import { createGame, hasGameData } from './harness';
+import { createGame, hasGameData, loadExtras } from './harness';
 import { CustomTournamentsPage } from '../game/tournament/customPage';
 import { Page } from '../game/gui/page';
 import { FontSize, HAlign } from '../game/gui/text';
@@ -23,7 +23,9 @@ describe('custom tournament files', () => {
 });
 
 describe.skipIf(!hasGameData)('custom tournaments', () => {
-  it('keeps the champion and spreads the opponents over the ranks', () => {
+  it('keeps the champion and spreads the opponents over the ranks', async () => {
+    // (the new robots: their mod is on)
+    await loadExtras();
     createGame(SceneId.MENU);
     const base = loadTournament('WORLD.TRN');
     const ranked = base.enemies.filter((p) => !p.secret);

@@ -7,6 +7,7 @@ import type { AnimationData } from '../../src/formats/animation';
 import { parseBK, type BkFile } from '../../src/formats/bk';
 import { parseAltPals, parsePic } from '../../src/formats/misc';
 import { Palette } from '../../src/formats/palette';
+import { extrasFileSync, hasExtras } from '../../src/test/harness';
 
 /** Remastered resolution relative to the native 320x200 grid: 5x wide, 6x tall = square pixels at 4:3. */
 export const SCALE_X = 5;
@@ -17,20 +18,21 @@ export const SPRITE_PAD = 4;
 export const WIDE_EXT = 128;
 
 export const HAR_NAMES = ['JAGUAR', 'SHADOW', 'THORN', 'PYROS', 'ELECTRA', 'KATANA', 'SHREDDER', 'FLAIL', 'GARGOYLE', 'CHRONOS', 'NOVA'];
-/** The remaster's robots (HARs 11..14): their fighter files are made by `npm run gen` into public/gen. */
+/** The remaster's robots (HARs 11..14): their fighter files are their mod's (public/mods, `npm run extras`). */
 export const GEN_HAR_NAMES = ['GLACIER', 'TEMPEST', 'HELIX', 'SPECTRE'];
 /** Every robot by HAR id. */
 export const ALL_HAR_NAMES = [...HAR_NAMES, ...GEN_HAR_NAMES];
 
-/** The robots' fighter files: the original ones, and the remaster's when they have been generated. */
+/** The robots' fighter files: the original ones, and the remaster's from their mod's package when it is there. */
 export function fighterFiles(gameDir: string): { id: number; name: string; data: Uint8Array }[] {
-  const genDir = path.resolve(gameDir, '..', 'gen');
   const out = HAR_NAMES.map((name, id) => ({ id, name, data: read(gameDir, `FIGHTR${id}.AF`) }));
-  GEN_HAR_NAMES.forEach((name, i) => {
-    const id = HAR_NAMES.length + i;
-    const f = path.join(genDir, `FIGHTR${id}.AF`);
-    if (fs.existsSync(f)) out.push({ id, name, data: new Uint8Array(fs.readFileSync(f)) });
-  });
+  if (hasExtras) {
+    GEN_HAR_NAMES.forEach((name, i) => {
+      const id = HAR_NAMES.length + i;
+      const data = extrasFileSync(`FIGHTR${id}.AF`);
+      if (data) out.push({ id, name, data });
+    });
+  }
   return out;
 }
 

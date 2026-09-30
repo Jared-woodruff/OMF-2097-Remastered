@@ -77,10 +77,6 @@ export interface Settings {
     hazards: boolean;
     difficulty: number; // 0..6
     rounds: number; // 0..3
-    /** The remaster's four new robots (GLACIER, TEMPEST, HELIX, SPECTRE) can be picked (opt-in). */
-    extraRobots: boolean;
-    /** The remaster's four new arenas are part of the arena rotation (opt-in). */
-    extraArenas: boolean;
     /** Every fight is recorded and kept in the replay list. */
     saveReplays: boolean;
     /** The winner's portrait and a line of theirs after one and two player fights (scenes/victory.ts). */
@@ -150,12 +146,13 @@ export interface Settings {
 }
 
 /**
- * Current settings revision. 2: the new robots and arenas became opt-in; settings saved before could only hold the old
- * default (on), so loading them turns both off. 3: the remastered typeface became the default font; the smooth letters
- * saved before were the old default. 4: the announcer became a choice of voice; the on / off saved before becomes the
- * male voice / off.
+ * Current settings revision. 2: the new robots and arenas became opt-in (gameplay.extraRobots / extraArenas); settings
+ * saved before could only hold the old default (on), so they were off. 3: the remastered typeface became the default
+ * font; the smooth letters saved before were the old default. 4: the announcer became a choice of voice; the on / off
+ * saved before becomes the male voice / off. 5: the new robots and arenas became a mod that comes with the game
+ * (mods/extras.ts): a player who had either on finds the mod on (mods/bundled.ts migrateNewContent).
  */
-const REVISION = 4;
+const REVISION = 5;
 
 export function defaultSettings(): Settings {
   return {
@@ -178,7 +175,7 @@ export function defaultSettings(): Settings {
       fxAtmosphere: true,
     },
     sound: { soundVol: 7, musicVol: 6, enhancedMusic: true, acoustics: true, impactBass: true, myMusic: 'fights', announcer: 'male' },
-    gameplay: { speed: 5, fightMode: 0, power1: 5, power2: 5, hazards: true, difficulty: 1, rounds: 1, extraRobots: false, extraArenas: false, saveReplays: true, victoryScreens: true, fightCamera: false },
+    gameplay: { speed: 5, fightMode: 0, power1: 5, power2: 5, hazards: true, difficulty: 1, rounds: 1, saveReplays: true, victoryScreens: true, fightCamera: false },
     advanced: {
       rehitMode: false,
       defensiveThrows: false,
@@ -267,10 +264,6 @@ export function loadSettings(): Settings {
       if (saved?.keys && !saved.keys.p1?.special && saved.keys.layout === 'modern') {
         current.keys.p1.special = [...MODERN_SPECIAL_KEYS.p1];
         current.keys.p2.special = [...MODERN_SPECIAL_KEYS.p2];
-      }
-      if (!((saved?.revision ?? 0) >= 2)) {
-        current.gameplay.extraRobots = false;
-        current.gameplay.extraArenas = false;
       }
       if (!((saved?.revision ?? 0) >= 3) && current.video.hdFont === 'smooth') current.video.hdFont = 'type';
       const announcer: unknown = current.sound.announcer;

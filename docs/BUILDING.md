@@ -63,19 +63,32 @@ Layers the pack does not have yet come from placeholders cut from the current HD
 
 ### Generated content: the new robots and arenas
 
-The new robots and arenas are generated from `src/gen` into `public/gen/` (committed, so a fresh checkout does not need
-this). After changing their definitions:
+The new robots and arenas are generated from `src/gen` and come with the game as a mod: its package,
+`public/mods/omf2097r.extras.omfmod`, and the list of the mods that come with the game, `public/mods/index.json` (both
+committed, so a fresh checkout does not need this). After changing their definitions:
 
 ```sh
-npm run gen                           # robots (FIGHTR11-14.AF) and arenas (ARENA5-8.BK/.WID); the arenas need public/gamedata
+npm run gen                           # robots (FIGHTR11-14.AF) and arenas (ARENA5-8.BK/.WID), then into the package
 SKIP_ARENAS=1 npm run gen             # only the robots (ROBOT=glacier for one); SKIP_ROBOTS=1 / ARENA=ORBITAL,ARENA7 likewise
+npm run gen -- some/folder            # only the files, into that folder (the package stays as it is)
 ```
 
-The arenas' HD backgrounds are rendered on the GPU in the browser: start `npm run dev`, open
-http://localhost:5173/?genarenahd (or `?genarenahd=ARENA6.BK` for one arena), wait for "done", then run
-`npm run gen:hd` (Python 3 with Pillow) to pack `.captures/ARENAn-HD.png` / `-WIDE.png` into `public/gen/*.webp`
-(arenas painted by an image model, see below, keep their paintings unless `-- --force`). The robots' HD artwork needs
-no files: the game renders it on the GPU while it runs, unless artwork from an image model is installed.
+The arenas need the game data (`public/gamedata`). `npm run gen` makes the files in a work folder and runs
+`npm run extras`, which packs the mod: what it is not given is kept from the package already there, and the same
+inputs give the same package, byte for byte. Its options, for the other steps below:
+
+```sh
+npm run extras -- --gen <folder>      # the fighter and scene files of that folder (npm run gen's)
+npm run extras -- --hd <folder>       # the robots' HD pictures, cut out of the fighter-GLACIER... bundles of an HD asset folder
+npm run extras -- --arena-hd <folder> # the arenas' HD backgrounds (ARENAn-WIDE.webp, 2880 x 1200)
+npm run extras -- --out <folder>      # somewhere else than public/mods
+```
+
+A robot's HD picture goes with the fingerprint of its sprite: a sprite that changed loses its picture, and the game
+renders that one from the robot's 3D model instead, on the GPU while it runs. The arenas' HD backgrounds are rendered
+on the GPU in the browser: start `npm run dev`, open http://localhost:5173/?genarenahd (or `?genarenahd=ARENA6.BK`
+for one arena), wait for "done", then run `npm run gen:hd` (Python 3 with Pillow) to put `.captures/ARENAn-WIDE.png`
+in the package (arenas painted by an image model, see below, keep their paintings unless `-- --force`).
 
 ### The new robots' and arenas' artwork
 
@@ -92,15 +105,16 @@ npm run newart:import                 # reads newart-pack/ (Python 3 with numpy 
 npm run newart:import -- path/to/pack # or another pack folder
 ```
 
-An arena's painting becomes its HD backgrounds (`public/gen/ARENAn-HD.webp` / `-WIDE.webp`) and, at the native
-576 × 200, `src/gen/scene/art/ARENAn.png`, which `npm run gen` indexes in place of the rendering (the import runs it):
-the classic graphics, and the colors the painting is recolored through. The robots' frames are clipped to their
-silhouettes, get a steel core drawn in behind them through the waist (where a sprite's spine rings part in a leaning
-pose, the painting showed the torso floating over the hips; `src/gen/dev/spineCore.test.ts` renders the core, the
-import runs it), are copied into `hd-pack/` (their jobs added to its `jobs.jsonl`) and imported into `public/hd/` with
-the originals' artwork, so a later `npm run hd:import` keeps them. Anything not delivered keeps its current artwork;
-`newart-pack/import_report.txt` lists deliveries worth a look (no transparency, drawn outside the silhouette, a moved
-composition).
+An arena's painting becomes its HD background and, at the native 576 × 200, `src/gen/scene/art/ARENAn.png`, which
+`npm run gen` indexes in place of the rendering: the classic graphics, and the colors the painting is recolored
+through. The robots' frames are clipped to their silhouettes, get a steel core drawn in behind them through the waist
+(where a sprite's spine rings part in a leaning pose, the painting showed the torso floating over the hips;
+`src/gen/dev/spineCore.test.ts` renders the core), are copied into `hd-pack/` (their jobs added to its `jobs.jsonl`)
+and made into HD bundles with the originals' artwork's importer. The import runs all of it and puts the results in
+the mod's package (`npm run extras`); `public/hd/` is not touched. A later full `npm run hd:import` makes the new
+robots' bundles too: it puts them in the package the same way and takes them back out of `public/hd/`. Anything not
+delivered keeps its current artwork; `newart-pack/import_report.txt` lists deliveries worth a look (no transparency,
+drawn outside the silhouette, a moved composition).
 
 ### Other generated data
 

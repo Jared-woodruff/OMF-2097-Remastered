@@ -7,10 +7,8 @@ import { Palette, RemapTables } from '../../formats/palette';
 import { decodeSprite } from '../../formats/sprite';
 import { saveWide } from '../../gen/scene/build';
 import { buildRemaps, choosePalette, indexImage, OWN_COUNT, OWN_FIRST } from '../../gen/scene/palette';
-import { GEN_ARENAS } from '../../gen/scene/arenas';
 import { MOD_AMBIENCE, MOD_MUSIC } from '../../mods/types';
 import { getFile } from '../../resources/files';
-import { getGenerated } from '../../resources/generated';
 import { langGet } from '../../resources/resources';
 import { decodePng, encodeIndexedPng } from '../../util/png';
 import { encodeSprite } from '../../formats/sprite';
@@ -24,8 +22,9 @@ import { ARENA_EFFECTS, ARENA_OWN, ArenaAnimEditor } from './animEditor';
 import type { Editor, StudioApp } from '../app';
 import { arenaPalette, indexedCanvas, nearestEntry, referenceArena } from '../colors';
 import { field, fill, h, modal, pickFiles, select, textInput, toast } from '../dom';
-import { emptyHd, freeContentId, type ArenaDoc } from '../project';
-import { editorHead } from '../ui';
+import { EXTRAS_ARENAS, extrasPackage } from '../extras';
+import { emptyHd, freeContentId, hdFromPackage, type ArenaDoc } from '../project';
+import { bkPicture, editorHead, pictureChoice, type PictureGroup } from '../ui';
 
 const ORIGINAL_NAMES = ['STADIUM', 'DANGER ROOM', 'POWER PLANT', 'FIRE PIT', 'DESERT'];
 const BASES: [number, string][] = [[-1, 'None'], [0, 'Stadium (light on the robots)'], [1, 'Danger Room'], [2, 'Power Plant (electric walls)'],
@@ -271,10 +270,30 @@ export async function newArenaDialog(app: StudioApp): Promise<ArenaDoc | null> {
   let start: Start = 'copy';
   let from = 5;
   let name = 'NEW ARENA';
-  const sources: [number, string][] = [
-    ...ORIGINAL_NAMES.map((n, i) => [i, `${n} (original)`] as [number, string]),
-    ...GEN_ARENAS.map((a) => [a.index, `${a.name} (the remaster's)`] as [number, string]),
-  ];
+  // What a copy starts from: the game's arenas, and the new arenas (their pictures once their mod's package is here).
+  const game: PictureGroup<number> = { title: 'THE GAME\'S ARENAS', items: ORIGINAL_NAMES.map((n, i) => ({ value: i, name: n, picture: null })) };
+  const extras: PictureGroup<number> = { title: 'THE NEW ARENAS', items: EXTRAS_ARENAS.map(([n, aname]) => ({ value: n, name: aname, picture: null })) };
+  const sources = pictureChoice('arena', [game, extras], () => from, (v) => (from = v));
+  let pictured = false;
+  const drawSources = () => {
+    if (pictured) return;
+    pictured = true;
+    for (const it of game.items) {
+      try {
+        it.picture = bkPicture(parseBK(getFile(`ARENA${it.value}.BK`)));
+      } catch {
+        // (its kind's icon)
+      }
+    }
+    sources.redraw();
+    extrasPackage().then((pkg) => {
+      for (const it of extras.items) {
+        const a = pkg.arenas.find((x) => x.id === EXTRAS_ARENAS.find(([n]) => n === it.value)?.[2]);
+        if (a) it.picture = bkPicture(parseBK(a.bk));
+      }
+      sources.redraw();
+    }, () => {});
+  };
   const body = h('div');
   const render = () => {
     const choice = (s: Start, title: string, text: string) => h('div', {
@@ -290,10 +309,11 @@ export async function newArenaDialog(app: StudioApp): Promise<ArenaDoc | null> {
         i.addEventListener('input', () => (name = i.value.toUpperCase()));
         return i;
       })()),
-      start === 'copy' ? h('div', { style: { marginTop: '12px' } }, field('Arena', select<number>(sources, () => from, (v) => (from = v)))) : null);
+      start === 'copy' ? h('div', { style: { marginTop: '14px' } }, sources.el) : null);
+    if (start === 'copy') drawSources();
   };
   render();
-  const ok = await modal<boolean>((close) => h('div', { class: 'modal', style: { width: '620px' } },
+  const ok = await modal<boolean>((close) => h('div', { class: 'modal', style: { width: '760px' } },
     h('h2', null, 'New arena'), body,
     h('div', { class: 'actions' }, h('button', { class: 'btn', onclick: () => close(false) }, 'Cancel'),
       h('button', { class: 'btn primary', onclick: () => close(true) }, start === 'picture' ? 'Choose the picture' : 'Make it'))));
@@ -303,15 +323,23 @@ export async function newArenaDialog(app: StudioApp): Promise<ArenaDoc | null> {
   const info = { name: clean, description: '', newsName: clean.charAt(0) + clean.slice(1).toLowerCase(), music: 'ARENA0.PSM' as const, ambience: 'none' as const, base: -1,
     loops: [] as number[] };
   if (start === 'copy') {
-    const file = `ARENA${from}.BK`;
-    const gen = GEN_ARENAS.find((a) => a.index === from);
-    const bk = parseBK(gen ? getGenerated(file)! : getFile(file));
-    const music = (gen?.music ?? `ARENA${from}.PSM`) as typeof info.music;
-    const ambience = (['stadium', 'danger room', 'power plant', 'fire pit', 'desert', 'orbital', 'ice cave', 'rooftop', 'abyss'][from] ?? 'none') as typeof info.ambience;
+    // A new arena: as its mod has it (its texts, music and ambience, its HD background).
+    const extra = EXTRAS_ARENAS.find(([n]) => n === from);
+    if (extra) {
+      try {
+        const a = (await extrasPackage()).arenas.find((x) => x.id === extra[2]);
+        if (!a) throw new Error(`the new arenas have no ${extra[1]}`);
+        const bk = parseBK(a.bk);
+        return { id, bk, wid: a.wid, hd: hdFromPackage(a.hd, bk.anims), info: { ...structuredClone(a.info), name: clean } };
+      } catch (err) {
+        toast(`The arena could not be copied: ${(err as Error)?.message ?? err}`, true, 6000);
+        return null;
+      }
+    }
+    const ambience = (['stadium', 'danger room', 'power plant', 'fire pit', 'desert'][from] ?? 'none') as typeof info.ambience;
     return {
-      id, bk, wid: gen ? getGenerated(`ARENA${from}.WID`) : null, hd: null,
-      info: { ...info, music, ambience, base: from < 5 ? from : -1,
-        description: from < 5 ? langGet(66 + from).replace(/\n$/, '') : gen?.description ?? '' },
+      id, bk: parseBK(getFile(`ARENA${from}.BK`)), wid: null, hd: null,
+      info: { ...info, music: `ARENA${from}.PSM` as typeof info.music, ambience, base: from, description: langGet(66 + from).replace(/\n$/, '') },
     };
   }
   const pic = await pictureFile();

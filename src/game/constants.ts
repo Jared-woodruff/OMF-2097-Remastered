@@ -33,7 +33,7 @@ export enum SceneId {
   ARENA2,
   ARENA3,
   ARENA4,
-  // The remaster's arenas (generated, see src/gen/scene; opt-in: settings gameplay.extraArenas).
+  // The remaster's arenas (generated, see src/gen/scene): the numbers their mod plays them under (mods/extras.ts).
   ARENA5,
   ARENA6,
   ARENA7,
@@ -84,7 +84,7 @@ export enum HarId {
   GARGOYLE,
   CHRONOS,
   NOVA,
-  // The remaster's robots (generated, see src/gen; opt-in: settings gameplay.extraRobots).
+  // The remaster's robots (generated, see src/gen): the numbers their mod plays them under (mods/extras.ts).
   GLACIER,
   TEMPEST,
   HELIX,

@@ -23,4 +23,8 @@ export interface GenRobot {
   finisher(b: Body): FinisherSpec;
   /** Names and inputs of the special moves for the move list (by move id). */
   specialNames: Record<number, string>;
+  /** A robot built from the workshop's parts (gen/workshop.ts): the HAR ids of the generated robots whose frame and
+   *  whose special moves and finisher it has, whose remastered effects go with them (fx/robotFx.ts). */
+  bodyOf?: number;
+  movesOf?: number;
 }

@@ -18,6 +18,7 @@ import { robotEditor } from './robot/robotEditor';
 import { newRobotDialog } from './robot/newRobot';
 import { arenaEditor, newArenaDialog } from './arena/arenaEditor';
 import { newPilotDialog, pilotEditor } from './pilot/pilotEditor';
+import { extrasPackage } from './extras';
 import { testFight } from './test';
 import { A, contentPicture, hero, timeAgo, type ContentKind } from './ui';
 
@@ -101,7 +102,9 @@ export class StudioApp {
       h('div', { class: 'choices big' },
         choice('plus', 'NEW MOD', 'Start an empty mod, then add robots, arenas and pilots to it.', () => this.open(newProject())),
         choice('folder', 'OPEN A MOD FILE', `Change a mod: open its ${MOD_EXTENSION} file, or drop it here.`, () => void this.openPicked()),
-        choice('sample', 'OPEN THE SAMPLE', 'A mod with a robot, an arena and a pilot, to see how one is made.', () => void this.openSample())),
+        choice('sample', 'OPEN THE SAMPLE', 'A mod with a robot, an arena and a pilot, to see how one is made.', () => void this.openSample()),
+        choice('robot', 'THE NEW ROBOTS AND ARENAS', 'The remaster\'s four robots and four arenas are a mod like any other: open a copy of ' +
+          'it to see how they are made, or to change them.', () => void this.openExtras())),
       recent.length ? [h('div', { class: 'section-title' }, 'CONTINUE'), h('div', { class: 'recent' }, recent.map((r) => h('div', {
         class: 'item', title: `Open ${r.name}`, onclick: () => void this.openStored(r.key),
       },
@@ -140,12 +143,30 @@ export class StudioApp {
   }
 
   private async openSample(): Promise<void> {
-    const pkg = await buildSampleMod();
-    const p = projectFromPackage(await readModPackage(await writeModPackage(pkg)));
-    p.manifest.id = 'me.sample-copy';
-    p.manifest.name = 'Sample mod (copy)';
-    this.open(p);
-    this.changed();
+    try {
+      const pkg = await buildSampleMod(await extrasPackage());
+      const p = projectFromPackage(await readModPackage(await writeModPackage(pkg)));
+      p.manifest.id = 'me.sample-copy';
+      p.manifest.name = 'Sample mod (copy)';
+      this.open(p);
+      this.changed();
+    } catch (err) {
+      toast(`The sample could not be made: ${(err as Error)?.message ?? err}`, true, 6000);
+    }
+  }
+
+  /** A copy of the new robots and arenas' mod (the one that comes with the game), to see how it is made or change it. */
+  private async openExtras(): Promise<void> {
+    try {
+      toast('Opening the new robots and arenas…');
+      const p = projectFromPackage(await extrasPackage());
+      p.manifest.id = 'me.new-robots-and-arenas';
+      p.manifest.name = 'New robots and arenas (copy)';
+      this.open(p);
+      this.changed();
+    } catch (err) {
+      toast(`The new robots and arenas could not be opened: ${(err as Error)?.message ?? err}`, true, 6000);
+    }
   }
 
   private async openStored(key: string): Promise<void> {
@@ -292,7 +313,8 @@ export class StudioApp {
     this.project!.robots.push(r);
     this.changed();
     this.select({ kind: 'robot', index: this.project!.robots.length - 1 });
-    if (r.info.workshop) toast('Its HD pictures can be rendered from its 3D model: HD ARTWORK, on its overview.', false, 6000);
+    // (a copy of one of the new robots comes with its painted pictures)
+    if (r.info.workshop && !r.hd?.sprites.size) toast('Its HD pictures can be rendered from its 3D model: HD ARTWORK, on its overview.', false, 6000);
   }
 
   async addArena(): Promise<void> {

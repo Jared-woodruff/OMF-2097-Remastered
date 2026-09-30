@@ -3,10 +3,9 @@
 // the one-player game (from its pilot select screen, its VS screen against an original pilot, or its ending). Content
 // of the project is named "mod:<its folder name>" in the game's address; the game's own by number.
 import { HAR_NAMES, PILOT_NAMES } from '../game/constants';
-import { GEN_ARENAS } from '../gen/scene/arenas';
-import { GEN_ROBOTS } from '../gen/roster';
 import type { StudioApp } from './app';
 import { field, h, modal, select } from './dom';
+import { EXTRAS_ARENAS, EXTRAS_ROBOTS } from './extras';
 import type { Project } from './project';
 
 type Mode = 'fight' | 'watch' | 'training' | 'select' | 'vs' | 'ending';
@@ -34,12 +33,12 @@ export async function testFight(app: StudioApp, p: Project, prefer: Partial<Reco
   const robots: [string, string][] = [
     ...p.robots.map((r) => [`mod:${r.id}`, `${r.info.name} (this mod)`] as [string, string]),
     ...HAR_NAMES.slice(0, 10).map((n, i) => [String(i), n] as [string, string]),
-    ...GEN_ROBOTS.map((r) => [String(r.id), `${r.name} (if it is on in the game)`] as [string, string]),
+    ...EXTRAS_ROBOTS.map(([n, name]) => [String(n), `${name} (the new robots)`] as [string, string]),
   ];
   const arenas: [string, string][] = [
     ...p.arenas.map((a) => [`mod:${a.id}`, `${a.info.name} (this mod)`] as [string, string]),
     ...['STADIUM', 'DANGER ROOM', 'POWER PLANT', 'FIRE PIT', 'DESERT'].map((n, i) => [String(i), n] as [string, string]),
-    ...GEN_ARENAS.map((a) => [String(a.index), a.name] as [string, string]),
+    ...EXTRAS_ARENAS.map(([n, name]) => [String(n), `${name} (the new arenas)`] as [string, string]),
   ];
   const pilots: [string, string][] = [
     ...p.pilots.map((pl) => [`mod:${pl.id}`, `${pl.info.name} (this mod)`] as [string, string]),
@@ -76,7 +75,7 @@ export async function testFight(app: StudioApp, p: Project, prefer: Partial<Reco
     h('div', { class: 'bar' },
       h('span', { class: 'hazard' }),
       h('b', { class: 'omf', style: { fontSize: '13px', color: '#ffb431' } }, 'TEST'),
-      h('span', { class: 'muted what' }, `${p.manifest.name}:${s.mode === 'select' || s.mode === 'ending' ? MODES.find(([m]) => m === s.mode)?.[1] :
+      h('span', { class: 'muted what' }, `${p.manifest.name}: ${s.mode === 'select' || s.mode === 'ending' ? MODES.find(([m]) => m === s.mode)?.[1] :
         `${robots.find(([k]) => k === s.robot)?.[1]} vs ${robots.find(([k]) => k === s.opponent)?.[1]}, ${arenas.find(([k]) => k === s.arena)?.[1]}`}`),
       h('span', { style: { flex: '1' } }),
       h('span', { class: 'faint' }, 'Click the game to play; the keys are the game\'s'),

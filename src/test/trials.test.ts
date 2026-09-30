@@ -1,14 +1,17 @@
 // Combo trials: every trial of every robot can be done (the search's timing lands all its moves in one combo against
 // the standard dummy), and the trial runner of the training lab sees a combo through and counts it as done.
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { harData, harInstallHook } from '../game/objects/har';
 import { settings } from '../game/settings';
 import { COMBO_TRIALS, SPECIAL_TRIALS } from '../game/training/trialData';
 import { robotTrials, TrialRunner, trialDone } from '../game/training/trials';
 import { ComboSim } from './comboSim';
-import { hasGameData } from './harness';
+import { hasExtras, hasGameData, loadExtras } from './harness';
 
-describe.skipIf(!hasGameData)('combo trials', () => {
+describe.skipIf(!hasGameData || !hasExtras)('combo trials', () => {
+  // (the new robots have trials too: their mod is on)
+  beforeAll(() => loadExtras());
+
   it('every robot has trials, and each combo lands in one piece', () => {
     for (let har = 0; har <= 14; har++) {
       const combos = COMBO_TRIALS[har] ?? [];

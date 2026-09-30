@@ -37,7 +37,7 @@ import { bkGetInfo, langGet } from '../resources/resources';
 import { harName, harPicture, hasFighter, loadAf, loadBk } from '../resources/resources';
 import { decodePng, encodeIndexedPng, encodePng } from '../util/png';
 import { unzip, zip } from '../util/zip';
-import { createGame, hasGameData, HeadlessRunner, installBrowserShims, loadGameData } from './harness';
+import { createGame, extrasPackage, hasGameData, HeadlessRunner, installBrowserShims, loadGameData } from './harness';
 
 describe('zip archives', () => {
   it('keep their files (stored and deflated) and names', async () => {
@@ -130,7 +130,7 @@ describe.skipIf(!hasGameData)('mod packages', () => {
   beforeAll(async () => {
     installBrowserShims();
     loadGameData();
-    sample = await buildSampleMod();
+    sample = await buildSampleMod(await extrasPackage());
     bytes = await writeModPackage(sample);
   });
 
@@ -174,7 +174,7 @@ describe.skipIf(!hasGameData)('mods in the game', () => {
     loadGameData();
     resetMods();
     resetModIds();
-    await registerModPackage(await readModPackage(await writeModPackage(await buildSampleMod())));
+    await registerModPackage(await readModPackage(await writeModPackage(await buildSampleMod(await extrasPackage()))));
     harId = modRobots()[0].harId;
     arena = modArenas()[0].index;
   });
@@ -183,7 +183,7 @@ describe.skipIf(!hasGameData)('mods in the game', () => {
     expect(harId).toBe(MOD_ID_RANGES.robot.first);
     expect(arena).toBe(MOD_ID_RANGES.arena.first);
     resetMods();
-    await registerModPackage(await buildSampleMod());
+    await registerModPackage(await buildSampleMod(await extrasPackage()));
     expect(modRobots()[0].harId).toBe(harId);
   });
 
@@ -260,7 +260,7 @@ describe.skipIf(!hasGameData)('mod pilots in the game', () => {
     installBrowserShims();
     loadGameData();
     resetMods();
-    await registerModPackage(await buildSampleMod());
+    await registerModPackage(await buildSampleMod(await extrasPackage()));
     pilotId = modPilots()[0].pilotId;
     harId = modRobots()[0].harId;
   });
@@ -398,7 +398,7 @@ describe.skipIf(!hasGameData)('animations of mod arenas', () => {
 
   it('loop from the start when the arena lists them, with its own sounds over the original ones', async () => {
     resetMods();
-    await registerModPackage(await buildSampleMod());
+    await registerModPackage(await buildSampleMod(await extrasPackage()));
     const arena = modArenas()[0].index;
     const gs = createGame(SceneId.MENU, [0, 1], [0, 5]);
     gs.swapScene(SceneId.ARENA0 + arena);
@@ -416,7 +416,7 @@ describe.skipIf(!hasGameData)('animations of mod arenas', () => {
 
   it('a hazard of a mod arena hurts the robot it touches', async () => {
     resetMods();
-    const pkg = await buildSampleMod();
+    const pkg = await buildSampleMod(await extrasPackage());
     // The arc almost every tick, where the first robot stands.
     const bk = parseBK(pkg.arenas[0].bk);
     bk.anims[SAMPLE_ARC]!.probability = 2;
@@ -439,7 +439,7 @@ describe.skipIf(!hasGameData)('animations of mod arenas', () => {
 
   it('a hazard OMF Studio copies from an original arena plays in a mod arena', async () => {
     resetMods();
-    const pkg = await buildSampleMod();
+    const pkg = await buildSampleMod(await extrasPackage());
     const bk = parseBK(pkg.arenas[0].bk);
     // The Fire Pit's orbs: the animation that starts them (made more frequent), the orb, its burst and its fade.
     const map = copyAnims(bk, parseBK(getFile('ARENA3.BK')), 0, 0, true)!;
@@ -476,14 +476,14 @@ describe.skipIf(!hasGameData)('HD pictures of mods', () => {
 
   /** The sample package as files, with a robot's hd.json and pictures. */
   async function withRobotHd(hd: unknown, pictures: [string, Uint8Array][]): Promise<Uint8Array> {
-    const files = await unzip(await writeModPackage(await buildSampleMod()));
+    const files = await unzip(await writeModPackage(await buildSampleMod(await extrasPackage())));
     files.set('robots/sentinel/hd.json', json(hd));
     for (const [f, data] of pictures) files.set(`robots/sentinel/${f}`, data);
     return zip(files);
   }
 
   it('go with the sprites they were made for, in their shape', async () => {
-    const sample = await buildSampleMod();
+    const sample = await buildSampleMod(await extrasPackage());
     const idle = parseAF(sample.robots[0].af).moves[11]!.animation.sprites[0];
     const nw = idle.width + 2 * HD_PAD, nh = idle.height + 2 * HD_PAD;
     const good = await picture(nw * HD_SCALE.x, nh * HD_SCALE.y);
@@ -513,7 +513,7 @@ describe.skipIf(!hasGameData)('HD pictures of mods', () => {
   });
 
   it('of an arena\'s background have its whole shape, with its widescreen sides', async () => {
-    const files = await unzip(await writeModPackage(await buildSampleMod()));
+    const files = await unzip(await writeModPackage(await buildSampleMod(await extrasPackage())));
     files.set('arenas/dusk-rooftop/hd.json', json({ background: 'hd/background.webp' }));
     // (the sample's arena has widescreen sides: 576 x 200 at 5 x 6, here at half the remaster's resolution)
     const bg = await picture(1440, 600);

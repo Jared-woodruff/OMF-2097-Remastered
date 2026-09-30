@@ -8,7 +8,6 @@ import { menuControlsCreate } from './menuControls';
 import { menuGameplayCreate } from './menuGameplay';
 import { menuGraphicsCreate } from './menuGraphics';
 import { menuLanguageCreate } from './menuLanguage';
-import { menuNewContentCreate } from './menuNewContent';
 import { menuSoundCreate } from './menuSound';
 
 export function menuOptionsCreate(s: MainMenuScene): Menu {
@@ -16,8 +15,6 @@ export function menuOptionsCreate(s: MainMenuScene): Menu {
   menu.attach(Label.title('OPTIONS'));
   menu.attach(new Button('GAMEPLAY', 'Tweak the game speed, computer intelligence, and other play options.', false, false,
     (b) => parentMenu(b).setSubmenu(menuGameplayCreate(s))));
-  menu.attach(new Button('NEW CONTENT', 'The four robots and four arenas made for the remaster: turn them on or off.', false, false,
-    (b) => parentMenu(b).setSubmenu(menuNewContentCreate())));
   menu.attach(new Button('CONTROLS', 'Keyboard or joystick for each player, the key layouts, the special button, rumble and ' +
     'the touch pad.', false, false, (b) => parentMenu(b).setSubmenu(menuControlsCreate(s))));
   menu.attach(new Button('GRAPHICS', 'The classic or the remastered graphics, and the options of each: the classic filters, ' +

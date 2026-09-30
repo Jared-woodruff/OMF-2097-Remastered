@@ -1,29 +1,30 @@
-// A new robot in OMF Studio: a copy of one of the game's robots, one built with the robot workshop's generator (the
-// remaster's own robots are made the same way: a 3D model posed and drawn into every frame), or a blank one to draw.
+// A new robot in OMF Studio: a copy of one of the game's robots (the originals, or the new robots of the mod that comes
+// with the game, with their HD pictures), one built with the robot workshop's generator (the new robots are made the
+// same way: a 3D model posed and drawn into every frame), or a blank one to draw.
 import { parseAF, type AfFile } from '../../formats/af';
 import { encodeSprite } from '../../formats/sprite';
-import { MOVE } from '../../gen/fighter/moveset';
-import { GEN_ROBOTS } from '../../gen/roster';
+import { GEN_ROBOTS, GEN_TACTICS } from '../../gen/roster';
 import { buildWorkshopFighter, cleanName, PART_NAMES, SIZE_NAMES, WEIGHT_NAMES, workshopPreview, type WorkshopSpec } from '../../gen/workshop';
-import type { ModRobotInfo } from '../../mods/types';
 import { getFile } from '../../resources/files';
-import { getGenerated } from '../../resources/generated';
 import { harName } from '../../resources/resources';
 import { parseAnim } from '../anim';
 import type { StudioApp } from '../app';
 import { indexedCanvas, rampColor, robotPalette } from '../colors';
 import { field, fill, h, modal, select, toast } from '../dom';
-import { freeContentId, type RobotDoc } from '../project';
+import { EXTRAS_ROBOTS, extrasPackage } from '../extras';
+import { freeContentId, hdFromPackage, type RobotDoc } from '../project';
 import { blankSprite } from '../sprites';
+import { afPicture, pictureChoice, type PictureGroup } from '../ui';
 import { newMove } from './model';
 
-/** The remaster's robots' specials by kind, for the computer's tactics (see controller/ai.ts). */
-const GEN_TACTICS: Record<string, ModRobotInfo['ai']> = {
-  GLACIER: { projectile: [MOVE.SPECIAL1], charge: [MOVE.SPECIAL2], push: [MOVE.SPECIAL3] },
-  TEMPEST: { projectile: [MOVE.SPECIAL1], charge: [MOVE.SPECIAL2], push: [MOVE.SPECIAL2] },
-  HELIX: { projectile: [MOVE.SPECIAL3], charge: [MOVE.SPECIAL1], push: [MOVE.SPECIAL2] },
-  SPECTRE: { projectile: [MOVE.SPECIAL1], charge: [MOVE.SPECIAL3], push: [] },
-};
+/** The game's robots' fighter files, parsed for their pictures in the copy choice (kept: the dialog opens again). */
+const originals = new Map<number, AfFile>();
+
+function originalAf(harId: number): AfFile {
+  let af = originals.get(harId);
+  if (!af) originals.set(harId, (af = parseAF(getFile(`FIGHTR${harId}.AF`))));
+  return af;
+}
 
 /** Attacks that fire a projectile (they spawn a move of the projectile kind). */
 function projectileMoves(af: AfFile): number[] {
@@ -43,10 +44,31 @@ export async function newRobotDialog(app: StudioApp): Promise<RobotDoc | null> {
   let copyFrom = 0;
   let name = 'NEW ROBOT';
   const spec: WorkshopSpec = { v: 1, name: 'NEW ROBOT', body: 0, head: 3, moves: 2, size: 1, weight: 1, colors: [...app.colors] as [number, number, number] };
-  const copies: [number, string][] = [
-    ...Array.from({ length: 11 }, (_, i) => [i, harName(i).toUpperCase() || `ROBOT ${i}`] as [number, string]),
-    ...GEN_ROBOTS.map((r) => [r.id, `${r.name} (the remaster's)`] as [number, string]),
-  ];
+  // What a copy starts from: the game's robots, and the new robots (their pictures once their mod's package is here).
+  const game: PictureGroup<number> = { title: 'THE GAME\'S ROBOTS', items: Array.from({ length: 11 }, (_, i) => ({
+    value: i, name: harName(i).toUpperCase() || `ROBOT ${i}`, picture: null })) };
+  const extras: PictureGroup<number> = { title: 'THE NEW ROBOTS', items: EXTRAS_ROBOTS.map(([n, rname]) => ({ value: n, name: rname, picture: null })) };
+  const copies = pictureChoice('robot', [game, extras], () => copyFrom, (v) => (copyFrom = v));
+  let pictured = false;
+  const drawCopies = () => {
+    if (pictured) return;
+    pictured = true;
+    for (const it of game.items) {
+      try {
+        it.picture = afPicture(originalAf(it.value), app.colors);
+      } catch {
+        // (its kind's icon)
+      }
+    }
+    copies.redraw();
+    extrasPackage().then((pkg) => {
+      for (const it of extras.items) {
+        const r = pkg.robots.find((x) => x.id === EXTRAS_ROBOTS.find(([n]) => n === it.value)?.[2]);
+        if (r) it.picture = afPicture(parseAF(r.af), app.colors);
+      }
+      copies.redraw();
+    }, () => {});
+  };
   const body = h('div');
   const preview = h('div', { class: 'screen', style: { minHeight: '150px', display: 'grid', placeItems: 'center' } });
   const drawPreview = () => {
@@ -76,7 +98,7 @@ export async function newRobotDialog(app: StudioApp): Promise<RobotDoc | null> {
         i.addEventListener('input', () => ((name = i.value.toUpperCase()), start === 'workshop' && drawPreview()));
         return i;
       })(), 'up to 12 letters'),
-      start === 'copy' ? h('div', { style: { marginTop: '12px' } }, field('Robot', select<number>(copies, () => copyFrom, (v) => (copyFrom = v)))) : null,
+      start === 'copy' ? h('div', { style: { marginTop: '14px' } }, copies.el) : null,
       start === 'workshop' ? h('div', { class: 'grid2', style: { marginTop: '12px', alignItems: 'start' } },
         h('div', { class: 'grid2' },
           part('Frame (body)', 'body'), part('Head', 'head'), part('Moves', 'moves'),
@@ -90,6 +112,7 @@ export async function newRobotDialog(app: StudioApp): Promise<RobotDoc | null> {
             })))))),
         preview) : null);
     if (start === 'workshop') drawPreview();
+    if (start === 'copy') drawCopies();
   };
   render();
   const ok = await modal<boolean>((close) => h('div', { class: 'modal', style: { width: '760px' } },
@@ -112,17 +135,18 @@ export async function newRobotDialog(app: StudioApp): Promise<RobotDoc | null> {
       };
     }
     if (start === 'copy') {
-      const file = `FIGHTR${copyFrom}.AF`;
-      const af = parseAF(getGenerated(file) ?? getFile(file));
-      const g = GEN_ROBOTS.find((r) => r.id === copyFrom);
-      // (the remaster's robots are the robot workshop's parts of one robot: their 3D model draws them)
-      const k = g ? GEN_ROBOTS.indexOf(g) : -1;
-      return {
-        id, af, hd: null,
-        info: { name: clean, description: '', moves: g ? { ...g.specialNames } : {},
-          ai: g ? structuredClone(GEN_TACTICS[g.name]) : { projectile: projectileMoves(af), charge: [], push: [] },
-          workshop: g ? { v: 1, name: cleanName(g.name), body: k, head: k, moves: k, size: 1, weight: 1, colors: [...spec.colors] } : null },
-      };
+      // A new robot: its robot as its mod has it (the robot workshop's parts of one robot, their 3D model draws them),
+      // its HD pictures too.
+      const extra = EXTRAS_ROBOTS.find(([n]) => n === copyFrom);
+      if (extra) {
+        const r = (await extrasPackage()).robots.find((x) => x.id === extra[2]);
+        if (!r) throw new Error(`the new robots have no ${extra[1]}`);
+        const af = parseAF(r.af);
+        return { id, af, hd: hdFromPackage(r.hd, af.moves), info: { ...structuredClone(r.info), name: clean } };
+      }
+      // (parsed again: the copy is the project's own)
+      const af = parseAF(getFile(`FIGHTR${copyFrom}.AF`));
+      return { id, af, hd: null, info: { name: clean, description: '', moves: {}, ai: { projectile: projectileMoves(af), charge: [], push: [] }, workshop: null } };
     }
     return { id, af: blankRobot(), hd: null, info: { name: clean, description: '', moves: {}, ai: { projectile: [], charge: [], push: [] }, workshop: null } };
   } catch (err) {

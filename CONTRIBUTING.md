@@ -26,9 +26,9 @@ npm run build          # the web build
 The tests run against the game data in `public/gamedata/` (they skip themselves where it is missing, e.g. in a copy
 without it).
 
-The remaster's own robots and arenas are generated from `src/gen` into `public/gen/` (committed). After changing their
-models, moves or scenes, run `npm run gen` (see [docs/BUILDING.md](docs/BUILDING.md)); a test fails when the robots'
-files are out of date.
+The remaster's own robots and arenas are generated from `src/gen` into their mod's package, `public/mods/`
+(committed: they come with the game as a mod). After changing their models, moves or scenes, run `npm run gen` (see
+[docs/BUILDING.md](docs/BUILDING.md)); a test fails when the robots' files are out of date.
 
 The dev server has a debug API for poking at the running game: `?fight=3&ai` starts a CPU fight in the Fire Pit,
 `?scene=MELEE` opens a scene directly, and `window.__omf` offers `step(ms)`, `key(code, down)`, `pointer(kind, x, y)`
@@ -50,5 +50,5 @@ and `capture(name, w, h)` (writes a PNG to `.captures/`). See [docs/ARCHITECTURE
 
 The original game's files are included on its freeware terms ([NOTICE.md](NOTICE.md)): nothing here may ever be sold
 or put behind a charge. Keep other copyrighted material out, and the artwork packs' working files (`hd-pack/`,
-`newart-pack/`, source images and prompts) too: only the imported artwork (`public/hd/`, and the new arenas' paintings
-in `public/gen/` and `src/gen/scene/art/`) belongs in the repository.
+`newart-pack/`, source images and prompts) too: only the imported artwork (`public/hd/`, the new robots and arenas'
+mod package in `public/mods/`, and the new arenas' paintings in `src/gen/scene/art/`) belongs in the repository.

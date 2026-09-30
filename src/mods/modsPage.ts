@@ -1,6 +1,7 @@
-// EXTRAS > MODS: the installed mods (made with OMF Studio, shared as .omfmod files). ENTER / A turns the selected mod
-// on or off, I installs mod files (dropping them on the game does too), E saves the selected one as a file, DELETE
-// removes it (press twice). The engine keeps what it loaded, so changes play from the next start: R restarts the game.
+// EXTRAS > MODS: the mods that come with the game (the remaster's new robots and arenas, bundled.ts) and the installed
+// ones (made with OMF Studio, shared as .omfmod files). ENTER / A turns the selected mod on or off, I installs mod files
+// (dropping them on the game does too), E saves the selected one as a file, DELETE removes an installed one (press
+// twice). The engine keeps what it loaded, so changes play from the next start: R restarts the game.
 import type { PointerKind } from '../controller/mouse';
 import { ACT_DOWN, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_UP, type CtrlType } from '../game/constants';
 import { Painter } from '../game/gui/painter';
@@ -12,6 +13,7 @@ import { toast } from '../platform/toast';
 import { APP_VERSION } from '../platform/versionLabel';
 import { video } from '../video/draw';
 import type { Surface } from '../video/surface';
+import { bundledEnabled, bundledMods, fetchBundled, setBundledEnabled, type BundledMod } from './bundled';
 import { MOD_EXTENSION, readModPackage, type ModPackage } from './package';
 import { modState } from './registry';
 import { installMod, listMods, removeMod, setModEnabled, type InstalledMod } from './store';
@@ -22,6 +24,22 @@ const ROW_H = 10;
 const ROWS = 6;
 /** The longest line that fits the frame (small font). */
 const LINE = 46;
+
+/** A mod on the page: an installed one, or one that comes with the game (`bundled`: it has no record, its package is fetched when needed). */
+interface ModRow extends Omit<InstalledMod, 'bytes'> {
+  bytes: Uint8Array | null;
+  bundled: BundledMod | null;
+}
+
+/** Rows of the selected mod's description. */
+const DESC_ROWS = 3;
+
+/** A description cut to what the page shows (DESC_ROWS rows of the small font), ending with "..." when it goes on. */
+function fitted(text: string): string {
+  const rows = new Text(FontSize.SMALL, 284, 0xffff, text).lines();
+  if (rows.length <= DESC_ROWS) return text;
+  return `${rows.slice(0, DESC_ROWS).map((r) => r.str).join('').trimEnd().slice(0, -3).trimEnd()}...`;
+}
 
 /** A mod's content and whether it can be played (its package read again). */
 interface Details {
@@ -44,7 +62,7 @@ export async function installModFiles(files: File[]): Promise<{ installed: strin
 }
 
 export class ModsPage extends Page {
-  private list: InstalledMod[] | null = null;
+  private list: ModRow[] | null = null;
   private sel = 0;
   private top = 0;
   private status = '';
@@ -63,7 +81,16 @@ export class ModsPage extends Page {
   }
 
   private async reload(keepId?: string): Promise<void> {
-    this.list = await listMods();
+    const installed = await listMods();
+    // (the ones that come with the game first, unless a version of one is installed)
+    const bundled = (await bundledMods()).filter((b) => !installed.some((m) => m.id === b.id));
+    this.list = [
+      ...bundled.map((b): ModRow => ({
+        id: b.id, name: b.name, version: b.version, author: b.author, description: b.description, enabled: bundledEnabled(b.id), bytes: null,
+        installed: 0, bundled: b,
+      })),
+      ...installed.map((m): ModRow => ({ ...m, bundled: null })),
+    ];
     if (keepId !== undefined) {
       const i = this.list.findIndex((m) => m.id === keepId);
       if (i >= 0) this.sel = i;
@@ -76,7 +103,8 @@ export class ModsPage extends Page {
   /** Reads the selected mod's package (its content names, and whether this game can play it). */
   private async loadDetails(): Promise<void> {
     const m = this.chosen();
-    if (!m || this.details.has(`${m.id}@${m.installed}`)) return;
+    // (one that comes with the game: its list names its content)
+    if (!m?.bytes || this.details.has(`${m.id}@${m.installed}`)) return;
     const key = `${m.id}@${m.installed}`;
     this.details.set(key, { pkg: null, error: null });
     try {
@@ -92,7 +120,7 @@ export class ModsPage extends Page {
     this.top = Math.max(0, this.top);
   }
 
-  private chosen(): InstalledMod | null {
+  private chosen(): ModRow | null {
     return this.list?.[this.sel] ?? null;
   }
 
@@ -112,7 +140,7 @@ export class ModsPage extends Page {
   }
 
   /** What becomes of a mod: playing now, from the next start, or why it cannot be played (`reason`). */
-  private state(m: InstalledMod): { text: string; color: number; reason?: string } {
+  private state(m: ModRow): { text: string; color: number; reason?: string } {
     const s = modState(m.id);
     const d = this.details.get(`${m.id}@${m.installed}`);
     const loadedNow = !!s?.loaded;
@@ -127,7 +155,8 @@ export class ModsPage extends Page {
   private async toggle(): Promise<void> {
     const m = this.chosen();
     if (!m || this.busy) return;
-    await setModEnabled(m.id, !m.enabled);
+    if (m.bundled) setBundledEnabled(m.id, !m.enabled);
+    else await setModEnabled(m.id, !m.enabled);
     m.enabled = !m.enabled;
     this.changed = true;
     this.say(`${m.name.toUpperCase()} IS ${m.enabled ? 'ON' : 'OFF'} FROM THE NEXT START`);
@@ -148,9 +177,10 @@ export class ModsPage extends Page {
 
   private exportSelected(): void {
     const m = this.chosen();
-    if (!m) return;
+    if (!m || this.busy) return;
     const name = `${m.id}${MOD_EXTENSION}`;
-    saveFile(name, m.bytes).then(
+    const bytes = m.bytes ? Promise.resolve(m.bytes) : fetchBundled(m.bundled!);
+    bytes.then((data) => saveFile(name, data)).then(
       (where) => {
         this.say(`SAVED ${name.toUpperCase()}`);
         if (where !== name) toast(`Saved ${where}`, 5000);
@@ -163,6 +193,10 @@ export class ModsPage extends Page {
   private async deleteSelected(): Promise<void> {
     const m = this.chosen();
     if (!m) return;
+    if (m.bundled) {
+      this.say('IT COMES WITH THE GAME: TURN IT OFF INSTEAD', true);
+      return;
+    }
     if (!this.confirmDelete) {
       this.confirmDelete = true;
       this.say(`PRESS DELETE AGAIN TO REMOVE ${m.name.toUpperCase()}`, true);
@@ -228,7 +262,7 @@ export class ModsPage extends Page {
     }
     const on = list.filter((m) => m.enabled).length;
     const head = this.busy ? 'INSTALLING...' : this.status || (list.length
-      ? `${list.length} MOD${list.length === 1 ? '' : 'S'} INSTALLED, ${on} ON`
+      ? `${list.length} MOD${list.length === 1 ? '' : 'S'}, ${on} ON`
       : 'NO MODS YET: I INSTALLS A MOD FILE (OR DROP IT ON THE GAME)');
     this.drawText('st', head, 160, 24, FontSize.SMALL, this.statusBad || this.confirmDelete ? PC.red : PC.dim, HAlign.CENTER);
 
@@ -249,8 +283,9 @@ export class ModsPage extends Page {
       this.drawText('on', m.enabled ? 'ON' : 'OFF', 18, y, FontSize.SMALL, m.enabled ? PC.green : PC.dim);
       const nv = `${m.name.toUpperCase()}  ${m.version}`.slice(0, 26);
       this.drawText('n', nv, 42, y, FontSize.SMALL, sel ? PAGE_ACTIVE : PAGE_NORMAL);
-      // (the author in the room the name leaves)
-      if (m.author) this.drawText('a', m.author.toUpperCase().slice(0, Math.max(8, LINE - 6 - nv.length)), 300, y, FontSize.SMALL, sel ? PC.white : PC.grey, HAlign.RIGHT);
+      // (the author in the room the name leaves; one that comes with the game says so)
+      const by = m.bundled ? 'WITH THE GAME' : m.author.toUpperCase();
+      if (by) this.drawText('a', by.slice(0, Math.max(8, LINE - 6 - nv.length)), 300, y, FontSize.SMALL, sel ? PC.white : m.bundled ? PC.gold : PC.grey, HAlign.RIGHT);
     }
     if (list.length > ROWS) {
       this.drawText('more', `${this.top + 1}-${Math.min(list.length, this.top + ROWS)} OF ${list.length}`, 300, 24,
@@ -262,16 +297,19 @@ export class ModsPage extends Page {
     if (m) {
       const d = this.details.get(`${m.id}@${m.installed}`);
       const pkg = d?.pkg;
-      if (pkg) {
+      const names = m.bundled ?? (pkg && {
+        robots: pkg.robots.map((r) => r.info.name), arenas: pkg.arenas.map((a) => a.info.name), pilots: pkg.pilots.map((p) => p.info.name),
+      });
+      if (names) {
         const lines = [
-          pkg.robots.length ? `ROBOTS: ${pkg.robots.map((r) => r.info.name).join(', ')}` : '',
-          pkg.arenas.length ? `ARENAS: ${pkg.arenas.map((a) => a.info.name).join(', ')}` : '',
-          pkg.pilots.length ? `PILOTS: ${pkg.pilots.map((p) => p.info.name).join(', ')}` : '',
+          names.robots.length ? `ROBOTS: ${names.robots.join(', ')}` : '',
+          names.arenas.length ? `ARENAS: ${names.arenas.join(', ')}` : '',
+          names.pilots.length ? `PILOTS: ${names.pilots.join(', ')}` : '',
         ].filter(Boolean);
         lines.forEach((l, i) => this.drawText(`c${i}`, l.length > LINE ? `${l.slice(0, LINE - 3)}...` : l, 18, 100 + i * 8, FontSize.SMALL, PC.cyan));
       }
       const st = this.state(m);
-      this.descText.set(st.reason ? st.reason.toUpperCase() : m.description || '').setColor(st.reason ? PC.red : PC.grey);
+      this.descText.set(fitted(st.reason ? st.reason.toUpperCase() : m.description || '')).setColor(st.reason ? PC.red : PC.grey);
       this.descText.draw(18, 128);
       this.drawText('s', st.text.slice(0, LINE), 160, 158, FontSize.SMALL, st.color, HAlign.CENTER);
     }

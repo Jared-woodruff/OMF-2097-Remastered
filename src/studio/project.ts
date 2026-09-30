@@ -60,7 +60,8 @@ export interface PilotDoc {
 type Anims = ({ animation: { sprites: Sprite[] } } | null | undefined)[];
 
 /** A package's HD pictures as a project holds them. */
-function hdFromPackage(hd: ModHd | null, anims: Anims): HdDoc | null {
+/** A package's HD pictures as a project holds them (by their sprites' fingerprints). */
+export function hdFromPackage(hd: ModHd | null, anims: Anims): HdDoc | null {
   if (!hd) return null;
   const doc: HdDoc = { ...emptyHd(), colors: [...hd.info.colors], pad: hd.info.pad };
   for (const e of hd.info.sprites) {
