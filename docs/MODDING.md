@@ -1,4 +1,4 @@
-# Mods and OMF Studio
+<p align="center"><img src="media/doc-modding.jpg" alt="Mods and OMF Studio" width="100%"></p>
 
 Mods add robots, arenas and pilots to One Must Fall 2097 Remastered. They are made with **OMF Studio**, the game's
 modding tool, and shared as `.omfmod` files. A mod's content plays like the game's own: every animation, move and hit

@@ -1,4 +1,4 @@
-# Building OMF 2097 Remastered
+<p align="center"><img src="media/doc-building.jpg" alt="Building OMF 2097 Remastered" width="100%"></p>
 
 ## Prerequisites
 
@@ -149,6 +149,22 @@ npm run manual:images                 # the pictures in tools/manual/img (Python
 `npm run manual` only needs `tools/manual/img` (committed). The pictures are made from the HD asset pack (`hd-pack/`:
 the robots, the pilots, the logo), the imported artwork (the main menu's layers, the arenas) and screenshots recorded
 from the game (`.captures/trailer2`), so `manual:images` only runs when they change.
+
+### The GitHub pages' pictures
+
+The README's hero, buttons, section banners and footer, the docs' headers and the repository's social preview
+(`docs/media`, committed) are HTML in the style of the game's menus (the blue grid panels in their bright blue frames,
+the green and gold Orbitron, the painted main menu), made by `tools/github/build.mjs` from the game's own pictures and
+shot by Microsoft Edge in headless mode (Windows):
+
+```sh
+npm run github                        # every picture
+npm run github -- hero banner-tech    # only those (their file names)
+npm run github -- --out some/folder   # somewhere else, to compare first
+```
+
+The social preview (`docs/media/social-preview.jpg`, 1280 × 640) is set in the repository's settings (General ›
+Social preview): GitHub has no other way to set it.
 
 ## Web
 

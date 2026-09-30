@@ -1,4 +1,4 @@
-# Notice
+<p align="center"><img src="docs/media/doc-notice.jpg" alt="Notice" width="100%"></p>
 
 **The remaster's source code** is released under the [MIT license](LICENSE).
 

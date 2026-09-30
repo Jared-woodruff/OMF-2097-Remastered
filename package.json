@@ -44,6 +44,7 @@
     "rework:import": "node tools/rework/import.mjs",
     "news:voice": "node tools/news-voice.mjs",
     "manual": "node tools/manual/build.mjs",
+    "github": "node tools/github/build.mjs",
     "manual:images": "python tools/manual/prepare.py"
   },
   "devDependencies": {

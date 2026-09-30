@@ -1,32 +1,24 @@
 <p align="center">
-  <img src="docs/media/hero.jpg" alt="One Must Fall 2097 Remastered" width="100%">
+  <img src="docs/media/hero.jpg" alt="One Must Fall 2097 Remastered: the 1994 robot fighting classic, rebuilt in HD for Windows and the web" width="100%">
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Windows%20%7C%20Web-0a84ff?style=for-the-badge" alt="Windows and Web">
-  <img src="https://img.shields.io/badge/TypeScript-7-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript 7">
-  <img src="https://img.shields.io/badge/WebGL2-990000?style=for-the-badge&logo=webgl&logoColor=white" alt="WebGL2">
-  <img src="https://img.shields.io/badge/Tauri-2-24c8db?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri 2">
-  <img src="https://img.shields.io/badge/tests-260%20passing-2ea44f?style=for-the-badge" alt="260 tests passing">
+  <a href="https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest"><img src="docs/media/btn-download.png" alt="Download (free, for Windows)" height="56"></a>
+  <a href="#trailer"><img src="docs/media/btn-trailer.png" alt="Trailer" height="56"></a>
+  <a href="docs/manual/OMF-2097-Remastered-Manual.pdf"><img src="docs/media/btn-manual.png" alt="Manual (PDF)" height="56"></a>
+  <a href="docs/MODDING.md"><img src="docs/media/btn-modding.png" alt="Modding: mods and OMF Studio" height="56"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/tag/v0.1.5"><img src="https://img.shields.io/badge/%E2%AC%87%20Download%20v0.1.5%20for%20Windows-free-ff7a3d?style=for-the-badge" alt="Download v0.1.5 for Windows (free)"></a>
-  <a href="docs/manual/OMF-2097-Remastered-Manual.pdf"><img src="https://img.shields.io/badge/%F0%9F%93%96%20Game%20manual-PDF-c8102e?style=for-the-badge" alt="Game manual (PDF)"></a>
-</p>
-
-<p align="center">
-  <a href="#trailer"><b>Trailer</b></a> &nbsp;•&nbsp;
-  <a href="#manual"><b>Manual</b></a> &nbsp;•&nbsp;
-  <a href="#features"><b>Features</b></a> &nbsp;•&nbsp;
-  <a href="#classic-remastered"><b>Classic / Remastered</b></a> &nbsp;•&nbsp;
-  <a href="#effects"><b>Effects</b></a> &nbsp;•&nbsp;
-  <a href="#gameplay"><b>Gameplay</b></a> &nbsp;•&nbsp;
-  <a href="#screens"><b>Screens</b></a> &nbsp;•&nbsp;
-  <a href="#artwork"><b>HD artwork</b></a> &nbsp;•&nbsp;
-  <a href="#get-started"><b>Get started</b></a> &nbsp;•&nbsp;
-  <a href="#under-the-hood"><b>Under the hood</b></a> &nbsp;•&nbsp;
-  <a href="#credits"><b>Credits</b></a>
+  <a href="#features"><img src="docs/media/nav-features.png" alt="01 Features" height="30"></a>
+  <a href="#classic-remastered"><img src="docs/media/nav-modes.png" alt="02 Classic / Remastered" height="30"></a>
+  <a href="#effects"><img src="docs/media/nav-effects.png" alt="03 Effects" height="30"></a>
+  <a href="#gameplay"><img src="docs/media/nav-gameplay.png" alt="04 Gameplay" height="30"></a>
+  <a href="#screens"><img src="docs/media/nav-screens.png" alt="05 Screens" height="30"></a>
+  <a href="#artwork"><img src="docs/media/nav-artwork.png" alt="06 HD artwork" height="30"></a>
+  <a href="#get-started"><img src="docs/media/nav-start.png" alt="07 Get started" height="30"></a>
+  <a href="#under-the-hood"><img src="docs/media/nav-tech.png" alt="08 Under the hood" height="30"></a>
+  <a href="#credits"><img src="docs/media/nav-credits.png" alt="09 Credits" height="30"></a>
 </p>
 
 <br>
@@ -53,21 +45,21 @@ engine in TypeScript and WebGL2 that plays the **original game data**, runs in a
 <table>
   <tr>
     <td width="33%" valign="top">
-      <h3>🎯 Faithful</h3>
+      <h3><img src="docs/media/icon-faithful.png" alt="" width="26" align="top"> Faithful</h3>
       Fight engine, AI, animation scripts, scenes and menus follow the reverse engineering of the
       <a href="https://github.com/omf2097/openomf">OpenOMF</a> project, quirks included. The soundtrack plays through an
       exact port of the game's own MASI music driver.
     </td>
     <td width="33%" valign="top">
-      <h3>💎 Remastered</h3>
+      <h3><img src="docs/media/icon-remastered.png" alt="" width="26" align="top"> Remastered</h3>
       3,200+ images redrawn in HD, every sprite rebuilt at your display resolution, a painted parallax main menu,
       widescreen arenas, dynamic lighting, particles, bloom and smooth motion for high refresh rate displays.
     </td>
     <td width="33%" valign="top">
-      <h3>🕹️ Modern</h3>
+      <h3><img src="docs/media/icon-modern.png" alt="" width="26" align="top"> Modern</h3>
       Replays and clips, a training lab with frame data and combo trials, a robot workshop, arcade, survival and time
-      attack modes, custom tournaments, gamepads with rumble, touch controls, one-button specials, and a browser
-      version that works offline.
+      attack modes, custom tournaments, mods made with OMF Studio, gamepads with rumble, touch controls, one-button
+      specials, and a browser version that works offline.
     </td>
   </tr>
 </table>
@@ -78,7 +70,7 @@ engine in TypeScript and WebGL2 that plays the **original game data**, runs in a
   <a href="docs/manual/OMF-2097-Remastered-Manual.pdf"><img src="docs/media/manual.jpg" alt="The game manual: the cover, the robots' pages and the pilots' pages" width="100%"></a>
 </p>
 
-**📖 The manual.** Games used to come with a booklet, so this one does too: [a 32-page game manual](docs/manual/OMF-2097-Remastered-Manual.pdf)
+**The manual.** Games used to come with a booklet, so this one does too: [a 32-page game manual](docs/manual/OMF-2097-Remastered-Manual.pdf)
 (PDF) in the style of the 1990s, with the story, the controls, how to fight, every robot's command list, the pilots,
 the arenas, the tournament, what's new in the remaster, tips from the pros and troubleshooting. The texts, the stats
 and the command lists come from the game's own data.
@@ -438,6 +430,7 @@ The HD artwork was produced with an image generation model from the original ima
 atlases the game loads on demand:
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'background': '#04061f', 'primaryColor': '#0b1142', 'primaryTextColor': '#e7eaf3', 'primaryBorderColor': '#0000f3', 'secondaryColor': '#060926', 'tertiaryColor': '#04061f', 'lineColor': '#5a6cff', 'clusterBkg': '#060926', 'clusterBorder': '#2b3bcf', 'edgeLabelBackground': '#04061f'}}}%%
 flowchart LR
     A["Original game data"] -->|npm run extract| B["public/gamedata"]
     B -->|npm run hd:export| C["hd-pack/<br/>3,200+ images, prompts,<br/>guides and specs"]
@@ -531,6 +524,7 @@ resolution.
 <p align="center"><a href="#under-the-hood"><img src="docs/media/banner-tech.jpg" alt="08 · Under the hood" width="100%"></a></p>
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'background': '#04061f', 'primaryColor': '#0b1142', 'primaryTextColor': '#e7eaf3', 'primaryBorderColor': '#0000f3', 'secondaryColor': '#060926', 'tertiaryColor': '#04061f', 'lineColor': '#5a6cff', 'clusterBkg': '#060926', 'clusterBorder': '#2b3bcf', 'edgeLabelBackground': '#04061f'}}}%%
 flowchart LR
     subgraph sim["Game simulation (faithful port)"]
         S1["Scenes, HARs, AI"] --> S2["Animation scripts"] --> S3["Draw list"]
@@ -548,7 +542,7 @@ flowchart LR
 | Rendering | WebGL2: classic VGA pipeline, HD reconstruction, particle, lighting and post-processing passes |
 | Audio | Web Audio with an AudioWorklet mixer and a port of the MASI PSM music driver |
 | Desktop | Tauri 2 (WebView2), a portable exe and an installer |
-| Tests | Vitest, 260 tests running the real game logic headlessly against the original data |
+| Tests | Vitest: over 300 tests running the real game logic headlessly against the original data |
 
 - The remastered renderer measures its GPU time and lowers its internal resolution when a GPU can't keep up. With
   every effect on, a frame takes about 8 ms of GPU time at 1920 × 1200 on an RTX 4080.

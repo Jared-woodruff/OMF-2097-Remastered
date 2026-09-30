@@ -29,6 +29,7 @@ Thumbs.db
 
 # The game manual's generated page source (npm run manual)
 /tools/manual/.build/
+/tools/github/.build/
 
 # Local tool settings
 .claude/

@@ -1,4 +1,4 @@
-# Contributing
+<p align="center"><img src="docs/media/doc-contributing.jpg" alt="Contributing" width="100%"></p>
 
 Thanks for helping keep the robots fighting. This page covers the development setup, the conventions the code
 follows, and how to check your changes.

@@ -1,4 +1,4 @@
-# OMF 2097 Remastered — Engine Architecture
+<p align="center"><img src="media/doc-architecture.jpg" alt="OMF 2097 Remastered: engine architecture" width="100%"></p>
 
 A TypeScript/WebGL2 reimplementation of One Must Fall 2097 that loads the original data files.
 Game logic is a faithful port of the reverse-engineered behavior documented by the open-source
