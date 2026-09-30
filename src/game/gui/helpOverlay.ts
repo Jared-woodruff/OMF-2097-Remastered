@@ -62,7 +62,8 @@ export class HelpOverlay {
     vga.setRemaps(mainBk.remaps[0]);
     setMenuColors();
     if (this.controls) setControlsColors();
-    this.page?.setColors();
+    // (a page's colors, and the HTML help's: it is drawn as a page)
+    if (this.menu instanceof Page) this.menu.setColors();
     vga.setBaseIndex(0, 0, 0, 0);
     vga.render();
     this.page?.onOpen();

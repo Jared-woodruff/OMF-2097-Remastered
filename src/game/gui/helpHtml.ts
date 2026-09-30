@@ -1,13 +1,18 @@
-// The help pages in remastered graphics: the language file's 13 help texts as HTML over the game, in the remaster's
-// typeface at a readable size. (The original pages set the text in the game's small font, which has capitals only and
-// fixed cells; classic graphics keep them, see scenes/mainmenu/menuHelp.ts.) A list of the pages on the left, the
-// page on the right; up and down (or a click) choose the page, left and right, PAGE UP / PAGE DOWN or the wheel scroll
-// it, ESC closes. The texts' markup becomes headings and paragraphs: {SIZE 8} lines are the page's title, {COLOR:YELLOW}
-// lines in the small size are headings, the rest are paragraphs (blank lines between them, lines kept within them).
+// The help pages in remastered graphics: the language file's 13 help texts, readable, in the look of the remaster's
+// other pages (records, replays...: page.ts). The game draws the page's frame, its title and its keys like theirs; the
+// text is HTML laid over the frame at the game's scale, in the remaster's typeface, sharp at any size, long pages
+// scrolling. (The original pages set the text in the game's small font, which has capitals only and fixed cells;
+// classic graphics keep them, see scenes/mainmenu/menuHelp.ts.) The topics on the left like the pages' tabs, the page
+// on the right; up and down (or a click) choose the topic, left and right, PAGE UP / PAGE DOWN or the wheel scroll it,
+// ESC (or a right click) closes. The texts' markup becomes headings and paragraphs: {SIZE 8} lines are the page's
+// title, {COLOR:YELLOW} lines in the small size are headings, the rest are paragraphs (blank lines between them, lines
+// kept within them).
 import { ensureUiFont, UI_FONT } from '../../platform/uiFont';
 import { ACT_DOWN, ACT_ESC, ACT_KICK, ACT_LEFT, ACT_RIGHT, ACT_UP, type CtrlType } from '../constants';
 import { settings } from '../settings';
-import { Menu, playMenuSound } from './widgets';
+import { PC, Page } from './page';
+import { FontSize, HAlign } from './text';
+import { playMenuSound } from './widgets';
 
 export interface HelpBlock {
   kind: 'title' | 'heading' | 'text';
@@ -96,50 +101,55 @@ export function htmlHelpWanted(): boolean {
     typeof document.createElement === 'function';
 }
 
+/** The page's keys, drawn by the game under the text like the other pages' (records: "< > PAGE   ESC BACK"). */
+const KEYS = 'UP/DOWN TOPIC   < > SCROLL   ESC BACK';
+
+// Sizes are in the game's pixels (--ux across, --uy down: 320 x 200 on the screen, see place()), colors are the pages'
+// palette (page.ts PC: white, grey, dim, gold, the lists' selection bar, the letters' shadow).
 const CSS = `
-.omfh { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center;
-  font-family: ${UI_FONT}; color: #dfe7ff; animation: omfh-in .18s ease-out; }
-@keyframes omfh-in { from { opacity: 0; transform: scale(.985); } to { opacity: 1; transform: none; } }
-.omfh-panel { position: relative; display: grid; grid-template-columns: minmax(200px, 27%) 1fr; grid-template-rows: 1fr auto;
-  width: min(1240px, 92vw); height: min(820px, 88vh); border-radius: 16px; overflow: hidden;
-  background: linear-gradient(180deg, rgba(12, 18, 40, .88), rgba(5, 8, 20, .93));
-  border: 1px solid rgba(120, 160, 255, .32);
-  box-shadow: 0 30px 90px rgba(0, 0, 0, .65), 0 0 0 1px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .06);
-  backdrop-filter: blur(10px) saturate(1.15); }
-.omfh-toc { grid-row: 1 / 3; overflow-y: auto; padding: clamp(16px, 2.2vh, 28px) 0;
-  background: linear-gradient(180deg, rgba(20, 30, 70, .55), rgba(8, 12, 30, .45)); border-right: 1px solid rgba(120, 160, 255, .18); }
-.omfh-brand { padding: 0 clamp(18px, 1.8vw, 28px) clamp(12px, 1.6vh, 20px); font-weight: 900; letter-spacing: .32em;
-  font-size: clamp(13px, 1.05vw, 17px); color: #9fb6ff; }
-.omfh-topic { display: flex; gap: .8em; align-items: baseline; width: 100%; padding: .72em clamp(18px, 1.8vw, 28px); border: 0;
-  background: none; color: #aebbe0; font: 600 clamp(12px, .95vw, 15px) / 1.3 ${UI_FONT}; letter-spacing: .03em; text-align: left;
-  cursor: pointer; border-left: 3px solid transparent; }
-.omfh-topic:hover { color: #fff; background: rgba(120, 160, 255, .08); }
-.omfh-topic b { font-weight: 700; color: #5f74b8; font-size: .85em; min-width: 1.6em; }
-.omfh-topic.is-on { color: #ffd766; background: linear-gradient(90deg, rgba(255, 190, 60, .16), rgba(255, 190, 60, 0));
-  border-left-color: #ffc23d; }
-.omfh-topic.is-on b { color: #ffc23d; }
-.omfh-page { overflow-y: auto; padding: clamp(22px, 3.4vh, 44px) clamp(24px, 3.2vw, 56px) clamp(22px, 3vh, 40px);
-  scroll-behavior: smooth; }
-.omfh-page::-webkit-scrollbar, .omfh-toc::-webkit-scrollbar { width: 8px; }
-.omfh-page::-webkit-scrollbar-thumb, .omfh-toc::-webkit-scrollbar-thumb { background: rgba(140, 170, 255, .28); border-radius: 8px; }
-.omfh-page h1 { margin: 0 0 .9em; font-weight: 900; font-size: clamp(22px, 2.2vw, 36px); letter-spacing: .05em; line-height: 1.15;
-  background: linear-gradient(180deg, #fff 0%, #dfe6f5 46%, #ffffff 52%, #7c8aa8 58%, #e9eef8 100%);
-  -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 14px rgba(80, 130, 255, .35)); }
-.omfh-page h2 { margin: 1.5em 0 .45em; font-weight: 800; font-size: clamp(13px, 1.05vw, 17px); letter-spacing: .14em;
-  text-transform: uppercase; color: #ffcc4d; }
-.omfh-page p { margin: 0 0 1.05em; font-weight: 500; font-size: clamp(14px, 1.12vw, 19px); line-height: 1.78; letter-spacing: .015em;
-  color: #dde6ff; max-width: 60em; }
-.omfh-page .c-yellow { color: #ffcc4d; } .omfh-page .c-white { color: #fff; } .omfh-page .c-purple { color: #d6a6ff; }
-.omfh-page .c-red { color: #ff8a7a; } .omfh-page .c-green { color: #8ff0a0; } .omfh-page .c-blue { color: #9cc2ff; }
-.omfh-keys { display: flex; gap: clamp(14px, 1.8vw, 28px); justify-content: flex-end; align-items: center;
-  padding: clamp(10px, 1.4vh, 16px) clamp(24px, 3.2vw, 56px); border-top: 1px solid rgba(120, 160, 255, .16);
-  font: 600 clamp(10px, .78vw, 13px) ${UI_FONT}; letter-spacing: .12em; color: #8a9bc8; text-transform: uppercase; }
-.omfh-keys kbd { display: inline-block; min-width: 1.6em; margin-right: .35em; padding: .25em .5em; border-radius: 5px;
-  font: 700 1em ${UI_FONT}; color: #e9eeff; background: rgba(120, 160, 255, .14); border: 1px solid rgba(140, 170, 255, .35);
-  text-align: center; }
-.omfh-close { position: absolute; top: 12px; right: 14px; width: 34px; height: 34px; border-radius: 50%; border: 0; cursor: pointer;
-  background: rgba(255, 255, 255, .06); color: #cfd9ff; font: 400 22px/34px ${UI_FONT}; }
-.omfh-close:hover { background: rgba(255, 255, 255, .14); color: #fff; }
+.omfh { position: fixed; inset: 0; z-index: 40; --ux: 4.5px; --uy: 5.4px; --ox: 0px; --oy: 0px; font-family: ${UI_FONT};
+  color: #f2f4f7; animation: omfh-in .14s ease-out; }
+@keyframes omfh-in { from { opacity: 0 } to { opacity: 1 } }
+.omfh-frame { position: absolute; left: calc(var(--ox) + 8 * var(--ux)); top: calc(var(--oy) + 5 * var(--uy));
+  width: calc(304 * var(--ux)); height: calc(190 * var(--uy)); }
+.omfh-toc { position: absolute; left: calc(8 * var(--ux)); top: calc(24 * var(--uy)); width: calc(106 * var(--ux));
+  bottom: calc(18 * var(--uy)); display: flex; flex-direction: column; gap: calc(.5 * var(--uy)); overflow-y: auto;
+  scrollbar-width: none; }
+.omfh-toc::-webkit-scrollbar { display: none; }
+.omfh-topic { display: grid; grid-template-columns: calc(12 * var(--ux)) 1fr; align-items: baseline; width: 100%;
+  box-sizing: border-box; padding: calc(1.2 * var(--uy)) calc(2.5 * var(--ux)); border: 0; border-radius: calc(1.5 * var(--ux));
+  background: none; cursor: pointer; text-align: left; color: #aab2bd; text-transform: uppercase; letter-spacing: .1em;
+  font: 700 max(11px, calc(3.6 * var(--uy))) / 1.25 ${UI_FONT}; text-shadow: calc(.45 * var(--ux)) calc(.45 * var(--uy)) 0 #050608; }
+.omfh-topic b { font-weight: 700; color: #7c8694; }
+.omfh-topic:hover { color: #f2f4f7; }
+.omfh-topic.is-on { color: #ffc840; background: rgba(28, 60, 120, .88); }
+.omfh-topic.is-on b { color: #ffc840; }
+.omfh-page { position: absolute; left: calc(124 * var(--ux)); right: calc(6 * var(--ux)); top: calc(22 * var(--uy));
+  bottom: calc(18 * var(--uy)); overflow-y: auto; padding-right: calc(5 * var(--ux)); scroll-behavior: smooth;
+  scrollbar-width: thin; scrollbar-color: #0000f3 #000059; }
+.omfh-page::-webkit-scrollbar { width: calc(1.2 * var(--ux)); }
+.omfh-page::-webkit-scrollbar-track { background: #000059; }
+.omfh-page::-webkit-scrollbar-thumb { background: #0000f3; }
+.omfh-count { margin-bottom: calc(1.2 * var(--uy)); font: 700 max(10px, calc(2.9 * var(--uy))) ${UI_FONT}; letter-spacing: .2em;
+  color: #7c8694; text-shadow: calc(.4 * var(--ux)) calc(.4 * var(--uy)) 0 #050608; }
+.omfh-page h1 { margin: 0 0 calc(3.4 * var(--uy)); font: 900 max(17px, calc(5.8 * var(--uy))) / 1.12 ${UI_FONT}; letter-spacing: .08em;
+  text-transform: uppercase; color: #f2f4f7; text-shadow: calc(.8 * var(--ux)) calc(.8 * var(--uy)) 0 #050608; }
+.omfh-page h2 { margin: calc(4.2 * var(--uy)) 0 calc(1.4 * var(--uy)); font: 700 max(11px, calc(3.6 * var(--uy))) / 1.3 ${UI_FONT};
+  letter-spacing: .12em; text-transform: uppercase; color: #ffc840; text-shadow: calc(.45 * var(--ux)) calc(.45 * var(--uy)) 0 #050608; }
+.omfh-page p { margin: 0 0 calc(2.8 * var(--uy)); font: 500 max(13px, calc(3.5 * var(--uy))) / 1.72 ${UI_FONT}; letter-spacing: .02em;
+  color: #dde2ec; text-shadow: calc(.4 * var(--ux)) calc(.4 * var(--uy)) 0 #050608; }
+.omfh-page .c-yellow { color: #ffc840; } .omfh-page .c-white { color: #fff; } .omfh-page .c-purple { color: #c9a2ff; }
+.omfh-page .c-red { color: #ff5a50; } .omfh-page .c-green { color: #5ce66e; } .omfh-page .c-blue { color: #7cbeff; }
+.omfh-more { position: absolute; right: calc(9 * var(--ux)); bottom: calc(18.5 * var(--uy)); pointer-events: none; opacity: 0;
+  color: #ffc840; font: 900 max(10px, calc(3.2 * var(--uy))) ${UI_FONT}; text-shadow: calc(.45 * var(--ux)) calc(.45 * var(--uy)) 0 #050608;
+  transition: opacity .2s; }
+.omfh-more.is-on { opacity: 1; animation: omfh-blink 1s steps(2, jump-none) infinite; }
+@keyframes omfh-blink { 50% { opacity: .25 } }
+.omfh-close { position: absolute; right: calc(4 * var(--ux)); top: calc(2.5 * var(--uy)); padding: calc(.6 * var(--uy)) calc(1.5 * var(--ux));
+  border: 0; background: none; cursor: pointer; color: #7c8694; font: 900 max(11px, calc(4 * var(--uy))) / 1 ${UI_FONT};
+  text-shadow: calc(.45 * var(--ux)) calc(.45 * var(--uy)) 0 #050608; }
+.omfh-close:hover { color: #ffc840; }
+@media (prefers-reduced-motion: reduce) { .omfh, .omfh-more.is-on { animation: none; } .omfh-page { scroll-behavior: auto; } }
 `;
 
 let styleAdded = false;
@@ -158,17 +168,29 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   return e;
 }
 
-/** The help pages as an HTML page over the game (a menu with no entries: it takes the menu actions). */
-export class HtmlHelpMenu extends Menu {
+/** The game's canvas: the HTML follows its 320 x 200 picture (see renderer.ts viewport()). */
+function gameCanvas(): HTMLElement | null {
+  return document.getElementById('screen');
+}
+
+/**
+ * The help pages over the game, as one of the remaster's pages (it takes the menu actions: the main menu's HELP, or
+ * F1 through helpOverlay.ts). The game draws the frame, the title and the keys; the topics and the text are HTML.
+ */
+export class HtmlHelpMenu extends Page {
   page = 0;
   readonly pages: HelpPageDoc[];
   private root: HTMLDivElement | null = null;
   private topics: HTMLButtonElement[] = [];
   private article: HTMLElement | null = null;
+  private more: HTMLElement | null = null;
+  private readonly onResize = () => this.place();
 
   constructor(texts: string[]) {
     super();
     this.pages = texts.map(parseHelpText);
+    // (the pages' colors: the keys, and a scene's palette may not have them; helpOverlay.ts restores the palette)
+    this.setColors();
     this.build();
   }
 
@@ -182,9 +204,8 @@ export class HtmlHelpMenu extends Menu {
       document.head.appendChild(style);
     }
     const root = el('div', 'omfh');
-    const panel = el('div', 'omfh-panel');
+    const frame = el('div', 'omfh-frame');
     const toc = el('nav', 'omfh-toc');
-    toc.appendChild(el('div', 'omfh-brand', 'HELP'));
     this.topics = this.pages.map((p, i) => {
       const b = el('button', 'omfh-topic');
       b.append(el('b', undefined, String(i + 1).padStart(2, '0')), el('span', undefined, p.title || `Page ${i + 1}`));
@@ -193,29 +214,45 @@ export class HtmlHelpMenu extends Menu {
       return b;
     });
     this.article = el('article', 'omfh-page');
-    const keys = el('footer', 'omfh-keys');
-    const hint = (k: string[], label: string) => {
-      const s = el('span');
-      for (const key of k) s.appendChild(el('kbd', undefined, key));
-      s.append(label);
-      keys.appendChild(s);
-    };
-    hint(['↑', '↓'], 'Page');
-    hint(['PG UP', 'PG DN'], 'Scroll');
-    hint(['ESC'], 'Back');
-    const close = el('button', 'omfh-close', '×');
+    this.article.addEventListener('scroll', () => this.showMore(), { passive: true });
+    this.more = el('div', 'omfh-more', '▼');
+    const close = el('button', 'omfh-close', 'X');
     close.title = 'Close';
     close.addEventListener('click', () => this.close());
-    panel.append(toc, this.article, keys, close);
-    root.appendChild(panel);
-    // Clicks outside the panel close the help, like ESC.
+    frame.append(toc, this.article, this.more, close);
+    root.appendChild(frame);
+    // A click beside the frame closes the help, like ESC, and so does a right click (as on the other pages).
     root.addEventListener('mousedown', (e) => {
       if (e.target === root) this.close();
+    });
+    root.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      this.close();
     });
     document.body.appendChild(root);
     this.root = root;
     openPages++;
+    this.place();
+    window.addEventListener('resize', this.onResize);
     this.show(0, false);
+  }
+
+  /** Lays the HTML over the game's picture: its origin and its pixels (as the renderer fits 320 x 200 on the canvas). */
+  private place(): void {
+    const canvas = gameCanvas();
+    const r = canvas?.getBoundingClientRect() ?? { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+    let uy = r.height / 200;
+    let ux = uy * (5 / 6);
+    if (320 * ux > r.width) {
+      ux = r.width / 320;
+      uy = ux * 1.2;
+    }
+    const s = this.root?.style;
+    s?.setProperty('--ux', `${ux}px`);
+    s?.setProperty('--uy', `${uy}px`);
+    s?.setProperty('--ox', `${r.left + (r.width - 320 * ux) / 2}px`);
+    s?.setProperty('--oy', `${r.top + (r.height - 200 * uy) / 2}px`);
+    this.showMore();
   }
 
   /** Shows page `i` (from its top). */
@@ -228,6 +265,7 @@ export class HtmlHelpMenu extends Menu {
     const doc = this.pages[i];
     const a = this.article;
     a.replaceChildren();
+    a.appendChild(el('div', 'omfh-count', `${String(i + 1).padStart(2, '0')} / ${String(this.pages.length).padStart(2, '0')}`));
     a.appendChild(el('h1', undefined, doc.title));
     for (const b of doc.blocks) {
       const node = el(b.kind === 'text' ? 'p' : 'h2');
@@ -241,6 +279,13 @@ export class HtmlHelpMenu extends Menu {
       a.appendChild(node);
     }
     a.scrollTop = 0;
+    this.showMore();
+  }
+
+  /** The blinking arrow while there is more of the page below. */
+  private showMore(): void {
+    const a = this.article;
+    if (a && this.more) this.more.classList.toggle('is-on', a.scrollTop + a.clientHeight < a.scrollHeight - 4);
   }
 
   private scroll(pages: number): void {
@@ -255,14 +300,20 @@ export class HtmlHelpMenu extends Menu {
 
   private remove(): void {
     if (!this.root) return;
+    window.removeEventListener('resize', this.onResize);
     this.root.remove();
     this.root = null;
     openPages--;
   }
 
-  /** Nothing is drawn in the game: the page is HTML. It goes when the menu is done (closed or its scene left). */
+  /** The frame, the title and the keys, as the other pages draw them (the HTML is over them). */
   override render(): void {
-    if (this.finished) this.remove();
+    if (this.finished) {
+      this.remove();
+      return;
+    }
+    this.drawFrame('HELP');
+    this.drawText('keys', KEYS, 160, 184, FontSize.SMALL, PC.dim, HAlign.CENTER);
   }
 
   override tick(): void {
