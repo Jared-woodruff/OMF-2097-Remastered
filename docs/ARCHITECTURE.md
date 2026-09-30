@@ -103,7 +103,7 @@ pixels in one of two ways, switchable at any time (F2, pause menu, VIDEO options
   announcements, pause menu), so the overlay is never distorted or lit. The effects never touch game state or the
   game's random generators (checked by `src/test/gameplay-options.test.ts`).
 - **Text and panels** (remastered): font glyphs (surfaces with `source.kind === 'font'`) are drawn in one of three
-  styles (REMASTERED OPTIONS › FONT, `renderer.textStyle`). The default is a typeface (`hd/typeface.ts`, Orbitron
+  styles (OPTIONS › GRAPHICS › REMASTERED › FONT, `renderer.textStyle`). The default is a typeface (`hd/typeface.ts`, Orbitron
   under the OFL in `public/fonts`): a worker (`hd/typefaceWorker.ts`) renders every glyph of both game fonts fitted
   into its original cell (cap height and baseline of the cell, the original's ink center and width: wide letters are
   condensed and get their stems back by smearing, lowercase takes the original's x-height, descenders are pressed into
@@ -159,7 +159,13 @@ pixels in one of two ways, switchable at any time (F2, pause menu, VIDEO options
   (`Scene.pointer`, e.g. the MELEE portraits, VS "continue"), else a left click means continue and a right click
   back (queued on the menu controller). Fights ignore the mouse outside their pause menu.
 - F1 (`src/game/gui/helpOverlay.ts`) shows the original help pages over the paused game, full screen with the main
-  menu's palette (text colors are palette entries), restoring the scene's palette afterwards.
+  menu's palette (text colors are palette entries), restoring the scene's palette afterwards. In remastered graphics
+  HELP and F1 show them as HTML instead (`src/game/gui/helpHtml.ts`: the language file's markup parsed into titles,
+  headings and paragraphs, code page 437 decoded, set in the remaster's typeface beside a list of the pages).
+- The main menu (`src/game/scenes/mainmenu/menuMain.ts`): the original's three ways to play, then MORE MODES
+  (`menuModes.ts`), EXTRAS (`menuExtras.ts`), OPTIONS (`menuOptions.ts`: GAMEPLAY, NEW CONTENT, CONTROLS, GRAPHICS with
+  its CLASSIC STYLE / REMASTERED / EFFECTS submenus, SOUND, LANGUAGE), HELP and QUIT. `GameState.menuReturn` reopens
+  EXTRAS or MORE MODES when their screens and runs end.
 - Menus are audited by `src/test/menuLayout.test.ts` (entries fit their frame, help texts fit the help panel), and
   `TEXT_AUDIT=<file> npx vitest run src/test` records texts that get cut off or drawn off screen in any scene test.
 - Training mode: `src/game/scenes/mainmenu/menuTraining.ts` (setup), `src/controller/dummy.ts` (the dummy),
@@ -209,7 +215,7 @@ own file formats, so the engine runs them like the originals.
   same poses (a few per frame, as scenes need them) and registered in `hd/assets.ts` by pixel fingerprint, like
   installed artwork, which comes first where it exists (frames redrawn by an image model through the new-art pack);
   the arenas' HD backgrounds load from `public/gen/*.webp`.
-- **In the game**: `game/roster.ts` (which robots and arenas can be picked: the GAMEPLAY › NEW CONTENT toggles, off by
+- **In the game**: `game/roster.ts` (which robots and arenas can be picked: the OPTIONS › NEW CONTENT toggles, off by
   default; settings saved before they became opt-in load with them off, see `loadSettings`), the robot select
   screen's third row (`melee.ts`), VS images and arena previews (`vs.ts`), CPU tactics (`controller/ai.ts`), move
   names (`gui/moveList.ts`), arena ambience (`fx/arenas.ts`) and special move effects (`fx/robotFx.ts`). In
@@ -269,7 +275,10 @@ own file formats, so the engine runs them like the originals.
   played). While the titles cover the screen the game is paused and not drawn. Dev: `?credits=n` (the n-th fight;
   8: the end titles).
 - **HTML over the game**: notices (`platform/toast.ts`), achievement banners (`platform/achievementBanner.ts`, queued,
-  from `records.unlock`) and the loading screen (`index.html`, `bootStatus` in `main.ts`) use the remaster's typeface
-  (`platform/uiFont.ts`). Screenshots: PRINT SCREEN (key release; F12 in the desktop app) renders a frame and saves the
+  from `records.unlock`), the main menu's name and version (`platform/versionLabel.ts`, the version from package.json
+  through Vite's `__APP_VERSION__`) and the loading screen (`index.html`, `bootStatus` in `main.ts`; the logo is
+  `public/brand/logo.webp`, made by `tools/brand/logo.py`) use the remaster's typeface (`platform/uiFont.ts`). At the
+  first start (`settings.setupDone`), the setup (`platform/setupScreen.ts`) opens over the finished loading screen;
+  development URLs with parameters (`?scene`, `?fight`...) skip it. Screenshots: PRINT SCREEN (key release; F12 in the desktop app) renders a frame and saves the
   canvas as a PNG through `platform/files.ts`.
 - **Touch controls** (`platform/touch.ts`): DOM controls read by player 1's keyboard controller like a gamepad.

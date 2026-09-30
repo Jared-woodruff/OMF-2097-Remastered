@@ -47,6 +47,25 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     return c?.constructor.name;
   };
 
+  /** Moves the cursor down to the entry whose label starts with `label`. */
+  function goTo(label: string): void {
+    for (let i = 0; i < 12 && !String(selectedText()).startsWith(label); i++) press('ArrowDown');
+    expect(String(selectedText()).startsWith(label)).toBe(true);
+  }
+  /** Opens the entries one after the other (each: goTo, then ENTER). */
+  function open(...labels: string[]): void {
+    for (const label of labels) {
+      goTo(label);
+      press('Enter');
+    }
+  }
+  /** A fresh game on the main menu. */
+  function fresh(): void {
+    gs = createGame(SceneId.MENU);
+    run = new HeadlessRunner(gs);
+    run.advance(400);
+  }
+
   beforeEach(() => {
     installBrowserShims();
     localStorage.clear();
@@ -133,37 +152,52 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     expect(gs.thisId).toBe(SceneId.MELEE);
   });
 
-  it('TRAINING takes the place of NETWORK PLAY; TOURNAMENT, DEMO and SCOREBOARD start their scenes', () => {
-    press('ArrowDown', 3);
-    expect(selectedText()).toBe('TRAINING');
-    press('ArrowDown');
-    expect(selectedText()).toBe('CONFIGURATION');
-    press('ArrowUp', 2);
+  it('the three ways to play, then MORE MODES, EXTRAS, OPTIONS, HELP and QUIT; TOURNAMENT, DEMO and SCOREBOARD start their scenes', () => {
+    expect(root().items.map((c) => (c as Button).text.str)).toEqual(
+      ['ONE PLAYER GAME', 'TWO PLAYER GAME', 'TOURNAMENT PLAY', 'MORE MODES', 'EXTRAS', 'OPTIONS', 'HELP', 'QUIT']);
+    press('ArrowDown', 2);
     expect(selectedText()).toBe('TOURNAMENT PLAY');
     press('Enter');
     expect(gs.nextId).toBe(SceneId.MECHLAB);
 
-    gs = createGame(SceneId.MENU);
-    run = new HeadlessRunner(gs);
-    run.advance(400);
-    press('ArrowDown', 8);
-    expect(selectedText()).toBe('DEMO');
-    press('Enter');
+    fresh();
+    open('EXTRAS');
+    expect(current().items.filter((c) => c instanceof Button).map((c) => (c as Button).text.str)).toEqual(
+      ['ROBOT WORKSHOP', 'REPLAYS', 'RECORDS', 'SCOREBOARD', 'DEMO', 'CREDITS', 'DONE']);
+    open('DEMO');
     expect(gs.nextId).toBe(SceneId.VS);
     expect(gs.isDemoplay()).toBe(true);
 
-    gs = createGame(SceneId.MENU);
-    run = new HeadlessRunner(gs);
-    run.advance(400);
-    press('ArrowUp', 2);
-    expect(selectedText()).toBe('SCOREBOARD');
-    press('Enter');
+    fresh();
+    open('EXTRAS', 'SCOREBOARD');
     expect(gs.nextId).toBe(SceneId.SCOREBOARD);
   });
 
+  it('OPTIONS holds every setting; back from a run or training, MORE MODES is open again', () => {
+    open('OPTIONS');
+    expect(current().items.filter((c) => c instanceof Button).map((c) => (c as Button).text.str)).toEqual(
+      ['GAMEPLAY', 'NEW CONTENT', 'CONTROLS', 'GRAPHICS', 'SOUND', 'LANGUAGE', 'DONE']);
+    open('NEW CONTENT');
+    expect(selectedText()).toBe('NEW ROBOTS OFF');
+    press('ArrowDown');
+    expect(selectedText()).toBe('NEW ARENAS OFF');
+    press('Escape');
+    expect(selectedText()).toBe('NEW CONTENT');
+
+    gs.menuReturn = 'modes';
+    gs.swapScene(SceneId.MENU);
+    run.advance(400);
+    expect(selectedText()).toBe('ARCADE');
+    press('Escape');
+    expect(selectedText()).toBe('MORE MODES');
+    gs.menuReturn = 'extras';
+    gs.swapScene(SceneId.MENU);
+    run.advance(400);
+    expect(selectedText()).toBe('ROBOT WORKSHOP');
+  });
+
   it('TRAINING sets up player 1 against a dummy and goes straight to the arena', () => {
-    press('ArrowDown', 3);
-    press('Enter');
+    open('MORE MODES', 'TRAINING');
     expect(selectedText()).toBe('ROBOT JAGUAR');
     press('ArrowRight', 2);
     expect(selectedText()).toBe('ROBOT THORN');
@@ -181,6 +215,7 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     expect(gs.getPlayer(0).pilot.harId).toBe(2);
     expect(gs.getPlayer(1).ctrl.type).toBe(CtrlType.KEYBOARD);
     expect(settings().training).toMatchObject({ har: 2, arena: 3, dummy: 3 });
+    expect(gs.menuReturn).toBe('modes');
     run.advance(1500);
     expect(gs.thisId).toBe(SceneId.ARENA3);
   });
@@ -191,9 +226,11 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
       const c = current().items.find((i) => (i instanceof Button || i instanceof TextSelector || i instanceof TextSlider) && i.text.str.startsWith(label))!;
       return [c.x + c.w / 2, c.y + c.h / 2] as const;
     };
-    expect(frame.pointer(...center('GAMEPLAY'), 'move')).toBe(true);
-    expect(selectedText()).toBe('GAMEPLAY');
+    expect(frame.pointer(...center('OPTIONS'), 'move')).toBe(true);
+    expect(selectedText()).toBe('OPTIONS');
     expect(frame.pointer(2, 2, 'click')).toBe(false); // outside the entries
+    frame.pointer(...center('OPTIONS'), 'click');
+    expect(selectedText()).toBe('GAMEPLAY');
     frame.pointer(...center('GAMEPLAY'), 'click');
     expect(selectedText()).toMatch(/^SPEED/);
     const speed = settings().gameplay.speed;
@@ -214,8 +251,7 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
   });
 
   it('GAMEPLAY changes and saves the gameplay settings', () => {
-    press('ArrowDown', 5);
-    press('Enter');
+    open('OPTIONS', 'GAMEPLAY');
     expect(selectedText()).toBe('SPEED ' + '\x7f'.repeat(5) + '|'.repeat(5));
     press('ArrowRight');
     expect(settings().gameplay.speed).toBe(6);
@@ -238,16 +274,12 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     expect(settings().gameplay.rounds).toBe(2);
     expect(JSON.parse(localStorage.getItem('omf2097r.settings')!).gameplay.rounds).toBe(2);
     press('Escape'); // leaves the submenu through its DONE entry
-    expect(current()).toBe(root());
+    expect(current()).not.toBe(root());
     expect(selectedText()).toBe('GAMEPLAY');
   });
 
   it('ADVANCED OPTIONS edits percentages and applies them on DONE', () => {
-    press('ArrowDown', 5);
-    press('Enter');
-    press('ArrowDown', 7);
-    expect(selectedText()).toBe('ADVANCED OPTIONS');
-    press('Enter');
+    open('OPTIONS', 'GAMEPLAY', 'ADVANCED OPTIONS');
     expect(selectedText()).toBe('REHIT MODE OFF');
     press('Enter');
     expect(settings().advanced.rehitMode).toBe(true);
@@ -280,53 +312,32 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     const a = settings().advanced;
     expect([a.throwRange, a.jumpHeight, a.hitPause, a.vitality, a.blockDamage, a.knockDown]).toEqual([120, 95, 5, 140, 10, 3]);
     press('Escape');
-    expect(current()).toBe(root());
+    expect(selectedText()).toBe('GAMEPLAY');
     gs.matchSettingsReset();
     expect(gs.matchSettings.vitality).toBe(140);
   });
 
-  it('VIDEO OPTIONS switch graphics mode and remaster options through the app hooks', () => {
+  it('GRAPHICS switches the graphics mode; CLASSIC STYLE, REMASTERED and EFFECTS hold their options', () => {
     const setMode = vi.spyOn(app, 'setGraphicsMode');
     const changed = vi.spyOn(app, 'settingsChanged');
     const fullscreen = vi.spyOn(app, 'toggleFullscreen');
-    press('ArrowDown', 4);
-    press('Enter');
-    expect(selectedText()).toBe('LANGUAGE');
-    press('ArrowDown', 4);
-    press('Enter');
+    open('OPTIONS', 'GRAPHICS');
     expect(selectedText()).toBe('VISUALS REMASTERED');
-    press('ArrowDown');
-    expect(selectedText()).toBe('CROSSFADE ON'); // classic-only options are disabled in remastered mode
-    press('ArrowUp');
     press('ArrowRight');
     expect(setMode).toHaveBeenCalledWith('classic');
     expect(settings().video.graphics).toBe('classic');
-    press('ArrowDown');
+    open('CLASSIC STYLE');
     expect(selectedText()).toBe('FILTER SHARP');
     press('ArrowRight', 2);
     expect(settings().video.classicFilter).toBe('crt');
     press('ArrowDown');
     press('Enter');
     expect(settings().video.classicWidescreen).toBe(true);
-    press('ArrowDown');
-    press('Enter');
-    expect(settings().video.crossfade).toBe(false);
-    press('ArrowDown');
-    press('Enter');
-    expect(settings().video.screenShake).toBe(false);
-    press('ArrowDown');
-    expect(selectedText()).toBe('FULLSCREEN OFF');
-    press('Enter');
-    expect(fullscreen).toHaveBeenCalledTimes(1);
-    expect(settings().video.fullscreen).toBe(true);
-    expect(changed).toHaveBeenCalled();
-    expect(JSON.parse(localStorage.getItem('omf2097r.settings')!).video.classicFilter).toBe('crt');
-    // The remastered options have their own submenu.
-    press('ArrowDown');
-    expect(selectedText()).toBe('REMASTERED OPTIONS');
-    press('Enter');
+    press('Escape');
+    expect(selectedText()).toBe('CLASSIC STYLE');
+    open('REMASTERED');
     expect(selectedText()).toBe('HD ARTWORK ON');
-    press('ArrowDown', 2);
+    press('ArrowDown');
     expect(selectedText()).toBe('FONT REMASTERED');
     press('Enter');
     expect(settings().video.hdFont).toBe('smooth');
@@ -337,33 +348,57 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     press('Enter');
     expect(settings().video.hdHud).toBe(false);
     press('ArrowDown', 2);
+    expect(selectedText()).toBe('FIGHT CAMERA OFF');
+    press('Enter');
+    expect(settings().gameplay.fightCamera).toBe(true);
+    press('Escape');
+    expect(selectedText()).toBe('REMASTERED');
+    open('EFFECTS');
+    expect(selectedText()).toBe('BLOOM ON');
+    press('ArrowDown');
     expect(selectedText()).toBe('PARTICLES ON');
     press('Enter');
     expect(settings().video.fxParticles).toBe(false);
     press('ArrowDown', 3);
     expect(selectedText()).toBe('ATMOSPHERE ON');
     press('Escape');
-    expect(selectedText()).toBe('REMASTERED OPTIONS');
+    expect(selectedText()).toBe('EFFECTS');
+    press('ArrowDown');
+    expect(selectedText()).toBe('FULLSCREEN OFF');
+    press('Enter');
+    expect(fullscreen).toHaveBeenCalledTimes(1);
+    expect(settings().video.fullscreen).toBe(true);
+    press('ArrowDown');
+    press('Enter');
+    expect(settings().video.screenShake).toBe(false);
+    press('ArrowDown');
+    press('Enter');
+    expect(settings().video.crossfade).toBe(false);
+    press('ArrowDown');
+    expect(selectedText()).toBe('VICTORY SCREEN ON');
+    press('Enter');
+    expect(settings().gameplay.victoryScreens).toBe(false);
+    expect(changed).toHaveBeenCalled();
+    expect(JSON.parse(localStorage.getItem('omf2097r.settings')!).video.classicFilter).toBe('crt');
     press('ArrowDown');
     expect(selectedText()).toBe('DONE');
     press('Enter');
-    expect(selectedText()).toBe('VIDEO OPTIONS');
+    expect(selectedText()).toBe('GRAPHICS');
   });
 
-  it('AUDIO OPTIONS apply volumes and music quality live', () => {
+  it('SOUND applies volumes and music quality live', () => {
     const sound = vi.spyOn(audio, 'setSoundVolume');
     const music = vi.spyOn(audio, 'setMusicVolume');
     const quality = vi.spyOn(audio, 'setQuality');
-    press('ArrowDown', 4);
-    press('Enter');
-    press('ArrowDown', 5);
-    press('Enter');
+    open('OPTIONS', 'SOUND');
     expect(selectedText()).toBe('SOUND ' + '\x7f'.repeat(7) + '|'.repeat(3));
     press('ArrowLeft');
     expect(sound).toHaveBeenLastCalledWith(0.6);
     press('ArrowDown');
     press('ArrowRight');
     expect(music).toHaveBeenLastCalledWith(0.7);
+    press('ArrowDown');
+    expect(selectedText()).toBe('ANNOUNCER MALE');
     press('ArrowDown');
     expect(selectedText()).toBe('ENHANCED MUSIC ON');
     press('Enter');
@@ -372,10 +407,7 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
   });
 
   it('PLAYER 2 INPUT presets swap the keyboard layouts', () => {
-    press('ArrowDown', 4);
-    press('Enter');
-    press('ArrowDown', 2);
-    press('Enter');
+    open('OPTIONS', 'CONTROLS', 'PLAYER 2 INPUT');
     expect(selectedText()).toBe('RIGHT KEYBOARD');
     press('Enter');
     const k = settings().keys;
@@ -387,10 +419,7 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
   });
 
   it('CUSTOM KEYBOARD captures keys through Scene.keyEvent', () => {
-    press('ArrowDown', 4);
-    press('Enter');
-    press('ArrowDown');
-    press('Enter');
+    open('OPTIONS', 'CONTROLS', 'PLAYER 1 INPUT');
     press('ArrowDown', 2);
     expect(selectedText()).toBe('CUSTOM KEYBOARD');
     press('Enter');
@@ -456,10 +485,7 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
   });
 
   it('HELP shows the language file pages and turns pages', () => {
-    press('ArrowDown', 6);
-    expect(selectedText()).toBe('EXTRAS');
-    press('ArrowDown');
-    expect(selectedText()).toBe('HELP');
+    goTo('HELP');
     press('Enter');
     const help = current() as HelpMenu;
     expect(help).toBeInstanceOf(HelpMenu);
@@ -480,9 +506,7 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
   });
 
   it('LANGUAGE lists the usable languages', () => {
-    press('ArrowDown', 4);
-    press('Enter');
-    press('Enter');
+    open('OPTIONS', 'LANGUAGE');
     expect(selectedText()).toBe('English');
     press('ArrowDown');
     expect(selectedText()).toBe('DONE');

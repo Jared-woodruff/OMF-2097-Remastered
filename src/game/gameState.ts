@@ -183,7 +183,7 @@ export class GameState {
   /** Sound effects are not played (a replay jumping to a moment runs the fight silently). */
   silent = false;
   /** The main menu opens this submenu when it comes back (e.g. EXTRAS after watching a replay). */
-  menuReturn: 'extras' | null = null;
+  menuReturn: 'extras' | 'modes' | null = null;
   /** Where the victory screen goes on to (scenes/victory.ts), and the fight it sums up. */
   victoryNext: SceneId | null = null;
   victoryStats: VictoryStats | null = null;

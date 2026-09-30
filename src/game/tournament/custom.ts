@@ -1,4 +1,4 @@
-// Custom tournaments (EXTRAS > TOURNAMENTS): made from one of the installed tournaments, with a name, fewer opponents
+// Custom tournaments (MORE MODES > MY TOURNAMENTS): made from one of the installed tournaments, with a name, fewer opponents
 // (spread over the ranks, the champion always among them), their robots as they were or some or all of them on the
 // remaster's robots, and more or less prize money. They are joined like the others, from TOURNAMENT PLAY. Their
 // descriptions are kept in the browser's storage and shared as .omftrn files.

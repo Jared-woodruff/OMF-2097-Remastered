@@ -1,4 +1,4 @@
-// EXTRAS > WORKSHOP: build your own robots from the new robots' parts (gen/workshop.ts). The list shows the eight
+// EXTRAS > ROBOT WORKSHOP: build your own robots from the new robots' parts (gen/workshop.ts). The list shows the eight
 // workshop slots; a robot is edited with a live picture of it: its name (type it, or pick one), the frame, the head,
 // the special moves, size, weight and colors. TRAINING and FIGHT try it out (it is built into a fighter on the spot),
 // E / SAVE FILE shares it as a .omfbot file, I loads robots from files.

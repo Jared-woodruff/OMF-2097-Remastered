@@ -1,4 +1,4 @@
-// Victory screen (not in the original game; GAMEPLAY > NEW CONTENT > VICTORY SCREENS): after a one or two player fight,
+// Victory screen (not in the original game; OPTIONS > GRAPHICS > VICTORY SCREEN): after a one or two player fight,
 // or a fight of the arcade, survival and time attack modes, the winner's portrait and robot on the VS screen's backdrop
 // with a line of theirs. Any button (or a few seconds) goes on to what comes next.
 import type { CtrlEvent } from '../../controller/controller';

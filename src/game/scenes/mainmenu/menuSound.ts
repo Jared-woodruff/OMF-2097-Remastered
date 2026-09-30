@@ -1,4 +1,4 @@
-// Audio options (port of the reference mainmenu/menu_audio.c).
+// OPTIONS > SOUND (the reference's audio options, mainmenu/menu_audio.c).
 //
 // Volumes are applied live like in the reference. The reference's MONO, FREQUENCY, RESAMPLE and MUSIC (original /
 // remix tracks) options configure its SDL mixer and have no equivalent in the WebAudio mixer; the resampler choice
@@ -25,11 +25,11 @@ function libraryHelp(): string {
     'Add MP3, OGG, WAV, FLAC or M4A files here, or drop them onto the game window at any time.';
 }
 
-export function menuAudioCreate(_s: MainMenuScene): Menu {
+export function menuSoundCreate(_s: MainMenuScene): Menu {
   const menu = new Menu();
   // Ten entries: no spacer row under the title, and rows a little closer.
   menu.padding = 2;
-  menu.attach(Label.title('AUDIO'));
+  menu.attach(Label.title('SOUND'));
   // menu_audio_sound_slide
   const volume = new TextSlider('SOUND', 'Raise or lower the volume of all sound effects. Press right or left to change.', 10, true,
     () => sound().soundVol, (pos) => (sound().soundVol = pos), (pos) => {
@@ -42,6 +42,12 @@ export function menuAudioCreate(_s: MainMenuScene): Menu {
   menu.attach(new TextSlider('MUSIC', 'Raise or lower the volume of music. Press right or left to change.', 10, true,
     () => sound().musicVol, (pos) => (sound().musicVol = pos), (pos) => {
       audio.setMusicVolume(pos / 10);
+      settingsChanged();
+    }));
+  menu.attach(new TextSelector('ANNOUNCER', 'The voice that calls the rounds, the knockouts and the winners, and reads the news after fights: a man or a woman.',
+    () => Math.max(0, ANNOUNCERS.indexOf(sound().announcer)), (pos) => (sound().announcer = ANNOUNCERS[pos]), ['OFF', 'MALE', 'FEMALE'],
+    (pos) => {
+      previewAnnouncer(ANNOUNCERS[pos]);
       settingsChanged();
     }));
   menu.attach(new TextSelector('ENHANCED MUSIC',
@@ -60,12 +66,6 @@ export function menuAudioCreate(_s: MainMenuScene): Menu {
   menu.attach(new TextSelector('IMPACT BASS', 'A deep thump under heavy hits, wall slams and knockouts.',
     () => (sound().impactBass ? 1 : 0), (pos) => (sound().impactBass = pos === 1), ['OFF', 'ON'], (pos) => {
       audio.setImpactBass(pos === 1);
-      settingsChanged();
-    }));
-  menu.attach(new TextSelector('ANNOUNCER', 'The voice that calls the rounds, the knockouts and the winners, and reads the news after fights: a man or a woman.',
-    () => Math.max(0, ANNOUNCERS.indexOf(sound().announcer)), (pos) => (sound().announcer = ANNOUNCERS[pos]), ['OFF', 'MALE', 'FEMALE'],
-    (pos) => {
-      previewAnnouncer(ANNOUNCERS[pos]);
       settingsChanged();
     }));
   menu.attach(new TextSelector('MY MUSIC',
@@ -105,6 +105,6 @@ export function menuAudioCreate(_s: MainMenuScene): Menu {
   menu.onTick = () => {
     if (armed && --armed === 0) remove.setText('REMOVE SONGS');
   };
-  menu.attach(new Button('DONE', 'Exit from this menu.', false, false, menuDone));
+  menu.attach(new Button('DONE', 'Go back to the options.', false, false, menuDone));
   return menu;
 }

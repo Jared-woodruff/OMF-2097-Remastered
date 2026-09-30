@@ -744,8 +744,8 @@ export class VsScene extends Scene {
 
   private quitDialogClicked(dlg: Dialog, result: DialogResult): void {
     if (result === DialogResult.YES_OK) {
-      // A run (arcade, survival, time attack) ends: back to EXTRAS.
-      if (this.gs.modeRun) this.gs.menuReturn = 'extras';
+      // A run (arcade, survival, time attack) ends: back to MORE MODES.
+      if (this.gs.modeRun) this.gs.menuReturn = 'modes';
       this.gs.setNext(this.gs.modeRun ? SceneId.MENU : SceneId.MELEE);
     } else {
       dlg.show(false);

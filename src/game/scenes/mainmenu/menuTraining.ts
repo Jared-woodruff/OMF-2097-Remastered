@@ -78,7 +78,11 @@ export function menuTrainingCreate(s: MainMenuScene): Menu {
   sel('DUMMY', 'What the dummy does: stand, crouch, jump, block high or low attacks, or fight back like the computer. ' +
     'It can also be changed from the pause menu.', 'dummy', DUMMY_MODE_NAMES);
   menu.attach(new Button('START', 'Practice moves and combos: nobody gets knocked out and health refills after every combo.',
-    false, false, () => startTraining(s.gs)));
-  menu.attach(new Button('DONE', 'Go back to the main menu.', false, false, menuDone));
+    false, false, () => {
+      startTraining(s.gs);
+      // (back to MORE MODES afterwards)
+      s.gs.menuReturn = 'modes';
+    }));
+  menu.attach(new Button('DONE', 'Go back to the other modes.', false, false, menuDone));
   return menu;
 }

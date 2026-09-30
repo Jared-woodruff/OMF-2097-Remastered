@@ -76,7 +76,7 @@ export const HAR_BUNDLES = ['JAGUAR', 'SHADOW', 'THORN', 'PYROS', 'ELECTRA', 'KA
 const BUDGET_BYTES = 1200 * 1024 * 1024;
 
 export class HdAssets {
-  /** Turned off by the player (VIDEO > HD ARTWORK) or when no artwork is installed. */
+  /** Turned off by the player (OPTIONS > GRAPHICS > REMASTERED > HD ARTWORK) or when no artwork is installed. */
   enabled = true;
   /**
    * Resolution the artwork is loaded at (1 = full, 0.5 = half: a quarter of the GPU memory, for integrated GPUs).

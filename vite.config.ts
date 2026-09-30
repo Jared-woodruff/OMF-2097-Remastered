@@ -31,9 +31,13 @@ function debugCapture(): Plugin {
   };
 }
 
+/** The version shown by the game (the main menu's corner, the loading screen). */
+const VERSION = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8')).version as string;
+
 export default defineConfig({
   // Relative base so the same build works on any web path and inside the desktop (Tauri) shell.
   base: './',
+  define: { __APP_VERSION__: JSON.stringify(VERSION) },
   plugins: [debugCapture()],
   server: {
     port: 5173,
@@ -41,7 +45,7 @@ export default defineConfig({
     // Big generated and working folders (screen recordings, the art packs, the original game, the desktop build) are
     // not the app's source: watching their tens of thousands of files kept the dev server busy.
     watch: {
-      ignored: ['**/.captures/**', '**/hd-pack/**', '**/newart-pack/**', '**/menu-pack/**', '**/omf21cd/**', '**/src-tauri/target/**', '**/dist/**'],
+      ignored: ['**/.captures/**', '**/hd-pack/**', '**/newart-pack/**', '**/rework-pack/**', '**/menu-pack/**', '**/omf21cd/**', '**/src-tauri/target/**', '**/dist/**'],
     },
   },
   build: {

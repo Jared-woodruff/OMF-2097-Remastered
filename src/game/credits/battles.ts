@@ -101,7 +101,7 @@ export interface CreditsRules {
   power: [number, number];
   /** The computer's skill, on both sides (AiDifficulty). */
   ai: number;
-  /** The game speed (GAMEPLAY > SPEED + 5). */
+  /** The game speed (OPTIONS > GAMEPLAY > SPEED + 5). */
   speed: number;
   /** HYPER mode: the moves' faster, harder versions. */
   hyper: boolean;

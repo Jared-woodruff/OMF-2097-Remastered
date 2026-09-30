@@ -1,4 +1,4 @@
-// EXTRAS > TOURNAMENTS: make custom tournaments (tournament/custom.ts). The list shows the six slots; a tournament is
+// MORE MODES > MY TOURNAMENTS: make custom tournaments (tournament/custom.ts). The list shows the six slots; a tournament is
 // edited in place: its name (type it), the tournament it is made from, how many opponents, their robots and the prize
 // money. They are played from TOURNAMENT PLAY like the others. E / SAVE FILE shares one as a .omftrn file, I loads them.
 import type { PointerKind } from '../../controller/mouse';

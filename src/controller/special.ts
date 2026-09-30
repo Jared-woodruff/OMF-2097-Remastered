@@ -1,4 +1,4 @@
-// One-button specials (CONFIGURATION > SPECIAL BUTTON): the special button does a special move with its whole input in
+// One-button specials (OPTIONS > CONTROLS > SPECIAL BUTTON): the special button does a special move with its whole input in
 // one go, chosen by the direction held (as the robot faces): none, forward, back, down or up for the robot's first to
 // fifth special move, and the first air special in the air. The move list shows which is which.
 import { ACT_DOWN, ACT_LEFT, ACT_RIGHT, ACT_UP, OBJECT_FACE_LEFT } from '../game/constants';

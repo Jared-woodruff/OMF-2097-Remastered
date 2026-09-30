@@ -189,7 +189,7 @@ export class ModeRun {
     saveRecords();
     this.result = { kind: this.kind, cleared, wins: this.wins, continues: this.continues, ms: this.ms, score: this.score, record };
     app.showRunResults(this.result);
-    gs.menuReturn = 'extras';
+    gs.menuReturn = 'modes';
     gs.setNext(SceneId.MENU);
   }
 }

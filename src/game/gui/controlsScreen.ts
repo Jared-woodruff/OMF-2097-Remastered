@@ -1,5 +1,5 @@
 // Controls screen: a keyboard showing both players' keys and an Xbox controller showing its buttons, with the layout
-// choices (keyboard: classic / modern; controller: modern / classic). Opened from CONFIGURATION > CONTROLS and the
+// choices (keyboard: classic / modern; controller: modern / classic). Opened from OPTIONS > CONTROLS > KEYS AND BUTTONS and the
 // pause menu; shown by the help overlay (helpOverlay.ts) on the main menu backdrop.
 import { connectedPads, getPadLayout, padName } from '../../controller/input';
 import type { PointerKind } from '../../controller/mouse';

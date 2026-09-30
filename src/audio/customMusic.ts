@@ -1,5 +1,5 @@
 // The player's own music: audio files kept in the browser (IndexedDB; the desktop app's WebView keeps them too) and
-// played instead of the original soundtrack in fights or everywhere (AUDIO > MY MUSIC), shuffled.
+// played instead of the original soundtrack in fights or everywhere (OPTIONS > SOUND > MY MUSIC), shuffled.
 import { done, openDb, result } from '../platform/db';
 
 export type MyMusicMode = 'off' | 'fights' | 'always';

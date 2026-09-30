@@ -1,4 +1,4 @@
-// The fight camera (GAMEPLAY > NEW CONTENT > FIGHT CAMERA; remastered graphics): the view comes closer when the robots
+// The fight camera (OPTIONS > GRAPHICS > REMASTERED > FIGHT CAMERA; remastered graphics): the view comes closer when the robots
 // are close and follows them, keeping the floor at the bottom and their heads in view (jumps pull it back out). The
 // HUD is not affected. It eases in and out smoothly and stays out before and after the fight.
 import { ARENA_FLOOR } from '../game/constants';

@@ -10,8 +10,9 @@ import { loadBk, type Bk } from '../../resources/resources';
 import { drawList, TAG_BACKGROUND, TAG_MENU, video } from '../../video/draw';
 import { setMenuColors, vga } from '../../video/vga';
 import { ACT_DOWN, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_UP, CtrlType } from '../constants';
-import { HelpMenu } from '../scenes/mainmenu/menuHelp';
+import { helpTexts, HelpMenu } from '../scenes/mainmenu/menuHelp';
 import { ControlsMenu, setControlsColors } from './controlsScreen';
+import { HtmlHelpMenu, htmlHelpWanted } from './helpHtml';
 import { Page } from './page';
 import { playMenuSound, type Menu } from './widgets';
 
@@ -52,7 +53,7 @@ export class HelpOverlay {
     if (this.menu) return;
     this.page = kind instanceof Page ? kind : null;
     this.controls = kind === 'controls';
-    this.menu = this.page ?? (this.controls ? new ControlsMenu() : new HelpMenu());
+    this.menu = this.page ?? (this.controls ? new ControlsMenu() : htmlHelpWanted() ? new HtmlHelpMenu(helpTexts()) : new HelpMenu());
     openOverlay = this;
     mainBk ??= loadBk('MAIN.BK');
     this.savedPalette = vga.base.clone();
@@ -75,6 +76,8 @@ export class HelpOverlay {
   close(releaseKey: string | null, fromPad = false): void {
     if (!this.menu) return;
     this.page?.onClose();
+    // (the HTML help goes with it)
+    if (this.menu instanceof HtmlHelpMenu) this.menu.free();
     this.menu = null;
     this.page = null;
     openOverlay = null;
@@ -121,6 +124,17 @@ export class HelpOverlay {
       else if (code === 'ShiftRight') page.action(ACT_KICK, CtrlType.KEYBOARD);
       else page.key(code);
       if (page.finished) this.close(code);
+      return true;
+    }
+    if (m instanceof HtmlHelpMenu) {
+      // The HTML help: up and down choose the page, left and right scroll it (PAGE UP / PAGE DOWN too).
+      if (code === 'F1' || code === 'Escape') this.close(code);
+      else if (code === 'ArrowUp' || code === 'Numpad8') m.action(ACT_UP, CtrlType.KEYBOARD);
+      else if (code === 'ArrowDown' || code === 'Numpad2') m.action(ACT_DOWN, CtrlType.KEYBOARD);
+      else if (code === 'ArrowLeft' || code === 'Numpad4') m.action(ACT_LEFT, CtrlType.KEYBOARD);
+      else if (code === 'ArrowRight' || code === 'Numpad6') m.action(ACT_RIGHT, CtrlType.KEYBOARD);
+      else m.keyEvent(code, { code } as KeyboardEvent);
+      if (m.finished) this.close(code);
       return true;
     }
     if (this.controls) {
@@ -198,6 +212,16 @@ export class HelpOverlay {
       this.padPrev = now;
       if (pressed('back') && !page.back()) this.close(null, true);
       else if (page.finished) this.close(null, true);
+      return;
+    }
+    if (this.menu instanceof HtmlHelpMenu) {
+      const m = this.menu;
+      if (pressed('up')) m.action(ACT_UP, CtrlType.GAMEPAD);
+      if (pressed('down')) m.action(ACT_DOWN, CtrlType.GAMEPAD);
+      if (pressed('left')) m.action(ACT_LEFT, CtrlType.GAMEPAD);
+      if (pressed('right')) m.action(ACT_RIGHT, CtrlType.GAMEPAD);
+      this.padPrev = now;
+      if (pressed('back') || m.finished) this.close(null, true);
       return;
     }
     if (this.controls) {

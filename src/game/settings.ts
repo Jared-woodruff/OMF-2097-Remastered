@@ -12,7 +12,7 @@ export interface KeyBindings {
   jumpLeft: string[];
   punch: string[];
   kick: string[];
-  /** The one-button special (CONFIGURATION > SPECIAL BUTTON; not in the original game). */
+  /** The one-button special (OPTIONS > CONTROLS > SPECIAL BUTTON; not in the original game). */
   special: string[];
 }
 
@@ -143,6 +143,8 @@ export interface Settings {
   };
   /** Language file of the original game (ENGLISH.DAT or GERMAN.DAT). */
   language: string;
+  /** The first start's setup (platform/setupScreen.ts) was done (settings saved before it get it once too). */
+  setupDone: boolean;
   /** Format revision of saved settings (see loadSettings). */
   revision: number;
 }
@@ -233,6 +235,7 @@ export function defaultSettings(): Settings {
       trialsDone: [], tape: null,
     },
     language: 'ENGLISH.DAT',
+    setupDone: false,
     revision: REVISION,
   };
 }

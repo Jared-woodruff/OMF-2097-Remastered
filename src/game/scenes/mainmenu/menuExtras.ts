@@ -1,32 +1,23 @@
-// GAMEPLAY > NEW CONTENT (not in the original game): the robots and arenas made for the remaster, off until the
-// player turns them on.
-import { EXTRA_HAR_IDS } from '../../roster';
-import { hasFighter } from '../../../resources/resources';
-import { Button, Filler, Label, Menu, TextSelector } from '../../gui/widgets';
-import { settings } from '../../settings';
-import { menuDone, settingsChanged } from './common';
+// MAIN MENU > EXTRAS: the remaster's robot workshop, replays and records, and the original's DEMO and SCOREBOARD.
+import { app } from '../../../app';
+import { Button, Label, Menu } from '../../gui/widgets';
+import type { MainMenuScene } from '../mainmenu';
+import { menuDone } from './common';
+import { mainmenuDemo, mainmenuScoreboard } from './menuMain';
 
-export function menuExtrasCreate(): Menu {
-  const g = settings().gameplay;
+export function menuExtrasCreate(s: MainMenuScene): Menu {
   const menu = new Menu();
-  menu.attach(Label.title('NEW CONTENT'));
-  menu.attach(new Filler());
-  const robots = new TextSelector('NEW ROBOTS',
-    'GLACIER, TEMPEST, HELIX and SPECTRE: four robots built for the remaster, with their own special moves and ' +
-    'finishers. They join the robot select screen (move down past the second row) and the computer opponents.',
-    () => (g.extraRobots ? 1 : 0), (pos) => (g.extraRobots = pos === 1), ['OFF', 'ON'], settingsChanged);
-  // Without their files (an incomplete install) they cannot be turned on.
-  if (!EXTRA_HAR_IDS.every(hasFighter)) robots.disabled = true;
-  menu.attach(robots);
-  menu.attach(new TextSelector('NEW ARENAS',
-    'Four arenas built for the remaster join the arena rotation of two player and one player games.',
-    () => (g.extraArenas ? 1 : 0), (pos) => (g.extraArenas = pos === 1), ['OFF', 'ON'], settingsChanged));
-  menu.attach(new TextSelector('VICTORY SCREENS',
-    'After a one or two player fight (and in the arcade, survival and time attack modes) the winner is shown with a line of theirs.',
-    () => (g.victoryScreens ? 1 : 0), (pos) => (g.victoryScreens = pos === 1), ['OFF', 'ON'], settingsChanged));
-  menu.attach(new TextSelector('FIGHT CAMERA',
-    'Remastered graphics: the view follows the fight and comes closer when the robots are close.',
-    () => (g.fightCamera ? 1 : 0), (pos) => (g.fightCamera = pos === 1), ['OFF', 'ON'], settingsChanged));
-  menu.attach(new Button('DONE', 'Go back to the gameplay menu.', false, false, menuDone));
+  menu.attach(Label.title('EXTRAS'));
+  menu.attach(new Button('ROBOT WORKSHOP', 'Build your own robots from the parts of the new robots, try them out and share them ' +
+    'as files.', false, false, () => app.showWorkshop()));
+  menu.attach(new Button('REPLAYS', 'Watch your saved fights again, slow them down, step through them and save clips.', false, false,
+    () => app.showReplays()));
+  menu.attach(new Button('RECORDS', 'Your statistics, the best results of the modes, and achievements.', false, false,
+    () => app.showRecords()));
+  menu.attach(new Button('SCOREBOARD', 'The high scores of the one player game.', false, false, () => mainmenuScoreboard(s)));
+  menu.attach(new Button('DEMO', 'Sit back and watch the computer fight the computer.', false, false, () => mainmenuDemo(s)));
+  menu.attach(new Button('CREDITS', 'The people and projects behind the remaster, fought out: every credit pilots a robot in ' +
+    'its own colors and wins its fight.', false, false, () => app.showCredits()));
+  menu.attach(new Button('DONE', 'Go back to the main menu.', false, false, menuDone));
   return menu;
 }

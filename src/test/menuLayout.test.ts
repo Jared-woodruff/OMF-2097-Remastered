@@ -9,15 +9,19 @@ import { FontSize, Text } from '../game/gui/text';
 import { Button, Component, Label, mainMenuTheme, Menu, TextSelector, TextSlider, type GuiTheme } from '../game/gui/widgets';
 import type { MainMenuScene } from '../game/scenes/mainmenu';
 import { menuAdvancedCreate } from '../game/scenes/mainmenu/menuAdvanced';
-import { menuAudioCreate } from '../game/scenes/mainmenu/menuAudio';
-import { menuConfigurationCreate } from '../game/scenes/mainmenu/menuConfiguration';
+import { menuControlsCreate } from '../game/scenes/mainmenu/menuControls';
+import { menuExtrasCreate } from '../game/scenes/mainmenu/menuExtras';
 import { menuGameplayCreate } from '../game/scenes/mainmenu/menuGameplay';
+import { menuClassicStyleCreate, menuEffectsCreate, menuGraphicsCreate, menuRemasteredCreate } from '../game/scenes/mainmenu/menuGraphics';
 import { menuInputCreate } from '../game/scenes/mainmenu/menuInput';
 import { KEYBOARD_FRAME, menuKeyboardCreate } from '../game/scenes/mainmenu/menuKeyboard';
 import { menuLanguageCreate } from '../game/scenes/mainmenu/menuLanguage';
 import { menuMainCreate } from '../game/scenes/mainmenu/menuMain';
+import { menuModesCreate } from '../game/scenes/mainmenu/menuModes';
+import { menuNewContentCreate } from '../game/scenes/mainmenu/menuNewContent';
+import { menuOptionsCreate } from '../game/scenes/mainmenu/menuOptions';
+import { menuSoundCreate } from '../game/scenes/mainmenu/menuSound';
 import { menuTrainingCreate } from '../game/scenes/mainmenu/menuTraining';
-import { menuRemasteredCreate, menuVideoCreate } from '../game/scenes/mainmenu/menuVideo';
 import { createGame, hasGameData } from './harness';
 
 interface Frame {
@@ -90,17 +94,23 @@ describe.skipIf(!hasGameData)('menu layout', () => {
     const theme = mainMenuTheme();
     const menus: [string, Menu, Frame][] = [
       ['MAIN', menuMainCreate(s), MAIN_FRAME],
-      ['CONFIGURATION', menuConfigurationCreate(s), MAIN_FRAME],
+      ['MORE MODES', menuModesCreate(s), MAIN_FRAME],
+      ['TRAINING', menuTrainingCreate(s), MAIN_FRAME],
+      ['EXTRAS', menuExtrasCreate(s), MAIN_FRAME],
+      ['OPTIONS', menuOptionsCreate(s), MAIN_FRAME],
+      ['GAMEPLAY', menuGameplayCreate(s), MAIN_FRAME],
+      ['ADVANCED', menuAdvancedCreate(s), MAIN_FRAME],
+      ['NEW CONTENT', menuNewContentCreate(), MAIN_FRAME],
+      ['CONTROLS', menuControlsCreate(s), MAIN_FRAME],
       ['INPUT 1', menuInputCreate(s, 1), MAIN_FRAME],
       ['INPUT 2', menuInputCreate(s, 2), MAIN_FRAME],
       ['KEYBOARD', menuKeyboardCreate(s, 1), KEYBOARD_FRAME],
-      ['VIDEO', menuVideoCreate(s), MAIN_FRAME],
+      ['GRAPHICS', menuGraphicsCreate(s), MAIN_FRAME],
+      ['CLASSIC STYLE', menuClassicStyleCreate(), MAIN_FRAME],
       ['REMASTERED', menuRemasteredCreate(), MAIN_FRAME],
-      ['AUDIO', menuAudioCreate(s), MAIN_FRAME],
+      ['EFFECTS', menuEffectsCreate(), MAIN_FRAME],
+      ['SOUND', menuSoundCreate(s), MAIN_FRAME],
       ['LANGUAGE', menuLanguageCreate(s), MAIN_FRAME],
-      ['GAMEPLAY', menuGameplayCreate(s), MAIN_FRAME],
-      ['ADVANCED', menuAdvancedCreate(s), MAIN_FRAME],
-      ['TRAINING', menuTrainingCreate(s), MAIN_FRAME],
     ];
     const issues = menus.flatMap(([name, m, f]) => audit(name, m, f, theme));
     expect(issues).toEqual([]);

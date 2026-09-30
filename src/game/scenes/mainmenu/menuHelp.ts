@@ -4,6 +4,7 @@ import { video } from '../../../video/draw';
 import type { Surface } from '../../../video/surface';
 import { ACT_DOWN, ACT_ESC, ACT_UP, type CtrlType } from '../../constants';
 import { drawDocument, FontSize, GLYPH_SHADOW_NONE, HAlign, Text, TEXT_BRIGHT_GREEN, textDocument } from '../../gui/text';
+import { HtmlHelpMenu, htmlHelpWanted } from '../../gui/helpHtml';
 import { Menu, MenuBackgroundStyle, menuBackground, menuShade } from '../../gui/widgets';
 import type { MainMenuScene } from '../mainmenu';
 import { lang } from './common';
@@ -23,6 +24,11 @@ const MANUAL_NOTES: [RegExp, string][] = [
 /** Help page `p` of the language file. */
 export function helpText(p: number): string {
   return MANUAL_NOTES.reduce((s, [re, to]) => s.replace(re, to), lang(p));
+}
+
+/** The help pages' texts (the language file's, with the manual notes). */
+export function helpTexts(): string[] {
+  return Array.from({ length: NUM_PAGES }, (_, p) => helpText(p));
 }
 
 /** The help pages as sheets that fit the panel. */
@@ -136,6 +142,7 @@ export class HelpMenu extends Menu {
   }
 }
 
+/** HELP: the original pages in classic graphics, the HTML pages in remastered graphics (gui/helpHtml.ts). */
 export function menuHelpCreate(_s: MainMenuScene): Menu {
-  return new HelpMenu();
+  return htmlHelpWanted() ? new HtmlHelpMenu(helpTexts()) : new HelpMenu();
 }

@@ -1,7 +1,8 @@
 // The help pages (F1 / HELP): the English pages as in the reference (one sheet each), the German pages with their
 // mid-sentence color changes laid out on the same lines and broken over more sheets where they are longer than the panel.
 import { afterEach, describe, expect, it } from 'vitest';
-import { helpSheets } from '../game/scenes/mainmenu/menuHelp';
+import { parseHelpText } from '../game/gui/helpHtml';
+import { helpSheets, helpTexts } from '../game/scenes/mainmenu/menuHelp';
 import type { Text } from '../game/gui/text';
 import { loadLanguage } from '../resources/resources';
 import { hasGameData, installBrowserShims, loadGameData } from './harness';
@@ -42,5 +43,29 @@ describe.skipIf(!hasGameData)('help pages', () => {
     expect(all.find((t) => t.str === '<ESC>')?.color).toBe(0xf7);
     // the paragraph after a size tag without its closing brace is there
     expect(all.some((t) => t.str.includes('Nicht nur die die pure Kraft'))).toBe(true);
+  });
+
+  it('the HTML help (remastered graphics): each page a title, headings and paragraphs, in mixed case', () => {
+    installBrowserShims();
+    loadGameData();
+    for (const language of ['ENGLISH.DAT', 'GERMAN.DAT']) {
+      loadLanguage(language);
+      const pages = helpTexts().map(parseHelpText);
+      expect(pages.length).toBe(13);
+      for (const p of pages) {
+        expect(p.title.length).toBeGreaterThan(3);
+        expect(p.blocks.some((b) => b.kind === 'text')).toBe(true);
+        // no markup is left in the text
+        expect(JSON.stringify(p.blocks)).not.toMatch(/\{(SIZE|COLOR|SPACING|CENTER|WIDTH|SHADOWS)/);
+      }
+      if (language === 'ENGLISH.DAT') {
+        expect(pages[0].title).toBe('One Must Fall 2097');
+        const pilot = pages[3];
+        expect(pilot.title).toBe('Choosing A Pilot');
+        expect(pilot.blocks.filter((b) => b.kind === 'heading').map((b) => b.lines[0][0].text.trim())).toEqual(['POWER', 'AGILITY', 'ENDURANCE']);
+        const first = pages[0].blocks[0].lines[0].map((r) => r.text).join('');
+        expect(first.startsWith('Welcome to One Must Fall 2097.')).toBe(true);
+      }
+    }
   });
 });

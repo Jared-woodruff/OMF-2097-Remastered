@@ -93,7 +93,7 @@ export class AudioSystem {
   private room = -1;
   private acoustics = true;
   private impactBass = true;
-  /** The player's own music (AUDIO > MY MUSIC), and where it replaces the soundtrack. */
+  /** The player's own music (OPTIONS > SOUND > MY MUSIC), and where it replaces the soundtrack. */
   private custom: CustomMusicPlayer | null = null;
   private myMusicMode: MyMusicMode = 'fights';
   /** A song file playing over everything (the credits' song, see playTrack), at the music volume. */

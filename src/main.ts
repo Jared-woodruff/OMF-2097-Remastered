@@ -29,6 +29,9 @@ import { FxDirector } from './fx/director';
 import { FxType, onFx } from './game/fx';
 import { globalRandom } from './util/random';
 import { HelpOverlay } from './game/gui/helpOverlay';
+import { htmlHelpOpen } from './game/gui/helpHtml';
+import { APP_VERSION, showVersionLabel } from './platform/versionLabel';
+import { firstRunSetup } from './platform/setupScreen';
 import { drainPointer, initMouse, pushPointer } from './controller/mouse';
 import { renderedFrames } from './game/gui/widgets';
 import { startTraining } from './game/scenes/mainmenu/menuTraining';
@@ -58,13 +61,28 @@ import { CtrlType } from './game/constants';
 import { MenuScene } from './video/stage/parallax';
 
 const boot = document.getElementById('boot')!;
-/** The loading screen's line (and its bar, 0..1). */
+{
+  const ver = boot.querySelector<HTMLElement>('.ver');
+  if (ver) ver.textContent = `v${APP_VERSION}`;
+}
+/** The loading screen's stage (and its bar and percentage, 0..1). */
 function bootStatus(text: string, progress?: number): void {
   const line = boot.querySelector<HTMLElement>('.text');
   if (line) line.textContent = text;
   else boot.textContent = text;
+  if (progress === undefined) return;
+  const p = Math.max(0, Math.min(1, progress));
   const fill = boot.querySelector<HTMLElement>('.fill');
-  if (fill && progress !== undefined) fill.style.width = `${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%`;
+  if (fill) fill.style.width = `${Math.round(p * 1000) / 10}%`;
+  const pct = boot.querySelector<HTMLElement>('.pct');
+  if (pct) pct.textContent = `${Math.round(p * 100)}%`;
+}
+/** The loading screen fades out (and is gone a moment later). */
+function hideBoot(): void {
+  boot.classList.add('is-done');
+  window.setTimeout(() => {
+    if (boot.classList.contains('is-done')) boot.style.display = 'none';
+  }, 650);
 }
 const canvas = document.getElementById('screen') as HTMLCanvasElement;
 
@@ -123,15 +141,16 @@ async function main(): Promise<void> {
   // The original game data: from the server (npm run extract, the desktop app), else imported earlier in this
   // browser, else the player provides it now (web version).
   const fromServer = await preloadAll((loaded, total) => {
-    bootStatus(`LOADING GAME DATA  ${Math.round((loaded / total) * 100)}%`, (loaded / total) * 0.8);
+    bootStatus('LOADING GAME DATA', (loaded / total) * 0.8);
   });
   if (!fromServer && !(await loadStoredGameFiles())) {
     boot.style.display = 'none';
     provideGameFiles(await showImportScreen());
     boot.style.display = '';
-    bootStatus('LOADING…', 0.8);
+    bootStatus('LOADING GAME DATA', 0.8);
   }
   // The remaster's own content (the new robots), shipped with the app.
+  bootStatus('PREPARING THE ROBOTS', 0.82);
   await loadGenerated();
   loadSettings();
   try {
@@ -140,6 +159,7 @@ async function main(): Promise<void> {
     loadLanguage();
   }
   initInput();
+  bootStatus('STARTING THE RENDERER', 0.86);
   const renderer = new GLRenderer(canvas);
   // HD artwork (optional: only if the imported bundles are installed).
   await hdAssets.init(renderer.gl, 'hd/');
@@ -241,11 +261,11 @@ async function main(): Promise<void> {
   audio.setRoom(gs.sc.isArena() ? gs.thisId - SceneId.ARENA0 : -1);
   wantGenerated();
   // The first screen waits (briefly) for its artwork so it does not pop in.
-  bootStatus('LOADING ARTWORK…', 0.9);
+  bootStatus('LOADING ARTWORK', 0.9);
   if (renderer.options.mode === 'remastered') menuScene.load(MENU_LAYERS);
   await hdAssets.whenReady(artworkFor(), 4000);
   if (gs.thisId === SceneId.MENU) await menuScene.whenReady(4000);
-  bootStatus('', 1);
+  bootStatus('READY', 1);
 
   // Remastered effects follow the game clock (dynamic ticks), so they pause and slow down with the game.
   const fxDirector = new FxDirector();
@@ -334,6 +354,9 @@ async function main(): Promise<void> {
       touch.update(settings().keys.touch, touchWanted());
       help.update();
       help.render();
+      // The product's name and version in the main menu's corner (not over the help, the pages or the credits).
+      showVersionLabel(gs.thisId === SceneId.MENU && gs.nextId === SceneId.MENU && !engine.waiting && !help.isOpen() &&
+        !htmlHelpOpen() && !gs.credits);
       fxDirector.update(gs, engine.ticks + engine.alpha, renderer.options.mode === 'remastered');
       renderer.fx = fxDirector.frame;
       renderer.backdrop = menuBackdrop();
@@ -597,7 +620,7 @@ async function main(): Promise<void> {
     e.preventDefault();
     void addTracks(files).then(async (n) => {
       await audio.reloadMyMusic();
-      toast(`${n} song${n === 1 ? '' : 's'} added to your music (${audio.myMusicCount} in total). AUDIO > MY MUSIC chooses where they play.`, 5000);
+      toast(`${n} song${n === 1 ? '' : 's'} added to your music (${audio.myMusicCount} in total). OPTIONS > SOUND > MY MUSIC chooses where they play.`, 5000);
     }).catch(() => toast('The songs could not be saved in this browser.'));
   });
 
@@ -609,7 +632,12 @@ async function main(): Promise<void> {
     });
   }
 
-  boot.style.display = 'none';
+  // The first start: the setup over the finished loading screen (not for the development pages and recordings, which
+  // open with parameters).
+  if (!settings().setupDone && !['scene', 'fight', 'training', 'credits', 'nosetup'].some((p) => params.has(p))) {
+    await firstRunSetup(boot);
+  }
+  hideBoot();
   engine.start();
   // Development: ?credits starts the remaster's credits (=n: at the n-th fight; past the last: the end titles).
   if (import.meta.env.DEV && params.has('credits')) startCredits(gs, { links: !isDesktop, start: Number(params.get('credits')) || 0 });
@@ -682,5 +710,7 @@ if (import.meta.env.PROD && !isDesktop && 'serviceWorker' in navigator && locati
 main().catch((err) => {
   console.error(err);
   boot.style.display = '';
+  boot.classList.remove('is-done');
+  boot.classList.add('is-error');
   bootStatus(String(err?.message ?? err));
 });

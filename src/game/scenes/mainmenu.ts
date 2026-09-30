@@ -14,7 +14,8 @@ import { saveSettings, settings, type KeyBindings } from '../settings';
 import { activeMenu } from './mainmenu/common';
 import { helpOverlayOpen } from '../gui/helpOverlay';
 import { menuMainCreate } from './mainmenu/menuMain';
-import { menuMoreCreate } from './mainmenu/menuMore';
+import { menuExtrasCreate } from './mainmenu/menuExtras';
+import { menuModesCreate } from './mainmenu/menuModes';
 import { PresskeyMenu } from './mainmenu/menuPresskey';
 import { arenaCount } from '../roster';
 
@@ -60,12 +61,14 @@ export class MainMenuScene extends Scene {
     const root = menuMainCreate(this);
     this.frame.setRoot(root);
     this.frame.layout();
-    // Back from a screen of EXTRAS (a replay): EXTRAS is open again.
-    if (gs.menuReturn === 'extras') {
-      const extras = root.items.find((c) => c instanceof Button && c.text.str === 'EXTRAS');
-      if (extras) {
-        root.select(extras);
-        root.setSubmenu(menuMoreCreate(this));
+    // Back from a screen of EXTRAS (a replay, the credits, a workshop robot tried out) or from a run or training of
+    // MORE MODES: that menu is open again.
+    if (gs.menuReturn) {
+      const title = gs.menuReturn === 'extras' ? 'EXTRAS' : 'MORE MODES';
+      const entry = root.items.find((c) => c instanceof Button && c.text.str === title);
+      if (entry) {
+        root.select(entry);
+        root.setSubmenu(gs.menuReturn === 'extras' ? menuExtrasCreate(this) : menuModesCreate(this));
       }
     }
     gs.menuReturn = null;

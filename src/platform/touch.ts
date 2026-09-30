@@ -1,6 +1,6 @@
 // Touch controls for phones and tablets: a stick that appears where the left thumb lands, punch, kick and special
 // buttons at the right, and a pause button. They show in fights and on the robot select screen (menus take taps like
-// mouse clicks), on touch screens once they are touched (CONFIGURATION > TOUCH PAD: AUTO), always (ON) or never.
+// mouse clicks), on touch screens once they are touched (OPTIONS > CONTROLS > TOUCH PAD: AUTO), always (ON) or never.
 // Player 1 plays with them: the keyboard controller reads touchPad() like a gamepad.
 import { setKeyState } from '../controller/input';
 

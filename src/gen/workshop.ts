@@ -1,4 +1,4 @@
-// The robot workshop (EXTRAS > WORKSHOP): robots put together from the generated robots' parts. A workshop robot is a
+// The robot workshop (EXTRAS > ROBOT WORKSHOP): robots put together from the generated robots' parts. A workshop robot is a
 // small description (a "spec", shared as a .omfbot file) from which the game builds a full fighter on the spot, like
 // the four new robots: the frame (skeleton, arms, legs, armor) of one of them, the head of another, the special moves
 // and finishers of a third, a size, a weight class and three colors.

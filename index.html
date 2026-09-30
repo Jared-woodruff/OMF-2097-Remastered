@@ -7,6 +7,7 @@
     <link rel="icon" href="./favicon.png" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="apple-touch-icon" href="./icon-192.png" />
+    <link rel="preload" href="./brand/logo.webp" as="image" />
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="One Must Fall 2097 Remastered: the 1994 robot fighting classic, rebuilt in HD." />
     <style>
@@ -14,26 +15,110 @@
       body { display: flex; align-items: center; justify-content: center; }
       #screen { display: block; width: 100%; height: 100%; outline: none; touch-action: none; }
       @font-face { font-family: 'OMF UI'; src: url('fonts/Orbitron.ttf') format('truetype'); font-weight: 400 900; font-display: swap; }
-      #boot { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-              gap: 14px; text-align: center; pointer-events: none; font-family: 'OMF UI', 'Segoe UI', system-ui, sans-serif;
-              background: radial-gradient(ellipse at 50% 45%, #0b1440 0%, #03050f 55%, #000 100%); color: #cfe0ff; }
-      #boot .mark { font-weight: 900; font-size: clamp(22px, 4.2vw, 64px); letter-spacing: .12em;
-                    background: linear-gradient(180deg, #fff 0%, #cdd8ff 40%, #5b77ff 50%, #1b2a86 53%, #9ab6ff 66%, #fff 100%);
-                    -webkit-background-clip: text; background-clip: text; color: transparent;
-                    filter: drop-shadow(0 0 18px rgba(60,110,255,.55)); }
-      #boot .sub { font-weight: 800; font-size: clamp(11px, 1.4vw, 22px); letter-spacing: .55em; margin-right: -.55em; color: #bff6ff;
-                   text-shadow: 0 0 8px #33e6ff, 0 0 22px #2f5bff; }
-      #boot .bar { width: min(420px, 60vw); height: 4px; margin-top: 18px; border-radius: 4px; background: rgba(60,100,255,.18);
-                   overflow: hidden; box-shadow: 0 0 12px rgba(60,100,255,.25); }
-      #boot .fill { display: block; height: 100%; width: 0; border-radius: 4px; transition: width .25s;
-                    background: linear-gradient(90deg, #2f5bff, #33e6ff); box-shadow: 0 0 12px #33e6ff; }
-      #boot .text { min-height: 1.4em; font-weight: 600; font-size: clamp(11px, 1vw, 15px); letter-spacing: .18em; color: #8fa6e8; }
+
+      /* The loading screen: an arena floor under a night sky, the logo, a HUD bar, tips. */
+      #boot { position: fixed; inset: 0; z-index: 50; overflow: hidden; pointer-events: none; color: #cfe0ff;
+              font-family: 'OMF UI', 'Segoe UI', system-ui, sans-serif; background: #03050d; transition: opacity .6s ease; }
+      #boot.is-done { opacity: 0; }
+      #boot .sky { position: absolute; inset: 0;
+              background: radial-gradient(ellipse 75% 50% at 50% 70%, rgba(255, 110, 30, .22), rgba(255, 60, 10, 0) 60%),
+                          radial-gradient(ellipse 90% 70% at 50% 30%, #10205a 0%, #070d2a 45%, #03050d 80%); }
+      #boot .floor { position: absolute; left: -50%; right: -50%; top: 70.5%; height: 80%; transform-origin: 50% 0;
+              transform: perspective(420px) rotateX(62deg);
+              background-image: linear-gradient(rgba(90, 140, 255, .38) 2px, transparent 2px),
+                                linear-gradient(90deg, rgba(90, 140, 255, .38) 2px, transparent 2px);
+              background-size: 64px 64px; animation: boot-floor 2.4s linear infinite;
+              -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 70%, transparent 100%);
+              mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 70%, transparent 100%); }
+      @keyframes boot-floor { to { background-position: 0 64px; } }
+      #boot .horizon { position: absolute; left: 0; right: 0; top: 70%; height: 2px;
+              background: linear-gradient(90deg, transparent, rgba(255, 150, 60, .9) 30%, #fff3d0 50%, rgba(255, 150, 60, .9) 70%, transparent);
+              box-shadow: 0 0 24px 4px rgba(255, 120, 40, .55); }
+      #boot .scan { position: absolute; inset: 0; opacity: .5;
+              background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .28) 0 2px, transparent 2px 4px); }
+      #boot .center { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); width: min(72vw, 780px);
+              display: flex; flex-direction: column; align-items: center; }
+      #boot .logo-wrap { position: relative; width: 100%; animation: boot-logo .9s cubic-bezier(.2, .9, .25, 1) both; }
+      @keyframes boot-logo { from { opacity: 0; transform: scale(1.08); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+      #boot .logo { display: block; width: 100%; height: auto; filter: drop-shadow(0 12px 30px rgba(0, 0, 0, .6)); }
+      #boot .shine { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen;
+              -webkit-mask: url('./brand/logo.webp') center / 100% 100% no-repeat; mask: url('./brand/logo.webp') center / 100% 100% no-repeat;
+              background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, .75) 50%, transparent 60%) no-repeat;
+              background-size: 250% 100%; animation: boot-shine 3.2s ease-in-out 1s infinite; }
+      @keyframes boot-shine { 0% { background-position: 130% 0; } 45%, 100% { background-position: -30% 0; } }
+      #boot .meter { position: relative; width: min(62vw, 560px); height: 12px; margin-top: clamp(22px, 4.5vh, 44px);
+              padding: 3px; border-radius: 3px; clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+              background: linear-gradient(180deg, #d8deea, #5a6478 55%, #aeb7c8); box-shadow: 0 0 18px rgba(60, 110, 255, .35); }
+      #boot .meter .track { position: relative; height: 100%; overflow: hidden; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+              background: #070b1c repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), rgba(120, 150, 220, .25) calc(10% - 2px) 10%); }
+      #boot .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; transition: width .35s ease;
+              background: linear-gradient(180deg, #9ff0ff, #33b8ff 45%, #1f55ff 55%, #57a0ff); box-shadow: 0 0 14px #33c8ff; }
+      #boot .fill::after { content: ''; position: absolute; inset: 0; animation: boot-glint 1.4s linear infinite;
+              background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .7), transparent) no-repeat; background-size: 30% 100%; }
+      @keyframes boot-glint { from { background-position: -40% 0; } to { background-position: 140% 0; } }
+      #boot .status { display: flex; justify-content: space-between; width: min(62vw, 560px); margin-top: 10px;
+              font-weight: 700; font-size: clamp(10px, .85vw, 14px); letter-spacing: .22em; color: #8fa6e8; }
+      #boot .pct { font-variant-numeric: tabular-nums; color: #cfe3ff; }
+      #boot .tip { position: absolute; left: 50%; bottom: clamp(44px, 9vh, 96px); transform: translateX(-50%); width: min(86vw, 900px);
+              text-align: center; font-weight: 500; font-size: clamp(11px, .95vw, 16px); letter-spacing: .05em; line-height: 1.6;
+              color: #b9c8ec; transition: opacity .45s ease; }
+      #boot .tip b { margin-right: .9em; padding: .2em .6em; border-radius: 4px; font-weight: 800; font-size: .8em; letter-spacing: .2em;
+              color: #1a1204; background: linear-gradient(180deg, #ffe08a, #ffb02e); }
+      #boot .tip.is-out { opacity: 0; }
+      #boot .foot { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between;
+              padding: 0 max(16px, 1.6vw) max(12px, 1.6vh); font-weight: 600; font-size: clamp(9px, .7vw, 12px);
+              letter-spacing: .18em; text-transform: uppercase; color: rgba(190, 205, 240, .55); }
+      #boot.is-error .status .text { color: #ff8a7a; letter-spacing: .06em; }
+      #boot.is-error .fill { background: #ff5a4a; box-shadow: 0 0 14px #ff5a4a; }
+      @media (prefers-reduced-motion: reduce) { #boot .floor, #boot .shine, #boot .fill::after { animation: none; } }
     </style>
   </head>
   <body>
     <canvas id="screen" tabindex="0"></canvas>
-    <div id="boot"><div class="mark">ONE MUST FALL 2097</div><div class="sub">REMASTERED</div>
-      <div class="bar"><i class="fill"></i></div><div class="text">LOADING…</div></div>
+    <div id="boot">
+      <div class="sky"></div><div class="floor"></div><div class="horizon"></div><div class="scan"></div>
+      <div class="center">
+        <div class="logo-wrap"><img class="logo" src="./brand/logo.webp" alt="One Must Fall 2097 Remastered" /><div class="shine"></div></div>
+        <div class="meter"><div class="track"><i class="fill"></i></div></div>
+        <div class="status"><span class="text">LOADING</span><span class="pct">0%</span></div>
+      </div>
+      <div class="tip"><b>TIP</b><span class="tip-text"></span></div>
+      <div class="foot"><span>An unofficial fan remaster &middot; free, always</span><span class="ver"></span></div>
+    </div>
+    <script>
+      // Tips while the game loads (they stop with the loading screen).
+      (function () {
+        var tips = [
+          'Press F2 at any time to switch between the original pixels and the remastered graphics.',
+          'Press F1 during a fight for the help pages, and the pause menu for your robot’s move list.',
+          'The special button does a special move in one press: with no direction, forward, back, down or up.',
+          'The training lab shows frame data and hitboxes, and has combo trials for every robot.',
+          'Drop your own music files onto the game window to fight to them. F3 skips to the next song.',
+          'F11 or Alt+Enter switches fullscreen. F12 or Print Screen saves a screenshot.',
+          'Replays of your fights are kept: watch them in slow motion and save clips as MP4 or GIF.',
+          'Build your own robot in the robot workshop, then take it into the ring.',
+          'Four new robots and four new arenas were made for the remaster. Turn them on in Options › New content.',
+          'An Xbox controller works right away, for one player or two.',
+          'Hyper mode, in Options › Gameplay, makes every special move stronger.',
+          'Kreissack waits at the end of arcade mode. Bring your best robot.'
+        ];
+        var el = document.querySelector('#boot .tip');
+        var text = el && el.querySelector('.tip-text');
+        if (!el || !text) return;
+        var i = Math.floor(Math.random() * tips.length);
+        text.textContent = tips[i];
+        var timer = setInterval(function () {
+          var boot = document.getElementById('boot');
+          if (!boot || boot.style.display === 'none') { clearInterval(timer); return; }
+          el.classList.add('is-out');
+          setTimeout(function () {
+            i = (i + 1) % tips.length;
+            text.textContent = tips[i];
+            el.classList.remove('is-out');
+          }, 450);
+        }, 5200);
+      })();
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

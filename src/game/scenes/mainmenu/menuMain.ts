@@ -6,11 +6,10 @@ import { Button, Menu } from '../../gui/widgets';
 import { settings } from '../../settings';
 import type { MainMenuScene } from '../mainmenu';
 import { parentMenu } from './common';
-import { menuConfigurationCreate } from './menuConfiguration';
-import { menuGameplayCreate } from './menuGameplay';
+import { menuExtrasCreate } from './menuExtras';
 import { menuHelpCreate } from './menuHelp';
-import { menuMoreCreate } from './menuMore';
-import { menuTrainingCreate } from './menuTraining';
+import { menuModesCreate } from './menuModes';
+import { menuOptionsCreate } from './menuOptions';
 
 /**
  * The reference's `if(ctrl_type == KEYBOARD) _setup_keyboard(gs, player, player); else if(GAMEPAD) _setup_joystick(...)`.
@@ -56,14 +55,14 @@ function mainmenu1v2(s: MainMenuScene): void {
 }
 
 /** mainmenu_demo(): computer against computer with random pilots and robots. */
-function mainmenuDemo(s: MainMenuScene): void {
+export function mainmenuDemo(s: MainMenuScene): void {
   s.gs.matchSettingsReset();
   s.gs.initDemo();
   s.gs.setNext(SceneId.VS);
 }
 
 /** mainmenu_soreboard() [sic] */
-function mainmenuScoreboard(s: MainMenuScene): void {
+export function mainmenuScoreboard(s: MainMenuScene): void {
   s.gs.setNext(SceneId.SCOREBOARD);
 }
 
@@ -73,21 +72,20 @@ function mainmenuMechlab(s: MainMenuScene): void {
   s.gs.setNext(SceneId.MECHLAB);
 }
 
+/**
+ * The main menu. The original's three ways to play come first, then the remaster's: its other modes, its extras (the
+ * workshop, replays, records and the original's DEMO and SCOREBOARD), and one OPTIONS menu for the original's
+ * CONFIGURATION and GAMEPLAY menus and the remaster's settings.
+ */
 export function menuMainCreate(s: MainMenuScene): Menu {
   const menu = new Menu();
-  // Eleven entries (the remaster adds EXTRAS): a little closer together than the original's ten.
-  menu.padding = 2;
   menu.attach(new Button('ONE PLAYER GAME', null, false, false, () => mainmenu1v1(s)));
   menu.attach(new Button('TWO PLAYER GAME', null, false, false, () => mainmenu1v2(s)));
   menu.attach(new Button('TOURNAMENT PLAY', null, false, false, () => mainmenuMechlab(s)));
-  // There is no network play in this version: its place in the menu goes to training mode.
-  menu.attach(new Button('TRAINING', null, false, false, (b) => parentMenu(b).setSubmenu(menuTrainingCreate(s))));
-  menu.attach(new Button('CONFIGURATION', null, false, false, (b) => parentMenu(b).setSubmenu(menuConfigurationCreate(s))));
-  menu.attach(new Button('GAMEPLAY', null, false, false, (b) => parentMenu(b).setSubmenu(menuGameplayCreate(s))));
-  menu.attach(new Button('EXTRAS', null, false, false, (b) => parentMenu(b).setSubmenu(menuMoreCreate(s))));
+  menu.attach(new Button('MORE MODES', null, false, false, (b) => parentMenu(b).setSubmenu(menuModesCreate(s))));
+  menu.attach(new Button('EXTRAS', null, false, false, (b) => parentMenu(b).setSubmenu(menuExtrasCreate(s))));
+  menu.attach(new Button('OPTIONS', null, false, false, (b) => parentMenu(b).setSubmenu(menuOptionsCreate(s))));
   menu.attach(new Button('HELP', null, false, false, (b) => parentMenu(b).setSubmenu(menuHelpCreate(s))));
-  menu.attach(new Button('DEMO', null, false, false, () => mainmenuDemo(s)));
-  menu.attach(new Button('SCOREBOARD', null, false, false, () => mainmenuScoreboard(s)));
   menu.attach(new Button('QUIT', null, false, false, () => mainmenuQuit(s)));
   return menu;
 }
