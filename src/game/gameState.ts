@@ -450,6 +450,8 @@ export class GameState {
   }
 
   staticTick(): void {
+    // (the credits keep their show on the music's time)
+    this.credits?.staticTick();
     if (this.thisWaitTicks > 0) this.thisWaitTicks--;
     if (this.nextWaitTicks > 0) this.nextWaitTicks--;
     const crossfadeOut = settings().video.crossfade && !this.sc.isArena();

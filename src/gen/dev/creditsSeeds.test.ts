@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import { createGame, HeadlessRunner } from '../../test/harness';
 import { SceneId } from '../../game/constants';
 import {
-  CREDIT_BATTLES, CREDITS_END_TICKS, CREDITS_READY_TICK, CREDITS_RULES, setupCreditsBattle, type CreditBattle, type CreditsRules,
+  CREDIT_BATTLES, CREDITS_OWN_END_TICKS, CREDITS_READY_TICK, CREDITS_RULES, setupCreditsBattle, type CreditBattle, type CreditsRules,
 } from '../../game/credits/battles';
 import { harData } from '../../game/objects/har';
 
@@ -31,11 +31,12 @@ export function playBattle(b: CreditBattle, rules: CreditsRules = CREDITS_RULES,
   let over = false;
   gs.credits = {
     readyTick: CREDITS_READY_TICK,
-    endTicks: CREDITS_END_TICKS,
+    endTicks: CREDITS_OWN_END_TICKS,
     setupFight: () => setupCreditsBattle(gs, b, rules),
     hudLine: () => '',
     fightOver: () => (over = true),
     action: () => undefined,
+    staticTick: () => undefined,
   };
   gs.swapScene(SceneId.ARENA0 + b.arena);
   const run = new HeadlessRunner(gs);

@@ -363,7 +363,11 @@ async function main(): Promise<void> {
       renderer.camera = camera.update(gs, performance.now(), settings().gameplay.fightCamera && renderer.options.mode === 'remastered');
       if (renderer.options.mode === 'remastered' && hdAssets.enabled) genArt.pump(4);
       // (a page or the credits' titles covering the screen: nothing of the game shows)
-      if (!help.coversScreen() && !(gs.credits instanceof CreditsRun && gs.credits.coversScreen())) renderer.render();
+      if (!help.coversScreen() && !(gs.credits instanceof CreditsRun && gs.credits.coversScreen())) {
+        renderer.render();
+        // (the credits keep a picture of each fight's winner, taken while the frame is there)
+        if (gs.credits instanceof CreditsRun) gs.credits.rendered(canvas);
+      }
       clips.frame();
     },
   });

@@ -77,6 +77,8 @@ export class ArenaScene extends Scene implements ArenaLike {
   round = 0;
   rounds = 1;
   over = 0;
+  /** A round's end is still playing out: a finishing move or the score going on (the credits' cards wait for it). */
+  finishing = false;
   winner = 0;
   tournament = false;
   winState = WinState.NONE;
@@ -953,12 +955,15 @@ export class ArenaScene extends Scene implements ArenaLike {
         harSetAni(objs[0], ANIM_VICTORY, false);
       }
       const s1 = gs.getPlayer(0).score, s2 = gs.getPlayer(1).score;
+      const finishing = objs[0].frameIsSet(Tag.BE) || objs[1].frameIsSet(Tag.BE) || s1.onscreen() || s2.onscreen() ||
+        this.harIsScrapWalking(objs[0]) || this.harIsScrapWalking(objs[1]);
+      this.finishing = finishing;
       if (this.winState && this.winState !== WinState.DONE && (this.defeatedAtRest(objs[0]) || this.defeatedAtRest(objs[1]))) {
         if (this.winState === WinState.YOULOSE) this.youLoseStart();
         else if (this.winState === WinState.YOUWIN) this.youWinStart();
         this.winState = WinState.NONE;
       } else if (this.winState === WinState.DONE) {
-        if (objs[0].frameIsSet(Tag.BE) || objs[1].frameIsSet(Tag.BE) || s1.onscreen() || s2.onscreen() || this.harIsScrapWalking(objs[0]) || this.harIsScrapWalking(objs[1])) {
+        if (finishing) {
           // The credits' fights are DONE from the knockout on, so their long ending only waits for a finishing move
           // to be over (some victory poses loop on a waiting frame, which would hold it forever).
           this.stateTicks = gs.credits ? Math.min(this.stateTicks, this.endTick() - 30) : 50;
@@ -1182,6 +1187,8 @@ export class ArenaScene extends Scene implements ArenaLike {
 
   override paletteTransform(): void {
     let target: number;
+    // (the credits bring their fights in themselves: the arena shows at once under the VS card, held still)
+    if (this.state === ARENA_STATE_STARTING && this.gs.credits) return;
     if (this.state === ARENA_STATE_STARTING) target = 0;
     else if (this.state === ARENA_STATE_ENDING) target = this.endTick() + ARENA_CROSSFADE_TICKS;
     else return;

@@ -16,6 +16,24 @@ interface ChannelState {
 
 export type MusicQuality = 'classic' | 'enhanced';
 
+/** A song file playing over everything (the credits' song, see AudioSystem.playTrack). */
+export interface Track {
+  /** The song's levels (for visuals). */
+  analyser: AnalyserNode;
+  /** The position playing in the song (s), or null while it does not play yet (loading) or has stopped. */
+  position(): number | null;
+  /** Moves the song to a position (s): before a cut. */
+  seek(pos: number): void;
+  /**
+   * Cuts, when the song reaches its position `at`, to `buffer` (a file holding the song from its position
+   * `bufferStart` on) playing the song's position `pos`: a jump ahead in the song, on the beat (10 ms crossfade).
+   * False when it cannot be done in time (less than 50 ms ahead) or has been done.
+   */
+  cutTo(buffer: AudioBuffer, at: number, pos: number, bufferStart: number): boolean;
+  /** Fades the song out and ends it. */
+  stop(fadeSeconds?: number): void;
+}
+
 /** Acoustics of a place: reverb time (s), delay before it (s), high frequency damping (Hz), level, early echoes (ms, gain). */
 export interface Room {
   decay: number;
@@ -426,33 +444,64 @@ export class AudioSystem {
   }
 
   /**
-   * Plays a song file (a URL, looping) at the music volume, fading in; the caller stops the game's music meanwhile.
-   * Returns an analyser of the song (for visuals) and its stop (a fade out), or null without audio.
+   * Plays a song file (a URL, streamed) at the music volume, from its start (`fadeIn` seconds of fade in); the caller
+   * stops the game's music meanwhile. Returns the playing track (see Track), or null without audio.
    */
-  playTrack(url: string, onError: () => void): { analyser: AnalyserNode; stop: (fadeSeconds?: number) => void } | null {
+  playTrack(url: string, onError: () => void, fadeIn = 1.6): Track | null {
     const ctx = this.ctx;
     if (!ctx || !this.out) return null;
     const el = new Audio();
-    el.loop = true;
     el.preload = 'auto';
     el.addEventListener('error', () => onError(), { once: true });
     el.src = url;
     const src = ctx.createMediaElementSource(el);
+    // (the song's own level, for a cut to another file: see cutTo)
+    const elGain = ctx.createGain();
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 512;
     analyser.smoothingTimeConstant = 0.72;
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(this.musicVolume, ctx.currentTime + 1.6);
-    src.connect(analyser);
+    gain.gain.linearRampToValueAtTime(this.musicVolume, ctx.currentTime + Math.max(0.01, fadeIn));
+    src.connect(elGain);
+    elGain.connect(analyser);
     analyser.connect(gain);
     gain.connect(this.out);
     this.trackGain = gain;
     if (ctx.state !== 'running') void ctx.resume();
     void el.play().catch(() => undefined);
     let stopped = false;
+    /** After a cut: the file playing instead, the song position it plays at the context time `at`. */
+    let cut: { source: AudioBufferSourceNode; gain: GainNode; at: number; pos: number } | null = null;
     return {
       analyser,
+      position: () => {
+        if (cut && ctx.currentTime >= cut.at) return cut.pos + (ctx.currentTime - cut.at);
+        return el.readyState >= 2 && !el.paused && el.currentTime > 0 ? el.currentTime : null;
+      },
+      seek: (pos: number) => {
+        if (!cut) el.currentTime = Math.max(0, pos);
+      },
+      cutTo: (buffer: AudioBuffer, at: number, pos: number, bufferStart: number) => {
+        if (cut || stopped || el.paused) return false;
+        const when = ctx.currentTime + (at - el.currentTime);
+        if (when < ctx.currentTime + 0.05) return false;
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        const g = ctx.createGain();
+        source.connect(g);
+        g.connect(analyser);
+        // A 10 ms crossfade on the downbeat, the new file started where it plays the song position `pos`.
+        const x = 0.01;
+        g.gain.setValueAtTime(0, when - x / 2);
+        g.gain.linearRampToValueAtTime(1, when + x / 2);
+        elGain.gain.setValueAtTime(1, when - x / 2);
+        elGain.gain.linearRampToValueAtTime(0, when + x / 2);
+        source.start(when - x / 2, Math.max(0, pos - bufferStart - x / 2));
+        cut = { source, gain: g, at: when, pos };
+        window.setTimeout(() => el.pause(), (when - ctx.currentTime + 0.2) * 1000);
+        return true;
+      },
       stop: (fadeSeconds = 0.8) => {
         if (stopped) return;
         stopped = true;
@@ -465,12 +514,31 @@ export class AudioSystem {
           el.pause();
           el.removeAttribute('src');
           el.load();
+          try {
+            cut?.source.stop();
+          } catch {
+            // (not started yet)
+          }
           src.disconnect();
+          cut?.gain.disconnect();
+          elGain.disconnect();
           analyser.disconnect();
           gain.disconnect();
         }, fadeSeconds * 1000 + 100);
       },
     };
+  }
+
+  /** Fetches and decodes a sound file (null without audio, or when it cannot be had). */
+  async loadBuffer(url: string): Promise<AudioBuffer | null> {
+    if (!this.ctx) return null;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      return await this.decode(await res.arrayBuffer());
+    } catch {
+      return null;
+    }
   }
 
   /** The place the sounds are heard in: an arena (0..4) gets its acoustics, anything else (-1) is dry. */

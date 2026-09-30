@@ -3,7 +3,7 @@
 // every scrap or destruction whether it catches the beaten robot, how close the two robots come as drawn (the gap
 // between their pixels) and whether the winner runs into a wall.
 import { ARENA_LEFT_WALL, ARENA_RIGHT_WALL, HarEventType, HarState, OBJECT_FACE_LEFT, SceneId } from '../game/constants';
-import { CREDITS_END_TICKS, CREDITS_READY_TICK, CREDITS_RULES, setupCreditsBattle, type CreditBattle } from '../game/credits/battles';
+import { CREDITS_OWN_END_TICKS, CREDITS_READY_TICK, CREDITS_RULES, setupCreditsBattle, type CreditBattle } from '../game/credits/battles';
 import type { GameObject } from '../game/object';
 import { harData, harInstallHook } from '../game/objects/har';
 import { Tag } from '../script/tags';
@@ -90,17 +90,18 @@ export function playFinish(w: number, l: number, arena: number, seed: number, op
     role: '', title: '', detail: '', accent: '#fff', emblem: 'chip',
     winner: { name: 'W', line2: '', har: w, colors: ['#2f5d9e', '#c9d6ea', '#e0b070'] },
     loser: { name: 'L', line2: '', har: l, colors: ['#6e5a4a', '#8a4a2c', '#3c3530'] },
-    arena, seed,
+    arena, seed, blow: 0, done: 0,
   };
   const gs = createGame(SceneId.MENU);
   let over = false;
   gs.credits = {
     readyTick: CREDITS_READY_TICK,
-    endTicks: CREDITS_END_TICKS,
+    endTicks: CREDITS_OWN_END_TICKS,
     setupFight: () => setupCreditsBattle(gs, b, opts.credit ? CREDITS_RULES : { ...CREDITS_RULES, power: [8, 1] }),
     hudLine: () => '',
     fightOver: () => (over = true),
     action: () => undefined,
+    staticTick: () => undefined,
   };
   gs.swapScene(SceneId.ARENA0 + b.arena);
   const run = new HeadlessRunner(gs);
