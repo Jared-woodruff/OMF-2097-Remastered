@@ -108,20 +108,23 @@ export async function newRobotDialog(app: StudioApp): Promise<RobotDoc | null> {
       return {
         id, af, hd: null,
         info: { name: clean, description: `Built from ${PART_NAMES[w.body]}'s frame, ${PART_NAMES[w.head]}'s head and ${PART_NAMES[w.moves]}'s moves.`,
-          moves: { ...g.specialNames }, ai: structuredClone(GEN_TACTICS[g.name] ?? { projectile: [], charge: [], push: [] }) },
+          moves: { ...g.specialNames }, ai: structuredClone(GEN_TACTICS[g.name] ?? { projectile: [], charge: [], push: [] }), workshop: w },
       };
     }
     if (start === 'copy') {
       const file = `FIGHTR${copyFrom}.AF`;
       const af = parseAF(getGenerated(file) ?? getFile(file));
       const g = GEN_ROBOTS.find((r) => r.id === copyFrom);
+      // (the remaster's robots are the robot workshop's parts of one robot: their 3D model draws them)
+      const k = g ? GEN_ROBOTS.indexOf(g) : -1;
       return {
         id, af, hd: null,
         info: { name: clean, description: '', moves: g ? { ...g.specialNames } : {},
-          ai: g ? structuredClone(GEN_TACTICS[g.name]) : { projectile: projectileMoves(af), charge: [], push: [] } },
+          ai: g ? structuredClone(GEN_TACTICS[g.name]) : { projectile: projectileMoves(af), charge: [], push: [] },
+          workshop: g ? { v: 1, name: cleanName(g.name), body: k, head: k, moves: k, size: 1, weight: 1, colors: [...spec.colors] } : null },
       };
     }
-    return { id, af: blankRobot(), hd: null, info: { name: clean, description: '', moves: {}, ai: { projectile: [], charge: [], push: [] } } };
+    return { id, af: blankRobot(), hd: null, info: { name: clean, description: '', moves: {}, ai: { projectile: [], charge: [], push: [] }, workshop: null } };
   } catch (err) {
     toast(`The robot could not be made: ${(err as Error)?.message ?? err}`, true);
     return null;

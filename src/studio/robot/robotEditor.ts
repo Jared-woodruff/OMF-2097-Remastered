@@ -11,6 +11,7 @@ import { inputText, moveLabel } from './moves';
 import { MoveEditor } from './moveEditor';
 import { pictureFromIdle, setPicture } from './model';
 import { soundsCard } from './sounds';
+import { renderModelDialog } from './hdModel';
 
 export function robotEditor(app: StudioApp, robot: RobotDoc, move?: number): Editor {
   let tab: 'overview' | 'moves' = move !== undefined ? 'moves' : 'overview';
@@ -164,6 +165,11 @@ function overview(app: StudioApp, robot: RobotDoc, openMove: (id: number) => voi
       app, prefix: 'm', anims: () => af.moves, get: () => robot.hd, set: (hd) => (robot.hd = hd),
       palette: () => robotPalette(robot.hd?.colors ?? HD_REFERENCE_COLORS), name: `${robot.id}-hd-templates.zip`, colors: true,
       changed: () => app.changed(false),
+      actions: [{
+        label: 'Render from the 3D model', available: () => !!robot.info.workshop,
+        title: 'It was built from the robot workshop\'s parts: render its HD pictures from their 3D model, like the game renders the remaster\'s robots',
+        run: () => renderModelDialog(app, robot),
+      }],
     }),
     h('div', { class: 'card' }, h('h2', null, 'THE COMPUTER\'S TACTICS'),
       h('p', { class: 'muted', style: { marginTop: '0' } }, 'Which of its special moves the computer uses when it wants to shoot from afar, charge in, ' +

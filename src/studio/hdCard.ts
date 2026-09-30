@@ -30,6 +30,8 @@ export interface HdSprites {
   /** Robots: the colors the pictures are painted in may be chosen. */
   colors: boolean;
   changed: () => void;
+  /** More ways to make pictures (a robot's 3D model), shown when they can be used. */
+  actions?: { label: string; title: string; available: () => boolean; run: () => Promise<unknown> }[];
 }
 
 /** A picture's preview, `max` pixels a side at most. */
@@ -125,6 +127,7 @@ export function hdSpritesCard(o: HdSprites): HTMLElement {
           (have ? ' Choose them before painting: the pictures you have are taken as painted in these.' : '')),
         colorRow('Primary', 0), colorRow('Secondary', 1), colorRow('Tertiary', 2)) : null,
       h('div', { class: 'row', style: { flexWrap: 'wrap' } },
+        (o.actions ?? []).filter((a) => a.available()).map((a) => h('button', { class: 'btn small primary', title: a.title, onclick: () => void a.run().then(render) }, a.label)),
         h('button', { class: 'btn small', onclick: () => void exportTemplates() }, 'Export templates'),
         h('button', { class: 'btn small primary', onclick: () => void importPictures() }, 'Import pictures'),
         have ? h('button', { class: 'btn small danger', onclick: () => {

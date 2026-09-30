@@ -262,6 +262,7 @@ export class StudioApp {
     this.project!.robots.push(r);
     this.changed();
     this.select({ kind: 'robot', index: this.project!.robots.length - 1 });
+    if (r.info.workshop) toast('Its HD pictures can be rendered from its 3D model: HD ARTWORK, on its overview.', false, 6000);
   }
 
   private async addArena(): Promise<void> {

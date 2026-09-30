@@ -17,6 +17,8 @@
 // file; the round banners, shared colors and sounds of an arena): the game adds the original game's, like it does for
 // its own new robots and arenas. OMF Studio (src/studio) makes these packages; mods/package.ts reads and writes them.
 
+import { readSpec, type WorkshopSpec } from '../gen/workshop';
+
 /** The package format this game reads (mod.json `format`). */
 export const MOD_FORMAT = 1;
 
@@ -45,6 +47,11 @@ export interface ModRobotInfo {
   moves: Record<number, string>;
   /** Its special moves the computer uses for its tactics (move ids): projectiles, charges, pushes. */
   ai: { projectile: number[]; charge: number[]; push: number[] };
+  /**
+   * The robot workshop's parts it was built from (gen/workshop.ts), if it was: OMF Studio renders its HD pictures from
+   * their 3D model. The game does not use it.
+   */
+  workshop: WorkshopSpec | null;
 }
 
 /** The original songs an arena can play. */
@@ -343,6 +350,9 @@ export function readRobotInfo(v: unknown, where: string): ModRobotInfo {
     moves[id] = name;
   }
   const ai = o.ai === undefined ? {} : obj(o.ai, `${where}: "ai"`);
+  if (o.workshop !== undefined && o.workshop !== null && (typeof o.workshop !== 'object' || Array.isArray(o.workshop))) {
+    throw new ModError(`${where}: "workshop" must be the robot workshop's parts.`);
+  }
   return {
     name: str(o, 'name', where, 12).trim().toUpperCase() || 'ROBOT',
     description: str(o, 'description', where, 200, ''),
@@ -352,6 +362,7 @@ export function readRobotInfo(v: unknown, where: string): ModRobotInfo {
       charge: moveIds(ai.charge, `${where}: "ai.charge"`),
       push: moveIds(ai.push, `${where}: "ai.push"`),
     },
+    workshop: o.workshop ? readSpec(o.workshop) : null,
   };
 }
 

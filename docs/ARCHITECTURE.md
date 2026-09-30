@@ -341,7 +341,10 @@ chains). A pilot's words are laid out by the game's own text code in the boxes o
 (`pilot/words.ts`), its portrait fitted into each screen's colors by the game's own functions (`mods/portraits.ts`),
 and its personality edited as the fields the original pilots have (`controller/personalities.ts`, the table the
 game's `resetPilotPersonality` applies). HD pictures are held by the fingerprints of the sprites they stand for, so
-they follow their pixels (`hd.ts`: templates, shape checks, WebP; `hdCard.ts`: the cards). **Test** puts the built package in the game's storage as the mod being
+they follow their pixels (`hd.ts`: templates, shape checks, WebP; `hdCard.ts`: the cards); a robot built from the
+workshop's parts (robot.json's `workshop`) has its sprites rendered again from the 3D model with the game's HD robot
+renderer (`robot/hdModel.ts`: the model's sprites made again and matched by fingerprint, drawn by `RobotHdRenderer`,
+read back). **Test** puts the built package in the game's storage as the mod being
 tested and opens `index.html?modtest&t=…&h1=mod:<id>…` in a frame: the game loads it over the installed mods and starts
 the fight, or the one-player game at its pilot select screen, its VS screen or its ending (`testContent()` in the
 registry turns the names into numbers; `gs.modTest` shows the arena's hazards and Kreissack whatever the settings).

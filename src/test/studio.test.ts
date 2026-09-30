@@ -19,6 +19,10 @@ import { decodePng, encodePng } from '../util/png';
 import { spriteHash } from '../mods/package';
 import { HD_PAD, HD_SCALE } from '../mods/types';
 import { followEdit, hdTemplate, parseStem, spriteStem } from '../studio/hd';
+import { modelJobs, unpremultiply } from '../studio/robot/hdModel';
+import { GEN_ROBOTS } from '../gen/roster';
+import { getGenerated } from '../resources/generated';
+import { readRobotInfo } from '../mods/types';
 import { robotPalette } from '../studio/colors';
 import { originalPilot } from '../studio/pilot/originals';
 import { BIO_BOX, ENDING_BOX, ENDING_LAST_BOX, endingPages, VICTORY_BOX, VS_BOX, wordsFit } from '../studio/pilot/words';
@@ -121,7 +125,7 @@ describe.skipIf(!hasGameData)('OMF Studio projects', () => {
     for (const af of made) {
       expect(() => checkFighter(saveAF(af), 'robot')).not.toThrow();
       const p = newProject();
-      p.robots.push({ id: 'x', af, hd: null, info: { name: 'X', description: '', moves: {}, ai: { projectile: [], charge: [], push: [] } } });
+      p.robots.push({ id: 'x', af, hd: null, info: { name: 'X', description: '', moves: {}, ai: { projectile: [], charge: [], push: [] }, workshop: null } });
       expect(projectProblems(p).filter((x) => x.level === 'error')).toEqual([]);
       // Its pictures can be made from its idle animation.
       const cell = pictureFromIdle(af, 'cell')!;
@@ -144,7 +148,7 @@ describe.skipIf(!hasGameData)('OMF Studio projects', () => {
     expect(projectProblems(p).some((x) => /no robots, arenas or pilots/.test(x.text))).toBe(true);
     const af = blankRobot();
     af.moves[11] = null;
-    p.robots.push({ id: 'x', af, hd: null, info: { name: 'X', description: '', moves: {}, ai: { projectile: [], charge: [], push: [] } } });
+    p.robots.push({ id: 'x', af, hd: null, info: { name: 'X', description: '', moves: {}, ai: { projectile: [], charge: [], push: [] }, workshop: null } });
     expect(projectProblems(p).some((x) => x.level === 'error' && /idle animation/.test(x.text))).toBe(true);
     p.manifest.id = 'Bad Id';
     expect(projectProblems(p).some((x) => /id may only/.test(x.text))).toBe(true);
@@ -262,6 +266,37 @@ describe.skipIf(!hasGameData)('OMF Studio projects', () => {
     arena.wid = null;
     expect(packageFromProject(p).arenas[0].hd).toBeNull();
     await expect(readModPackage(await writeModPackage(packageFromProject(p)))).resolves.toBeTruthy();
+  });
+
+  it('a robot built from the workshop\'s parts has its 3D model\'s sprites to render in HD', async () => {
+    const sample = await buildSampleMod();
+    const p = projectFromPackage(sample);
+    const robot = p.robots[0];
+    // (robot.json names the parts: the game keeps them, and ignores them)
+    expect(robot.info.workshop).toMatchObject({ body: 0, head: 3, moves: 2 });
+    expect(readRobotInfo({ name: 'X' }, 'r').workshop).toBeNull();
+    const all = new Set(robot.af.moves.flatMap((m) => m?.animation.sprites.filter((s) => !s.isEmpty()).map(spriteHash) ?? []));
+    const first = modelJobs(robot.info.workshop!, robot.af);
+    expect([first.jobs.length, first.other]).toEqual([all.size, 0]);
+    // A sprite drawn on is not the model's any more; a move copied elsewhere still is.
+    const idle = robot.af.moves[11]!.animation.sprites[0];
+    const px = idle.pixels().slice();
+    px[px.findIndex((v) => v !== 0)] = 40;
+    setPicture(sharedGroup(robot.af.moves.map((m) => m?.animation), idle), px, idle.width, idle.height);
+    robot.af.moves[45] = copyMove(robot.af.moves[15]!);
+    const after = modelJobs(robot.info.workshop!, robot.af);
+    expect([after.jobs.length, after.other]).toEqual([all.size - 1, 1]);
+    expect(after.jobs.some((j) => j.hash === spriteHash(idle))).toBe(false);
+    // The remaster's robots are workshop parts too: a copy of one renders from them.
+    GEN_ROBOTS.forEach((g, k) => {
+      const af = parseAF(getGenerated(`FIGHTR${g.id}.AF`)!);
+      const r = modelJobs({ v: 1, name: g.name, body: k, head: k, moves: k, size: 1, weight: 1, colors: [0, 1, 4] }, af);
+      expect(r.other, g.name).toBe(0);
+    });
+    // What the GPU draws (premultiplied) becomes what pictures hold.
+    const rgba = new Uint8Array([100, 50, 0, 128, 7, 7, 7, 255, 0, 0, 0, 0]);
+    unpremultiply(rgba);
+    expect(Array.from(rgba)).toEqual([199, 100, 0, 128, 7, 7, 7, 255, 0, 0, 0, 0]);
   });
 
   it('a project from a package keeps its content ids', async () => {

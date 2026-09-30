@@ -194,6 +194,8 @@ export async function buildSampleMod(): Promise<ModPackage> {
         moves,
         // HELIX's specials: DRILL RUSH (a charge), CORKSCREW (a rising push), DRILL BIT (a projectile).
         ai: { projectile: [MOVE.SPECIAL3], charge: [MOVE.SPECIAL1], push: [MOVE.SPECIAL2] },
+        // (Studio renders its HD pictures from the parts' 3D model)
+        workshop: ROBOT,
       },
       af: buildWorkshopFighter(ROBOT, 0),
       hd: null,

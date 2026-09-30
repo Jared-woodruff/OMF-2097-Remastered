@@ -50,7 +50,10 @@ Studio makes content in the game's own formats, pixel for pixel, and tests it in
   are painted in) to paint over or run through an upscaler, and brings the pictures back in by their names (one by
   one or in a zip); a sprite's own HD picture, a background's and a pilot's portrait and face have a row of their own
   (**Import HD**, **HD template**). The animation preview shows the HD pictures (its **HD** box), sprites with one
-  have an **HD** badge, and a picture follows its sprite when the sprite is drawn on.
+  have an **HD** badge, and a picture follows its sprite when the sprite is drawn on. A robot built from the robot
+  workshop's parts, or a copy of one of the remaster's robots, has its HD pictures rendered from its 3D model
+  (**Render from the 3D model**), the way the game renders the remaster's own robots: every sprite still as the model
+  drew it, in the colors the pictures are painted in.
 - **Test** plays the mod in the game over Studio: a fight against the computer, the computer against itself,
   training, in any arena, or the one-player game from its pilot select screen, its VS screen (the pilot against one
   of the original ones) or its ending. **Build file** saves the `.omfmod` file to share; **Install in game** installs it on this
@@ -93,6 +96,7 @@ pilots/<id>/face.png             optional: its face in the pilot select grid
 | `description` | shown in the mech lab |
 | `moves` | names of the special moves by move id, e.g. `{ "15": "DRILL RUSH" }` (the move list shows them) |
 | `ai` | `{ "projectile": [...], "charge": [...], "push": [...] }`: move ids the computer uses for those tactics |
+| `workshop` | optional: the robot workshop's parts it was built from (`body`, `head` and `moves`: 0-3, GLACIER, TEMPEST, HELIX, SPECTRE; `size` and `weight`: 0-2), for OMF Studio to render its HD pictures from their 3D model; the game does not use it |
 
 The fighter file must have the animations the engine plays: 1 jump, 2 stand up, 3 stunned, 4 crouch, 5 and 6 blocks,
 9 the damage sheet, 10 walk, 11 idle, 48 victory and 49 defeat. Move 60 is the robot select screen's picture (51 × 36,
