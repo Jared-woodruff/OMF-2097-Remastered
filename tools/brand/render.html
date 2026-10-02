@@ -1,19 +1,21 @@
 <!doctype html>
-<!-- Renders one of the brand images at the window size (used by tools/make-icons.py with headless Edge). ?img=icon.svg -->
+<!-- Renders one of the brand's icons at the window size (used by tools/make-icons.py with headless Edge).
+     ?img=icon.svg or ?img=icon-small.svg: only those two, by name; anything else shows icon.svg. -->
 <html>
 <head>
 <meta charset="utf-8">
 <style>
   html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
-  img, iframe { display: block; width: 100vw; height: 100vh; border: 0; }
+  img { display: block; width: 100vw; height: 100vh; border: 0; }
 </style>
 </head>
 <body>
 <script>
-  const src = new URLSearchParams(location.search).get('img') || 'icon.svg';
-  const el = document.createElement(src.endsWith('.html') ? 'iframe' : 'img');
-  el.src = src;
-  document.body.appendChild(el);
+  const ICONS = ['icon.svg', 'icon-small.svg'];
+  const asked = new URLSearchParams(location.search).get('img');
+  const img = document.createElement('img');
+  img.src = ICONS.find((name) => name === asked) ?? ICONS[0];
+  document.body.appendChild(img);
 </script>
 </body>
 </html>
