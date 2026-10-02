@@ -1,0 +1,133 @@
+{
+ "version": 1,
+ "source": "generated",
+ "covers": [
+  -144,
+  -6,
+  608,
+  212
+ ],
+ "layers": [
+  {
+   "name": "sky",
+   "file": "sky.39379c0f70.webp",
+   "rect": [
+    -144,
+    -6,
+    608,
+    212
+   ],
+   "size": [
+    3040,
+    1272
+   ],
+   "depth": 0.04
+  },
+  {
+   "name": "city",
+   "file": "city.2b78a07c33.webp",
+   "rect": [
+    -144.0,
+    84.667,
+    608.0,
+    121.333
+   ],
+   "size": [
+    3040,
+    728
+   ],
+   "depth": 0.14
+  },
+  {
+   "name": "tower_right",
+   "file": "tower_right.f5cde6757c.webp",
+   "rect": [
+    189.4,
+    38.833,
+    274.6,
+    167.167
+   ],
+   "size": [
+    1373,
+    1003
+   ],
+   "depth": 0.3
+  },
+  {
+   "name": "tower_left",
+   "file": "tower_left.a8869bce8c.webp",
+   "rect": [
+    -144.0,
+    -6.0,
+    217.0,
+    212.0
+   ],
+   "size": [
+    1085,
+    1272
+   ],
+   "depth": 0.36
+  },
+  {
+   "name": "robot",
+   "file": "robot.b7aec87f9a.webp",
+   "rect": [
+    48.4,
+    38.833,
+    116.6,
+    166.167
+   ],
+   "size": [
+    583,
+    997
+   ],
+   "depth": 0.5
+  },
+  {
+   "name": "robot_lit",
+   "file": "robot_lit.e03a785baf.webp",
+   "rect": [
+    48.4,
+    38.833,
+    116.6,
+    166.167
+   ],
+   "size": [
+    583,
+    997
+   ],
+   "depth": 0.5,
+   "litOf": "robot"
+  },
+  {
+   "name": "crowd_back",
+   "file": "crowd_back.19d66923e0.webp",
+   "rect": [
+    -144.0,
+    135.167,
+    608.0,
+    70.833
+   ],
+   "size": [
+    3040,
+    425
+   ],
+   "depth": 0.78
+  },
+  {
+   "name": "crowd_front",
+   "file": "crowd_front.86a94ceddd.webp",
+   "rect": [
+    -144.0,
+    120.333,
+    608.0,
+    85.667
+   ],
+   "size": [
+    3040,
+    514
+   ],
+   "depth": 1.0
+  }
+ ]
+}

@@ -1,0 +1,37 @@
+<!doctype html>
+<!-- Installer header (top right of the installer pages): 150x57, rendered at 4x (600x228) by tools/make-icons.py. -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 600px; height: 228px; overflow: hidden; }
+  body {
+    position: relative; font-family: Bahnschrift, "DIN Condensed", "Arial Narrow", sans-serif;
+    background:
+      radial-gradient(ellipse 60% 110% at 88% 50%, rgba(255, 110, 20, 0.5), rgba(255, 60, 0, 0) 70%),
+      linear-gradient(100deg, #151c2e, #070a12 70%);
+  }
+  body::before {
+    content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.22) 0 3px, transparent 3px 9px);
+  }
+  .emblem { position: absolute; right: 22px; top: 14px; width: 200px; height: 200px; filter: drop-shadow(0 0 16px rgba(255, 120, 30, 0.5)); }
+  .t { position: absolute; left: 28px; top: 40px; line-height: 1; }
+  .omf {
+    font-weight: 700; font-size: 70px; letter-spacing: 3px;
+    background: linear-gradient(#ffffff 0%, #d4dbe6 45%, #ffffff 50%, #3c4760 54%, #98a4b8 74%, #eef2f8 94%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .year {
+    font-weight: 700; font-size: 84px; letter-spacing: 8px;
+    background: linear-gradient(#fff7c8, #ffd25a 32%, #ff7a1e 62%, #c21e0a);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 12px rgba(255, 80, 20, 0.7));
+  }
+</style>
+</head>
+<body>
+  <div class="t"><div class="omf">OMF</div><div class="year">2097</div></div>
+  <img class="emblem" src="icon.svg" alt="">
+</body>
+</html>

@@ -1,0 +1,47 @@
+name: Web version
+
+# Builds the web version (game data and HD artwork included: see NOTICE.md) and publishes it on GitHub Pages. It runs
+# once the site is turned on (repository settings: Pages from GitHub Actions, and the variable WEB_VERSION = on).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and publish the web version
+    if: vars.WEB_VERSION == 'on'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build the web version
+        run: npx vite build && node tools/web-dist.mjs
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+      - id: deployment
+        uses: actions/deploy-pages@v5

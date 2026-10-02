@@ -1,0 +1,47 @@
+<!doctype html>
+<!-- Installer sidebar (welcome and finish pages): 164x314, rendered at 4x (656x1256) by tools/make-icons.py. -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 656px; height: 1256px; overflow: hidden; }
+  body {
+    position: relative; font-family: Bahnschrift, "DIN Condensed", "Arial Narrow", sans-serif; text-align: center;
+    background:
+      radial-gradient(ellipse 120% 45% at 50% 100%, rgba(255, 110, 20, 0.55), rgba(255, 60, 0, 0) 70%),
+      radial-gradient(ellipse 90% 40% at 50% 22%, rgba(70, 110, 220, 0.35), rgba(0, 0, 0, 0) 75%),
+      linear-gradient(#0d1322, #05070d 70%, #0b0708);
+  }
+  body::before {
+    content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.22) 0 4px, transparent 4px 12px);
+  }
+  .emblem { position: absolute; left: 118px; top: 70px; width: 420px; height: 420px; filter: drop-shadow(0 0 40px rgba(255, 120, 30, 0.45)); }
+  .title { position: absolute; left: 0; right: 0; top: 560px; line-height: 0.95; }
+  .omf {
+    font-weight: 700; font-size: 104px; letter-spacing: 6px; font-stretch: condensed;
+    background: linear-gradient(#ffffff 0%, #d4dbe6 45%, #ffffff 50%, #3c4760 54%, #98a4b8 74%, #eef2f8 94%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 18px rgba(80, 130, 255, 0.55));
+  }
+  .year {
+    margin-top: 18px; font-weight: 700; font-size: 190px; letter-spacing: 14px;
+    background: linear-gradient(#fff7c8, #ffd25a 32%, #ff7a1e 62%, #c21e0a);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 26px rgba(255, 80, 20, 0.75));
+  }
+  .sub { margin-top: 26px; font-weight: 600; font-size: 50px; letter-spacing: 22px; color: #eaf3ff; text-shadow: 0 0 22px #3a8cff; }
+  .line { position: absolute; left: 60px; right: 60px; bottom: 90px; height: 6px; border-radius: 3px;
+    background: linear-gradient(90deg, rgba(255, 122, 26, 0), #ff7a1a 20%, #ffd25a 50%, #ff7a1a 80%, rgba(255, 122, 26, 0)); }
+</style>
+</head>
+<body>
+  <img class="emblem" src="icon.svg" alt="">
+  <div class="title">
+    <div class="omf">ONE MUST<br>FALL</div>
+    <div class="year">2097</div>
+    <div class="sub">REMASTERED</div>
+  </div>
+  <div class="line"></div>
+</body>
+</html>

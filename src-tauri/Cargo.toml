@@ -1,0 +1,26 @@
+[package]
+name = "omf2097-remastered"
+version = "0.2.0"
+description = "One Must Fall 2097 Remastered (desktop shell)"
+edition = "2021"
+rust-version = "1.77.2"
+publish = false
+
+[lib]
+# The `_lib` suffix keeps the lib name distinct from the bin name (cargo#8519 on Windows).
+# Desktop-only, so an rlib is all we need. Tauri mobile targets would need
+# `crate-type = ["staticlib", "cdylib", "rlib"]` here.
+name = "omf2097_remastered_lib"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+tauri = { version = "2.11.6", features = [] }
+
+# Raw WebView2 event hooks in src/lib.rs (disable_browser_ui). Keep these on the same versions
+# Tauri resolves (`cargo tree -i webview2-com`), or the controller types won't match.
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.38"
+windows-core = "0.61"

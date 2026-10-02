@@ -1,0 +1,35 @@
+# Dependencies & build output
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/
+
+# The original CD and an installed copy (public/gamedata/ holds the game's data files, see NOTICE.md)
+/omf21cd/
+/gamedata/
+
+# Local / editor
+__pycache__/
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.captures/
+
+# The image AI packs' working files (source images, prompts; public/hd/ and public/mods/ hold the imported artwork)
+/hd-pack/
+/menu-pack/
+/newart-pack/
+/rework-pack/
+/hd-pack.zip
+/menu-pack.zip
+/newart-pack.zip
+/rework-pack.zip
+
+# The game manual's generated page source (npm run manual)
+/tools/manual/.build/
+/tools/github/.build/
+
+# Local tool settings
+.claude/

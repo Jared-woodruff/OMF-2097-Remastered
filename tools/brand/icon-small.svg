@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- The app icon simplified for 16 to 40 pixels: bold shapes, no fine detail. -->
+  <defs>
+    <linearGradient id="rim" x1="0.15" y1="0.05" x2="0.85" y2="0.95">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.5" stop-color="#9aa4b4"/>
+      <stop offset="1" stop-color="#4a5260"/>
+    </linearGradient>
+    <radialGradient id="plate" cx="0.5" cy="0.62" r="0.7">
+      <stop offset="0" stop-color="#ff6a1a"/>
+      <stop offset="0.45" stop-color="#7a2a10"/>
+      <stop offset="1" stop-color="#141824"/>
+    </radialGradient>
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.5" stop-color="#c8d0dc"/>
+      <stop offset="1" stop-color="#8d98aa"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe27a"/>
+      <stop offset="1" stop-color="#ff9a18"/>
+    </linearGradient>
+    <linearGradient id="visor" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff5a00"/>
+      <stop offset="0.5" stop-color="#fff2a0"/>
+      <stop offset="1" stop-color="#ff5a00"/>
+    </linearGradient>
+  </defs>
+  <polygon points="512,36 925,274 925,750 512,988 99,750 99,274" fill="url(#rim)" stroke="url(#rim)" stroke-width="40" stroke-linejoin="round"/>
+  <polygon points="512,120 852,316 852,708 512,904 172,708 172,316" fill="url(#plate)" stroke="#06080c" stroke-width="40" stroke-linejoin="round"/>
+  <g stroke="#0a0602" stroke-width="30" stroke-linejoin="round">
+    <path d="M530 420 L250 190 L290 132 L570 360 Z" fill="url(#gold)"/>
+    <path d="M494 420 L774 190 L734 132 L454 360 Z" fill="url(#gold)"/>
+  </g>
+  <path d="M408 290 L616 290 L716 400 L724 560 L636 740 L512 830 L388 740 L300 560 L308 400 Z" fill="url(#chrome)" stroke="#06080c" stroke-width="34" stroke-linejoin="round"/>
+  <path d="M344 478 L680 478 L668 610 L512 730 L356 610 Z" fill="#1a1f2b" stroke="#06080c" stroke-width="24" stroke-linejoin="round"/>
+  <path d="M362 506 L512 574 L662 506 L652 578 L512 650 L372 578 Z" fill="url(#visor)"/>
+</svg>

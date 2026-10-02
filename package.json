@@ -1,0 +1,61 @@
+{
+  "name": "omf2097-remastered",
+  "private": true,
+  "version": "0.2.0",
+  "description": "One Must Fall 2097 Remastered: a faithful reimplementation of the 1994 robot fighting game with HD graphics",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jared-woodruff/OMF-2097-Remastered.git"
+  },
+  "homepage": "https://github.com/Jared-woodruff/OMF-2097-Remastered#readme",
+  "keywords": [
+    "one-must-fall",
+    "omf2097",
+    "fighting-game",
+    "remaster",
+    "webgl2",
+    "tauri",
+    "retro-gaming"
+  ],
+  "type": "module",
+  "scripts": {
+    "extract": "node tools/extract-gamedata.mjs",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:web": "npm run build && node tools/web-dist.mjs",
+    "icons": "node tools/python.mjs tools/make-icons.py",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build",
+    "hd:export": "node tools/hd-pack/run.mjs",
+    "hd:import": "node tools/hd-pack/import.mjs",
+    "gen": "node tools/gen-content.mjs",
+    "extras": "node tools/extras-mod.mjs",
+    "gen:hd": "node tools/python.mjs tools/arena-hd.py",
+    "menu:export": "node tools/menu-pack/run.mjs",
+    "menu:import": "node tools/python.mjs tools/menu-pack/import.py",
+    "newart:export": "node tools/newart/run.mjs",
+    "newart:import": "node tools/newart/import.mjs",
+    "rework:survey": "node tools/python.mjs tools/rework/survey.py",
+    "rework:steady": "node tools/python.mjs tools/rework/steady.py",
+    "rework:export": "node tools/python.mjs tools/rework/export.py",
+    "rework:import": "node tools/rework/import.mjs",
+    "blender:export": "node tools/blender/run.mjs export",
+    "blender:render": "node tools/blender/run.mjs render",
+    "blender:originals": "node tools/blender/run.mjs originals",
+    "news:voice": "node tools/news-voice.mjs",
+    "manual": "node tools/manual/build.mjs",
+    "github": "node tools/github/build.mjs",
+    "manual:images": "node tools/python.mjs tools/manual/prepare.py"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.5",
+    "@types/node": "^26.6.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.1"
+  }
+}

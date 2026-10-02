@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: Typecheck, test and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # The freeware game data is in the repository (public/gamedata), so the tests run against it; the tools in
+      # src/gen/dev are tests too, and skip themselves unless they are asked to run.
+      - name: Test
+        run: npm test
+
+      - name: Build the web version
+        run: npx vite build

@@ -1,0 +1,32 @@
+{
+ "0685b0a2efc3f630": {
+  "far": 0.3,
+  "file": "ARENA3.a7159c7952.webp",
+  "floor": 0.3821,
+  "parallax": 1.0
+ },
+ "0c8561456f7de775": {
+  "far": 0.02,
+  "file": "ARENA4.a288ede8f5.webp",
+  "floor": 0.8341,
+  "parallax": 1.0
+ },
+ "49bd3f71bbe94791": {
+  "far": 0.08,
+  "file": "ARENA2.68927c81a9.webp",
+  "floor": 0.5032,
+  "parallax": 0.0
+ },
+ "b547d4baa8a80b64": {
+  "far": 0.35,
+  "file": "ARENA1.5e2cb21326.webp",
+  "floor": 0.494,
+  "parallax": 1.0
+ },
+ "c74399e1fda8accd": {
+  "far": 0.3,
+  "file": "ARENA0.12fc773543.webp",
+  "floor": 0.3021,
+  "parallax": 1.0
+ }
+}
