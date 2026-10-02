@@ -7,8 +7,8 @@
 // ends the fight before, naming the credit that comes next under its emblem; the VS card, in the VS screen's colors,
 // slamming on a downbeat as the frame wipes on. The credit's card flies onto the computer's tower as the round starts,
 // its name typing in, and its WINS stamp lands after the final blow (on its beat); full screen, the card comes after the
-// blow, under the HUD. A now playing box (full screen: faded while a fighter stands over it) and the controls
-// throughout. Leaving, the picture switches off like an old TV.
+// blow, under the HUD. A now playing box as the song starts (for a few seconds: then it fades away, out of the show's
+// way), and the controls after any input. Leaving, the picture switches off like an old TV.
 import type { Track } from '../../audio/audio';
 import { ensureUiFont, UI_FONT } from '../../platform/uiFont';
 import { CREDIT_BATTLES, type CreditBattle, type CreditEmblem } from './battles';
@@ -53,6 +53,9 @@ const EQ_BANDS = 5;
 const EQ_LIGHTS = 5;
 /** Seconds the controls stay up after the last input. */
 const QUIET_AFTER = 4;
+/** Seconds the now playing box stays up once it has come on, and fades away. */
+const PLAYING_FOR = 7;
+const PLAYING_FADE = 0.8;
 /** The now playing box fades while a fighter's feet are left of this (native pixels: the box ends at 114). */
 const PLAYING_CLEAR = 150;
 /** The now playing box's height (its pixels: its picture and its padding). */
@@ -283,7 +286,9 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
   let song = opts.song;
   const bins = new Uint8Array(song?.analyser.frequencyBinCount ?? 0);
   let level = 0;
-  /** How far the now playing box is faded for a fighter standing over it (0..1). */
+  /** The song's time when the now playing box came on (-1: not yet), and how far it is faded for a fighter standing
+   * over it (0..1). */
+  let playingFrom = -1;
   let crowded = 0;
   let quiet = QUIET_AFTER;
   let shown = -1;
@@ -574,7 +579,10 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
     update(show: CreditsShow, dt: number): void {
       const t = show.t;
       if (leaving) return;
-      // The music's levels: the meter, the embers.
+      // The now playing box: on with the song's first bar (or at once, joining it later), for PLAYING_FOR seconds.
+      if (song && playingFrom < 0 && t >= barTime(1)) playingFrom = t;
+      const playingUp = playingFrom < 0 ? 0 : 1 - ramp(t, playingFrom + PLAYING_FOR, playingFrom + PLAYING_FOR + PLAYING_FADE);
+      // The music's levels: the meter (while the box shows), the embers.
       if (song) {
         song.analyser.getByteFrequencyData(bins);
         const band = (a: number, b: number) => {
@@ -585,7 +593,7 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
         level = band(1, 96);
         const from = 1, to = 120;
         let next = from;
-        eq.forEach((lights, i) => {
+        if (playingUp > 0) eq.forEach((lights, i) => {
           const a = Math.max(next, Math.floor(from * Math.pow(to / from, i / eq.length)));
           const b = Math.max(a + 1, Math.floor(from * Math.pow(to / from, (i + 1) / eq.length)));
           next = b;
@@ -666,8 +674,7 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
       // The now playing box: faded while a fighter stands over it (full screen; not while the cover hides the fight).
       const near = !inRoom && show.fighters && !covered ? Math.max(...show.fighters.map(([x]) => 1 - ramp(x, PLAYING_CLEAR - 30, PLAYING_CLEAR))) : 0;
       crowded += (near - crowded) * Math.min(1, dt * 5);
-      playing.style.opacity = song ? (ramp(t, barTime(1), barTime(1) + 0.01) * (show.finale && t >= show.finale.hit ? 1 - ramp(t, show.finale.hit, show.finale.hit + 1) : 1) *
-        (1 - 0.85 * crowded)).toFixed(3) : '0';
+      playing.style.opacity = (playingUp * (1 - 0.85 * crowded)).toFixed(3);
       let flash = 0;
       for (const [at, k, decay] of flashes) flash = Math.max(flash, k * hit(t, at, decay));
       while (flashes.length && (t - flashes[0][0] > 3 || flashes[0][0] - t > 400)) flashes.shift();
