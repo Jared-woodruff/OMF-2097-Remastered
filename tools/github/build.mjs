@@ -128,16 +128,16 @@ add('docs/media/hero.jpg', `
   <div class="hero-tech">TYPESCRIPT <b>·</b> WEBGL2 <b>·</b> WEB AUDIO <b>·</b> TAURI</div>
 </div>`);
 
-// The repository's social preview (1280 x 640, the size GitHub asks for).
+// The repository's social preview (1280 x 640, the size GitHub asks for; uploaded by hand in the repository's settings).
 add('docs/media/social-preview.jpg', `
 <div class="shot social" data-out="docs/media/social-preview.jpg" data-scale="1">
   <div class="scene">${menuScene(-50, 2, 3.1)}</div>
   <div class="hero-shade"></div>
   <img class="hero-logo" src="public/brand/logo.webp">
   <div class="panel hero-menu">
-    <div>THE 1994 ROBOT</div><div>FIGHTING CLASSIC</div><div class="sel">REBUILT IN HD</div><div>FOR WINDOWS AND THE WEB</div>
+    <div>THE 1994 ROBOT</div><div>FIGHTING CLASSIC</div><div class="sel">REBUILT IN HD</div><div class="gold">MODS AND OMF STUDIO</div>
+    <div>FREE · WINDOWS AND WEB</div>
   </div>
-  <div class="hero-foot">ONE MUST FALL 2097 REMASTERED <b>·</b> FREEWARE, NEVER SOLD</div>
 </div>`);
 
 for (const b of BUTTONS) {
@@ -256,8 +256,8 @@ body { margin: 0; padding: 40px; background: #0d1117; display: flex; flex-wrap: 
 /* the social preview: 1280 x 640 */
 .social { width: 1280px; height: 640px; }
 .social .hero-logo { left: 670px; top: 30px; width: 560px; }
-.social .hero-menu { left: 706px; top: 330px; width: 494px; gap: 6px; padding: 16px 0 18px; font-size: 22px; }
-.social .hero-foot { font-size: 13px; left: 24px; bottom: 18px; }
+.social .hero-menu { left: 706px; top: 300px; width: 494px; gap: 6px; padding: 16px 0 18px; font-size: 22px; }
+.social .hero-menu .gold { color: var(--gold); text-shadow: 0 0 10px rgba(255, 200, 64, .4); }
 
 /* the big buttons: 56 high */
 .btn { height: 56px; display: inline-flex; align-items: center; gap: 12px; padding: 0 22px 0 16px; border: 2px solid var(--edge);
