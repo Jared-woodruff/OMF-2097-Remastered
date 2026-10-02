@@ -60,6 +60,7 @@ const SECTIONS = [
 /** The README's big buttons (docs/media/btn-<key>.png): the ways in. */
 const BUTTONS = [
   { key: 'download', kind: 'go', icon: 'download', label: 'Download', sub: 'Free, for Windows' },
+  { key: 'web', kind: 'go', icon: 'globe', label: 'Play online', sub: 'In your browser, free' },
   { key: 'trailer', kind: 'menu', icon: 'play', label: 'Trailer', sub: 'Three minutes, sound on' },
   { key: 'manual', kind: 'menu', icon: 'book', label: 'Manual', sub: '32 pages, PDF' },
   { key: 'modding', kind: 'menu', icon: 'robot', label: 'Modding', sub: 'Mods and OMF Studio' },
@@ -81,6 +82,7 @@ const DOCS = [
 const ICONS = {
   download: '<path d="M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4 15.5v3A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5v-3"/>',
   play: '<path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/>',
+  globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.4 3.5 5.3 3.5 8.5s-1.1 6.1-3.5 8.5c-2.4-2.4-3.5-5.3-3.5-8.5s1.1-6.1 3.5-8.5z"/>',
   book: '<path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5zM12 6.5v13"/>',
   robot: '<path d="M8.5 3h7v5.5h-7zM10.6 5.7h.1M13.3 5.7h.1M12 8.5v2M6 10.5h12v7H6zM8.5 17.5V21M15.5 17.5V21M3.5 11.5v4.5M20.5 11.5v4.5"/>',
   faithful: '<path d="M4.5 3.5h12l3 3v14h-15zM8 3.5v5h7v-5M13 5v2M7.5 20.5v-6h9v6"/>',

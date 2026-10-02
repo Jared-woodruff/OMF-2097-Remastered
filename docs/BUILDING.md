@@ -243,8 +243,8 @@ The build uses relative URLs (`base: './'`), so `dist/` works from any path.
 
 `npm run build` makes the complete site: game data and artwork included, the game starts with one click. The
 [Web version](../.github/workflows/pages.yml) workflow builds it and publishes it on GitHub Pages on every push to
-`main`, once the site is turned on (repository settings: Pages from GitHub Actions, and the variable
-`WEB_VERSION = on`).
+`main`, while the site is turned on (repository settings: Pages from GitHub Actions, and the variable
+`WEB_VERSION = on`). It is: [jared-woodruff.github.io/OMF-2097-Remastered](https://jared-woodruff.github.io/OMF-2097-Remastered/).
 
 ### A lean web version
 

@@ -4,6 +4,8 @@
 
 <p align="center">
   <a href="https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest"><img src="docs/media/btn-download.png" alt="Download: free, for Windows" height="56"></a>
+  <a href="https://jared-woodruff.github.io/OMF-2097-Remastered/"><img src="docs/media/btn-web.png" alt="Play online: in your browser, free" height="56"></a>
+  <br>
   <a href="#trailer"><img src="docs/media/btn-trailer.png" alt="Watch the trailer" height="56"></a>
   <a href="docs/manual/OMF-2097-Remastered-Manual.pdf"><img src="docs/media/btn-manual.png" alt="Read the manual (PDF)" height="56"></a>
   <a href="#mods"><img src="docs/media/btn-modding.png" alt="Make mods with OMF Studio" height="56"></a>
@@ -76,8 +78,10 @@ with new effects, modes and tools. One key, <kbd>F2</kbd>, switches between the 
   mod tools, is the same single file opening straight into Studio.
 
 Everything is included: the game, its HD artwork and its music, about 240 MB. It runs on Windows 10 and 11. The
-[release notes](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/tag/v0.2.0) list what's new. Rather play
-in a browser? The game runs in any modern one too: [build the web version](#build) and put it anywhere.
+[release notes](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/tag/v0.2.0) list what's new.
+
+**Or [play it online](https://jared-woodruff.github.io/OMF-2097-Remastered/)**, with nothing to install: it runs in any modern browser, on a computer, a tablet or a
+phone, and keeps working offline once it has loaded.
 
 **On the first start**, one screen sets you up: the original 1994 look in a single press, or the remastered graphics,
 effects, announcer and music the way you like them. Everything can be changed later in **Options**.
