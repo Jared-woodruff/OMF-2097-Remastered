@@ -28,11 +28,18 @@ export interface Track {
   /** Moves the song to a position (s): before a cut. */
   seek(pos: number): void;
   /**
+   * Plays on after something outside the game paused the song (a media key, the browser's media controls, the system
+   * taking the sound away); true when it did (it was paused that way).
+   */
+  resume(): boolean;
+  /**
    * Cuts, when the song reaches its position `at`, to `buffer` (a file holding the song from its position
    * `bufferStart` on) playing the song's position `pos`: a jump ahead in the song, on the beat (10 ms crossfade).
    * False when it cannot be done in time (less than 50 ms ahead) or has been done.
    */
   cutTo(buffer: AudioBuffer, at: number, pos: number, bufferStart: number): boolean;
+  /** Takes back a cut that has not come yet (to set it elsewhere); false when there is none, or it is too close. */
+  uncut(): boolean;
   /** Fades the song out and ends it. */
   stop(fadeSeconds?: number): void;
 }
@@ -497,6 +504,8 @@ export class AudioSystem {
     let stopped = false;
     /** After a cut: the file playing instead, the song position it plays at the context time `at`. */
     let cut: { source: AudioBufferSourceNode; gain: GainNode; at: number; pos: number } | null = null;
+    /** The song's own file paused after a cut (a timer). */
+    let pauseTimer = 0;
     /** The context time the song came to its end (its position runs on past it, in silence), or -1. */
     let endedAt = -1;
     el.addEventListener('ended', () => {
@@ -513,6 +522,11 @@ export class AudioSystem {
         if (cut) return;
         el.currentTime = Math.max(0, pos);
         endedAt = -1;
+      },
+      resume: () => {
+        if (stopped || cut || endedAt >= 0 || !el.paused || el.currentTime <= 0) return false;
+        void el.play().catch(() => undefined);
+        return true;
       },
       cutTo: (buffer: AudioBuffer, at: number, pos: number, bufferStart: number) => {
         if (cut || stopped || el.paused) return false;
@@ -531,7 +545,22 @@ export class AudioSystem {
         elGain.gain.linearRampToValueAtTime(0, when + x / 2);
         source.start(when - x / 2, Math.max(0, pos - bufferStart - x / 2));
         cut = { source, gain: g, at: when, pos };
-        window.setTimeout(() => el.pause(), (when - ctx.currentTime + 0.2) * 1000);
+        pauseTimer = window.setTimeout(() => el.pause(), (when - ctx.currentTime + 0.2) * 1000);
+        return true;
+      },
+      uncut: () => {
+        if (!cut || stopped || ctx.currentTime > cut.at - 0.1) return false;
+        window.clearTimeout(pauseTimer);
+        try {
+          cut.source.stop();
+        } catch {
+          // (not started)
+        }
+        cut.source.disconnect();
+        cut.gain.disconnect();
+        elGain.gain.cancelScheduledValues(0);
+        elGain.gain.setValueAtTime(1, ctx.currentTime);
+        cut = null;
         return true;
       },
       stop: (fadeSeconds = 0.8) => {

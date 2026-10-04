@@ -152,6 +152,8 @@ export class CreditsRun implements CreditsHooks {
   private still = false;
   /** Development: straight to the end titles once the first arena is open. */
   private finaleAtOnce = false;
+  /** The song's cut to its ending is set (Track.cutTo): it comes at its time. */
+  private cutSet = false;
   /** The clock's last value, and when (performance.now()) it last moved. */
   private lastClock = -1;
   private lastClockAt = 0;
@@ -246,6 +248,7 @@ export class CreditsRun implements CreditsHooks {
   }
 
   action(action: number): void {
+    if (this.leaving !== null) return;
     if (action & ACT_ESC) this.exit();
     else if (action & (ACT_PUNCH | ACT_KICK)) this.skip();
     else if (action & (ACT_LEFT | ACT_RIGHT | ACT_UP | ACT_DOWN)) this.view?.wake();
@@ -269,6 +272,13 @@ export class CreditsRun implements CreditsHooks {
   private schedule(): void {
     const t = this.clock.time;
     const gs = this.gs;
+    // Leaving: the show stands still while the picture switches off (no cut opens the next fight's arena meanwhile, no
+    // knockout's slow motion starts), then back to the menu.
+    if (this.leaving !== null) {
+      if (isArenaScene(gs.thisId)) gs.paused = true;
+      if (this.phase === 'done') this.leave();
+      return;
+    }
     // A song that never starts (still loading after a while: a slow connection) is given up.
     if (this.track && this.clock.time === 0 && this.track.position() === null && performance.now() - this.opened > SONG_START_WAIT * 1000) {
       this.songFailed();
@@ -354,6 +364,7 @@ export class CreditsRun implements CreditsHooks {
           if (t > f.jump - 0.06) this.postponeJump(t);
         } else {
           f.jumped = true;
+          this.cutSet = true;
         }
       } else if (t >= f.jump) {
         this.clock.jump(barTime(ENDING_BAR) + (t - f.jump));
@@ -374,8 +385,11 @@ export class CreditsRun implements CreditsHooks {
   // ---- skipping and leaving ------------------------------------------------------------------------------------
   /** ENTER / A: on through the title (to its drop, then to the fights), to the next fight, or to the end titles' end. */
   skip(): void {
-    const t = this.clock.time;
+    if (this.leaving !== null) return;
     this.view?.wake();
+    // (a song something else paused, a media key or the system: the show stands still with it, and plays on now)
+    if (this.track?.resume()) return;
+    const t = this.clock.time;
     if (this.phase === 'title') {
       const drop = barTime(SECTIONS.drop);
       if (t < drop - 0.4) {
@@ -391,11 +405,16 @@ export class CreditsRun implements CreditsHooks {
       if (f) f.cut = Math.min(f.cut, t + 0.12 + (BEAT - ((t + 0.12 - barTime(0)) % BEAT)));
       else this.advance();
     } else if (this.phase === 'finale' && this.finale) {
+      // (the winners: on to the ending sooner, the song cut to it; the ending: done. A finale whose song reaches the
+      // ending by itself counts as jumped from the start, which must not end the credits from the winners.)
       const f = this.finale;
-      if (!f.jumped && f.jump > t + 1) {
+      // (a cut the song has set already is taken back, to be set sooner)
+      if (f.jump > t + 1 && (!this.cutSet || this.track?.uncut())) {
+        this.cutSet = false;
         f.jumpBar = Math.max(Math.ceil(barAt(t) + 0.3), Math.floor(barAt(f.start)) + 1);
         f.jump = barTime(f.jumpBar);
-      } else if (f.jumped) {
+        f.jumped = f.jumpBar >= ENDING_BAR;
+      } else if (f.jumped && t >= f.jump) {
         this.exit();
       }
     }
@@ -410,11 +429,11 @@ export class CreditsRun implements CreditsHooks {
     this.track?.stop(ended ? 1.2 : 0.9);
     this.view?.leave();
     this.gs.menuReturn = this.from === 'extras' ? 'extras' : null;
+    // (the switched-off picture stays until the menu is there: the scene change may wait, e.g. for the artwork of an
+    // arena that just opened, and the fight would show meanwhile)
     const done = () => {
       this.phase = 'done';
-      this.view?.dispose();
-      this.view = null;
-      if (!this.raf) this.leave();
+      if (!this.raf && this.leave()) this.closeView();
     };
     if (this.view) window.setTimeout(done, SWITCH_OFF * 1000);
     else done();
@@ -469,9 +488,19 @@ export class CreditsRun implements CreditsHooks {
     c.toBlob((blob) => blob && this.view?.still(i, URL.createObjectURL(blob)), 'image/jpeg', 0.88);
   }
 
+  private closeView(): void {
+    this.view?.dispose();
+    this.view = null;
+  }
+
   private frame = (): void => {
     if (this.phase === 'done') {
-      this.raf = this.leave() ? 0 : requestAnimationFrame(this.frame);
+      if (this.leave()) {
+        this.closeView();
+        this.raf = 0;
+      } else {
+        this.raf = requestAnimationFrame(this.frame);
+      }
       return;
     }
     this.raf = requestAnimationFrame(this.frame);

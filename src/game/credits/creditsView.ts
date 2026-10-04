@@ -53,6 +53,8 @@ const EQ_BANDS = 5;
 const EQ_LIGHTS = 5;
 /** Seconds the controls stay up after the last input. */
 const QUIET_AFTER = 4;
+/** Clicks this soon after the credits open are the ones that opened them (ms). */
+const CLICK_GRACE_MS = 600;
 /** Seconds the now playing box stays up once it has come on, and fades away. */
 const PLAYING_FOR = 7;
 const PLAYING_FADE = 0.8;
@@ -198,7 +200,7 @@ a.omfc-link:hover { color: var(--g-gold); text-decoration: underline; }
 .omfc-btn { cursor: pointer; border: 0; padding: calc(1.8 * var(--uy)) calc(4 * var(--ux)); font-size: max(9px, calc(2.6 * var(--uy))); }
 .omfc-btn b { font-weight: 700; color: var(--g-dim); margin-right: .6em; }
 .omfc-btn:hover { background-color: var(--g-sel); color: var(--g-gold); --sh: var(--g-ink); }
-.omfc-quiet .omfc-ctl { opacity: 0; }
+.omfc-quiet .omfc-ctl { opacity: 0; pointer-events: none; }
 
 /* Switching off, like an old TV: the picture folds to a line, the line to a dot, the dot goes out. */
 @keyframes omfc-off { 0% { transform: none; filter: none; } 42% { transform: scale(1, .004); filter: brightness(2.6); }
@@ -391,8 +393,13 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
   window.addEventListener('pointermove', wake);
   window.addEventListener('pointerdown', wake);
   window.addEventListener('keydown', wake);
-  // The title and the end titles: a click goes on, a right click goes back.
+  // The title and the end titles: a click goes on, a right click goes back (not the clicks that opened the credits: a
+  // double click on the main menu's button would skip the title at once).
+  const openedAt = performance.now();
+  /** The winners' pictures handed over (blob URLs). */
+  const stills: string[] = [];
   stageEl.addEventListener('click', (e) => {
+    if (performance.now() - openedAt < CLICK_GRACE_MS) return;
     if (!(e.target as Element).closest('a, button')) opts.onNext();
   });
   stageEl.addEventListener('contextmenu', (e) => {
@@ -683,6 +690,7 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
     },
 
     still(i: number, url: string): void {
+      stills.push(url);
       finale.still(i, url);
     },
 
@@ -702,7 +710,9 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
       } else {
         root.classList.add('omfc-off');
       }
-      screen?.classList.add('omfc-off-screen');
+      // (on the monitor, under the title or the end titles, the game's picture would fold around another centre)
+      if (inRoom && !partsInRoom) screen?.style.setProperty('visibility', 'hidden');
+      else screen?.classList.add('omfc-off-screen');
     },
 
     dispose(): void {
@@ -711,6 +721,9 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
       window.removeEventListener('pointerdown', wake);
       window.removeEventListener('keydown', wake);
       screen?.classList.remove('omfc-off-screen');
+      screen?.style.removeProperty('visibility');
+      // (the winners' pictures: blobs held until let go)
+      for (const url of stills) URL.revokeObjectURL(url);
       room.dispose();
       root.remove();
     },
