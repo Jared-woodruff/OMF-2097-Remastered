@@ -49,9 +49,31 @@ export function readZipEntries(buf: Uint8Array): ZipEntry[] | null {
   return entries;
 }
 
-async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
-  const stream = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+/** Archives whose files add up to more than this are not opened (a small file can unpack to gigabytes). */
+const MAX_UNZIPPED = 1024 * 1024 * 1024;
+
+/** Inflates an entry; more than `limit` bytes (its stated size) means a damaged or hostile archive. */
+async function inflateRaw(data: Uint8Array, limit: number): Promise<Uint8Array> {
+  const reader = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+  const chunks: Uint8Array[] = [];
+  let n = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    n += value.length;
+    if (n > limit) {
+      void reader.cancel().catch(() => undefined);
+      throw new ZipError('The archive is damaged.');
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(n);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.length;
+  }
+  return out;
 }
 
 async function deflateRaw(data: Uint8Array): Promise<Uint8Array | null> {
@@ -74,8 +96,9 @@ export async function readZipEntry(buf: Uint8Array, e: ZipEntry): Promise<Uint8A
   const raw = buf.subarray(start, start + e.compSize);
   if (e.method === 0) return raw.slice();
   if (e.method === 8) {
+    if (e.size > MAX_UNZIPPED) throw new ZipError('The archive is too big to open.');
     try {
-      return await inflateRaw(raw);
+      return await inflateRaw(raw, e.size);
     } catch {
       throw new ZipError('The archive is damaged.');
     }
@@ -87,6 +110,7 @@ export async function readZipEntry(buf: Uint8Array, e: ZipEntry): Promise<Uint8A
 export async function unzip(buf: Uint8Array): Promise<Map<string, Uint8Array>> {
   const entries = readZipEntries(buf);
   if (!entries) throw new ZipError('This is not a zip archive.');
+  if (entries.reduce((n, e) => n + e.size, 0) > MAX_UNZIPPED) throw new ZipError('The archive is too big to open.');
   const out = new Map<string, Uint8Array>();
   for (const e of entries) {
     const name = e.name.replace(/\\/g, '/');

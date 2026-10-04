@@ -195,8 +195,10 @@ export function blankRobot(): AfFile {
     [49, 9, '!', [[30, 0, 0]], 'A60'],
   ];
   for (const [id, cat, ms, sprites, anim] of moves) af.moves[id] = newMove(cat, ms, sprites.map(([hh, lean, dy]) => sprite(hh, lean, dy)), anim);
-  // The damage sheet: the frames a hit's reaction strings show (A-F upright, L-M down).
-  const damage = Array.from({ length: 13 }, (_, i) => sprite(i >= 11 ? 30 : 86, i % 2 ? 5 : -5));
+  // The damage sheet: the frames hits show by letter, A to X like the originals' (every robot's reaction strings
+  // use them): A-F upright, G-I bent, J-L staggered, M-O down, P-Q thrown up, R-U getting up, V-X down again.
+  const DAMAGE_HEIGHTS = [86, 86, 86, 86, 86, 86, 60, 60, 60, 72, 72, 70, 40, 32, 28, 88, 100, 60, 84, 54, 44, 32, 26, 40];
+  const damage = DAMAGE_HEIGHTS.map((hh, i) => sprite(hh, i % 2 ? 5 : -5));
   af.moves[9] = newMove(9, '!', damage, 'A4');
   // One attack to fight with: a punch.
   const punch = [sprite(90, 4), sprite(90, 9)];

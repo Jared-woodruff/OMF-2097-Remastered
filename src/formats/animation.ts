@@ -11,6 +11,8 @@ export interface CollisionCoord {
 
 export const ANIMATION_STRING_MAX = 1024;
 export const EXTRA_STRING_MAX = 512;
+/** Any string a 16-bit length can hold (lenient reading). */
+export const LENIENT_STRING_MAX = 0x10000;
 
 /** Raw animation record shared by AF moves and BK scene animations. */
 export class AnimationData {
@@ -22,14 +24,18 @@ export class AnimationData {
   extraStrings: string[] = [];
   sprites: Sprite[] = [];
 
-  static load(r: BinaryReader): AnimationData {
+  /**
+   * Reads a record; `lenient`: strings longer and more hit points than the format holds are read too (OMF Studio
+   * opening a project an earlier version saved past those limits, to be fixed; the game never reads them).
+   */
+  static load(r: BinaryReader, lenient = false): AnimationData {
     const a = new AnimationData();
     a.startX = r.i16();
     a.startY = r.i16();
     a.nullValue = r.u32();
     const coordCount = r.u16();
     const spriteCount = r.u8();
-    if (coordCount > 256) throw new Error(`Animation has too many coords (${coordCount})`);
+    if (coordCount > 256 && !lenient) throw new Error(`Animation has too many coords (${coordCount})`);
     for (let i = 0; i < coordCount; i++) {
       const tmp = r.u32();
       const lo = tmp & 0xffff;
@@ -41,16 +47,25 @@ export class AnimationData {
         frameId: hi >> 10,
       });
     }
-    a.animString = r.terminatedStr(ANIMATION_STRING_MAX);
+    a.animString = r.terminatedStr(lenient ? LENIENT_STRING_MAX : ANIMATION_STRING_MAX);
     const extraCount = r.u8();
     if (extraCount > 10) throw new Error(`Animation has too many extra strings (${extraCount})`);
-    for (let i = 0; i < extraCount; i++) a.extraStrings.push(r.terminatedStr(EXTRA_STRING_MAX));
+    for (let i = 0; i < extraCount; i++) a.extraStrings.push(r.terminatedStr(lenient ? LENIENT_STRING_MAX : EXTRA_STRING_MAX));
     for (let i = 0; i < spriteCount; i++) a.sprites.push(Sprite.load(r));
     return a;
   }
 
-  /** Writes the record in the file layout load() reads. */
+  /** Writes the record in the file layout load() reads (refusing what load() could not read back). */
   save(w: BinaryWriter): void {
+    if (this.coords.length > 256) throw new Error(`${this.coords.length} hit points (256 at most)`);
+    if (this.sprites.length > 255) throw new Error(`${this.sprites.length} sprites (255 at most)`);
+    if (this.animString.length >= ANIMATION_STRING_MAX) {
+      throw new Error(`an animation string of ${this.animString.length} characters (${ANIMATION_STRING_MAX - 1} at most)`);
+    }
+    if (this.extraStrings.length > 10) throw new Error(`${this.extraStrings.length} variants (10 at most)`);
+    for (const e of this.extraStrings) {
+      if (e.length >= EXTRA_STRING_MAX) throw new Error(`a variant of ${e.length} characters (${EXTRA_STRING_MAX - 1} at most)`);
+    }
     w.i16(this.startX);
     w.i16(this.startY);
     w.u32(this.nullValue);

@@ -26,6 +26,8 @@ export const MOVE_LABELS: Record<number, string> = {
 
 /** The largest sprite a fighter file can hold (its encoded length is 16 bits). */
 const MAX_SPRITE_BYTES = 65535;
+/** The frames of a damage sheet (move 9) hits show, A to X. */
+const DAMAGE_SHEET_FRAMES = 24;
 
 export function projectProblems(p: Project): Problem[] {
   const out: Problem[] = [];
@@ -63,6 +65,10 @@ export function projectProblems(p: Project): Problem[] {
       if (!t.frames.length) out.push({ level: 'error', text: `${name}, move ${id}: its animation has no frames.`, target: target(id) });
       if (m.animation.animString.length >= 1024) out.push({ level: 'error', text: `${name}, move ${id}: its animation string is longer than 1023 characters.`, target: target(id) });
       if (m.animation.sprites.length > 255) out.push({ level: 'error', text: `${name}, move ${id}: more than 255 sprites.`, target: target(id) });
+      // (what the fighter file holds: longer could not be read back)
+      if (m.footerString.length > 510) out.push({ level: 'error', text: `${name}, move ${id}: its reaction string is longer than 510 characters.`, target: target(id) });
+      if (m.animation.extraStrings.some((s) => s.length >= 512)) out.push({ level: 'error', text: `${name}, move ${id}: a variant is longer than 511 characters.`, target: target(id) });
+      if (m.animation.coords.length > 256) out.push({ level: 'error', text: `${name}, move ${id}: more than 256 hit points.`, target: target(id) });
       for (const s of m.animation.sprites) {
         if (!s.missing && s.data && s.data.length > MAX_SPRITE_BYTES) {
           out.push({ level: 'error', text: `${name}, move ${id}: a sprite is too big to store (make it smaller).`, target: target(id) });
@@ -72,6 +78,11 @@ export function projectProblems(p: Project): Problem[] {
         out.push({ level: 'warning', text: `${name}, move ${id}: its input "${m.moveString}" is not one the game reads.`, target: target(id) });
       }
     });
+    // (other robots' hits show its damage sheet's frames by letter, up to X: a letter it has no sprite for shows nothing)
+    const sheet = r.af.moves[9]?.animation.sprites.length ?? 0;
+    if (sheet && sheet < DAMAGE_SHEET_FRAMES) {
+      out.push({ level: 'warning', text: `${name}'s damage sheet (move 9) has ${sheet} sprites: hits show frames up to X (24), and the robot disappears in the ones it lacks.`, target: target(9) });
+    }
     if (!Object.keys(r.info.moves).length) out.push({ level: 'warning', text: `${name}'s special moves have no names (the move list shows their kind).`, target: target() });
   });
 
@@ -91,6 +102,8 @@ export function projectProblems(p: Project): Problem[] {
       if (x.animation.animString.length >= 1024) out.push({ level: 'error', text: `${name}, animation ${id}: its animation string is longer than 1023 characters.`, target: target(id) });
       if (x.animation.extraStrings.some((s) => s.length >= 512)) out.push({ level: 'error', text: `${name}, animation ${id}: a variant is longer than 511 characters.`, target: target(id) });
       if (x.animation.sprites.length > 255) out.push({ level: 'error', text: `${name}, animation ${id}: more than 255 sprites.`, target: target(id) });
+      if (x.footerString.length > 510) out.push({ level: 'error', text: `${name}, animation ${id}: its reaction string is longer than 510 characters.`, target: target(id) });
+      if (x.animation.coords.length > 256) out.push({ level: 'error', text: `${name}, animation ${id}: more than 256 hit points.`, target: target(id) });
       for (const s of x.animation.sprites) {
         if (!s.missing && s.data && s.data.length > MAX_SPRITE_BYTES) out.push({ level: 'error', text: `${name}, animation ${id}: a sprite is too big to store.`, target: target(id) });
       }

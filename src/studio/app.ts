@@ -10,7 +10,7 @@ import { saveFile } from '../platform/files';
 import { APP_VERSION } from '../platform/versionLabel';
 import { writeModPackage } from '../mods/package';
 import { projectProblems, type Problem, type Target } from './checks';
-import { confirmDialog, fill, h, icon, modal, pickFiles, toast, type IconName } from './dom';
+import { busyNow, confirmDialog, fill, h, icon, modal, pickFiles, toast, type IconName } from './dom';
 import { modHome, problemList } from './home';
 import { buildProject, newProject, openPackage, projectFromPackage, type Project } from './project';
 import { History } from './history';
@@ -62,7 +62,7 @@ export class StudioApp {
     // Leaving with changes not saved yet (a save comes a moment after an edit, and takes a moment): the save starts, and
     // the browser asks first.
     window.addEventListener('beforeunload', (e) => {
-      if (!this.saveTimer && !this.saving) return;
+      if (!this.unsaved) return;
       if (this.saveTimer) void this.saveNow();
       e.preventDefault();
       e.returnValue = '';
@@ -90,13 +90,17 @@ export class StudioApp {
    */
   private key(e: KeyboardEvent): void {
     const t = e.target as HTMLElement | null;
-    // (a dialog open: only what is in it; the pixel editor's Space moves its view)
-    const dialogs = document.querySelectorAll('.modal-back');
+    // (a dialog open: only what is in it; the pixel editor's Space moves its view; a test in the game counts as one,
+    // the project behind it stays as it is)
+    const dialogs = document.querySelectorAll('.modal-back, .test-back');
     const dialog = dialogs[dialogs.length - 1];
     const ctrl = (e.ctrlKey || e.metaKey) && !e.altKey;
     if (ctrl && e.key.toLowerCase() === 's') {
       e.preventDefault();
-      if (this.project) void this.flush().then(() => toast('Saved. Studio saves as you work; Build file makes the mod file to share.'));
+      if (this.project) {
+        void this.flush().then((ok) => ok ? toast('Saved. Studio saves as you work; Build file makes the mod file to share.')
+          : toast(`Not saved: ${this.saveError}`, true, 6000));
+      }
       return;
     }
     const typing = !!t && (t.tagName === 'TEXTAREA' || t.isContentEditable || (t.tagName === 'INPUT' && /^(text|number|search|)$/.test((t as HTMLInputElement).type)));
@@ -115,7 +119,7 @@ export class StudioApp {
   // ---- start screen --------------------------------------------------------------------------------------------
 
   async showStart(): Promise<void> {
-    await this.flush();
+    if (!(await this.canLeave())) return;
     this.editor?.close?.();
     this.editor = null;
     this.project = null;
@@ -165,7 +169,7 @@ export class StudioApp {
     try {
       const p = await openPackage(new Uint8Array(await f.arrayBuffer()));
       // (the project open now saved first: its pending save would be dropped)
-      await this.flush();
+      if (!(await this.canLeave())) return;
       this.open(p);
       this.scheduleSave();
     } catch (err) {
@@ -213,6 +217,8 @@ export class StudioApp {
 
   open(p: Project): void {
     this.project = p;
+    this.changes = this.savedChanges = 0;
+    this.saveError = '';
     this.sel = { kind: 'mod' };
     this.history.reset(p);
     this.updateUndo();
@@ -412,6 +418,7 @@ export class StudioApp {
 
   /** Saves the project a moment later. */
   private scheduleSave(): void {
+    this.changes++;
     fill(this.saveState, icon('clock'), 'Saving…');
     clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => void this.saveNow(), 1200);
@@ -419,6 +426,7 @@ export class StudioApp {
 
   /** Goes back one step (the page stays where it is, if what it shows is still there). */
   undo(): void {
+    if (this.waitForWork()) return;
     const p = this.history.undo();
     if (p) this.restore(p, 'Undone');
     else toast('Nothing to undo.');
@@ -426,6 +434,7 @@ export class StudioApp {
 
   /** Goes forward again one step that was undone. */
   redo(): void {
+    if (this.waitForWork()) return;
     const p = this.history.redo();
     if (p) this.restore(p, 'Redone');
     else toast('Nothing to redo.');
@@ -462,30 +471,64 @@ export class StudioApp {
 
   /** A save is being written. */
   private saving = false;
+  /** Changes made to the project, and how many of them the last save that worked had (all saved when they match). */
+  private changes = 0;
+  private savedChanges = 0;
+  /** Why the last save failed ('' when it worked). */
+  saveError = '';
+
+  /** Changes not on disk yet: a save to come, one being written, or one that failed. */
+  get unsaved(): boolean {
+    return !!this.project && (!!this.saveTimer || this.saving || this.changes !== this.savedChanges);
+  }
 
   private async saveNow(): Promise<void> {
     this.saveTimer = 0;
     const p = this.project;
     if (!p) return;
+    const changes = this.changes;
     this.saving = true;
     try {
       await saveProject(p);
+      // (the same project still: one opened meanwhile counts its own changes)
+      if (this.project?.key === p.key) this.savedChanges = Math.max(this.savedChanges, changes);
+      this.saveError = '';
       this.saveState.title = `Saved at ${new Date().toLocaleTimeString()} (on this computer)`;
       fill(this.saveState, icon('check'), 'Saved');
     } catch (err) {
-      this.saveState.title = '';
-      fill(this.saveState, h('span', { style: { color: 'var(--bad)' } }, `Not saved: ${(err as Error)?.message ?? err}`));
+      // (the reason in the chip's tip, and told once: it can be long)
+      const reason = String((err as Error)?.message ?? err);
+      if (reason !== this.saveError) toast(`Not saved: ${reason}`, true, 8000);
+      this.saveError = reason;
+      this.saveState.title = `Not saved: ${reason}`;
+      fill(this.saveState, h('span', { style: { color: 'var(--bad)' } }, 'Not saved'));
     } finally {
       this.saving = false;
     }
   }
 
-  /** Saves now if a save is pending. */
-  async flush(): Promise<void> {
-    if (this.saveTimer) {
+  /** Saves now if a save is pending (or the last one failed); true when everything is saved. */
+  async flush(): Promise<boolean> {
+    if (this.saveTimer || (this.project && this.changes !== this.savedChanges)) {
       clearTimeout(this.saveTimer);
       await this.saveNow();
     }
+    return !this.project || this.changes === this.savedChanges;
+  }
+
+  /** Work on the project still running (see busyWith): told, and true. */
+  private waitForWork(): boolean {
+    const work = busyNow();
+    if (work) toast(`Wait a moment: Studio is ${work}.`);
+    return !!work;
+  }
+
+  /** Whether the project may be left: saved, or the author agrees to lose what could not be saved. */
+  async canLeave(): Promise<boolean> {
+    if (this.waitForWork()) return false;
+    if (await this.flush()) return true;
+    return confirmDialog('Not saved', `The project could not be saved: ${this.saveError}. Leave it anyway? Its latest changes would be lost.`,
+      'Leave it', true);
   }
 
   /** The mod's file, checked like the game checks it (null after telling what is wrong). */

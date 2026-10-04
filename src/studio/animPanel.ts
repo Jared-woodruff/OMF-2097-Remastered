@@ -3,14 +3,14 @@
 // drawn in the pixel editor, and their HD pictures (the remastered look's). What differs between robots and arenas
 // comes from the host: the stage (robots stand on a floor; an arena's animations are placed over its background), the
 // palette and the colors sprites may use, and the cards with the host's own fields.
-import type { AnimationData } from '../formats/animation';
+import { ANIMATION_STRING_MAX, type AnimationData } from '../formats/animation';
 import type { Palette } from '../formats/palette';
 import type { Sprite } from '../formats/sprite';
 import { decodeScript } from '../script/script';
 import { TAG_TABLE } from '../script/tags';
 import { saveFile } from '../platform/files';
 import {
-  fixSeparators, formatAnim, frameAtTick, newFrame, newTag, parseAnim, setFrame, tagHasValue, totalTicks, type AnimTokens,
+  addTag, fixSeparators, formatAnim, frameAtTick, newFrame, newTag, parseAnim, setFrame, tagHasValue, totalTicks, type AnimTokens,
 } from './anim';
 import { indexedCanvas } from './colors';
 import { spriteHash } from '../mods/package';
@@ -83,6 +83,8 @@ export interface AnimPanelHost {
   timelineEdited?(id: number): void;
   /** "move" or "animation" (for messages). */
   noun: string;
+  /** Why an animation's sprites may not be deleted (a robot's damage sheet), else null. */
+  keepSprites?(id: number): string | null;
   /** The tags its animations use most, listed first when a tag is added. */
   tags?: string[];
   /** Its sprites' HD pictures (robots' and arenas'). */
@@ -537,14 +539,18 @@ export class AnimPanel {
         h('div', { class: 'row', style: { marginTop: '6px', alignItems: 'center' } },
           select<string>(allTags.map((n) => [n, `${n}${TAG_HELP[n] ? ` — ${TAG_HELP[n]}` : ''}`]), () => newTagName, (v) => (newTagName = v)),
           h('button', { class: 'btn small', onclick: () => {
-            f.tags.push(newTag(newTagName, tagHasValue(newTagName) ? 0 : null));
+            // (where it reads back as itself: next to some tags it would read as another one)
+            if (!addTag(f, newTag(newTagName, tagHasValue(newTagName) ? 0 : null))) {
+              toast(`"${newTagName}" cannot go on this frame with its other tags: the game would read them as other tags.`, true, 6000);
+              return;
+            }
             this.commitAnim();
           } }, 'Add tag'))));
   }
 
   /** The animation string as the file stores it (edited directly: checked like the game reads it). */
   private stringCard(a: AnimationData): HTMLElement {
-    const raw = h('textarea', { class: 'code', rows: 4 }, a.animString);
+    const raw = h('textarea', { class: 'code', rows: 4, maxLength: ANIMATION_STRING_MAX - 1 }, a.animString);
     raw.addEventListener('change', () => {
       try {
         decodeScript(raw.value);
@@ -684,7 +690,10 @@ export class AnimPanel {
     }
     if (result.hitPoints) {
       const other = a.coords.filter((c) => c.frameId !== this.spriteSel);
-      a.coords = [...other, ...result.hitPoints.map((p) => ({ x: p.x, y: p.y, nullValue: 0, frameId: this.spriteSel }))];
+      // (an animation holds 256 hit points in all: more could not be read back)
+      const room = Math.max(0, 256 - other.length);
+      if (result.hitPoints.length > room) toast(`An animation holds 256 hit points in all: ${result.hitPoints.length - room} of this frame's were left out.`, true, 6000);
+      a.coords = [...other, ...result.hitPoints.slice(0, room).map((p) => ({ x: p.x, y: p.y, nullValue: 0, frameId: this.spriteSel }))];
     }
     const note = before ? followEdit(this.host.hd?.get() ?? null, before, s) : null;
     if (note) toast(note, false, 6000);
@@ -758,6 +767,11 @@ export class AnimPanel {
   private async deleteSprite(): Promise<void> {
     const a = this.anim;
     if (!a) return;
+    const keep = this.host.keepSprites?.(this.id);
+    if (keep) {
+      toast(keep, true, 7000);
+      return;
+    }
     const i = this.spriteSel;
     // (the variants, other strings the game may play instead, have frames too: '' and '!' have none)
     const variants = a.extraStrings.map((s) => (s && s !== '!' ? parseAnim(s) : null));

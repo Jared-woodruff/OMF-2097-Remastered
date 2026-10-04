@@ -67,7 +67,8 @@ export class ModsPage extends Page {
   private top = 0;
   private status = '';
   private statusBad = false;
-  private confirmDelete = false;
+  /** The mod DELETE was pressed on once (a second press removes it). */
+  private confirmDelete: string | null = null;
   private busy = false;
   /** Something changed that plays from the next start. */
   private changed = false;
@@ -81,6 +82,7 @@ export class ModsPage extends Page {
   }
 
   private async reload(keepId?: string): Promise<void> {
+    this.confirmDelete = null;
     const installed = await listMods();
     // (the ones that come with the game first, unless a version of one is installed)
     const bundled = (await bundledMods()).filter((b) => !installed.some((m) => m.id === b.id));
@@ -134,7 +136,7 @@ export class ModsPage extends Page {
     const n = Math.max(0, Math.min(this.list.length - 1, this.sel + d));
     if (n !== this.sel) playMenuSound(19);
     this.sel = n;
-    this.confirmDelete = false;
+    this.confirmDelete = null;
     this.scrollToSelection();
     void this.loadDetails();
   }
@@ -203,12 +205,13 @@ export class ModsPage extends Page {
       this.say('IT COMES WITH THE GAME: TURN IT OFF INSTEAD', true);
       return;
     }
-    if (!this.confirmDelete) {
-      this.confirmDelete = true;
+    // (the second press must be on the same mod: the list may have changed in between, a mod installed)
+    if (this.confirmDelete !== m.id) {
+      this.confirmDelete = m.id;
       this.say(`PRESS DELETE AGAIN TO REMOVE ${m.name.toUpperCase()}`, true);
       return;
     }
-    this.confirmDelete = false;
+    this.confirmDelete = null;
     await removeMod(m.id);
     if (modState(m.id)?.loaded) this.changed = true;
     this.say(`REMOVED ${m.name.toUpperCase()}`);
@@ -217,8 +220,8 @@ export class ModsPage extends Page {
   }
 
   override back(): boolean {
-    if (this.confirmDelete) {
-      this.confirmDelete = false;
+    if (this.confirmDelete !== null) {
+      this.confirmDelete = null;
       this.say('');
       return true;
     }
@@ -270,7 +273,7 @@ export class ModsPage extends Page {
     const head = this.busy ? 'INSTALLING...' : this.status || (list.length
       ? `${list.length} MOD${list.length === 1 ? '' : 'S'}, ${on} ON`
       : 'NO MODS YET: I INSTALLS A MOD FILE (OR DROP IT ON THE GAME)');
-    this.drawText('st', head, 160, 24, FontSize.SMALL, this.statusBad || this.confirmDelete ? PC.red : PC.dim, HAlign.CENTER);
+    this.drawText('st', head, 160, 24, FontSize.SMALL, this.statusBad || this.confirmDelete !== null ? PC.red : PC.dim, HAlign.CENTER);
 
     if (!this.bar) {
       const p = new Painter(292 * 4, (ROW_H - 1) * 4);

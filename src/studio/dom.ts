@@ -5,6 +5,24 @@ type Child = Node | string | number | null | undefined | false | Child[];
 /** Clickable rows, tabs and choices: reached with Tab, chosen with Enter or Space (see StudioApp's keys). */
 const CLICKABLE = /(^|\s)(item|tab|choice|home-item)(\s|$)/;
 
+/** Work that changes the project over a while (a batch of pictures brought in), else null: undo, redo and leaving wait. */
+let busyWork: string | null = null;
+
+/** Runs `fn` as such work (`what`: what it is doing, for the messages). */
+export async function busyWith<T>(what: string, fn: () => Promise<T>): Promise<T> {
+  busyWork = what;
+  try {
+    return await fn();
+  } finally {
+    busyWork = null;
+  }
+}
+
+/** What work is running (see busyWith), else null. */
+export function busyNow(): string | null {
+  return busyWork;
+}
+
 /** An element with attributes, properties, event handlers (onclick...) and children. */
 export function h<K extends keyof HTMLElementTagNameMap>(
   tag: K,

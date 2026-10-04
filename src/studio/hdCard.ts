@@ -9,7 +9,7 @@ import { saveFile } from '../platform/files';
 import { zip } from '../util/zip';
 import type { StudioApp } from './app';
 import { rampColor } from './colors';
-import { fill, h, modal, pickFiles, toast } from './dom';
+import { busyWith, fill, h, modal, pickFiles, toast } from './dom';
 import { compactPicture, hdBitmap, hdProblem, hdTemplate, parseStem, picturesFromFiles, spriteStem } from './hd';
 import { emptyHd, type HdDoc } from './project';
 import { foldCard } from './ui';
@@ -152,6 +152,10 @@ export function hdSpritesCard(o: HdSprites): HTMLElement {
   const importPictures = async () => {
     const files = await pickFiles('.png,.webp,.zip,image/png,image/webp,application/zip', true);
     if (!files.length) return;
+    // (undo and redo wait meanwhile: they would swap in a copy of the project, and the pictures would go to the old one)
+    await busyWith('bringing in HD pictures', () => bringIn(files));
+  };
+  const bringIn = async (files: File[]) => {
     const pictures = await picturesFromFiles(files);
     const anims = o.anims();
     const hd = o.get() ?? emptyHd();

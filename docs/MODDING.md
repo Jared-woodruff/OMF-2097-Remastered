@@ -92,7 +92,8 @@ pilots/<id>/face.png             optional: its face in the pilot select grid
 <robots|arenas|pilots>/<id>/hd.json   optional: its HD pictures (below), in hd/
 ```
 
-`<id>` is a folder name: lower case letters, digits, `-` and `_` (32 characters at most).
+`<id>` is a folder name: lower case letters, digits, `-` and `_` (32 characters at most). The archive's files may add
+up to 1 GB unpacked.
 
 ### mod.json
 
@@ -118,7 +119,9 @@ The fighter file must have the animations the engine plays: 1 jump, 2 stand up, 
 9 the damage sheet, 10 walk, 11 idle, 48 victory and 49 defeat. Move 60 is the robot select screen's picture (51 × 36,
 color `0xD0` see-through) and move 61 the VS screen's; without them the game makes them from the idle frame. The
 effect moves every robot shares (7, 8, 12-14, 55-57) may be left out: the game uses the original game's. The file's
-robot number is set by the game.
+robot number is set by the game. The damage sheet has 24 sprites, A to X, in the originals' order: hits show the
+victim's frames by their letter (one it has no sprite for shows nothing), so OMF Studio keeps its sprites from being
+deleted. A sprite is at most 1024 pixels on a side.
 
 Sprites use the pilot's color ramps (entries 1-15, 16-31 and 32-47: its tertiary, secondary and primary colors) and
 the effect colors every fight has (`0xA0`-`0xF9`); 0 is see-through. Attacks are matched by their input string

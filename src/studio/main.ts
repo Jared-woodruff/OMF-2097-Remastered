@@ -34,6 +34,21 @@ async function main(): Promise<void> {
   const app = new StudioApp(root);
   // For automated checks (like the game's window.__omf).
   (window as unknown as { __studio: StudioApp }).__studio = app;
+  // The desktop app: closing the window does not ask the page (no beforeunload), so the last changes are saved first.
+  const studioWindow = (window as unknown as { __TAURI__?: { window: { getCurrentWindow(): StudioWindow } } }).__TAURI__?.window.getCurrentWindow();
+  if (studioWindow && window.self === window.top) {
+    void studioWindow.onCloseRequested(async (e) => {
+      if (!app.unsaved) return;
+      e.preventDefault();
+      if (await app.canLeave()) await studioWindow.destroy();
+    });
+  }
+}
+
+/** The part of Tauri's window used here (src/platform/desktop.ts has the game's). */
+interface StudioWindow {
+  onCloseRequested(handler: (e: { preventDefault(): void }) => void | Promise<void>): Promise<unknown>;
+  destroy(): Promise<void>;
 }
 
 main().catch((err) => {

@@ -109,11 +109,13 @@ export function followEdit(hd: HdDoc | null, before: string, s: Sprite): string 
 
 /** A sprite's picture file name stem: "m11-a" (a robot's move 11, sprite A) or "a30-b" (an arena's animation). */
 export function spriteStem(prefix: 'm' | 'a', anim: number, sprite: number): string {
-  return `${prefix}${anim}-${String.fromCharCode(97 + sprite)}`;
+  // (a, b... z, then s26, s27...)
+  return `${prefix}${anim}-${sprite < 26 ? String.fromCharCode(97 + sprite) : `s${sprite}`}`;
 }
 
 /** The animation and sprite a picture's name stands for ("m11-a", "a30-b.png"), or null. */
 export function parseStem(prefix: 'm' | 'a', name: string): [number, number] | null {
-  const m = new RegExp(`^${prefix}(\\d{1,2})-([a-z])$`).exec(name.toLowerCase());
-  return m ? [Number(m[1]), m[2].charCodeAt(0) - 97] : null;
+  const m = new RegExp(`^${prefix}(\\d{1,2})-([a-z]|s\\d{2,3})$`).exec(name.toLowerCase());
+  if (!m) return null;
+  return [Number(m[1]), m[2].length === 1 ? m[2].charCodeAt(0) - 97 : Number(m[2].slice(1))];
 }

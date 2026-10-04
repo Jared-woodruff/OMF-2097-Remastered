@@ -2,7 +2,7 @@
 // animation panel: preview, frames, tags, sprites) and what it does in a fight (its input, kind, damage, the victim's
 // reaction...).
 import type { AfMoveData } from '../../formats/af';
-import type { AnimationData } from '../../formats/animation';
+import { EXTRA_STRING_MAX, type AnimationData } from '../../formats/animation';
 import { decodeScript } from '../../script/script';
 import { HD_REFERENCE_COLORS, REQUIRED_MOVES } from '../../mods/types';
 import { parseAnim } from '../anim';
@@ -76,6 +76,10 @@ export class MoveEditor {
       }),
       spriteTitle: (id, sprite) => `${robotRef.info.name}: move ${id}, sprite ${String.fromCharCode(65 + sprite)}`,
       spriteFile: (id, sprite) => `${robotRef.id}-move${id}-${String.fromCharCode(97 + sprite)}.png`,
+      // (every robot's hits show the damage sheet's frames by their letter: one deleted moves the letters after it)
+      keepSprites: (id) => id === 9
+        ? "Every robot's hits show the damage sheet's frames by their letters: a sprite deleted would move the letters after it. Redraw it instead."
+        : null,
       // (standing on the floor, centred on where the robot stands)
       importPosition: (_id, w, hh) => [-(w >> 1), -hh],
       cards: (id) => {
@@ -239,7 +243,7 @@ export class MoveEditor {
       note.style.color = where ? 'var(--warn)' : '';
       fill(note, where ? `played ${where}, not the timeline` : 'the same as the timeline');
       fill(list, a.extraStrings.map((s, i) => {
-        const t = h('textarea', { class: 'code', rows: 2 }, s);
+        const t = h('textarea', { class: 'code', rows: 2, maxLength: EXTRA_STRING_MAX - 1 }, s);
         t.addEventListener('change', () => {
           try {
             if (t.value && t.value !== '!') decodeScript(t.value);
@@ -349,7 +353,8 @@ export class MoveEditor {
 /** The victim's reaction to a hit (an animation string over the victim's damage sheet), with the game's robots' as presets. */
 export function reactionField(value: string, set: (v: string) => void, label: string): HTMLElement {
   let current = value;
-  const react = h('textarea', { class: 'code', rows: 2 }, value);
+  // (510 characters: the file's field holds no more)
+  const react = h('textarea', { class: 'code', rows: 2, maxLength: 510 }, value);
   react.addEventListener('change', () => {
     try {
       decodeScript(react.value);

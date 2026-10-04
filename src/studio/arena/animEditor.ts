@@ -5,7 +5,7 @@
 // hit points touch (its damage, the robot reeling as its reaction string says), can turn into another animation when
 // it hits a robot or ends, or when a robot's attack hits it. The panel (animPanel.ts) edits its frames and sprites over
 // the arena's background.
-import { AnimationData } from '../../formats/animation';
+import { AnimationData, EXTRA_STRING_MAX } from '../../formats/animation';
 import { parseBK, type BkAnimData, type BkFile } from '../../formats/bk';
 import type { Palette } from '../../formats/palette';
 import { encodeSprite, Sprite } from '../../formats/sprite';
@@ -20,6 +20,7 @@ import { confirmDialog, field, fill, h, modal, numberInput, pickFiles, select, t
 import type { ArenaDoc } from '../project';
 import { reactionField } from '../robot/moveEditor';
 import { blankSprite, detach, pngToPixels, setPicture, trim } from '../sprites';
+import { spriteFits } from '../checks';
 
 /** The arena's own colors and the effect colors every arena shares: what its sprites may use. */
 export const ARENA_OWN = Array.from({ length: 0x40 }, (_, i) => 0x60 + i);
@@ -354,7 +355,7 @@ export class ArenaAnimEditor {
   private variants(a: BkAnimData, changed: () => void): HTMLElement {
     const list = h('div');
     const render = () => fill(list, a.animation.extraStrings.map((s, i) => {
-      const t = h('textarea', { class: 'code', rows: 2 }, s);
+      const t = h('textarea', { class: 'code', rows: 2, maxLength: EXTRA_STRING_MAX - 1 }, s);
       t.addEventListener('change', () => {
         try {
           if (t.value && t.value !== '!') decodeScript(t.value);
@@ -456,6 +457,11 @@ export class ArenaAnimEditor {
         try {
           const img = await pngToPixels(new Uint8Array(await f.arrayBuffer()), pal, ARENA_ENTRIES);
           const [px, w, hh, dx, dy] = trim(img.pixels, img.w, img.h);
+          // (a picture too big or too busy for the file: the mod would not save, nor open again)
+          if (!spriteFits(px, w, hh)) {
+            toast(`${f.name}: too big a picture for a sprite (${w} x ${hh}): make it smaller, or use fewer colors.`, true);
+            continue;
+          }
           const s = blankSprite(-(img.w >> 1) + dx, -(img.h >> 1) + dy);
           setPicture([s], px, w, hh);
           sprites.push(s);

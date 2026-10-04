@@ -1,5 +1,5 @@
 import { BinaryReader, BinaryWriter } from '../util/reader';
-import { AnimationData, resolveMissingSprites } from './animation';
+import { AnimationData, LENIENT_STRING_MAX, resolveMissingSprites } from './animation';
 import { Palette, RemapTables } from './palette';
 
 export const MAX_BK_ANIMS = 50;
@@ -30,7 +30,8 @@ export interface BkFile {
   soundTable: Uint8Array;
 }
 
-export function parseBK(data: Uint8Array): BkFile {
+/** Reads a BK file; `lenient`: past the format's string and hit point limits too (see AnimationData.load). */
+export function parseBK(data: Uint8Array, lenient = false): BkFile {
   const r = new BinaryReader(data);
   const fileId = r.u32();
   const unknownA = r.u8();
@@ -47,8 +48,8 @@ export function parseBK(data: Uint8Array): BkFile {
     const repeat = r.u8();
     const probability = r.u16();
     const hazardDamage = r.u8();
-    const footerString = r.paddedStr(512);
-    const animation = AnimationData.load(r);
+    const footerString = r.paddedStr(lenient ? LENIENT_STRING_MAX : 512);
+    const animation = AnimationData.load(r, lenient);
     anims[animNo] = { nullValue, chainHit, chainNoHit, repeat, probability, hazardDamage, footerString, animation };
   }
   const background = r.bytes(width * height).slice();
@@ -81,8 +82,14 @@ export function saveBK(bk: BkFile): Uint8Array {
     rec.u8(a.repeat);
     rec.u16(a.probability);
     rec.u8(a.hazardDamage);
+    // (refused rather than written past what parseBK reads back)
+    if (a.footerString.length >= 511) throw new Error(`animation ${id}: a reaction string of ${a.footerString.length} characters (510 at most)`);
     rec.paddedStr(a.footerString);
-    a.animation.save(rec);
+    try {
+      a.animation.save(rec);
+    } catch (err) {
+      throw new Error(`animation ${id}: ${(err as Error).message}`);
+    }
     const bytes = rec.toBytes();
     // Offset of the next animation record (read past by the parser, kept for the original engine's layout).
     w.u32(w.pos + 4 + bytes.length);

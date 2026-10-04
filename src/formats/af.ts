@@ -1,7 +1,9 @@
 import { BinaryReader, BinaryWriter } from '../util/reader';
-import { AnimationData, resolveMissingSprites } from './animation';
+import { AnimationData, LENIENT_STRING_MAX, resolveMissingSprites } from './animation';
 
 export const MAX_AF_MOVES = 70;
+/** A move's reaction string field (read up to 511 bytes, its NUL included). */
+const FOOTER_MAX = 512;
 
 /** A HAR move: an animation plus combat metadata. */
 export interface AfMoveData {
@@ -39,7 +41,8 @@ export interface AfFile {
   soundTable: Uint8Array;
 }
 
-export function parseAF(data: Uint8Array): AfFile {
+/** Reads an AF file; `lenient`: past the format's string and hit point limits too (see AnimationData.load). */
+export function parseAF(data: Uint8Array, lenient = false): AfFile {
   const r = new BinaryReader(data);
   const af: AfFile = {
     fighterId: r.u16(),
@@ -59,7 +62,7 @@ export function parseAF(data: Uint8Array): AfFile {
   while (r.ok()) {
     const moveNo = r.u8();
     if (moveNo >= MAX_AF_MOVES) break;
-    const animation = AnimationData.load(r);
+    const animation = AnimationData.load(r, lenient);
     const move: AfMoveData = {
       animation,
       aiFlags: r.u16(),
@@ -75,7 +78,7 @@ export function parseAF(data: Uint8Array): AfFile {
       extraStringSelector: r.u8(),
       points: r.u8(),
       moveString: r.fixedStr(21),
-      footerString: r.paddedStr(512),
+      footerString: r.paddedStr(lenient ? LENIENT_STRING_MAX : FOOTER_MAX),
     };
     af.moves[moveNo] = move;
   }
@@ -100,8 +103,16 @@ export function saveAF(af: AfFile): Uint8Array {
   w.u8(af.aiProjectileYThreshold);
   af.moves.forEach((m, id) => {
     if (!m) return;
+    // (refused rather than written past what parseAF reads back)
+    if (m.footerString.length >= FOOTER_MAX - 1) {
+      throw new Error(`move ${id}: a reaction string of ${m.footerString.length} characters (${FOOTER_MAX - 2} at most)`);
+    }
     w.u8(id);
-    m.animation.save(w);
+    try {
+      m.animation.save(w);
+    } catch (err) {
+      throw new Error(`move ${id}: ${(err as Error).message}`);
+    }
     w.u16(m.aiFlags);
     w.u16(m.posConstraint);
     for (let i = 0; i < 8; i++) w.u8(m.unknown[i] ?? 0);

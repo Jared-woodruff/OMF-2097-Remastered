@@ -132,6 +132,27 @@ export function newFrame(sprite: number, ticks: number, tags: AnimTag[] = [], la
   return { tags, sprite, ticks, raw: frameText(sprite, ticks, last) };
 }
 
+/**
+ * Whether a frame's tags read back as written: the file has nothing between them, so a tag without a value can run
+ * into the next one and read as a longer tag ("u" then "br" reads as "ub" then "r").
+ */
+export function tagsReadBack(tags: AnimTag[]): boolean {
+  const back = parseAnim(`${tags.map((g) => g.raw).join('')}A1`).frames[0]?.tags ?? [];
+  return back.length === tags.length && back.every((g, i) => g.name === tags[i].name && g.value === tags[i].value);
+}
+
+/** Adds a tag to a frame where it reads back as itself (last if it can); false when there is no such place. */
+export function addTag(f: AnimFrame, tag: AnimTag): boolean {
+  for (let at = f.tags.length; at >= 0; at--) {
+    const tags = [...f.tags.slice(0, at), tag, ...f.tags.slice(at)];
+    if (tagsReadBack(tags)) {
+      f.tags = tags;
+      return true;
+    }
+  }
+  return false;
+}
+
 /** A new tag (its value clamped to what the engine reads). */
 export function newTag(name: string, value: number | null): AnimTag {
   const v = value === null ? null : Math.max(-32768, Math.min(32767, Math.round(value)));

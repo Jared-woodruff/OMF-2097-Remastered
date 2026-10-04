@@ -106,7 +106,8 @@ function hdToPackage(hd: HdDoc | null, anims: Anims, prefix: string): ModHd | nu
       if (!data) return;
       let file = named.get(hash);
       if (!file) {
-        named.set(hash, (file = hdName(`${prefix}${anim}-${String.fromCharCode(97 + i)}`, data)));
+        // (a, b... z, then s26, s27...: a file name must stay letters and digits)
+        named.set(hash, (file = hdName(`${prefix}${anim}-${i < 26 ? String.fromCharCode(97 + i) : `s${i}`}`, data)));
         files.set(file, data);
       }
       sprites.push({ anim, sprite: i, file, hash });
@@ -175,26 +176,43 @@ export function projectFromPackage(pkg: ModPackage, key = newKey()): Project {
   return {
     key,
     manifest: { ...pkg.manifest },
+    // (read leniently: a project saved past the format's limits opens, and its checks say what to fix)
     robots: pkg.robots.map((r) => {
-      const af = parseAF(r.af);
+      const af = parseAF(r.af, true);
       return { id: r.id, info: structuredClone(r.info), af, hd: hdFromPackage(r.hd, af.moves) };
     }),
     arenas: pkg.arenas.map((a) => {
-      const bk = parseBK(a.bk);
+      const bk = parseBK(a.bk, true);
       return { id: a.id, info: structuredClone(a.info), bk, wid: a.wid, hd: hdFromPackage(a.hd, bk.anims) };
     }),
     pilots: pkg.pilots.map((p) => ({ id: p.id, info: structuredClone(p.info), portrait: p.portrait, face: p.face, hd: hdFromPackage(p.hd, []) })),
   };
 }
 
+/**
+ * A robot's or arena's file, written and read back as the game reads it: a file it could not read is not saved (the
+ * project would not open again), and the message names what is wrong.
+ */
+function written(what: string, write: () => Uint8Array, read: (bytes: Uint8Array) => unknown): Uint8Array {
+  try {
+    const bytes = write();
+    read(bytes);
+    return bytes;
+  } catch (err) {
+    throw new Error(`${what}: ${(err as Error)?.message ?? err}`);
+  }
+}
+
 /** The package a project builds. */
 export function packageFromProject(p: Project): ModPackage {
   return {
     manifest: { ...p.manifest, format: MOD_FORMAT, game: APP_VERSION || p.manifest.game },
-    robots: p.robots.map((r) => ({ id: r.id, info: r.info, af: saveAF(r.af), hd: hdToPackage(r.hd, r.af.moves, 'm') })),
+    robots: p.robots.map((r) => ({
+      id: r.id, info: r.info, af: written(`Robot ${r.info.name}`, () => saveAF(r.af), parseAF), hd: hdToPackage(r.hd, r.af.moves, 'm'),
+    })),
     // (HD pictures go only with pictures of their shape: the package would not load otherwise)
     arenas: p.arenas.map((a) => ({
-      id: a.id, info: a.info, bk: saveBK(a.bk), wid: a.wid,
+      id: a.id, info: a.info, bk: written(`Arena ${a.info.name}`, () => saveBK(a.bk), parseBK), wid: a.wid,
       hd: hdToPackage(a.hd && { ...a.hd, background: fits(a.hd.background, a.wid ? 576 : 320, 200) }, a.bk.anims, 'a'),
     })),
     pilots: p.pilots.map((pl) => {

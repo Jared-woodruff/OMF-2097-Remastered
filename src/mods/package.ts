@@ -1,6 +1,7 @@
 // Reading and writing mod packages (.omfmod, see types.ts). Reading checks everything the game relies on (the
 // manifest, every file's format, the animations a robot must have), so a package that loads plays.
 import { parseAF, type AfFile } from '../formats/af';
+import type { AnimationData } from '../formats/animation';
 import { parseBK, type BkFile } from '../formats/bk';
 import type { Sprite } from '../formats/sprite';
 import { imageSize } from '../util/imageSize';
@@ -63,25 +64,40 @@ const MOVE_NAMES: Record<number, string> = {
   11: 'idle', 48: 'victory', 49: 'defeat',
 };
 
-/** Checks a robot's fighter file; returns it parsed. */
-export function checkFighter(af: Uint8Array, where: string): AfFile {
+/** The largest sprite a mod may have, per side (the game's own are at most a screen wide). */
+const MAX_SPRITE_SIDE = 1024;
+
+/** Sprites the game could not hold (one claiming 65535 x 65535 pixels would take gigabytes as it loads). */
+function checkSprites(animations: (AnimationData | null | undefined)[], where: string): void {
+  for (const a of animations) {
+    for (const s of a?.sprites ?? []) {
+      if ((s.missing || !s.isEmpty()) && (s.width > MAX_SPRITE_SIDE || s.height > MAX_SPRITE_SIDE)) {
+        throw new ModError(`${where}: a sprite of ${s.width} x ${s.height} pixels is too big (${MAX_SPRITE_SIDE} x ${MAX_SPRITE_SIDE} at most).`);
+      }
+    }
+  }
+}
+
+/** Checks a robot's fighter file; returns it parsed (`lenient`: see readModPackage). */
+export function checkFighter(af: Uint8Array, where: string, lenient = false): AfFile {
   let f: AfFile;
   try {
-    f = parseAF(af);
+    f = parseAF(af, lenient);
   } catch {
     throw new ModError(`${where} is damaged.`);
   }
   const missing = REQUIRED_MOVES.filter((id) => !f.moves[id]);
   if (missing.length) throw new ModError(`${where} has no ${missing.map((id) => MOVE_NAMES[id]).join(', ')} animation${missing.length > 1 ? 's' : ''}.`);
   if (!f.health || !f.endurance) throw new ModError(`${where}: the robot has no health or endurance.`);
+  checkSprites(f.moves.map((m) => m?.animation), where);
   return f;
 }
 
-/** Checks an arena's scene file (and widescreen background); returns it parsed. */
-export function checkArena(bk: Uint8Array, wid: Uint8Array | null, where: string): BkFile {
+/** Checks an arena's scene file (and widescreen background); returns it parsed (`lenient`: see readModPackage). */
+export function checkArena(bk: Uint8Array, wid: Uint8Array | null, where: string, lenient = false): BkFile {
   let f: BkFile;
   try {
-    f = parseBK(bk);
+    f = parseBK(bk, lenient);
   } catch {
     throw new ModError(`${where} is damaged.`);
   }
@@ -91,6 +107,7 @@ export function checkArena(bk: Uint8Array, wid: Uint8Array | null, where: string
     const w = wid.length >= 4 ? wid[0] | (wid[1] << 8) : 0, h = wid.length >= 4 ? wid[2] | (wid[3] << 8) : 0;
     if (w !== 576 || h !== 200) throw new ModError(`${where}: the widescreen background must be 576 x 200.`);
   }
+  checkSprites(f.anims.map((a) => a?.animation), where);
   return f;
 }
 
@@ -155,10 +172,10 @@ function text(files: Map<string, Uint8Array>, path: string): unknown {
 }
 
 /**
- * Reads a package. `gameVersion`: packages made for newer games are refused. Throws ModError (worded for the player)
- * when something is wrong.
+ * Reads and checks a package. `gameVersion`: packages made for newer games are refused. Throws ModError (worded for the
+ * player) when something is wrong. `lenient`: OMF Studio opening a project (see readManifest; its robots' and arenas'
+ * files may hold strings or hit points past the format's limits, from an earlier Studio: they open, to be fixed).
  */
-/** Reads and checks a package; `lenient`: OMF Studio opening a project (see readManifest). */
 export async function readModPackage(bytes: Uint8Array, gameVersion = '', lenient = false): Promise<ModPackage> {
   let files: Map<string, Uint8Array>;
   try {
@@ -184,7 +201,7 @@ export async function readModPackage(bytes: Uint8Array, gameVersion = '', lenien
     const info = readRobotInfo(text(files, `${dir}robot.json`), `${dir}robot.json`);
     const af = files.get(`${dir}fighter.af`);
     if (!af) throw new ModError(`The mod has no ${dir}fighter.af.`);
-    const f = checkFighter(af, `${dir}fighter.af`);
+    const f = checkFighter(af, `${dir}fighter.af`, lenient);
     const hd = readHd(files, dir);
     if (hd) {
       hdSprites(hd, files, dir, f.moves, 'move');
@@ -199,7 +216,7 @@ export async function readModPackage(bytes: Uint8Array, gameVersion = '', lenien
     const bk = files.get(`${dir}arena.bk`);
     if (!bk) throw new ModError(`The mod has no ${dir}arena.bk.`);
     const wid = files.get(`${dir}arena.wid`) ?? null;
-    const f = checkArena(bk, wid, `${dir}arena.bk`);
+    const f = checkArena(bk, wid, `${dir}arena.bk`, lenient);
     const hd = readHd(files, dir);
     if (hd) {
       hdSprites(hd, files, dir, f.anims, 'animation');
