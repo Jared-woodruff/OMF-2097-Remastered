@@ -13,7 +13,24 @@
     "withGlobalTauri": true,
     "windows": [],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: blob:",
+        "media-src": "'self' blob:",
+        "font-src": "'self' data: blob:",
+        "connect-src": "'self' ipc: http://ipc.localhost data: blob:",
+        "worker-src": "'self' blob:",
+        "frame-src": "'self'",
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "form-action": "'none'"
+      },
+      "devCsp": {
+        "default-src": "'self' 'unsafe-inline' 'unsafe-eval' data: blob: ws: http://localhost:5173 ipc: http://ipc.localhost"
+      },
+      "dangerousDisableAssetCspModification": ["style-src"]
     }
   },
   "bundle": {

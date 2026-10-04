@@ -17,9 +17,13 @@ const SHOW_WINDOW_FALLBACK: Duration = Duration::from_secs(5);
 const BROWSER_ARGS: &str =
   "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required";
 
+/// The kinds of file the game and Studio save: pictures, clips, replays and the game's own files (nothing that runs).
+const SAVE_EXTENSIONS: &[&str] = &["png", "gif", "mp4", "webm", "rec", "omfmod", "omfbot", "omftrn", "zip", "json"];
+
 /// Whether this start opens OMF Studio instead of the game.
 fn studio_start() -> bool {
-  let flag = std::env::args().skip(1).any(|a| a.eq_ignore_ascii_case("--studio"));
+  // (args_os: an argument that is not valid Unicode must not stop the program)
+  let flag = std::env::args_os().skip(1).any(|a| a.eq_ignore_ascii_case("--studio"));
   let named = std::env::current_exe()
     .ok()
     .and_then(|p| p.file_stem().map(|s| s.to_string_lossy().to_lowercase()))
@@ -96,9 +100,11 @@ pub fn run() {
 
 /// Saves a file the game hands over (a replay, a video or GIF clip) in Downloads\OMF 2097
 /// Remastered, adding a number when the name is taken. The request body is the file's bytes and
-/// the `x-file-name` header its name (see `saveFile` in src/platform/files.ts). Returns the path.
+/// the `x-file-name` header its name (see `saveFile` in src/platform/files.ts); only the kinds of
+/// file in `SAVE_EXTENSIONS`. Returns the path. Async, the writing on a blocking thread: a large
+/// clip must not hold up the windows.
 #[tauri::command]
-fn save_file(app: tauri::AppHandle, request: tauri::ipc::Request<'_>) -> Result<String, String> {
+async fn save_file(app: tauri::AppHandle, request: tauri::ipc::Request<'_>) -> Result<String, String> {
   let tauri::ipc::InvokeBody::Raw(data) = request.body() else {
     return Err("expected the file's bytes".into());
   };
@@ -109,20 +115,33 @@ fn save_file(app: tauri::AppHandle, request: tauri::ipc::Request<'_>) -> Result<
     .map(safe_file_name)
     .filter(|n| !n.is_empty())
     .ok_or("missing file name")?;
+  let allowed = std::path::Path::new(&name)
+    .extension()
+    .and_then(|e| e.to_str())
+    .is_some_and(|e| SAVE_EXTENSIONS.iter().any(|x| x.eq_ignore_ascii_case(e)));
+  if !allowed {
+    return Err(format!("not a kind of file the game saves: {name}"));
+  }
   let dir = app.path().download_dir().map_err(|e| e.to_string())?.join("OMF 2097 Remastered");
-  std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-  let path = free_path(&dir, &name);
-  std::fs::write(&path, data).map_err(|e| e.to_string())?;
-  Ok(path.to_string_lossy().into_owned())
+  let data = data.clone();
+  tauri::async_runtime::spawn_blocking(move || {
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = free_path(&dir, &name);
+    std::fs::write(&path, data).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
+  })
+  .await
+  .map_err(|e| e.to_string())?
 }
 
-/// Letters, digits, spaces, dots, dashes and underscores only (no paths), not starting with a dot.
+/// Letters, digits, spaces, dots, dashes and underscores only (no paths), not starting with a dot
+/// or a space.
 fn safe_file_name(name: &str) -> String {
   let name: String = name
     .chars()
     .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ' '))
     .collect();
-  name.trim_start_matches('.').trim().to_string()
+  name.trim_start_matches(['.', ' ']).trim_end().to_string()
 }
 
 /// `dir/name`, or `dir/name (2)`, `dir/name (3)`... when it exists.

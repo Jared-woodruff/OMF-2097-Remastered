@@ -282,6 +282,12 @@ The desktop app keeps its web storage (localStorage, IndexedDB) in `%LOCALAPPDAT
 The app version comes from `package.json`. Tauri settings are in `src-tauri/tauri.conf.json`, and window permissions are in
 `src-tauri/capabilities/default.json`. Game code reaches native window features through `src/platform/desktop.ts`.
 
+The app's pages run under a Content Security Policy (`app.security.csp` in `tauri.conf.json`): scripts, workers and
+frames from the app itself, pictures, sounds and fonts also from `data:` and `blob:` URLs, and the app's own IPC
+(`http://ipc.localhost`). Anything new from elsewhere (another site, another URL scheme) must be added there. The game
+and Studio build their styles while they run, so Tauri is kept from adding a nonce to `style-src` (with a nonce there,
+browsers ignore `'unsafe-inline'` and refuse those styles). `npm run desktop:dev` runs under the looser `devCsp`.
+
 ## App icon and installer artwork
 
 The icon and the installer images are original vector artwork in `tools/brand/`: `icon.svg`, a simplified

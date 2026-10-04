@@ -35,6 +35,15 @@ const appWindow: TauriWindow | undefined = tauri?.window.getCurrentWindow();
 /** True when running inside the Tauri desktop shell (with its global API available). */
 export const isDesktop: boolean = appWindow !== undefined;
 
+/**
+ * Inside another page's frame (OMF Studio's test of a mod): the desktop shell's API reaches frames too, but the window
+ * is Studio's, so the game leaves it alone (fullscreen, title, closing); saving files still works.
+ */
+export const framed: boolean = typeof window !== 'undefined' && window.self !== window.top;
+
+/** The native window the game may change (not when framed). */
+const ownWindow: TauriWindow | undefined = framed ? undefined : appWindow;
+
 function warn(what: string, err: unknown): void {
   console.warn(`[platform] ${what} failed:`, err);
 }
@@ -46,9 +55,10 @@ function warn(what: string, err: unknown): void {
  *   (key/click handler), so call this synchronously from the input handler.
  */
 export async function setFullscreen(on: boolean): Promise<void> {
+  if (framed) return;
   try {
-    if (appWindow) {
-      await appWindow.setFullscreen(on);
+    if (ownWindow) {
+      await ownWindow.setFullscreen(on);
     } else if (on && !document.fullscreenElement) {
       await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
     } else if (!on && document.fullscreenElement) {
@@ -61,9 +71,9 @@ export async function setFullscreen(on: boolean): Promise<void> {
 
 /** Whether the game is currently fullscreen. */
 export async function isFullscreen(): Promise<boolean> {
-  if (!appWindow) return document.fullscreenElement !== null;
+  if (!ownWindow) return document.fullscreenElement !== null;
   try {
-    return await appWindow.isFullscreen();
+    return await ownWindow.isFullscreen();
   } catch (err) {
     warn('isFullscreen()', err);
     return false;
@@ -73,16 +83,16 @@ export async function isFullscreen(): Promise<boolean> {
 /** Toggles fullscreen (bind to e.g. Alt+Enter / F11). Same user-gesture rule as setFullscreen on the web. */
 export async function toggleFullscreen(): Promise<void> {
   // On the web, decide synchronously so requestFullscreen() still runs inside the user gesture.
-  const on = appWindow ? !(await isFullscreen()) : document.fullscreenElement === null;
+  const on = ownWindow ? !(await isFullscreen()) : document.fullscreenElement === null;
   await setFullscreen(on);
 }
 
 /** Sets the page title and, on desktop, the native window title. */
 export async function setTitle(title: string): Promise<void> {
   document.title = title;
-  if (!appWindow) return;
+  if (!ownWindow) return;
   try {
-    await appWindow.setTitle(title);
+    await ownWindow.setTitle(title);
   } catch (err) {
     warn('setTitle()', err);
   }
@@ -94,9 +104,9 @@ export async function setTitle(title: string): Promise<void> {
  * - Web: does nothing; a page can't close a tab it didn't open. Hide "Quit" options when `!isDesktop`.
  */
 export async function quitApp(): Promise<void> {
-  if (!appWindow) return;
+  if (!ownWindow) return;
   try {
-    await appWindow.close();
+    await ownWindow.close();
   } catch (err) {
     warn('quitApp()', err);
   }

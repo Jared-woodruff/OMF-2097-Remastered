@@ -19,7 +19,8 @@
   ${EndIf}
 !macroend
 
-!macro NSIS_HOOK_PREUNINSTALL
+; (after the uninstall: one cancelled because the game is running keeps its Studio shortcuts)
+!macro NSIS_HOOK_POSTUNINSTALL
   Delete "$SMPROGRAMS\OMF Studio.lnk"
   Delete "$DESKTOP\OMF Studio.lnk"
 !macroend
