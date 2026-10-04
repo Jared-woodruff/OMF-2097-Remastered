@@ -68,17 +68,17 @@ with new effects, modes and tools. One key, <kbd>F2</kbd>, switches between the 
 <a id="play"></a>
 <p align="center"><a href="#play"><img src="docs/media/banner-play.jpg" alt="01 · Play" width="100%"></a></p>
 
-**Download the game for Windows, free** (version 0.2.0):
+**Download the game for Windows, free** (version 0.2.1):
 
-- **[The installer](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/download/v0.2.0/OMF-2097-Remastered-0.2.0-setup.exe)**
+- **[The installer](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/download/v0.2.1/OMF-2097-Remastered-0.2.1-setup.exe)**
   adds the game to the Start menu (and, if you like, OMF Studio).
-- **[The portable app](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/download/v0.2.0/omf2097-remastered.exe)**
+- **[The portable app](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/download/v0.2.1/omf2097-remastered.exe)**
   is a single file that runs from anywhere.
-- **[OMF Studio](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/download/v0.2.0/omf-studio.exe)**, the
+- **[OMF Studio](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/download/v0.2.1/omf-studio.exe)**, the
   mod tools, is the same single file opening straight into Studio.
 
 Everything is included: the game, its HD artwork and its music, about 240 MB. It runs on Windows 10 and 11. The
-[release notes](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/tag/v0.2.0) list what's new.
+[release notes](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/tag/v0.2.1) list what's new.
 
 **Or [play it online](https://jared-woodruff.github.io/OMF-2097-Remastered/)**, with nothing to install: it runs in any modern browser, on a computer, a tablet or a
 phone, and keeps working offline once it has loaded.
