@@ -54,6 +54,9 @@ export class MainMenuScene extends Scene {
     // The reference also re-creates player 2's pilot: tournament code (VS / newsroom) clears it.
     const player2 = gs.getPlayer(1) as { pilot: Pilot | null };
     if (!player2.pilot) player2.pilot = new Pilot();
+    // (a knockout's slow motion still running, from a demo or the credits left at that moment, would put their speed
+    // back when it ends)
+    gs.speedSlowdownTime = -1;
     gs.setSpeed(settings().gameplay.speed + 5);
 
     this.frame = new GuiFrame(mainMenuTheme(), 165, 5, 151, 119);

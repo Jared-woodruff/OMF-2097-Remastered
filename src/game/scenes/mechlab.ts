@@ -6,7 +6,7 @@ import { HAR_NAMES, ORIGINAL_HAR_TYPES } from '../constants';
 import { mechAnimation } from '../../gen/mechlabModel';
 import type { CtrlEvent } from '../../controller/controller';
 import { isDown } from '../../controller/input';
-import { KeyboardController } from '../../controller/keyboard';
+import { KeyboardController, MENU_POLL_KEYS } from '../../controller/keyboard';
 import { Pilot } from '../../formats/pilot';
 import { Animation, RSprite } from '../../resources/animation';
 import { bkGetInfo, hasFighter, langGet } from '../../resources/resources';
@@ -495,7 +495,9 @@ export class MechlabScene extends Scene {
    */
   override keyEvent(code: string, e: KeyboardEvent): boolean {
     const player1 = this.gs.getPlayer(0);
-    if (player1.ctrl.type === CtrlType.GAMEPAD || (player1.ctrl instanceof KeyboardController && keyboardBindsKey(player1.ctrl, code))) {
+    // (a new pilot's name takes every key the menus don't poll: the modern layout binds letters to player 1)
+    const typing = this.dashtype === DashboardType.NEW_PLAYER && !MENU_POLL_KEYS.has(code);
+    if (!typing && (player1.ctrl.type === CtrlType.GAMEPAD || (player1.ctrl instanceof KeyboardController && keyboardBindsKey(player1.ctrl, code)))) {
       // these events will be handled by polling
       return true;
     }

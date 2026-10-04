@@ -83,7 +83,7 @@ export class VictoryScene extends Scene {
       gs.addObject(portrait, RENDER_LAYER_TOP, false, false);
     }
 
-    const name = (pilot.name || `PLAYER ${winnerId + 1}`).toUpperCase();
+    const name = (gs.victoryStats?.name || pilot.name || `PLAYER ${winnerId + 1}`).toUpperCase();
     this.title = new Text(FontSize.BIG, 320, 10, `${name} WINS!`).setHAlign(HAlign.CENTER).setColor(COLOR_YELLOW)
       .setShadowColor(COLOR_SHADOW).setShadow(GLYPH_SHADOW_RIGHT | GLYPH_SHADOW_BOTTOM);
     // The line goes where the VS screen's dialogue goes: next to the portrait.

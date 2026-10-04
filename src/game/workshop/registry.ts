@@ -49,6 +49,16 @@ function name(slot: number, spec: WorkshopSpec): void {
   setHarName(id, spec.name);
 }
 
+/**
+ * What a workshop robot fights like (its parts, size and weight; not its name or colors), for replays: a fight played
+ * with an earlier design would not play out the same. Undefined for other robots and empty slots.
+ */
+export function workshopDesign(harId: number): string | undefined {
+  if (!isWorkshopHar(harId)) return undefined;
+  const s = load()[harId - WORKSHOP_FIRST_ID];
+  return s ? `${s.body}.${s.head}.${s.moves}.${s.size}.${s.weight}` : undefined;
+}
+
 /** The slots' robots (null: empty). */
 export function workshopSpecs(): readonly (WorkshopSpec | null)[] {
   return load();

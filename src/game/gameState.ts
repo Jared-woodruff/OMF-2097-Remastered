@@ -13,7 +13,7 @@ import { createAiController } from '../controller/ai';
 import { langGet } from '../resources/resources';
 import { setPilotColors } from './pilotColors';
 import {
-  CtrlType, FRAME_WAIT_TICKS, GROUP_HAR, GROUP_UNKNOWN, isArenaScene, KnockDownMode, LAYER_PROJECTILE, MS_PER_OMF_TICK_SLOWEST,
+  ACT_NONE, CtrlType, FRAME_WAIT_TICKS, GROUP_HAR, GROUP_UNKNOWN, isArenaScene, KnockDownMode, LAYER_PROJECTILE, MS_PER_OMF_TICK_SLOWEST,
   PILOT_INFO, RENDER_LAYER_BOTTOM, RENDER_LAYER_MIDDLE, RENDER_LAYER_TOP, SceneId, STATIC_TICKS,
 } from './constants';
 import type { GameObject } from './object';
@@ -55,6 +55,8 @@ export interface VictoryStats {
   perfect: boolean;
   /** FINISH_NONE, FINISH_SCRAP or FINISH_DESTRUCTION. */
   finish: number;
+  /** The winner's name (two player games clear the pilots' names before the screen opens). */
+  name?: string;
 }
 
 export interface FightStats {
@@ -417,6 +419,8 @@ export class GameState {
     });
     this.thisId = id;
     this.nextId = id;
+    // (a click meant for the screen that is going)
+    this.menuCtrl.queued = ACT_NONE;
     try {
       this.createScene(id);
     } catch (err) {

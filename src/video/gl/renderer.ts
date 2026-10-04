@@ -103,28 +103,28 @@ export class GLRenderer {
   private spriteProg: Program;
   private resolveProg: Program;
   private presentProg: Program;
-  private hdSpriteProg: Program;
-  private hdBgCacheProg: Program;
-  private hdShadowRatioProg: Program;
-  private hdBgProg: Program;
-  private hdBrightProg: Program;
-  private hdBlurProg: Program;
-  private hdPostProg: Program;
-  private hdDownProg: Program;
-  private deltaProg: Program;
-  private hdDeltaProg: Program;
+  private hdSpriteProg!: Program;
+  private hdBgCacheProg!: Program;
+  private hdShadowRatioProg!: Program;
+  private hdBgProg!: Program;
+  private hdBrightProg!: Program;
+  private hdBlurProg!: Program;
+  private hdPostProg!: Program;
+  private hdDownProg!: Program;
+  private deltaProg!: Program;
+  private hdDeltaProg!: Program;
   /** Remap-effect color delta at native resolution (see DELTA_FS). */
   private deltaTarget: RenderTarget | null = null;
-  private hdAmbientProg: Program;
-  private hdAssetProg: Program;
-  private hdBgArtProg: Program;
-  private hudBarProg: Program;
+  private hdAmbientProg!: Program;
+  private hdAssetProg!: Program;
+  private hdBgArtProg!: Program;
+  private hudBarProg!: Program;
   private hudColors = new Float32Array(7 * 3);
   /** Frosted panels: quarter resolution blur targets, and the scissor of the 4:3 frame while it is active. */
   private frostA: RenderTarget | null = null;
   private frostB: RenderTarget | null = null;
   private frameScissor: [number, number, number, number] | null = null;
-  private frostProg: Program;
+  private frostProg!: Program;
   /** Affine fits of remap tables for frosted panels (per table and repeat count), for the palette `frostFitHash`. */
   private frostFits = new Map<number, Float32Array>();
   private frostFitHash = -1;
@@ -158,8 +158,8 @@ export class GLRenderer {
   private bloomB: RenderTarget | null = null;
   /** Wider bloom levels (1/8, 1/16, 1/32 of the HD target). */
   private bloomLevels: RenderTarget[] = [];
-  private hdUpProg: Program;
-  private hdGlowAddProg: Program;
+  private hdUpProg!: Program;
+  private hdGlowAddProg!: Program;
   private bgCache: RenderTarget | null = null;
   /** Per-level shadow color ratios of the extended background (native resolution). */
   private bgRatio: RenderTarget | null = null;
@@ -168,7 +168,7 @@ export class GLRenderer {
   /** Remastered effects: the post-processed world image, and the robots' coverage (lighting). */
   private worldTarget: RenderTarget | null = null;
   private maskTarget: RenderTarget | null = null;
-  private fxPasses: FxPasses;
+  private fxPasses!: FxPasses;
   /** This frame's remastered effects (set by the host before render()), or null. */
   fx: FxFrame | null = null;
   /**
@@ -189,7 +189,7 @@ export class GLRenderer {
   private geoTarget: RenderTarget | null = null;
   /** This frame's parallax (arenas with a geometry map), or null. */
   private parallax: Parallax | null = null;
-  private camProg: Program;
+  private camProg!: Program;
   /** The remastered typeface's glyphs (hd/typeface.ts) once built, for text style 2. */
   private glyphs: { tex: WebGLTexture; w: number; h: number; tiles: Map<string, [number, number]>; halftone: Set<string> } | null = null;
   /** Remastered text: 0 smooth (the original letters reconstructed as shapes), 1 crisp pixel font, 2 typeface. */
@@ -216,6 +216,8 @@ export class GLRenderer {
   gpuFrameMs = 0;
   /** Integrated / mobile / software GPU (by renderer string). */
   readonly isLowEndGpu: boolean;
+  /** Why the remastered look cannot run (a shader this graphics driver refuses), else null: the classic look is drawn. */
+  readonly hdError: string | null = null;
   tuning: HdTuning = { spriteSigma: 0.09, bgSigma: 0.14, spriteDiff: 3, bgDiff: 3 };
 
   constructor(readonly canvas: HTMLCanvasElement) {
@@ -225,26 +227,32 @@ export class GLRenderer {
     this.spriteProg = new Program(gl, SPRITE_VS, SPRITE_FS, 'sprite');
     this.resolveProg = new Program(gl, FULLSCREEN_VS, RESOLVE_FS, 'resolve');
     this.presentProg = new Program(gl, FULLSCREEN_VS, PRESENT_FS, 'present');
-    this.hdSpriteProg = new Program(gl, HD_SPRITE_VS, HD_SPRITE_FS, 'hdSprite');
-    this.hdBgCacheProg = new Program(gl, HD_SPRITE_VS, HD_BGCACHE_FS, 'hdBgCache');
-    this.hdShadowRatioProg = new Program(gl, HD_SPRITE_VS, HD_SHADOWRATIO_FS, 'hdShadowRatio');
-    this.hdBgProg = new Program(gl, FULLSCREEN_VS, HD_BG_FS, 'hdBg');
-    this.hdBrightProg = new Program(gl, FULLSCREEN_VS, HD_BRIGHT_FS, 'hdBright');
-    this.hdBlurProg = new Program(gl, FULLSCREEN_VS, HD_BLUR_FS, 'hdBlur');
-    this.hdPostProg = new Program(gl, FULLSCREEN_VS, HD_POST_FS, 'hdPost');
-    this.hdDownProg = new Program(gl, FULLSCREEN_VS, HD_DOWN_FS, 'hdDown');
-    this.hdUpProg = new Program(gl, FULLSCREEN_VS, HD_UP_FS, 'hdUp');
-    this.hdGlowAddProg = new Program(gl, FULLSCREEN_VS, HD_GLOW_ADD_FS, 'hdGlowAdd');
-    this.deltaProg = new Program(gl, FULLSCREEN_VS, DELTA_FS, 'delta');
-    this.hdDeltaProg = new Program(gl, FULLSCREEN_VS, HD_DELTA_FS, 'hdDelta');
-    this.hdAmbientProg = new Program(gl, FULLSCREEN_VS, HD_AMBIENT_FS, 'hdAmbient');
-    this.hdAssetProg = new Program(gl, HD_ASSET_VS, HD_ASSET_FS, 'hdAsset');
-    this.hdBgArtProg = new Program(gl, HD_SPRITE_VS, HD_BGART_FS, 'hdBgArt');
-    this.hudBarProg = new Program(gl, HUD_BAR_VS, HUD_BAR_FS, 'hudBar');
-    this.camProg = new Program(gl, FULLSCREEN_VS, CAMERA_FS, 'camera');
-    this.frostProg = new Program(gl, FULLSCREEN_VS, FROST_FS, 'frost');
+    // The remastered look's programs: a graphics driver that refuses one leaves the game in the classic look (hdError).
+    try {
+      this.hdSpriteProg = new Program(gl, HD_SPRITE_VS, HD_SPRITE_FS, 'hdSprite');
+      this.hdBgCacheProg = new Program(gl, HD_SPRITE_VS, HD_BGCACHE_FS, 'hdBgCache');
+      this.hdShadowRatioProg = new Program(gl, HD_SPRITE_VS, HD_SHADOWRATIO_FS, 'hdShadowRatio');
+      this.hdBgProg = new Program(gl, FULLSCREEN_VS, HD_BG_FS, 'hdBg');
+      this.hdBrightProg = new Program(gl, FULLSCREEN_VS, HD_BRIGHT_FS, 'hdBright');
+      this.hdBlurProg = new Program(gl, FULLSCREEN_VS, HD_BLUR_FS, 'hdBlur');
+      this.hdPostProg = new Program(gl, FULLSCREEN_VS, HD_POST_FS, 'hdPost');
+      this.hdDownProg = new Program(gl, FULLSCREEN_VS, HD_DOWN_FS, 'hdDown');
+      this.hdUpProg = new Program(gl, FULLSCREEN_VS, HD_UP_FS, 'hdUp');
+      this.hdGlowAddProg = new Program(gl, FULLSCREEN_VS, HD_GLOW_ADD_FS, 'hdGlowAdd');
+      this.deltaProg = new Program(gl, FULLSCREEN_VS, DELTA_FS, 'delta');
+      this.hdDeltaProg = new Program(gl, FULLSCREEN_VS, HD_DELTA_FS, 'hdDelta');
+      this.hdAmbientProg = new Program(gl, FULLSCREEN_VS, HD_AMBIENT_FS, 'hdAmbient');
+      this.hdAssetProg = new Program(gl, HD_ASSET_VS, HD_ASSET_FS, 'hdAsset');
+      this.hdBgArtProg = new Program(gl, HD_SPRITE_VS, HD_BGART_FS, 'hdBgArt');
+      this.hudBarProg = new Program(gl, HUD_BAR_VS, HUD_BAR_FS, 'hudBar');
+      this.camProg = new Program(gl, FULLSCREEN_VS, CAMERA_FS, 'camera');
+      this.frostProg = new Program(gl, FULLSCREEN_VS, FROST_FS, 'frost');
+      this.fxPasses = new FxPasses(gl);
+    } catch (err) {
+      this.hdError = err instanceof Error ? err.message : String(err);
+      console.error('[renderer] the remastered look cannot run on this graphics driver:', err);
+    }
     this.atlas = new IndexAtlas(gl, 4096);
-    this.fxPasses = new FxPasses(gl);
     this.paletteTex = createTexture(gl, 256, 1, { internalFormat: gl.RGBA8, format: gl.RGBA, type: gl.UNSIGNED_BYTE });
     this.remapTex = createTexture(gl, 256, 19, { internalFormat: gl.R8UI, format: gl.RED_INTEGER, type: gl.UNSIGNED_BYTE });
     this.dummyFrac = createTexture(gl, 1, 1, { internalFormat: gl.R8, format: gl.RED, type: gl.UNSIGNED_BYTE }, new Uint8Array(1));
@@ -423,7 +431,7 @@ export class GLRenderer {
 
   /** Whether this frame goes through the remastered path. */
   private get remastered(): boolean {
-    return this.options.mode === 'remastered';
+    return this.options.mode === 'remastered' && this.hdError === null;
   }
 
   private syncPaletteAndRemaps(): void {
@@ -529,7 +537,7 @@ export class GLRenderer {
   /** Computes where the game image goes on the canvas and how many side pixels are visible. */
   viewport(): Viewport {
     const cw = this.canvas.width, ch = this.canvas.height;
-    const wide = this.options.mode === 'remastered' || this.options.classicWidescreen;
+    const wide = this.remastered || this.options.classicWidescreen;
     const maxExt = wide ? EXT_MAX : 0;
     // Fit 200 native rows to the canvas height when possible.
     let sy = ch / NATIVE_H;

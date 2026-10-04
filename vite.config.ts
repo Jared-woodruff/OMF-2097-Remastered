@@ -15,6 +15,13 @@ function debugCapture(): Plugin {
           res.end();
           return;
         }
+        // (the game's own page only: another site open in the browser must not write files here)
+        const origin = req.headers.origin;
+        if (origin && new URL(origin).host !== req.headers.host) {
+          res.statusCode = 403;
+          res.end();
+          return;
+        }
         const name = String(new URL(req.url ?? '', 'http://x').searchParams.get('name') ?? 'capture').replace(/[^\w.-]/g, '_');
         const dir = process.env.OMF_CAPTURE_DIR ?? path.resolve('.captures');
         fs.mkdirSync(dir, { recursive: true });

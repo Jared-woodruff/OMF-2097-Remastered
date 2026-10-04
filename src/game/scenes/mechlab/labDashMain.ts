@@ -277,13 +277,16 @@ export function labDashSimDone(_menu: TrnMenu, submenu: TrnMenu): void {
     // (reference TODO: other player characters for a 2 player match)
     return;
   } else {
+    // (the opponent is checked before it takes player 2's place: a refused SIM must not leave it there for later games)
+    let enemy: Pilot | null = null;
     for (let i = 0; i < chr.pilot.enemiesExUnranked; i++) {
-      if (chr.enemies[i].pilot.rank === dw.simRank) gamePlayerSetPilot(p2, chr.enemies[i].pilot);
+      if (chr.enemies[i].pilot.rank === dw.simRank) enemy = chr.enemies[i].pilot;
     }
+    if (!enemy) return; // (no opponent with that rank: the reference would crash)
+    if (!dw.scene.robotsThere([p1.pilot.harId, enemy.harId])) return;
+    gamePlayerSetPilot(p2, enemy);
     const difficulty = tournamentAiDifficulty(p1.pilot.difficulty);
-    const p2Pilot = gamePlayerGetPilot(p2);
-    if (!p2Pilot) return; // (no opponent with that rank: the reference would crash)
-    if (!dw.scene.robotsThere([p1.pilot.harId, p2Pilot.harId])) return;
+    const p2Pilot = gamePlayerGetPilot(p2)!;
     const ctrl = createAiController(gs, difficulty, p2Pilot, p2Pilot.pilotId);
     p1.score.setDifficulty(difficulty);
     p2.setCtrl(ctrl);

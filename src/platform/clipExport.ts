@@ -78,6 +78,11 @@ export class ClipExporter {
 
   constructor(private host: ClipHost) {}
 
+  /** A hidden page draws no frames: the video waits (it would record the last frame all along, with the sound). */
+  private onVisibility = (): void => {
+    if (document.hidden && this.recorder?.state === 'recording') this.recorder.pause();
+  };
+
   get active(): boolean {
     return this.kind !== null;
   }
@@ -137,6 +142,7 @@ export class ClipExporter {
         if (e.data.size) chunks.push(e.data);
       };
       this.recorder.start(1000);
+      document.addEventListener('visibilitychange', this.onVisibility);
     } else {
       this.worker = new GifWorker();
       this.worker.postMessage({ type: 'start', width: w, height: h });
@@ -250,6 +256,7 @@ export class ClipExporter {
       s.exporting = null;
     }
     this.host.releaseAudio();
+    document.removeEventListener('visibilitychange', this.onVisibility);
     this.session = null;
     this.kind = null;
     this.recorder = null;

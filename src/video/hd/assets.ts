@@ -362,6 +362,8 @@ export class HdAssets {
     this.loadingCount++;
     /** The textures made so far (freed when another one fails). */
     const made: WebGLTexture[] = [];
+    /** Another file failed: the ones still on their way are dropped as they come (no texture left behind). */
+    let failed = false;
     try {
       const scale = this.textureScale;
       const version = info.sig ? `?v=${info.sig}` : '';
@@ -375,6 +377,10 @@ export class HdAssets {
           opts.resizeQuality = 'high';
         }
         const bmp = await createImageBitmap(await res.blob(), opts);
+        if (failed) {
+          bmp.close();
+          throw new Error(`${file}: dropped`);
+        }
         const tex = gl.createTexture()!;
         made.push(tex);
         gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -400,6 +406,7 @@ export class HdAssets {
       this.evict(b);
     } catch (err) {
       console.warn(`[hd] bundle ${b.name} failed to load:`, err);
+      failed = true;
       for (const t of made) gl.deleteTexture(t);
       b.bytes = 0;
       b.status = 'error';
@@ -414,12 +421,14 @@ export class HdAssets {
     const gl = this.gl!;
     let total = 0;
     for (const b of this.bundles.values()) if (b.status === 'ready') total += b.bytes;
-    if (total <= BUDGET_BYTES) return;
+    // (artwork loaded at a lower resolution keeps the same bundles: a quarter of the memory at half size)
+    const budget = BUDGET_BYTES * this.textureScale * this.textureScale;
+    if (total <= budget) return;
     const candidates = [...this.bundles.values()]
       .filter((b) => b.status === 'ready' && b !== keep && this.frame - b.lastUsed > 120)
       .sort((a, b) => a.lastUsed - b.lastUsed);
     for (const b of candidates) {
-      if (total <= BUDGET_BYTES) break;
+      if (total <= budget) break;
       for (const t of [...b.pages, ...b.images]) gl.deleteTexture(t.tex);
       total -= b.bytes;
       b.pages = [];

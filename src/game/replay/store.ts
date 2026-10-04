@@ -27,6 +27,8 @@ export interface ReplayMeta {
   kept: boolean;
   /** Player 1's health at the start in percent, when less than full (a survival fight after a damaging one). */
   startHealth?: number;
+  /** The players' workshop robots' designs as fought (see workshopDesign; null: not a workshop robot). */
+  designs?: (string | null)[];
 }
 
 export interface ReplayRecord {

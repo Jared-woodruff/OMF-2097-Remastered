@@ -23,7 +23,7 @@ import { showImportScreen } from './platform/importScreen';
 import { fonts, langGet, loadLanguage, soundBank } from './resources/resources';
 import { GLRenderer } from './video/gl/renderer';
 import { drawList } from './video/draw';
-import { isDesktop, isFullscreen, quitApp, setFullscreen, toggleFullscreen } from './platform/desktop';
+import { framed, isDesktop, isFullscreen, quitApp, setFullscreen, toggleFullscreen } from './platform/desktop';
 import { onKey } from './controller/input';
 import { HdAssets, hdAssets } from './video/hd/assets';
 import { arenaGeometry } from './video/hd/geometry';
@@ -56,7 +56,7 @@ import { ReplaySession } from './game/replay/playback';
 import { ClipExporter } from './platform/clipExport';
 import { TouchControls } from './platform/touch';
 import { WorkshopPage, type WorkshopHost } from './game/workshop/workshopPage';
-import { buildWorkshopInBackground, ensureWorkshopRobot, harIdOf, isWorkshopHar } from './game/workshop/registry';
+import { buildWorkshopInBackground, ensureWorkshopRobot, harIdOf, isWorkshopHar, workshopDesign } from './game/workshop/registry';
 import { hasFighter } from './resources/resources';
 import { CustomTournamentsPage } from './game/tournament/customPage';
 import { CreditsRun, startCredits } from './game/credits/creditsRun';
@@ -97,12 +97,18 @@ const canvas = document.getElementById('screen') as HTMLCanvasElement;
 
 // The graphics can be lost (a driver reset, a switch of graphics card, a phone putting the browser away): the picture
 // would stay black. The game starts again once they are back (settings, saves and tournaments are kept as they go).
+/** The game is starting again by itself (the page's leave prompt stays away). */
+let restarting = false;
+const restart = () => {
+  restarting = true;
+  location.reload();
+};
 canvas.addEventListener('webglcontextlost', (e) => {
   e.preventDefault();
   toast('The graphics were reset: the game starts again...', 8000);
-  window.setTimeout(() => location.reload(), 3000);
+  window.setTimeout(restart, 3000);
 });
-canvas.addEventListener('webglcontextrestored', () => location.reload());
+canvas.addEventListener('webglcontextrestored', restart);
 
 /** Hides the mouse pointer over the game after a moment without movement (the game is keyboard / pad driven). */
 function autoHideCursor(): void {
@@ -122,6 +128,20 @@ function resize(): void {
   canvas.height = Math.max(1, Math.round(canvas.clientHeight * dpr));
 }
 
+/**
+ * A window moved to a display of another pixel density keeps its size in CSS pixels, so no resize comes: the page is
+ * told as if it had been resized (everything that sizes itself to the window listens to that).
+ */
+function watchPixelRatio(): void {
+  matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`).addEventListener('change', () => {
+    window.dispatchEvent(new Event('resize'));
+    watchPixelRatio();
+  }, { once: true });
+}
+
+/** What a graphics driver that refuses the remastered look's shaders gets told (see GLRenderer.hdError). */
+const REMASTERED_UNAVAILABLE = "The remastered look can't run on this computer's graphics driver: the game is shown in the classic look.";
+
 /** Font family name of the remastered typeface. */
 const TYPEFACE_FAMILY = 'OMF Remastered';
 
@@ -136,6 +156,7 @@ const ARTWORK_WAIT_MS = 4000;
 async function main(): Promise<void> {
   resize();
   window.addEventListener('resize', resize);
+  watchPixelRatio();
   autoHideCursor();
   // The original game data: from the server (npm run extract, the desktop app), else imported earlier in this
   // browser, else the player provides it now (web version).
@@ -192,9 +213,10 @@ async function main(): Promise<void> {
   const s = settings();
   audio.setSoundVolume(s.sound.soundVol / 10);
   audio.setMusicVolume(s.sound.musicVol / 10);
+  // Browsers start the sound with the player's first press (in the capture phase: screens that keep their keys to
+  // themselves, like the first start's setup, stop them on the way; a touch counts as it ends).
   const resumeAudio = () => audio.resume();
-  window.addEventListener('keydown', resumeAudio);
-  window.addEventListener('pointerdown', resumeAudio);
+  for (const type of ['keydown', 'pointerdown', 'pointerup', 'touchend', 'click']) window.addEventListener(type, resumeAudio, true);
 
   registerPlaceholders();
 
@@ -363,6 +385,8 @@ async function main(): Promise<void> {
       if (!used) used = gs.sc.pointer(e.x, e.y, e.kind);
       if (used || (e.kind !== 'click' && e.kind !== 'rclick')) continue;
       if (gs.sc.isArena() && !(gs.sc as { menuVisible?: boolean }).menuVisible) continue;
+      // (not while the screen changes: the click would press ENTER on the next one)
+      if (!gs.sc.takesInput()) continue;
       if (e.kind === 'rclick') gs.menuCtrl.queued = ACT_ESC;
       else if (renderedFrames.length === 0) gs.menuCtrl.queued = ACT_PUNCH;
     }
@@ -525,7 +549,8 @@ async function main(): Promise<void> {
   // Apply video/audio settings to the renderer and audio system.
   const applySettings = () => {
     const v = settings().video;
-    renderer.options.mode = v.graphics;
+    // (a graphics driver that refused the remastered look's shaders: the classic look, whatever the setting says)
+    renderer.options.mode = renderer.hdError ? 'classic' : v.graphics;
     renderer.options.scaleMode = v.classicFilter;
     renderer.options.classicWidescreen = v.classicWidescreen;
     renderer.options.bloom = v.bloom;
@@ -534,20 +559,21 @@ async function main(): Promise<void> {
     if (v.hdFont === 'type') wantTypeface();
     renderer.options.hdHud = v.hdHud;
     hdAssets.enabled = v.hdArtwork;
-    engine.interpolate = v.motionSmoothing && v.graphics === 'remastered';
+    engine.interpolate = v.motionSmoothing && renderer.options.mode === 'remastered';
     audio.setQuality(settings().sound.enhancedMusic ? 'enhanced' : 'classic');
     applyPadSettings();
     audio.setAcoustics(settings().sound.acoustics);
     audio.setMyMusicMode(settings().sound.myMusic);
     audio.setImpactBass(settings().sound.impactBass);
     // (switched to the remastered look, or HD artwork on, in the middle of a scene: its pictures now, not at the next)
-    if (v.graphics === 'remastered' && v.hdArtwork) wantGenerated();
+    if (renderer.options.mode === 'remastered' && v.hdArtwork) wantGenerated();
   };
   applySettings();
   app.setGraphicsMode = (mode) => {
     settings().video.graphics = mode;
     saveSettings();
     applySettings();
+    if (mode === 'remastered' && renderer.hdError) toast(REMASTERED_UNAVAILABLE, 6000);
   };
   app.getGraphicsMode = () => settings().video.graphics;
   app.settingsChanged = () => {
@@ -556,6 +582,8 @@ async function main(): Promise<void> {
   };
   // Keep the FULLSCREEN option in sync with the real state (hotkeys, Esc leaving browser fullscreen).
   const syncFullscreenSetting = async () => {
+    // (in OMF Studio's test the window is Studio's: the game's own setting stays as it is)
+    if (framed) return;
     const fs = await isFullscreen();
     if (settings().video.fullscreen !== fs) {
       settings().video.fullscreen = fs;
@@ -568,19 +596,24 @@ async function main(): Promise<void> {
   if (isDesktop && settings().video.fullscreen) void setFullscreen(true);
   else if (!isDesktop) void syncFullscreenSetting();
   app.quit = () => {
-    if (isDesktop) void quitApp();
+    if (isDesktop && !framed) void quitApp();
     else gs.setNext(SceneId.MENU);
   };
   gs.onQuit = () => app.quit();
   app.showControls = () => help.open('controls');
   // Replays: the list (EXTRAS > REPLAYS) over the menu; watching a fight, and saving clips of it.
   app.showReplays = () => help.open(new ReplaysPage((record) => {
-    // A fight with a workshop robot needs it built (and still there).
-    for (const p of record.meta.players) {
+    // A fight with a workshop robot needs it built (and still there, as it was designed then).
+    for (const [i, p] of record.meta.players.entries()) {
       if (isWorkshopHar(p.harId)) ensureWorkshopRobot(p.harId - harIdOf(0));
       if (!hasFighter(p.harId)) {
         toast(isWorkshopHar(p.harId) ? 'This fight was played with a robot that is not in the workshop any more.'
           : 'This fight was played with a robot of a mod that is not on (EXTRAS > MODS).', 4000);
+        return false;
+      }
+      const design = record.meta.designs?.[i];
+      if (design && design !== workshopDesign(p.harId)) {
+        toast('This fight was played with an earlier design of a workshop robot: it would not play out the same.', 5000);
         return false;
       }
     }
@@ -675,7 +708,8 @@ async function main(): Promise<void> {
       return;
     }
     if (code === 'F1' && !help.isOpen()) {
-      if (!e.repeat) help.open();
+      // (not over the credits: their pages cover the game, and the fights would stop off their beat)
+      if (!e.repeat && !gs.credits) help.open();
       return;
     }
     if (help.isOpen()) {
@@ -733,7 +767,7 @@ async function main(): Promise<void> {
   // tab, which no page can stop; demo fights, replays, the credits and OMF Studio's tests may go).
   if (!isDesktop && !params.has('nopause')) {
     window.addEventListener('beforeunload', (e) => {
-      if (isArenaScene(gs.thisId) && !gs.isDemoplay() && !gs.replay && !gs.credits && !gs.modTest) {
+      if (!restarting && isArenaScene(gs.thisId) && !gs.isDemoplay() && !gs.replay && !gs.credits && !gs.modTest) {
         e.preventDefault();
         e.returnValue = '';
       }
@@ -757,6 +791,7 @@ async function main(): Promise<void> {
   }
   hideBoot();
   engine.start();
+  if (renderer.hdError) toast(REMASTERED_UNAVAILABLE, 8000);
   if (modTestError) toast(`The mod could not be tested: ${modTestError}`, 8000);
   // Development: ?credits starts the remaster's credits (=n: at the n-th fight; past the last: the end titles).
   if (import.meta.env.DEV && params.has('credits')) startCredits(gs, { links: !isDesktop, start: Number(params.get('credits')) || 0 });
@@ -827,7 +862,20 @@ async function main(): Promise<void> {
 
 // Web version: work offline and be installable (not in the desktop app or the dev server).
 if (import.meta.env.PROD && !isDesktop && 'serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  window.addEventListener('load', () => void navigator.serviceWorker.register('./sw.js').catch(() => undefined));
+  // (the list of what the page loads: the first visit hands it to the worker, see below)
+  performance.setResourceTimingBufferSize(2000);
+  window.addEventListener('load', () => {
+    const sw = navigator.serviceWorker;
+    // The first visit: the worker starts once the page has loaded the game, so it is told what to keep for offline
+    // play (what comes after it took over goes through it anyway). Media played in parts stay out (the song).
+    const keep = () => sw.controller?.postMessage({
+      keep: (performance.getEntriesByType('resource') as PerformanceResourceTiming[])
+        .filter((e) => e.initiatorType !== 'audio' && e.initiatorType !== 'video')
+        .map((e) => e.name),
+    });
+    if (!sw.controller) sw.addEventListener('controllerchange', keep, { once: true });
+    sw.register('./sw.js').catch(() => undefined);
+  });
 }
 
 main().catch((err) => {

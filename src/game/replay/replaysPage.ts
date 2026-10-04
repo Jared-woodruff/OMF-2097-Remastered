@@ -100,6 +100,13 @@ export class ReplaysPage extends Page {
   private exportSelected(): void {
     const r = this.chosen();
     if (!r) return;
+    // (a .REC file has no room for a survival fight's lower starting health: elsewhere it would play out differently)
+    if (r.meta.startHealth !== undefined && r.meta.startHealth < 100) {
+      this.status = 'THIS FIGHT CAN ONLY BE WATCHED HERE';
+      toast('This survival fight started with less than full health, which a .REC file cannot hold: played from the file, it would go differently.', 6000);
+      playMenuSound(20);
+      return;
+    }
     const name = replayFileName(r.meta, har);
     saveFile(name, r.data).then(
       (where) => {

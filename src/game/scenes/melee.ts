@@ -820,7 +820,9 @@ export class MeleeScene extends Scene {
           this.restoreCursorsTo(this.pilotIdA, this.pilotIdB);
           this.loadPilotPortraitsPalette();
         } else {
-          // (the reference returns to the network lobby when it came from there; no netplay in this port)
+          // (the reference returns to the network lobby when it came from there; no netplay in this port; a run of
+          // MORE MODES goes back there)
+          if (gs.modeRun) gs.menuReturn = 'modes';
           gs.setNext(SceneId.MENU);
         }
       }

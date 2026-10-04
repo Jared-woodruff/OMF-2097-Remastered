@@ -149,6 +149,12 @@ export interface MenuPollOptions {
   startIsEsc?: boolean;
 }
 
+/** The keys menuPoll reads (the others are free for the menus' text boxes). */
+export const MENU_POLL_KEYS: ReadonlySet<string> = new Set([
+  'ArrowRight', 'Numpad6', 'ArrowLeft', 'Numpad4', 'ArrowUp', 'Numpad8', 'ArrowDown', 'Numpad2', 'Enter', 'NumpadEnter',
+  'ShiftRight', 'Numpad0', 'Escape',
+]);
+
 /**
  * Menu navigation from any keyboard or gamepad (arrows/enter/escape and pad d-pad/buttons), like the reference
  * game_state_menu_poll: keyboard events are reported with a keyboard source, pad events with a gamepad source

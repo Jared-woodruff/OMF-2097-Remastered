@@ -132,9 +132,13 @@ export class Scene {
   }
 
   doInputPoll(): void {
-    if (this.staticTicksSinceStart < 25 && !this.isArena()) return;
-    if (this.gs.thisId !== this.gs.nextId) return;
-    this.inputPoll();
+    if (this.takesInput()) this.inputPoll();
+  }
+
+  /** Whether the scene reads its input now (not in its first moments, nor while it is being left). */
+  takesInput(): boolean {
+    if (this.staticTicksSinceStart < 25 && !this.isArena()) return false;
+    return this.gs.thisId === this.gs.nextId;
   }
 
   doRender(): void {

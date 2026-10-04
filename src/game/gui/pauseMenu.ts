@@ -3,6 +3,7 @@ import { app } from '../../app';
 import { audio } from '../../audio/audio';
 import { langGet } from '../../resources/resources';
 import { ACT_ESC, CtrlType } from '../constants';
+import { connectedPads, isDown, readPad } from '../../controller/input';
 import type { GameState } from '../gameState';
 import { saveSettings, settings } from '../settings';
 import { DUMMY_MODE_NAMES, type DummyMode } from '../../controller/dummy';
@@ -22,6 +23,9 @@ export interface PauseHost extends Partial<MoveListSource> {
   setTrainingDummy?(mode: DummyMode): void;
   resetTrainingPositions?(): void;
 }
+
+/** Keys that close the menu and also fight (ENTER: player 1's punch in the classic layout). */
+const RELEASE_KEYS = ['Enter', 'NumpadEnter', 'Escape', 'Space'];
 
 /** Where the pause menu goes (training has more entries). */
 export function pauseFrame(training: boolean): { x: number; y: number; w: number; h: number } {
@@ -65,6 +69,8 @@ export class ArenaPauseMenu {
   private frame: GuiFrame;
   private menu: Menu;
   private returnButton: Button;
+  /** Closed, the fight waiting for the closing key to be let go (see tryResume). */
+  private resuming = false;
 
   constructor(private gs: GameState, private host: PauseHost) {
     const theme: GuiTheme = {
@@ -119,6 +125,7 @@ export class ArenaPauseMenu {
   }
 
   open(): void {
+    this.resuming = false;
     this.menu.select(this.returnButton);
   }
 
@@ -202,11 +209,28 @@ export class ArenaPauseMenu {
 
   close(): void {
     this.host.menuVisible = false;
-    this.gs.paused = false;
+    this.resuming = true;
     saveSettings();
+    this.tryResume();
+  }
+
+  /**
+   * The fight goes on once the key or button that closed the menu is let go: ENTER is player 1's punch on the
+   * keyboard, A a kick on a pad (the robot would strike at once).
+   */
+  private tryResume(): void {
+    if (!this.resuming) return;
+    if (RELEASE_KEYS.some((k) => isDown(k))) return;
+    for (const i of connectedPads()) {
+      const p = readPad(i);
+      if (p && (p.a || p.b || p.x || p.y || p.start || p.back)) return;
+    }
+    this.resuming = false;
+    this.gs.paused = false;
   }
 
   tick(): void {
+    this.tryResume();
     this.frame.tick();
   }
 

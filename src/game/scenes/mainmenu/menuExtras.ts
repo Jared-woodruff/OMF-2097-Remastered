@@ -19,8 +19,15 @@ export function menuExtrasCreate(s: MainMenuScene): Menu {
     () => app.showReplays()));
   menu.attach(new Button('RECORDS', 'Your statistics, the best results of the modes, and achievements.', false, false,
     () => app.showRecords()));
-  menu.attach(new Button('SCOREBOARD', 'The high scores of the one player game.', false, false, () => mainmenuScoreboard(s)));
-  menu.attach(new Button('DEMO', 'Sit back and watch the computer fight the computer.', false, false, () => mainmenuDemo(s)));
+  // (both come back to this menu)
+  menu.attach(new Button('SCOREBOARD', 'The high scores of the one player game.', false, false, () => {
+    s.gs.menuReturn = 'extras';
+    mainmenuScoreboard(s);
+  }));
+  menu.attach(new Button('DEMO', 'Sit back and watch the computer fight the computer.', false, false, () => {
+    s.gs.menuReturn = 'extras';
+    mainmenuDemo(s);
+  }));
   menu.attach(new Button('CREDITS', 'The people and projects behind the remaster, fought out: every credit pilots a robot in ' +
     'its own colors and wins its fight.', false, false, () => app.showCredits()));
   menu.attach(new Button('DONE', 'Go back to the main menu.', false, false, menuDone));

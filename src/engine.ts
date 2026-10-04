@@ -58,7 +58,8 @@ export class Engine {
   advance(ms: number): void {
     const gs = this.gs;
     this.staticWait = Math.min(this.staticWait + ms, TICK_EXPIRY_MS);
-    this.dynamicWait = Math.min(this.dynamicWait + ms, TICK_EXPIRY_MS);
+    // (a tick can last longer than that: a replay played slowly, a knockout's slow motion in it)
+    this.dynamicWait = Math.min(this.dynamicWait + ms, Math.max(TICK_EXPIRY_MS, 2 * gs.msPerDyntick()));
     let limit = MAX_TICKS_PER_FRAME;
     let hasStatic: boolean;
     let hasDynamic: boolean;

@@ -1,7 +1,7 @@
 // Newsroom: the post-fight news report of single player and tournament games. Two report screens (win/lose texts
 // picked by the remaining health) with fight photos, then the next opponent / ending / continue dialog, or the
 // tournament's challenger and new champion reports. Port of the reference newsroom scene.
-import { pilotWinBit } from '../roster';
+import { pilotWinBit, randomHarPool } from '../roster';
 import { unlock } from '../records/records';
 import { newsReader, type NewsReadNames } from '../../audio/newsVoice';
 import { createAiController } from '../../controller/ai';
@@ -318,7 +318,9 @@ export class NewsroomScene extends Scene {
         const i = globalRandom.int(10);
         if (guard < 100000 && ((2 << i) & p1.spWins || i === p1.pilot.pilotId)) continue;
         pilot.pilotId = i;
-        pilot.harId = globalRandom.int(10);
+        // (the robots the select screen picks from at random: the original ten, and the mods' robots that are on)
+        const hars = randomHarPool();
+        pilot.harId = hars[globalRandom.int(hars.length)];
         break;
       }
     }

@@ -1,6 +1,7 @@
 // VS: the pre-fight screen with both pilots and HARs, insults, and the arena selection of two-player games; in
 // tournament mode it also doubles as the post-fight "Plug" financial report (player 2 has no pilot).
 // Port of the reference vs scene.
+import { app } from '../../app';
 import type { CtrlEvent } from '../../controller/controller';
 import { isDown } from '../../controller/input';
 import type { Pilot } from '../../formats/pilot';
@@ -754,9 +755,15 @@ export class VsScene extends Scene {
 
   private quitDialogClicked(dlg: Dialog, result: DialogResult): void {
     if (result === DialogResult.YES_OK) {
-      // A run (arcade, survival, time attack) ends: back to MORE MODES.
-      if (this.gs.modeRun) this.gs.menuReturn = 'modes';
-      this.gs.setNext(this.gs.modeRun ? SceneId.MENU : SceneId.MELEE);
+      // A run (arcade, survival, time attack) ends: back to MORE MODES; the robot workshop's fight: back to it.
+      const run = this.gs.modeRun;
+      if (run?.kind === 'exhibition') {
+        app.showWorkshop();
+        this.gs.menuReturn = 'extras';
+      } else if (run) {
+        this.gs.menuReturn = 'modes';
+      }
+      this.gs.setNext(run ? SceneId.MENU : SceneId.MELEE);
     } else {
       dlg.show(false);
     }

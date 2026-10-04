@@ -127,16 +127,22 @@ export class ModeRun {
 
   /**
    * A fight is over: what comes next is set up (the next fight, the same one again, or the end of the run, with the
-   * records). `ms` is the time fought, `health` player 1's health left (percent).
+   * records). `ms` is the time fought, `health` player 1's health left (percent); `quit`: given up from the pause
+   * menu, which ends the run.
    */
-  fightOver(gs: GameState, won: boolean, ms: number, health: number): void {
+  fightOver(gs: GameState, won: boolean, ms: number, health: number, quit = false): void {
     this.ms += ms;
-    this.score = gs.getPlayer(0).score.score;
+    // (giving up takes the fight's score away: the run keeps the score it had)
+    if (!quit) this.score = gs.getPlayer(0).score.score;
     if (this.kind === 'exhibition') {
       // Back to the workshop.
       app.showWorkshop();
       gs.menuReturn = 'extras';
       gs.setNext(SceneId.MENU);
+      return;
+    }
+    if (quit) {
+      this.finish(gs, false);
       return;
     }
     if (won) {
@@ -168,7 +174,10 @@ export class ModeRun {
         r.arcade.bestScore = this.score;
         record = true;
       }
-      if (!r.arcade.fastest || this.ms < r.arcade.fastest) r.arcade.fastest = this.ms;
+      if (!r.arcade.fastest || this.ms < r.arcade.fastest) {
+        r.arcade.fastest = this.ms;
+        record = true;
+      }
       unlock('arcade');
       if (this.continues === 0) unlock('arcade-clean');
     } else if (this.kind === 'survival') {

@@ -44,6 +44,7 @@ import { recSerialize } from '../../formats/rec';
 import { Recorder } from '../replay/recorder';
 import { ReplayHud } from '../replay/hud';
 import { storeFight, type ReplayMeta } from '../replay/store';
+import { workshopDesign } from '../workshop/registry';
 import { app } from '../../app';
 import type { PointerKind } from '../../controller/mouse';
 import { TrainingLab } from '../training/session';
@@ -401,6 +402,8 @@ export class ArenaScene extends Scene implements ArenaLike {
     const loserId = winnerId ? 0 : 1;
     const playerWinner = gs.getPlayer(winnerId);
     const playerLoser = gs.getPlayer(loserId);
+    // (two player games clear the names below: the victory screen still names the winner)
+    const winnerName = playerWinner.pilot.name;
     const winnerHar = harData(this.harObj(winnerId));
     fs.hp = winnerHar.health;
     fs.maxHp = winnerHar.healthMax;
@@ -408,7 +411,7 @@ export class ArenaScene extends Scene implements ArenaLike {
     // Arcade, survival, time attack: the run goes on (or ends) instead of the one player game's news.
     if (gs.modeRun) {
       const p1 = harData(this.harObj(0));
-      gs.modeRun.fightOver(gs, winnerId === 0, this.runMs, Math.round((Math.max(0, p1.health) / p1.healthMax) * 100));
+      gs.modeRun.fightOver(gs, winnerId === 0, this.runMs, Math.round((Math.max(0, p1.health) / p1.healthMax) * 100), this.quitting);
       this.victoryScreen();
       return;
     }
@@ -533,11 +536,11 @@ export class ArenaScene extends Scene implements ArenaLike {
       // cycle the maps in singleplayer
       gs.arena = nextArena(gs.arena);
     }
-    this.victoryScreen();
+    this.victoryScreen(winnerName);
   }
 
   /** The victory screen (scenes/victory.ts) comes first, then what was set to come next. */
-  private victoryScreen(): void {
+  private victoryScreen(winnerName?: string): void {
     const gs = this.gs;
     if (!settings().gameplay.victoryScreens || gs.isTournament() || gs.isDemoplay() || this.training || this.quitting) return;
     if (gs.getPlayer(0).ctrl.type === CtrlType.AI && gs.getPlayer(1).ctrl.type === CtrlType.AI) return;
@@ -552,6 +555,7 @@ export class ArenaScene extends Scene implements ArenaLike {
       seconds: Math.round((gs.tick * gs.msPerDyntick()) / 1000),
       perfect: winnerHar.health >= winnerHar.healthMax,
       finish: fs.finish,
+      name: winnerName ?? gs.getPlayer(w).pilot.name,
     };
     gs.victoryNext = gs.nextId;
     gs.nextId = SceneId.VICTORY;
@@ -1210,6 +1214,8 @@ export class ArenaScene extends Scene implements ArenaLike {
     let target: number;
     // (the credits bring their fights in themselves: the arena shows at once under the VS card, held still)
     if (this.state === ARENA_STATE_STARTING && this.gs.credits) return;
+    // (the fade stands still while paused: the pause menu would stay dark until it was closed blind)
+    if (this.menuVisible) return;
     if (this.state === ARENA_STATE_STARTING) target = 0;
     else if (this.state === ARENA_STATE_ENDING) target = this.endTick() + ARENA_CROSSFADE_TICKS;
     else return;
@@ -1295,6 +1301,8 @@ export class ArenaScene extends Scene implements ArenaLike {
       kept: false,
     };
     if (this.startHealth !== undefined) meta.startHealth = this.startHealth;
+    const designs = meta.players.map((p) => workshopDesign(p.harId) ?? null);
+    if (designs.some((d) => d !== null)) meta.designs = designs;
     storeFight(meta, recSerialize(rec.finish(gs.tick)));
   }
 
