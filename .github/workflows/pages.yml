@@ -12,9 +12,10 @@ permissions:
   pages: write
   id-token: write
 
+# (a newer push waits: a deployment cut off halfway would leave the site half updated)
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -33,6 +34,13 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # (what goes live passes the same checks as CI: a commit that breaks them stays off the site)
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
 
       - name: Build the web version
         run: npx vite build && node tools/web-dist.mjs

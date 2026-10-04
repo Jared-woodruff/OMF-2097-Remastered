@@ -226,7 +226,7 @@ page('Getting started', `
         <ul>
           <li>Windows 10 or 11 (64-bit), or a modern web browser</li>
           <li>A graphics card that speaks WebGL 2 (anything from the last ten years)</li>
-          <li>About 200 MB of disk space</li>
+          <li>About 250 MB of disk space</li>
           <li>Keyboard, gamepad or touch screen</li>
           <li>A friend to beat (optional)</li>
         </ul>

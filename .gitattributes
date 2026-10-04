@@ -19,9 +19,9 @@
 *.BK binary
 *.WID binary
 
-# The original game's files and the HD artwork (see NOTICE.md) are binary; their JSON indexes are text.
+# The original game's files and the HD artwork (see NOTICE.md) are binary; their JSON indexes are text (shown in
+# diffs and merged like text: "binary" had turned both off).
 public/gamedata/** binary
 public/hd/** binary
-public/gamedata/*.json text
-public/hd/*.json text
-public/hd/menu/*.json text
+public/gamedata/**/*.json text diff merge
+public/hd/**/*.json text diff merge
