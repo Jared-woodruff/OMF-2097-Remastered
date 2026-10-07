@@ -1,7 +1,8 @@
 // MULTIPLAYER > LAN: network games on the local network (net/lan.ts). The player's name, hosting a game (it waits for a
-// player to join, the page showing this computer's address to tell them), joining one by its address, and the games
-// found on the network, looked for again every few seconds while the page is open. When a game starts the page closes
-// and both games go to the robot select screen (net/netplay.ts).
+// player to join, the page showing this computer's address to tell them; the game starts as soon as one does), joining
+// one by its address, and the games found on the network, looked for again every few seconds while the page is open.
+// Once the two games have agreed, both show who plays whom and on which side for a moment, then the page closes and
+// both go to the robot select screen (net/netplay.ts).
 import type { PointerKind } from '../controller/mouse';
 import { ACT_DOWN, ACT_KICK, ACT_PUNCH, ACT_UP, type CtrlType } from '../game/constants';
 import type { GameState } from '../game/gameState';
@@ -16,10 +17,21 @@ import { guestHandshake, hostHandshake } from './handshake';
 import { lanBackend, type LanBackend, type LanGame, type LanHosting } from './lan';
 import type { NetLink } from './link';
 import { hostRules, netContent, startNetGame } from './netplay';
-import { cleanName, LAN_PORT, type NetContent } from './protocol';
+import { cleanName, LAN_PORT, type NetContent, type NetMessage, type NetRules } from './protocol';
 import { NetSession } from './session';
 
-type State = 'menu' | 'hosting' | 'joining';
+type State = 'menu' | 'hosting' | 'joining' | 'starting';
+
+/** A game both sides have agreed to, shown for a moment before it starts. */
+interface Match {
+  link: NetLink;
+  localPlayer: 0 | 1;
+  names: [string, string];
+  rules: NetRules;
+  seed: number;
+  /** When it starts (performance.now()). */
+  at: number;
+}
 
 const ROW_NAME = 0;
 const ROW_HOST = 1;
@@ -34,6 +46,8 @@ const GAMES_SHOWN = 4;
 /** How often the network is searched (ms). */
 const SCAN_EVERY_MS = 2500;
 const ADDRESS_MAX = 40;
+/** How long both games show the match before it starts (ms). */
+const MATCH_MS = 2200;
 
 function errorText(e: unknown): string {
   return (e instanceof Error ? e.message : String(e)).toUpperCase();
@@ -61,8 +75,11 @@ export class LanPage extends Page {
   private addresses: string[] = [];
   private port = LAN_PORT;
   private hosting: LanHosting | null = null;
-  /** Where the game being joined is. */
+  /** The game being joined (its name, or its address), and whether its computer has answered. */
   private joining = '';
+  private connected = false;
+  /** The game agreed, about to start. */
+  private match: Match | null = null;
   /** A guest is being greeted (one at a time). */
   private greeting = false;
   /** Bumped when what is under way is cancelled: what it was waiting for is dropped when it comes. */
@@ -106,6 +123,7 @@ export class LanPage extends Page {
     this.isOpen = false;
     this.attempt++;
     this.stopHosting();
+    this.dropMatch();
     this.state = 'menu';
   }
 
@@ -113,10 +131,20 @@ export class LanPage extends Page {
     if (this.state === 'menu') return false;
     this.attempt++;
     this.stopHosting();
+    this.dropMatch();
     this.state = 'menu';
     this.setStatus('');
     playMenuSound(20);
     return true;
+  }
+
+  /** Calls off the game about to start (the other player hears that this one left). */
+  private dropMatch(): void {
+    const m = this.match;
+    this.match = null;
+    if (!m) return;
+    m.link.send(JSON.stringify({ t: 'bye', reason: 'left' } satisfies NetMessage));
+    m.link.close();
   }
 
   private setStatus(text: string, color = PC.dim): void {
@@ -176,7 +204,7 @@ export class LanPage extends Page {
         return;
       }
       this.stopHosting();
-      this.start(new NetSession({ link, localPlayer: 0, names: [name, guest], rules, seed }));
+      this.matched({ link, localPlayer: 0, names: [name, guest], rules, seed, at: performance.now() + MATCH_MS });
     } catch (e) {
       link.close();
       // (the game goes on waiting for a player who can join)
@@ -186,13 +214,15 @@ export class LanPage extends Page {
     }
   }
 
-  private async join(address: string): Promise<void> {
+  /** Joins the game at an address (`label`: what to call it meanwhile, its name when it was found). */
+  private async join(address: string, label = address): Promise<void> {
     const b = this.backend;
     if (!b) return;
     const attempt = ++this.attempt;
     const name = this.name;
     this.state = 'joining';
-    this.joining = address;
+    this.joining = label;
+    this.connected = false;
     this.setStatus('');
     let link: NetLink | null = null;
     try {
@@ -201,12 +231,14 @@ export class LanPage extends Page {
         link.close();
         return;
       }
+      this.connected = true;
       const joined = await guestHandshake(link, name, APP_VERSION, this.netContent());
       if (attempt !== this.attempt) {
         link.close();
         return;
       }
-      this.start(new NetSession({ link, localPlayer: 1, names: [joined.hostName, joined.name], rules: joined.rules, seed: joined.seed }));
+      this.matched({ link, localPlayer: 1, names: [joined.hostName, joined.name], rules: joined.rules, seed: joined.seed,
+        at: performance.now() + MATCH_MS });
     } catch (e) {
       link?.close();
       if (attempt !== this.attempt) return;
@@ -215,10 +247,20 @@ export class LanPage extends Page {
     }
   }
 
+  /** Both games agreed: who plays whom shows for a moment (the other game's messages wait in the link meanwhile). */
+  private matched(m: Match): void {
+    this.match = m;
+    this.state = 'starting';
+    playMenuSound(20);
+  }
+
   /** The game starts: the page closes and the robot select screen opens in both games. */
-  private start(session: NetSession): void {
+  private start(): void {
+    const m = this.match;
+    if (!m) return;
+    this.match = null;
     this.state = 'menu';
-    startNetGame(this.gs, session);
+    startNetGame(this.gs, new NetSession({ link: m.link, localPlayer: m.localPlayer, names: m.names, rules: m.rules, seed: m.seed }));
     this.finished = true;
   }
 
@@ -266,7 +308,7 @@ export class LanPage extends Page {
         this.setStatus('THAT GAME IS ALREADY BEING PLAYED.', PC.gold);
         return;
       }
-      void this.join(g.address);
+      void this.join(g.address, `${g.name.toUpperCase()}'S GAME`);
     } else {
       return;
     }
@@ -356,30 +398,56 @@ export class LanPage extends Page {
       this.drawText('h', 'ESC BACK', 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
       return;
     }
-    if (this.state === 'hosting') this.renderHosting();
+    if (this.state === 'starting') this.renderMatch();
+    else if (this.state === 'hosting') this.renderHosting();
     else if (this.state === 'joining') this.renderJoining();
     else this.renderMenu();
   }
 
   private renderHosting(): void {
-    this.drawText('hn', `HOSTING A GAME AS ${this.name}`, 160, 40, FontSize.BIG, PAGE_TITLE, HAlign.CENTER);
-    this.drawText('hw', `WAITING FOR A PLAYER TO JOIN${this.dots()}`, 160, 56, FontSize.SMALL, PC.gold, HAlign.CENTER);
+    this.drawText('hn', `${this.name}'S GAME`, 160, 34, FontSize.BIG, PAGE_TITLE, HAlign.CENTER);
+    this.drawText('hw', `WAITING FOR A PLAYER TO JOIN${this.dots()}`, 160, 50, FontSize.SMALL, PC.gold, HAlign.CENTER);
+    this.drawWrapped('hg', 'The game starts by itself as soon as someone joins.', 62, PC.white);
+    this.drawWrapped('hj', `On the other computer: MULTIPLAYER > LAN, then pick ${this.name}'S GAME from the list, or join this address:`,
+      80, PC.grey);
     const a = this.address();
-    if (a) {
-      this.drawText('ha', 'YOUR ADDRESS', 160, 76, FontSize.SMALL, PC.dim, HAlign.CENTER);
-      this.drawText('hv', a, 160, 86, FontSize.BIG, PC.white, HAlign.CENTER);
-    }
-    this.drawWrapped('hj', 'The other player picks your game in MULTIPLAYER > LAN, or joins it by this address.', 104, PC.grey);
-    this.drawWrapped('hr', 'The game is played with your gameplay options (speed, rounds, power and the advanced ones).', 124, PC.grey);
-    if (this.status) this.drawWrapped('hs', this.status, 146, this.statusColor);
-    else this.drawWrapped('hf', 'If Windows asks, let the game use private networks.', 146, PC.dim);
+    if (a) this.drawText('hv', a, 160, 100, FontSize.BIG, PC.white, HAlign.CENTER);
+    this.drawWrapped('hr', 'Your gameplay options are used (speed, rounds, power and the advanced ones).', 120, PC.grey);
+    if (this.status) this.drawWrapped('hs', this.status, 142, this.statusColor);
+    else this.drawWrapped('hf', 'If Windows asks, let the game use private networks.', 142, PC.dim);
     this.drawText('h', 'ESC STOP HOSTING', 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
   }
 
   private renderJoining(): void {
-    this.drawText('jn', 'JOINING', 160, 62, FontSize.BIG, PAGE_TITLE, HAlign.CENTER);
-    this.drawText('ja', `${this.joining.toUpperCase()}${this.dots()}`, 160, 80, FontSize.SMALL, PC.gold, HAlign.CENTER);
+    this.drawText('jn', 'JOINING', 160, 50, FontSize.BIG, PAGE_TITLE, HAlign.CENTER);
+    this.drawText('ja', this.joining.toUpperCase(), 160, 68, FontSize.BIG, PC.white, HAlign.CENTER);
+    this.drawText('jc', this.connected ? `CONNECTED: CHECKING BOTH GAMES MATCH${this.dots()}` : `CONNECTING${this.dots()}`, 160, 90,
+      FontSize.SMALL, PC.gold, HAlign.CENTER);
+    this.drawWrapped('jr', "The host's gameplay options are used.", 112, PC.grey);
     this.drawText('h', 'ESC CANCEL', 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
+  }
+
+  /** The game agreed: who plays whom, which side this player is, what comes next; then it starts. */
+  private renderMatch(): void {
+    const m = this.match;
+    if (!m) return;
+    const left = m.at - performance.now();
+    const [p1, p2] = m.names;
+    const me = m.localPlayer;
+    this.drawText('mf', 'MATCH FOUND!', 160, 34, FontSize.BIG, PC.gold, HAlign.CENTER);
+    // (in the colors of their cursors on the select screen)
+    this.drawText('m1', p1, 150, 56, FontSize.BIG, PC.red, HAlign.RIGHT);
+    this.drawText('mv', 'VS', 160, 56, FontSize.SMALL, PC.white, HAlign.CENTER);
+    this.drawText('m2', p2, 170, 56, FontSize.BIG, PC.blue, HAlign.LEFT);
+    this.drawText('my', me === 0 ? 'YOU' : '', 150, 68, FontSize.SMALL, PC.red, HAlign.RIGHT);
+    this.drawText('mz', me === 1 ? 'YOU' : '', 170, 68, FontSize.SMALL, PC.blue, HAlign.LEFT);
+    this.drawWrapped('ms', `You are player ${me + 1}: your cursor is the ${me === 0 ? 'red' : 'blue'} one, on the ` +
+      `${me === 0 ? 'left' : 'right'}.`, 86, PC.white);
+    this.drawWrapped('mn', `Both of you pick a pilot and a robot. Then ${p1} picks the arena, and the fight starts when you ` +
+      'have both pressed PUNCH. The bar at the bottom of the screen always says whose move it is.', 104, PC.grey, 280, 40);
+    this.drawText('mg', `STARTING${this.dots()}`, 160, 150, FontSize.SMALL, PC.gold, HAlign.CENTER);
+    this.drawText('h', 'ESC CANCEL', 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    if (left <= 0) this.start();
   }
 
   private renderMenu(): void {
@@ -387,7 +455,7 @@ export class LanPage extends Page {
     const typing = Math.floor(performance.now() / 500) % 2 === 0 ? '_' : ' ';
     const lan = settings().lan;
     if (this.status) this.drawWrapped('st', this.status, 22, this.statusColor);
-    else this.drawWrapped('st', 'Fight a friend on another computer of your network: one hosts a game, the other joins it.', 22, PC.dim);
+    else this.drawWrapped('st', 'One of you hosts a game; the other picks it from the games on your network below.', 22, PC.dim);
     const rows: [string, string][] = [
       ['YOUR NAME', lan.name + (this.row === ROW_NAME ? typing : '')],
       ['HOST A GAME', ''],
@@ -417,7 +485,8 @@ export class LanPage extends Page {
         g.busy ? PC.orange : other ? PC.red : PC.green, HAlign.RIGHT);
     }
     const a = this.address();
-    const hint = this.row === ROW_NAME ? 'TYPE YOUR NAME' : this.row === ROW_ADDRESS ? 'TYPE AN ADDRESS, ENTER JOINS' : 'ENTER SELECT';
+    const hint = this.row === ROW_NAME ? 'TYPE YOUR NAME' : this.row === ROW_ADDRESS ? 'TYPE AN ADDRESS, ENTER JOINS'
+      : this.row === ROW_HOST ? 'ENTER HOSTS A GAME' : 'ENTER JOINS THIS GAME';
     if (a) this.drawText('ya', `YOUR ADDRESS: ${a}`, 160, 170, FontSize.SMALL, PC.dim, HAlign.CENTER);
     this.drawText('h', `${hint}   ESC BACK`, 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
   }

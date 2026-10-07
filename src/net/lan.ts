@@ -1,7 +1,8 @@
 // LAN games: hosting a game, finding the games on the local network and joining one. The desktop app does the
 // networking (src-tauri/src/lan.rs: TCP connections, UDP searches on port 2097); browsers cannot reach other
-// computers by themselves, so the web version has no LAN games. The development server stands in for the network
-// (vite.config.ts): two tabs of `npm run dev` can play each other.
+// computers by themselves, so the web version has no LAN games (MULTIPLAYER does not offer them). For development the
+// dev server stands in for the network (vite.config.ts): two tabs of `npm run dev` opened with `?devlan` can play each
+// other.
 import { QueuedLink, type NetLink } from './link';
 import { LAN_PORT } from './protocol';
 
@@ -278,12 +279,17 @@ class DevLan implements LanBackend {
 
 let backend: LanBackend | null | undefined;
 
-/** The LAN games' backend here: the desktop app's, the development server's, or none (the web version). */
+/** The LAN games' backend here: the desktop app's, the development server's (with ?devlan), or none (a browser). */
 export function lanBackend(): LanBackend | null {
   if (backend !== undefined) return backend;
   const tauri = typeof window === 'undefined' ? undefined : (window as Window & { __TAURI__?: TauriApi }).__TAURI__;
   if (tauri?.core && tauri.event) backend = new DesktopLan(tauri);
-  else if (import.meta.hot) backend = new DevLan(import.meta.hot);
+  else if (import.meta.hot && new URLSearchParams(location.search).has('devlan')) backend = new DevLan(import.meta.hot);
   else backend = null;
   return backend;
+}
+
+/** Puts a backend in place (tests; undefined: the one of this page again). */
+export function setLanBackend(b: LanBackend | null | undefined): void {
+  backend = b;
 }

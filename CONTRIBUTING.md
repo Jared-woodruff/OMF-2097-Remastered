@@ -30,8 +30,9 @@ The remaster's own robots and arenas are generated from `src/gen` into their mod
 (committed: they come with the game as a mod). After changing their models, moves or scenes, run `npm run gen` (see
 [docs/BUILDING.md](docs/BUILDING.md)); a test fails when the robots' files are out of date.
 
-LAN games (**Multiplayer › LAN**) need the desktop app's networking, but the dev server stands in for it: two tabs of
-`npm run dev` find and join each other's games. `src/test/netplay.test.ts` plays whole network games headlessly.
+LAN games (**Multiplayer › LAN**) need the desktop app's networking (`npm run desktop:dev`), but the dev server can
+stand in for it: two tabs of `npm run dev` opened with `?devlan` (e.g. `http://localhost:5173/?scene=MENU&devlan`) find
+and join each other's games. `src/test/netplay.test.ts` plays whole network games headlessly.
 
 The dev server has a debug API for poking at the running game: `?fight=3&ai` starts a CPU fight in the Fire Pit,
 `?scene=MELEE` opens a scene directly, and `window.__omf` offers `step(ms)`, `key(code, down)`, `pointer(kind, x, y)`

@@ -6,6 +6,8 @@ import { setMenuColors, vga } from '../video/vga';
 import { isArenaScene, RENDER_LAYER_BOTTOM, sceneBk, SceneId } from './constants';
 import type { GameState } from './gameState';
 import { GameObject } from './object';
+import type { NetSession } from '../net/session';
+import type { NetStatus } from '../net/statusBar';
 
 type TimerCb = () => void;
 
@@ -119,6 +121,10 @@ export class Scene {
   }
   /** The game window lost focus or was hidden (fights pause). */
   focusLost(): void {}
+  /** A network game's line for this screen (net/statusBar.ts): what the local player does now, or waits for. */
+  netStatus(_net: NetSession): NetStatus | null {
+    return null;
+  }
 
   // ---- driver entry points (not usually overridden) ------------------------------------
   doStaticTick(paused: boolean): void {

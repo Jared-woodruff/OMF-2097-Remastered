@@ -262,9 +262,12 @@ All of this is new, and none of it changes how the original plays unless you use
 **Multiplayer** in the main menu is the original two player game, and more:
 
 - **Local**: two players on one computer, sharing the keyboard or with controllers, as in 1994.
-- **LAN**: fight a friend on another computer of your home network. One of you hosts a game, the other picks it from
-  the games found on the network (or types the host's address), and you meet at the robot select screen. In the
-  Windows app (a browser can't reach other computers by itself).
+- **LAN**: fight a friend on another computer of your home network, in the Windows app (a browser can't reach other
+  computers by itself, so the web version doesn't offer it). One of you hosts a game, the other picks it from the
+  games found on the network (or types the host's address), and it starts by itself: both screens say who plays whom
+  and on which side, then you meet at the robot select screen. You both pick a pilot and a robot, the host picks the
+  arena, and the fight starts once you've both pressed punch. A bar at the bottom of the screen always says whose
+  move it is, and *YOU* and *READY* show over the players' portraits.
 - **Online**: coming soon.
 
 Both computers play the very same fight, each running the game itself, tick for tick: they only tell each other what

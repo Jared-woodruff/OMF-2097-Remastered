@@ -1,18 +1,24 @@
 // Network games (src/net): two games in this process, joined by a loopback link with latency and running at different
 // frame rates, play a whole round of the select screen, the VS screen and a fight; both must see the same fight, tick
 // for tick. Also the handshake's checks, leaving, losing the connection, and a fight that gets out of sync.
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Controller, type CtrlEvent } from '../controller/controller';
 import { Engine } from '../engine';
 import { ACT_DOWN, ACT_ESC, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_STOP, ACT_UP, CtrlType, SceneId } from '../game/constants';
 import type { GameState } from '../game/gameState';
 import { harData } from '../game/objects/har';
 import type { MeleeScene } from '../game/scenes/melee';
+import type { VsScene } from '../game/scenes/vs';
+import { settings } from '../game/settings';
 import { contentMismatch, guestHandshake, hostHandshake, readMatchSettings } from '../net/handshake';
-import { LoopbackPair } from '../net/link';
+import { setLanBackend, type LanBackend } from '../net/lan';
+import { LanPage } from '../net/lanPage';
+import { LoopbackPair, type NetLink } from '../net/link';
 import { hostRules, netContent, startNetGame } from '../net/netplay';
 import { cleanName, NET_PROTOCOL, parseMessage, type NetContent } from '../net/protocol';
 import { NetSession, type NetEnd } from '../net/session';
+import { netStatusOf } from '../net/statusBar';
+import { APP_VERSION } from '../platform/versionLabel';
 import { drawList } from '../video/draw';
 import { createGame, hasGameData } from './harness';
 
@@ -29,6 +35,12 @@ class Scripted extends Controller {
     this.last = this.current;
     return 0;
   }
+}
+
+/** A player pressing what is queued, one input a poll (nothing in between). */
+function taps(): { queue: number[]; next: (n: number) => number } {
+  const queue: number[] = [];
+  return { queue, next: () => queue.shift() ?? 0 };
 }
 
 /** A player mashing buttons (each game's from its own seed). */
@@ -323,6 +335,63 @@ describe.skipIf(!hasGameData)('network games', () => {
     expect([host.gs.thisId, guest.gs.thisId]).toEqual([SceneId.MENU, SceneId.MENU]);
   }, 60000);
 
+  it('the status bar says whose move it is on the select screen and the VS screen; the fight waits for both PUNCHes', () => {
+    const [h, g] = [taps(), taps()];
+    const net = netGame(10, [h.next, g.next]);
+    const [host, guest] = net.sides;
+    const status = (s: Side) => netStatusOf(s.gs);
+    const melee = (s: Side) => s.gs.sc as MeleeScene;
+    net.run(5000, () => host.gs.thisId === SceneId.MELEE && guest.gs.thisId === SceneId.MELEE && !!status(host) && !!status(guest));
+    expect(status(host)).toEqual({ side: 0, text: 'PICK YOUR PILOT (RED CURSOR)' });
+    expect(status(guest)).toEqual({ side: 1, text: 'PICK YOUR PILOT (BLUE CURSOR)' });
+    // The host picks a pilot: it waits for the guest, who hears the host is ready.
+    h.queue.push(ACT_PUNCH);
+    net.run(3000, () => melee(host).cursor[0].done && melee(guest).cursor[0].done);
+    expect(status(host)).toEqual({ side: 0, text: 'WAITING FOR GUEST TO PICK A PILOT', waiting: true });
+    expect(status(guest)).toEqual({ side: 1, text: 'HOST IS READY: PICK YOUR PILOT' });
+    g.queue.push(ACT_PUNCH);
+    net.run(3000, () => melee(host).page === 1 && melee(guest).page === 1);
+    expect(status(guest)?.text).toBe('PICK YOUR ROBOT (BLUE CURSOR)');
+    h.queue.push(ACT_PUNCH);
+    g.queue.push(ACT_PUNCH);
+    net.run(5000, () => host.gs.thisId === SceneId.VS && guest.gs.thisId === SceneId.VS && !!status(host) && !!status(guest));
+    expect(status(host)?.text).toBe('PICK THE ARENA (LEFT/RIGHT), THEN PUNCH');
+    expect(status(guest)?.text).toBe('HOST PICKS THE ARENA: PUNCH WHEN READY');
+    // The host picks the next arena and presses PUNCH: the fight waits for the guest's.
+    h.queue.push(ACT_RIGHT, 0, ACT_PUNCH);
+    net.run(3000, () => (host.gs.sc as VsScene).netReady[0] && (guest.gs.sc as VsScene).netReady[0]);
+    net.run(1500);
+    expect([host.gs.thisId, guest.gs.thisId]).toEqual([SceneId.VS, SceneId.VS]);
+    expect([host.gs.arena, guest.gs.arena]).toEqual([1, 1]);
+    expect(status(host)).toEqual({ side: 0, text: 'WAITING FOR GUEST TO PRESS PUNCH', waiting: true });
+    expect(status(guest)?.text).toBe('HOST IS READY: PRESS PUNCH TO FIGHT');
+    // (the guest's directions do not change the arena)
+    g.queue.push(ACT_RIGHT, 0, ACT_PUNCH);
+    net.run(5000, () => host.gs.sc.isArena() && guest.gs.sc.isArena());
+    expect([host.gs.thisId, guest.gs.thisId]).toEqual([SceneId.ARENA1, SceneId.ARENA1]);
+    // In the fight the bar is gone (unless a game waits for the other).
+    net.run(500);
+    expect(status(host)).toBeNull();
+    expect(host.end ?? guest.end).toBeNull();
+  });
+
+  it('the status bar says whom the game waits for, and whether they have got to this screen yet', () => {
+    const net = netGame(10, [() => 0, () => 0]);
+    const [host, guest] = net.sides;
+    // (the guest's computer is slow to start: the host gets to the select screen first and waits there)
+    guest.next = Infinity;
+    net.run(4000);
+    expect(host.gs.thisId).toBe(SceneId.MELEE);
+    expect(netStatusOf(host.gs)).toEqual({ side: 0, text: 'WAITING FOR GUEST TO GET HERE...', waiting: true });
+    guest.next = net.now();
+    net.run(3000, () => netStatusOf(host.gs)?.text === 'PICK YOUR PILOT (RED CURSOR)');
+    expect(netStatusOf(host.gs)?.text).toBe('PICK YOUR PILOT (RED CURSOR)');
+    // A hiccup on the select screen: the guest is here, just late.
+    guest.next = Infinity;
+    net.run(1500);
+    expect(netStatusOf(host.gs)).toEqual({ side: 0, text: 'WAITING FOR GUEST...', waiting: true });
+  });
+
   it('what a game can play: the robots, arenas and pilots, and their files', () => {
     createGame(SceneId.MENU);
     const c = netContent();
@@ -330,5 +399,113 @@ describe.skipIf(!hasGameData)('network games', () => {
     expect(c.arenas.slice(0, 5)).toEqual([0, 1, 2, 3, 4]);
     expect(c.files).toMatch(/^[0-9a-f]{8}$/);
     expect(netContent()).toEqual(c);
+  });
+});
+
+/** A LAN of two pages in this process: the host's game is found by the guest's search and joined over a loopback. */
+function fakeLan(pair: LoopbackPair): [LanBackend, LanBackend] {
+  let guestArrives: ((link: NetLink) => void) | null = null;
+  let hostName = '';
+  const info = async () => ({ name: 'tester', addresses: ['10.0.0.1'] });
+  const host: LanBackend = {
+    kind: 'network', info, scan: async () => [], join: async () => Promise.reject(new Error('no')),
+    async host(name, _version, onGuest) {
+      hostName = name;
+      guestArrives = onGuest;
+      return { port: 2097, stop: () => (guestArrives = null) };
+    },
+  };
+  const guest: LanBackend = {
+    kind: 'network', info, host: async () => Promise.reject(new Error('no')),
+    scan: async () => (guestArrives ? [{ name: hostName, address: '10.0.0.1', version: APP_VERSION, busy: false }] : []),
+    async join() {
+      if (!guestArrives) throw new Error('refused');
+      guestArrives(pair.a);
+      return pair.b;
+    },
+  };
+  return [host, guest];
+}
+
+describe.skipIf(!hasGameData)('the LAN page', () => {
+  afterEach(() => {
+    setLanBackend(undefined);
+    vi.restoreAllMocks();
+  });
+
+  /** Two LAN pages (each over its own game) joined by a fake network; `wait` lets the messages and promises go. */
+  function twoPages() {
+    let now = 1000;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    settings().lan.name = 'TESTER';
+    const pair = new LoopbackPair(0);
+    const [hb, gb] = fakeLan(pair);
+    const games = [createGame(SceneId.MENU), createGame(SceneId.MENU)];
+    setLanBackend(hb);
+    const host = new LanPage(games[0]);
+    setLanBackend(gb);
+    const guest = new LanPage(games[1]);
+    for (const p of [host, guest]) {
+      p.onOpen();
+      p.setColors();
+    }
+    const wait = async (ms = 0) => {
+      now += ms;
+      for (let i = 0; i < 20; i++) {
+        pair.run(pair.now + 1);
+        for (const p of [host, guest]) {
+          drawList.begin();
+          p.render();
+        }
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    };
+    const state = (p: LanPage) => (p as unknown as { state: string }).state;
+    return { host, guest, games, wait, state, pair };
+  }
+
+  it('hosting, the game found and joined, MATCH FOUND on both, then the robot select screen in both', async () => {
+    const { host, guest, games, wait, state } = twoPages();
+    // The host: ENTER on HOST A GAME.
+    host.action(ACT_PUNCH, CtrlType.KEYBOARD);
+    await wait();
+    expect(state(host)).toBe('hosting');
+    // The guest's search finds it; DOWN twice to it, ENTER joins.
+    await wait(3000);
+    guest.action(ACT_DOWN, CtrlType.KEYBOARD);
+    guest.action(ACT_DOWN, CtrlType.KEYBOARD);
+    guest.action(ACT_PUNCH, CtrlType.KEYBOARD);
+    await wait();
+    // Both agreed: both show the match for a moment (the guest got a name of its own).
+    expect([state(host), state(guest)]).toEqual(['starting', 'starting']);
+    expect(games[0].net).toBeNull();
+    await wait(1000);
+    expect([state(host), state(guest)]).toEqual(['starting', 'starting']);
+    await wait(2000);
+    expect([host.finished, guest.finished]).toEqual([true, true]);
+    for (const gs of games) {
+      expect(gs.net?.names).toEqual(['TESTER', 'TESTER 2']);
+      expect(gs.nextId).toBe(SceneId.MELEE);
+    }
+    expect([games[0].net?.localPlayer, games[1].net?.localPlayer]).toEqual([0, 1]);
+    for (const gs of games) gs.net?.leave();
+  });
+
+  it('ESC on MATCH FOUND calls the game off: the other player hears it', async () => {
+    const { host, guest, games, wait, state } = twoPages();
+    host.action(ACT_PUNCH, CtrlType.KEYBOARD);
+    await wait(3000);
+    guest.action(ACT_DOWN, CtrlType.KEYBOARD);
+    guest.action(ACT_DOWN, CtrlType.KEYBOARD);
+    guest.action(ACT_PUNCH, CtrlType.KEYBOARD);
+    await wait();
+    expect(state(guest)).toBe('starting');
+    expect(guest.back()).toBe(true);
+    expect(state(guest)).toBe('menu');
+    await wait(3000);
+    // (the host's game starts, hears the goodbye and ends at once)
+    expect(games[1].net).toBeNull();
+    expect(games[0].net).toBeNull();
+    expect(host.finished).toBe(true);
   });
 });

@@ -22,17 +22,23 @@ import {
 import { registerScene, type FightStats, type GamePlayer, type GameState } from '../gameState';
 import { Dialog, DialogResult, DialogStyle } from '../gui/dialog';
 import { FontSize, GLYPH_SHADOW_BOTTOM, GLYPH_SHADOW_RIGHT, HAlign, Text, TEXT_DARK_GREEN, VAlign } from '../gui/text';
-import { menuBackground, MenuBackgroundStyle } from '../gui/widgets';
+import { menuBackground, MenuBackgroundStyle, playMenuSound } from '../gui/widgets';
 import { GameObject } from '../object';
 import { paletteLoadPlayerColors } from '../pilotColors';
 import { Scene } from '../scene';
 import { scoreFormat } from '../score';
 import { settings } from '../settings';
 import { calculateTradeValue, harPrice } from './mechlab/harEconomy';
+import type { NetSession } from '../../net/session';
+import type { NetStatus } from '../../net/statusBar';
 
 const TEXT_GREEN = 0xa7;
 const COLOR_GREEN = 0xa7;
 const COLOR_YELLOW = 0xcf;
+/** The menu colors every scene has (vga.setMenuColors): bright green, light green, a dark shadow. */
+const MENU_BRIGHT_GREEN = 0xfd;
+const MENU_LIGHT_GREEN = 0xff;
+const MENU_SHADOW = 0xfc;
 
 // fight_stats.h
 export const PLUG_TEXT_START = 587;
@@ -229,6 +235,9 @@ export class VsScene extends Scene {
   tooPatheticDialog: Dialog;
 
   vsText: Text | null = null;
+  /** A network game: the players who have pressed PUNCH to fight (the host picks the arena before), and the badges. */
+  netReady: [boolean, boolean] = [false, false];
+  private netBadges: { you: Text; ready: Text } | null = null;
   insults: (Text | null)[] = [null, null];
   /** Kreissack, but not on Veteran or higher: he will not fight. */
   private easyKreissack = false;
@@ -703,8 +712,9 @@ export class VsScene extends Scene {
   }
 
   /**
-   * A network game: the host (player 1) picks the arena and goes on, as in a two player game; either player's ESC goes
-   * back to the robot select screen. ESC comes with the players' inputs, so both games go back at the same step.
+   * A network game: the host (player 1) picks the arena as in a two player game, and the fight starts once both players
+   * have pressed PUNCH (or KICK) to say they are ready (the host's arena is settled then); either player's ESC goes back
+   * to the robot select screen. ESC comes with the players' inputs, so both games act on it at the same step.
    */
   private netInputPoll(menuEv: CtrlEvent[]): void {
     const gs = this.gs;
@@ -715,8 +725,40 @@ export class VsScene extends Scene {
       for (const i of ev) {
         if (i.type === 'close') gs.setNext(SceneId.MENU);
         else if (i.action === ACT_ESC) gs.setNext(SceneId.MELEE);
-        else if (player === 0) this.handleAction(i.action, i.source);
+        else if (this.netReady[player]) continue;
+        else if (i.action === ACT_PUNCH || i.action === ACT_KICK) {
+          this.netReady[player] = true;
+          playMenuSound(20);
+        } else if (player === 0) {
+          this.handleAction(i.action, i.source);
+        }
       }
+    }
+    if (this.netReady[0] && this.netReady[1]) gs.setNext(SceneId.ARENA0 + gs.arena);
+  }
+
+  /** A network game: whose PUNCH is still to come (net/statusBar.ts). */
+  override netStatus(net: NetSession): NetStatus | null {
+    const [hostReady, guestReady] = this.netReady;
+    const [host, guest] = net.names;
+    if (net.localPlayer === 0) {
+      if (!hostReady) return { text: guestReady ? `${guest} IS READY: PICK THE ARENA, THEN PUNCH` : 'PICK THE ARENA (LEFT/RIGHT), THEN PUNCH' };
+      return { text: guestReady ? 'GET READY!' : `WAITING FOR ${guest} TO PRESS PUNCH`, waiting: true };
+    }
+    if (!guestReady) return { text: hostReady ? `${host} IS READY: PRESS PUNCH TO FIGHT` : `${host} PICKS THE ARENA: PUNCH WHEN READY` };
+    return { text: hostReady ? 'GET READY!' : `WAITING FOR ${host} TO PICK THE ARENA`, waiting: true };
+  }
+
+  /** A network game: YOU over the local player's portrait, READY over those of the players who have pressed PUNCH. */
+  private renderNetBadges(me: number): void {
+    const badge = (s: string, color: number) => new Text(FontSize.BIG, 60, 10, s).setHAlign(HAlign.CENTER).setColor(color)
+      .setShadow(GLYPH_SHADOW_RIGHT | GLYPH_SHADOW_BOTTOM).setShadowColor(MENU_SHADOW);
+    this.netBadges ??= { you: badge('YOU', MENU_LIGHT_GREEN), ready: badge('READY', MENU_BRIGHT_GREEN) };
+    for (let i = 0; i < 2; i++) {
+      const x = i === 0 ? 0 : 320 - 60;
+      // (above the portraits: the status bar is at the bottom of the screen)
+      if (i === me) this.netBadges.you.draw(x, 134);
+      if (this.netReady[i]) this.netBadges.ready.draw(x, 145);
     }
   }
 
@@ -773,6 +815,8 @@ export class VsScene extends Scene {
   /** vs_render_overlay */
   override renderOverlay(): void {
     video.setTag(TAG_MENU);
+    // (over the portraits, which are scene objects)
+    if (this.gs.net) this.renderNetBadges(this.gs.net.localPlayer);
     if (this.quitDialog.isVisible()) this.quitDialog.render();
     if (this.tooPatheticDialog.isVisible()) this.tooPatheticDialog.render();
   }

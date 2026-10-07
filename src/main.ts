@@ -69,7 +69,7 @@ import { loadAnnouncer } from './audio/announcer';
 import { CtrlType } from './game/constants';
 import { MenuScene } from './video/stage/parallax';
 import { LanPage } from './net/lanPage';
-import { showNetWaiting } from './net/waitingLabel';
+import { showNetStatus } from './net/statusBar';
 
 const boot = document.getElementById('boot')!;
 {
@@ -456,8 +456,8 @@ async function main(): Promise<void> {
       const menuCorner = gs.thisId === SceneId.MENU && gs.nextId === SceneId.MENU && !engine.waiting && !help.isOpen() &&
         !htmlHelpOpen() && !gs.credits;
       showVersionLabel(menuCorner);
-      // (a network game waiting a moment for the other game's inputs)
-      showNetWaiting(gs.net && gs.net.stalledMs() > 400 ? gs.net.opponent : null);
+      // (a network game: what to do on its screens, or whom it waits for)
+      showNetStatus(gs);
       showCreditsButton(menuCorner && gs.sc instanceof MainMenuScene && gs.sc.atMainPage());
       fxDirector.update(gs, engine.ticks + engine.alpha, renderer.options.mode === 'remastered');
       renderer.fx = fxDirector.frame;

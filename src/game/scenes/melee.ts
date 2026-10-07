@@ -34,6 +34,8 @@ import { addPilotPortrait, nearestColor, pilotPortrait, PORTRAIT_FIRST, PORTRAIT
 import { modPilot } from '../../mods/registry';
 import { Scene } from '../scene';
 import { leaveNetGame } from '../../net/netplay';
+import type { NetSession } from '../../net/session';
+import type { NetStatus } from '../../net/statusBar';
 
 const MAX_STAT = 20;
 const TEXT_GREEN = 0xa6;
@@ -41,6 +43,10 @@ const TEXT_SHADOW_GREEN = 0xa2;
 const TEXT_BLACK = 0xd1;
 const TEXT_SHADOW_BLACK = 0xd7;
 const RED_CURSOR_INDEX = 0xf6;
+/** The menu colors every scene has (vga.setMenuColors): bright green, light green, a dark shadow. */
+const MENU_BRIGHT_GREEN = 0xfd;
+const MENU_LIGHT_GREEN = 0xff;
+const MENU_SHADOW = 0xfc;
 const BLUE_CURSOR_INDEX = 0xf7;
 const VIOLET_CURSOR_INDEX = 0xf8;
 
@@ -209,6 +215,8 @@ export class MeleeScene extends Scene {
   cheatPilotStatsStat = [0, 0]; // which stat is selected
 
   networkGame = false;
+  /** A network game's badges on the big portraits: the local player's, and the players who have made their pick. */
+  private netBadges: { you: Text; ready: Text } | null = null;
 
   private lastKeyEvent: KeyboardEvent | null = null;
   private unsubscribeKeys: (() => void) | null = null;
@@ -988,6 +996,30 @@ export class MeleeScene extends Scene {
       this.wins[0]?.draw(8, 107);
       this.wins[1]?.draw(160, 107);
     }
+    if (this.networkGame && this.gs.net) this.renderNetBadges(this.gs.net.localPlayer);
+  }
+
+  /** A network game: YOU over the local player's big portrait, READY over those of the players who have picked. */
+  private renderNetBadges(me: number): void {
+    const badge = (s: string, color: number) => new Text(FontSize.BIG, 66, 10, s).setHAlign(HAlign.CENTER).setColor(color)
+      .setShadow(GLYPH_SHADOW_RIGHT | GLYPH_SHADOW_BOTTOM).setShadowColor(MENU_SHADOW);
+    this.netBadges ??= { you: badge('YOU', MENU_LIGHT_GREEN), ready: badge('READY', MENU_BRIGHT_GREEN) };
+    for (let i = 0; i < 2; i++) {
+      const x = i === 0 ? 0 : 320 - 66;
+      if (i === me) this.netBadges.you.draw(x, 3);
+      if (this.cursor[i].done) this.netBadges.ready.draw(x, 38);
+    }
+  }
+
+  /** A network game: whose pick is still to come (net/statusBar.ts). */
+  override netStatus(net: NetSession): NetStatus | null {
+    const me = net.localPlayer;
+    const what = this.page === PILOT_SELECT ? 'PILOT' : 'ROBOT';
+    if (!this.cursor[me].done) {
+      if (this.cursor[1 - me].done) return { text: `${net.opponent} IS READY: PICK YOUR ${what}` };
+      return { text: `PICK YOUR ${what} (${me === 0 ? 'RED' : 'BLUE'} CURSOR)` };
+    }
+    return { text: `WAITING FOR ${net.opponent} TO PICK A ${what}`, waiting: true };
   }
 
   private loadPilotPortraits(): void {

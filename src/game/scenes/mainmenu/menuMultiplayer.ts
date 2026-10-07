@@ -1,5 +1,6 @@
 // MAIN MENU > MULTIPLAYER (the original's TWO PLAYER GAME, and network play): two players on this computer, on two
-// computers of the local network, or (later) over the internet.
+// computers of the local network (the desktop app only: a browser cannot reach other computers), or (later) over the
+// internet.
 import { app } from '../../../app';
 import { lanBackend } from '../../../net/lan';
 import { toast } from '../../../platform/toast';
@@ -23,10 +24,10 @@ export function menuMultiplayerCreate(s: MainMenuScene): Menu {
   menu.attach(Label.title('MULTIPLAYER'));
   menu.attach(new Button('LOCAL', 'Two players on this computer, like the original two player game: share the keyboard, or ' +
     'plug in controllers.', false, false, () => mainmenu1v2(s)));
-  menu.attach(new Button('LAN', lanBackend()
-    ? 'Fight a friend on another computer of your home network: host a game, or join one.'
-    : 'Fight a friend on another computer of your home network, in the desktop app (a browser cannot reach other ' +
-      'computers by itself).', false, false, () => app.showLan()));
+  if (lanBackend()) {
+    menu.attach(new Button('LAN', 'Fight a friend on another computer of your home network: one of you hosts a game, the ' +
+      'other joins it.', false, false, () => app.showLan()));
+  }
   menu.attach(new SoonButton('ONLINE', 'Coming soon: fight anyone over the internet.', false, false,
     () => toast('Online play is coming soon.', 3500)));
   menu.attach(new Button('DONE', 'Go back to the main menu.', false, false, menuDone));

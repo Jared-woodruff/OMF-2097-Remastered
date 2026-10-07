@@ -79,8 +79,8 @@ OpenOMF project (MIT, https://github.com/omf2097/openomf); rendering and platfor
   `__omf.renderer.options.mode = 'classic' | 'remastered'`, `__omf.drawList`, `__omf.audio`.
   Vite reloads the page whenever a source file changes, so do setup + stepping + capture in one script.
 - Tests: `npx vitest run src/test` (headless game via `src/test/harness.ts`), `npx tsc --noEmit`.
-- LAN games: two tabs of the dev server host, find and join each other's games through its relay (`?scene=MENU`,
-  then MULTIPLAYER > LAN in both).
+- LAN games: two tabs of the dev server opened with `?devlan` host, find and join each other's games through its relay
+  (`?scene=MENU&devlan`, then MULTIPLAYER > LAN in both; without it a browser has no LAN games).
 
 ## Rendering
 
@@ -281,8 +281,14 @@ only plays the originals, and the mod proves the modding system with content as 
   (`NetSession.sceneChanged`, from `GameState.createScene`), and its input steps are the scene's input polls
   (`Scene.doInputPoll`: `beginStep` samples the local device and sends its input for the step `delay` steps on,
   `endStep` closes the step). A step needs the other game's input: until it is there `GameState.dynamicTickReady`
-  holds the engine's dynamic tick back (the static ticks, menus and pages go on), and after a moment
-  `net/waitingLabel.ts` says whom the game waits for. The delay is the host's (40 ms on a LAN) in the scene's steps,
+  holds the engine's dynamic tick back (the static ticks, menus and pages go on). The status bar (`net/statusBar.ts`,
+  HTML at the bottom of the screen) names the local player's side and says whose move it is: the select and VS
+  screens' `Scene.netStatus` (whose pick is still to come), or, a moment into a wait, whom the game waits for and
+  whether they have got to this screen yet (`NetSession.peerArrived`); YOU and READY show over the players' portraits.
+  On the VS screen the host picks the arena and the fight starts once both players have pressed PUNCH
+  (`VsScene.netReady`). The LAN page shows the match for a moment once both games have agreed (MATCH FOUND: the names,
+  the local player's side and cursor color, what comes next); ESC there calls it off with a goodbye. The delay is the
+  host's (40 ms on a LAN) in the scene's steps,
   the same in both games. Inputs a scene reads apart from the players' controls (ESC on the select and VS screens) are
   injected into the local player's next step, so both games act on them at the same step; the select screen's mouse
   is off. Each fight is seeded from the session's seed and its phase (`NetSession.fightSeed`), runs at the host's
@@ -295,7 +301,8 @@ only plays the originals, and the mod proves the modding system with content as 
   session; both games go back to MULTIPLAYER (`netplay.ts`). While the window is hidden the game keeps ticking
   (`Engine.idle` on a timer), so the other player does not wait. Links (`link.ts`) carry text messages in order:
   the desktop app's TCP connections (`src-tauri/src/lan.rs`, one writer thread per connection; the game batches its
-  messages so its calls keep their order), the dev server's relay (`vite.config.ts`, between two tabs), the tests'
+  messages so its calls keep their order), the dev server's relay (`vite.config.ts`, between two tabs opened with
+  `?devlan`), the tests'
   loopback with latency (`src/test/netplay.test.ts` plays whole games on two engines at different frame rates).
 - **Special button** (`controller/special.ts`): the keyboard and gamepad controllers send the chosen special's whole
   input in one tick.

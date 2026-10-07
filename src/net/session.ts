@@ -166,6 +166,11 @@ export class NetSession {
     return ok;
   }
 
+  /** The other game is on this screen too (its inputs for this phase have come). */
+  peerArrived(): boolean {
+    return this.synced && this.remote.has(this.phase);
+  }
+
   /** How long the game has been waiting for the other one (ms; 0: it is not). */
   stalledMs(): number {
     return this.stalledAt < 0 || this.ended ? 0 : this.now() - this.stalledAt;
