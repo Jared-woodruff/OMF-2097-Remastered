@@ -137,9 +137,13 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     expect(gs.nextId).toBe(SceneId.MELEE);
   });
 
-  it('TWO PLAYER GAME: both keyboard, player 2 on key set 1, then MELEE', () => {
+  it('MULTIPLAYER > LOCAL (the two player game): both keyboard, player 2 on key set 1, then MELEE', () => {
     press('ArrowDown');
-    expect(selectedText()).toBe('TWO PLAYER GAME');
+    expect(selectedText()).toBe('MULTIPLAYER');
+    press('Enter');
+    expect(current().items.filter((c) => c instanceof Button).map((c) => (c as Button).text.str)).toEqual(
+      ['LOCAL', 'LAN', 'ONLINE', 'DONE']);
+    expect(selectedText()).toBe('LOCAL');
     press('Enter');
     expect(gs.nextId).toBe(SceneId.MELEE);
     const c1 = gs.getPlayer(0).ctrl, c2 = gs.getPlayer(1).ctrl;
@@ -150,11 +154,31 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     expect(gs.isTwoplayer()).toBe(true);
     run.advance(500);
     expect(gs.thisId).toBe(SceneId.MELEE);
+    // ESC on the pilots: back to the main menu, MULTIPLAYER open again.
+    press('Escape');
+    run.advance(500);
+    expect(gs.thisId).toBe(SceneId.MENU);
+    expect(selectedText()).toBe('LOCAL');
+  });
+
+  it('MULTIPLAYER > LAN opens the LAN page; ONLINE is still to come', () => {
+    const lan = vi.spyOn(app, 'showLan').mockImplementation(() => undefined);
+    open('MULTIPLAYER', 'LAN');
+    expect(lan).toHaveBeenCalledTimes(1);
+    goTo('ONLINE');
+    press('Enter');
+    expect(gs.nextId).toBe(SceneId.MENU);
+    press('Escape');
+    expect(selectedText()).toBe('MULTIPLAYER');
+    gs.menuReturn = 'multiplayer';
+    gs.swapScene(SceneId.MENU);
+    run.advance(400);
+    expect(selectedText()).toBe('LOCAL');
   });
 
   it('the three ways to play, then MORE MODES, EXTRAS, OPTIONS, HELP and QUIT; TOURNAMENT, DEMO and SCOREBOARD start their scenes', () => {
     expect(root().items.map((c) => (c as Button).text.str)).toEqual(
-      ['ONE PLAYER GAME', 'TWO PLAYER GAME', 'TOURNAMENT PLAY', 'MORE MODES', 'EXTRAS', 'OPTIONS', 'HELP', 'QUIT']);
+      ['ONE PLAYER GAME', 'MULTIPLAYER', 'TOURNAMENT PLAY', 'MORE MODES', 'EXTRAS', 'OPTIONS', 'HELP', 'QUIT']);
     press('ArrowDown', 2);
     expect(selectedText()).toBe('TOURNAMENT PLAY');
     press('Enter');

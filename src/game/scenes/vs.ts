@@ -543,7 +543,8 @@ export class VsScene extends Scene {
   /** vs_handle_action */
   /** Mouse (not in the original game): a click continues like the punch button; dialogs get their own clicks first. */
   override pointer(_x: number, _y: number, kind: import('../../controller/mouse').PointerKind): boolean {
-    if (kind !== 'click') return false;
+    // (a network game goes on with the inputs both games play)
+    if (kind !== 'click' || this.gs.net) return false;
     this.handleAction(ACT_PUNCH, CtrlType.KEYBOARD);
     return true;
   }
@@ -637,7 +638,8 @@ export class VsScene extends Scene {
     }
   }
 
-  // vs_dynamic_tick only forwards the extra events of network controllers; netplay is not part of this port.
+  // vs_dynamic_tick only forwards the extra events of network controllers; this port's network games hand the players'
+  // inputs out through their session (net/session.ts) and need none.
 
   /** vs_static_tick */
   override staticTick(_paused: boolean): void {
@@ -651,6 +653,10 @@ export class VsScene extends Scene {
     const player1 = gs.getPlayer(0);
     const menuEv: CtrlEvent[] = [];
     gs.menuPoll(menuEv, { playerScene: true });
+    if (gs.net) {
+      this.netInputPoll(menuEv);
+      return;
+    }
 
     // game_state_handle_event(): in demo mode ESC returns to the main menu and ENTER skips straight to a random
     // arena, before the scene sees the input. The TS game state has no such hook, so it is emulated here.
@@ -693,6 +699,24 @@ export class VsScene extends Scene {
     for (const i of p1) {
       if (i.type === 'action') this.handleAction(i.action, i.source);
       else if (i.type === 'close') gs.setNext(SceneId.MENU);
+    }
+  }
+
+  /**
+   * A network game: the host (player 1) picks the arena and goes on, as in a two player game; either player's ESC goes
+   * back to the robot select screen. ESC comes with the players' inputs, so both games go back at the same step.
+   */
+  private netInputPoll(menuEv: CtrlEvent[]): void {
+    const gs = this.gs;
+    if (menuEv.some((e) => e.type === 'action' && e.action === ACT_ESC)) gs.net?.inject(ACT_ESC);
+    for (let player = 0; player < 2; player++) {
+      const ev: CtrlEvent[] = [];
+      gs.getPlayer(player).ctrl.poll(ev);
+      for (const i of ev) {
+        if (i.type === 'close') gs.setNext(SceneId.MENU);
+        else if (i.action === ACT_ESC) gs.setNext(SceneId.MELEE);
+        else if (player === 0) this.handleAction(i.action, i.source);
+      }
     }
   }
 

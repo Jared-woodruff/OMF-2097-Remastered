@@ -4,11 +4,15 @@
 //! release's Studio download is this program under that name). The game opens Studio in a second
 //! window (`open_studio`); both share the game's storage, so Studio installs mods straight into it.
 //! Permissions are in `capabilities/default.json`; the frontend talks to Tauri through
-//! `src/platform/desktop.ts`.
+//! `src/platform/desktop.ts`. LAN games (hosting, finding and joining them) are in `lan.rs`, reached through the
+//! `lan_*` commands below (the game's `src/net/lan.ts`).
 
+mod lan;
+
+use std::sync::Arc;
 use std::time::Duration;
 
-use tauri::{webview::PageLoadEvent, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{webview::PageLoadEvent, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 /// Show a window after this long even if the page never reports that it finished loading.
 const SHOW_WINDOW_FALLBACK: Duration = Duration::from_secs(5);
@@ -90,12 +94,92 @@ pub fn run() {
       }
     })
     .setup(|app| {
+      app.manage(lan::Lan::new(Arc::new(GameEvents(app.handle().clone()))));
       open_window(app.handle(), studio_start())?;
       Ok(())
     })
-    .invoke_handler(tauri::generate_handler![save_file, open_studio])
+    .invoke_handler(tauri::generate_handler![
+      save_file,
+      open_studio,
+      lan_info,
+      lan_host,
+      lan_unhost,
+      lan_scan,
+      lan_join,
+      lan_send,
+      lan_close
+    ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
+}
+
+/// LAN games' events, for the game's window: `lan:open` (a guest joined the hosted game), `lan:data` (a message),
+/// `lan:close` (a connection ended).
+struct GameEvents(tauri::AppHandle);
+
+impl lan::LanEvents for GameEvents {
+  fn opened(&self, id: u32, peer: String) {
+    let _ = self.0.emit_to("main", "lan:open", serde_json::json!({ "id": id, "peer": peer }));
+  }
+  fn data(&self, id: u32, text: String) {
+    let _ = self.0.emit_to("main", "lan:data", serde_json::json!({ "id": id, "text": text }));
+  }
+  fn closed(&self, id: u32, reason: String) {
+    let _ = self.0.emit_to("main", "lan:close", serde_json::json!({ "id": id, "reason": reason }));
+  }
+}
+
+/// This computer's user name and network addresses (the LAN page shows them).
+#[tauri::command]
+fn lan_info() -> lan::LanInfo {
+  lan::info()
+}
+
+/// Hosts a LAN game under the player's name; returns the port it waits on. (Async, the work on a blocking thread:
+/// re-hosting waits for the last hosting's threads.)
+#[tauri::command]
+async fn lan_host(lan: State<'_, Arc<lan::Lan>>, name: String, version: String) -> Result<u16, String> {
+  let lan = lan.inner().clone();
+  tauri::async_runtime::spawn_blocking(move || lan.host(&name, &version))
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())
+}
+
+/// Stops hosting (a guest already playing stays connected).
+#[tauri::command]
+async fn lan_unhost(lan: State<'_, Arc<lan::Lan>>) -> Result<(), String> {
+  let lan = lan.inner().clone();
+  tauri::async_runtime::spawn_blocking(move || lan.unhost()).await.map_err(|e| e.to_string())
+}
+
+/// Looks for LAN games on the network (about a second).
+#[tauri::command]
+async fn lan_scan() -> Result<Vec<lan::LanGame>, String> {
+  tauri::async_runtime::spawn_blocking(lan::scan).await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())
+}
+
+/// Joins the LAN game hosted at an address.
+#[tauri::command]
+async fn lan_join(lan: State<'_, Arc<lan::Lan>>, address: String) -> Result<lan::Joined, String> {
+  let lan = lan.inner().clone();
+  tauri::async_runtime::spawn_blocking(move || lan.join(&address))
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())
+}
+
+/// Sends messages on a LAN connection (queued for its writer thread, in order: synchronous, so the game's calls are
+/// taken in the order it makes them).
+#[tauri::command]
+fn lan_send(lan: State<'_, Arc<lan::Lan>>, id: u32, texts: Vec<String>) -> Result<(), String> {
+  lan.send(id, texts)
+}
+
+/// Closes a LAN connection (what was sent goes out first).
+#[tauri::command]
+fn lan_close(lan: State<'_, Arc<lan::Lan>>, id: u32) {
+  lan.close(id);
 }
 
 /// Saves a file the game hands over (a replay, a video or GIF clip) in Downloads\OMF 2097

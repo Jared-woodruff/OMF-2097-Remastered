@@ -132,7 +132,12 @@ export class Scene {
   }
 
   doInputPoll(): void {
-    if (this.takesInput()) this.inputPoll();
+    if (!this.takesInput()) return;
+    // (a network game's input step: the players' inputs of this step are handed out by the session)
+    const net = this.gs.net;
+    net?.beginStep();
+    this.inputPoll();
+    net?.endStep();
   }
 
   /** Whether the scene reads its input now (not in its first moments, nor while it is being left). */

@@ -24,6 +24,7 @@ import { randomHarPool } from './roster';
 import { ChrScore } from './score';
 import type { ChrFile } from './tournament/chr';
 import type { ReplaySession } from './replay/playback';
+import type { NetSession } from '../net/session';
 import { HarScreencaps } from './harScreencap';
 
 export interface MatchSettings {
@@ -186,7 +187,9 @@ export class GameState {
   /** Sound effects are not played (a replay jumping to a moment runs the fight silently). */
   silent = false;
   /** The main menu opens this submenu when it comes back (e.g. EXTRAS after watching a replay). */
-  menuReturn: 'extras' | 'modes' | null = null;
+  menuReturn: 'extras' | 'modes' | 'multiplayer' | null = null;
+  /** A network game under way (net/session.ts): the players' inputs come and go through it. */
+  net: NetSession | null = null;
   /** Where the victory screen goes on to (scenes/victory.ts), and the fight it sums up. */
   victoryNext: SceneId | null = null;
   victoryStats: VictoryStats | null = null;
@@ -249,6 +252,13 @@ export class GameState {
 
   // ---- controllers --------------------------------------------------------------
   setupKeyboard(playerId: number, controlId: number): void {
+    const p = this.players[playerId];
+    p.setCtrl(this.keyboardController(playerId, controlId));
+    p.selectable = true;
+  }
+
+  /** A keyboard controller with the keys of key set `controlId`, playing along with the free gamepad of a player. */
+  keyboardController(playerId: number, controlId: number): KeyboardController {
     const k = settings().keys;
     const ctrl = new KeyboardController(this, controlId === 0 ? k.p1 : k.p2);
     // A free gamepad plays along (the keyboard players take the free ones in order); pads chosen in the input menu are
@@ -261,9 +271,7 @@ export class GameState {
       if (s.ctrlType2 === CtrlType.GAMEPAD && s.gamepad2 >= 0) out.push(s.gamepad2);
       return out;
     };
-    const p = this.players[playerId];
-    p.setCtrl(ctrl);
-    p.selectable = true;
+    return ctrl;
   }
 
   setupGamepad(playerId: number, padIndex: number): void {
@@ -324,7 +332,7 @@ export class GameState {
     return this.players[0].ctrl.type === CtrlType.AI && this.players[1].ctrl.type === CtrlType.AI;
   }
   isNetplay(): boolean {
-    return false;
+    return this.net !== null;
   }
   isTwoplayer(): boolean {
     return !this.isDemoplay() && !this.isSingleplayer();
@@ -403,6 +411,8 @@ export class GameState {
   private createScene(id: SceneId): void {
     const f = sceneFactories.get(id);
     if (!f) throw new Error(`Scene ${SceneId[id]} is not implemented`);
+    // (a network game's screens played in step are numbered as they open, before the scene is made: see net/session.ts)
+    this.net?.sceneChanged(id);
     this.sc = f(this);
     this.sc.init();
     this.onSceneChange?.(id);
@@ -442,6 +452,16 @@ export class GameState {
       return this.replay ? this.replay.scaleTickMs(ms) : ms;
     }
     return STATIC_TICKS;
+  }
+
+  /**
+   * Whether the next dynamic tick can run. A network game's scene that reads its players this tick needs the other
+   * game's inputs for it: until they arrive the game waits (the engine skips the tick).
+   */
+  dynamicTickReady(): boolean {
+    const net = this.net;
+    if (!net?.synced || !this.sc.takesInput()) return true;
+    return net.ready();
   }
 
   slowdown(ticks: number, rate: number): void {

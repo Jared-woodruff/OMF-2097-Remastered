@@ -15,6 +15,7 @@ import { helpOverlayOpen } from '../gui/helpOverlay';
 import { menuMainCreate } from './mainmenu/menuMain';
 import { menuExtrasCreate } from './mainmenu/menuExtras';
 import { menuModesCreate } from './mainmenu/menuModes';
+import { menuMultiplayerCreate } from './mainmenu/menuMultiplayer';
 import { PresskeyMenu } from './mainmenu/menuPresskey';
 import { randomArena } from '../roster';
 
@@ -63,14 +64,15 @@ export class MainMenuScene extends Scene {
     const root = menuMainCreate(this);
     this.frame.setRoot(root);
     this.frame.layout();
-    // Back from a screen of EXTRAS (a replay, the credits, a workshop robot tried out) or from a run or training of
-    // MORE MODES: that menu is open again.
+    // Back from a screen of EXTRAS (a replay, the credits, a workshop robot tried out), from a run or training of
+    // MORE MODES, or from a game of MULTIPLAYER: that menu is open again.
     if (gs.menuReturn) {
-      const title = gs.menuReturn === 'extras' ? 'EXTRAS' : 'MORE MODES';
+      const back = gs.menuReturn;
+      const title = back === 'extras' ? 'EXTRAS' : back === 'modes' ? 'MORE MODES' : 'MULTIPLAYER';
       const entry = root.items.find((c) => c instanceof Button && c.text.str === title);
       if (entry) {
         root.select(entry);
-        root.setSubmenu(gs.menuReturn === 'extras' ? menuExtrasCreate(this) : menuModesCreate(this));
+        root.setSubmenu(back === 'extras' ? menuExtrasCreate(this) : back === 'modes' ? menuModesCreate(this) : menuMultiplayerCreate(this));
       }
     }
     gs.menuReturn = null;

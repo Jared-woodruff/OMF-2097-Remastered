@@ -204,8 +204,8 @@ Everything from the original is here, playing its own data files:
   <img src="docs/media/screen-help.jpg" alt="The help pages, with their topics beside them" width="49%">
 </p>
 
-The menus were tidied up without losing anything: the three ways to play first, then **More modes**, **Extras** and
-**Options**. And a few things the 1994 menus promised now work, like the *defensive throws*, *knock down* and *block
+The menus were tidied up without losing anything: the three ways to play first (the two player game is now
+**Multiplayer**, with LAN games beside it), then **More modes**, **Extras** and **Options**. And a few things the 1994 menus promised now work, like the *defensive throws*, *knock down* and *block
 damage* rules.
 
 <br>
@@ -256,6 +256,22 @@ Remastered fights get a layer of modern effects, driven by what happens in the f
 <p align="center"><a href="#new-ways-to-play"><img src="docs/media/banner-gameplay.jpg" alt="05 · New ways to play" width="100%"></a></p>
 
 All of this is new, and none of it changes how the original plays unless you use it.
+
+### Multiplayer on your network
+
+**Multiplayer** in the main menu is the original two player game, and more:
+
+- **Local**: two players on one computer, sharing the keyboard or with controllers, as in 1994.
+- **LAN**: fight a friend on another computer of your home network. One of you hosts a game, the other picks it from
+  the games found on the network (or types the host's address), and you meet at the robot select screen. In the
+  Windows app (a browser can't reach other computers by itself).
+- **Online**: coming soon.
+
+Both computers play the very same fight, each running the game itself, tick for tick: they only tell each other what
+their player pressed (the same determinism that makes replays work). The host's gameplay options are used (speed,
+rounds, power and the advanced rules), both games must be the same version with the same mods on, and they keep
+checking that their fights agree. The first time you host, Windows may ask whether the game can use the
+network: allow it on private networks. LAN fights are saved as replays like any other.
 
 ### Training lab
 

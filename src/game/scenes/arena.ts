@@ -52,6 +52,7 @@ import { winLine } from '../../audio/announcer';
 import { recordFight } from '../records/records';
 import { formatMs } from '../modes/run';
 import { AiController } from '../../controller/ai';
+import { leaveNetGame } from '../../net/netplay';
 
 const HAR1_START_POS = 110;
 const HAR2_START_POS = 210;
@@ -120,6 +121,8 @@ export class ArenaScene extends Scene implements ArenaLike {
     super(gs, id);
     // The credits' fights are set up as their arena opens (the same fight every time).
     gs.credits?.setupFight();
+    // A network game's fight starts from the same random seed in both games.
+    if (gs.net) gs.rand.setSeed(gs.net.fightSeed());
     this.training = gs.training;
     const bk = this.bk;
     // memset(fight_stats, 0): this also clears a pending tournament challenger
@@ -566,6 +569,11 @@ export class ArenaScene extends Scene implements ArenaLike {
     const gs = this.gs;
     if (this.training) {
       gs.setNext(SceneId.MENU);
+      return;
+    }
+    // A network game is left (the other player is told, and both go back to the menu).
+    if (gs.net) {
+      leaveNetGame(gs);
       return;
     }
     this.winner = 1;
@@ -1175,7 +1183,8 @@ export class ArenaScene extends Scene implements ArenaLike {
         if (this.menuVisible) this.pauseMenu.close();
         else {
           this.menuVisible = true;
-          gs.paused = true;
+          // (a network game goes on: the other game's player is still fighting, and the local robot stands still)
+          if (!gs.net) gs.paused = true;
           this.pauseMenu.open();
         }
       } else if (this.menuVisible) {
@@ -1198,7 +1207,8 @@ export class ArenaScene extends Scene implements ArenaLike {
       gs.replay.setPaused(true);
       return;
     }
-    if (this.menuVisible || gs.isDemoplay() || this.over) return;
+    // (a network game goes on: the robot stands still while the window is away, its keys let go)
+    if (this.menuVisible || gs.isDemoplay() || this.over || gs.net) return;
     this.lab?.stopRecording();
     this.menuVisible = true;
     gs.paused = true;
@@ -1262,8 +1272,10 @@ export class ArenaScene extends Scene implements ArenaLike {
   private recordResult(): void {
     const gs = this.gs;
     if (this.training || gs.isDemoplay() || gs.replay || gs.modTest) return;
-    const p1 = gs.getPlayer(0), p2 = gs.getPlayer(1);
-    const won = this.winner === 0;
+    // (in a network game, the player at this computer: player 2 when they joined the game)
+    const me = gs.net?.localPlayer ?? 0;
+    const p1 = gs.getPlayer(me), p2 = gs.getPlayer(1 - me);
+    const won = this.winner === me;
     const winnerHar = harData(this.harObj(this.winner));
     const finish = gs.fightStats.finish;
     recordFight({
@@ -1274,7 +1286,7 @@ export class ArenaScene extends Scene implements ArenaLike {
       cpuDifficulty: p2.ctrl instanceof AiController ? p2.ctrl.difficulty : -1,
       perfect: winnerHar.health >= winnerHar.healthMax,
       finish: finish === 1 ? 'scrap' : finish === 2 ? 'destruction' : 'none',
-      bestCombo: Math.max(this.bestCombo[0], this.comboHits[0]),
+      bestCombo: Math.max(this.bestCombo[me], this.comboHits[me]),
       ticks: gs.tick,
     });
   }

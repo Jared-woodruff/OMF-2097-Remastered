@@ -14,7 +14,7 @@ OpenOMF project (MIT, https://github.com/omf2097/openomf); rendering and platfor
 | `src/video/` | Draw list (`video.draw*`), VGA palette state (`vga`), indexed `Surface`, WebGL2 renderer; `stage/`: live backdrops (the main menu's parallax scene). |
 | `src/audio/` | Audio system (3 SFX channels + PSM music in an AudioWorklet; impact thumps; an effects send through a convolution reverb for the arena acoustics). |
 | `src/platform/` | Desktop shell bridge (`desktop.ts`); the web version's game data import (`gameData.ts`: installer and zip unpacking, IndexedDB) and its first-run screen (`importScreen.ts`). |
-| `src/controller/` | Controllers: keyboard, gamepad, AI (`ai.ts`), menu polling. |
+| `src/controller/` | Controllers: keyboard, gamepad, AI (`ai.ts`), menu polling, network players (`net.ts`). |
 | `src/game/` | Game logic: `GameState`, `Scene`, `GameObject` (object+animation player), HAR/projectile/hazard/scrap objects, score, GUI, scenes. |
 | `src/game/scenes/` | One module per scene family; each calls `registerScene(SceneId.X, gs => new XScene(gs))`. `index.ts` imports them all. |
 | `src/game/gui/` | Text rendering (`text.ts`) and menu widgets (`widgets.ts`: `Menu`, `Button`, `TextSelector`, `TextSlider`, `Label`, `Filler`, `GuiFrame`), progress bars, pause menu. |
@@ -23,6 +23,7 @@ OpenOMF project (MIT, https://github.com/omf2097/openomf); rendering and platfor
 | `src/gen/` | The remaster's own content: the new robots and arenas, generated from 3D models (see below). |
 | `src/fx/` | Remastered effects: the director (fight events → particles, lights, camera), per-arena ambience and weather, the new robots' special move effects. |
 | `src/game/replay/` | Replays: recording every fight (REC format), the replay store (IndexedDB), playback with seeking, the controls bar and the replay list. |
+| `src/net/` | Network games (MULTIPLAYER > LAN): the lockstep session (`session.ts`), its messages (`protocol.ts`), starting a game (`handshake.ts`), the game's side of it (`netplay.ts`), the links between two games (`link.ts`, `lan.ts`: the desktop app's TCP connections and UDP searches, the dev server's relay) and the LAN page. |
 | `src/game/training/` | The training lab: frame meter and hitboxes (`lab.ts`), the lab session (recording the dummy, reversals, hotkeys), combo trials and their data. |
 | `src/game/modes/`, `src/game/records/` | Arcade, survival, time attack and the workshop's test fight (`run.ts`), their results page; statistics and achievements. |
 | `src/game/workshop/`, `src/gen/workshop.ts` | The robot workshop: robot descriptions, building them into fighters at run time, the editor page. |
@@ -78,6 +79,8 @@ OpenOMF project (MIT, https://github.com/omf2097/openomf); rendering and platfor
   `__omf.renderer.options.mode = 'classic' | 'remastered'`, `__omf.drawList`, `__omf.audio`.
   Vite reloads the page whenever a source file changes, so do setup + stepping + capture in one script.
 - Tests: `npx vitest run src/test` (headless game via `src/test/harness.ts`), `npx tsc --noEmit`.
+- LAN games: two tabs of the dev server host, find and join each other's games through its relay (`?scene=MENU`,
+  then MULTIPLAYER > LAN in both).
 
 ## Rendering
 
@@ -179,10 +182,11 @@ pixels in one of two ways, switchable at any time (F2, pause menu, OPTIONS › G
   frame, the title and the keys like the records' or the replays'; the language file's markup, parsed into titles,
   headings and paragraphs and code page 437 decoded, is HTML over the frame at the game's scale, in the remaster's
   typeface, beside the topics).
-- The main menu (`src/game/scenes/mainmenu/menuMain.ts`): the original's three ways to play, then MORE MODES
+- The main menu (`src/game/scenes/mainmenu/menuMain.ts`): the original's three ways to play (its two player game is
+  MULTIPLAYER's LOCAL, `menuMultiplayer.ts`, beside LAN games and ONLINE, which is still to come), then MORE MODES
   (`menuModes.ts`), EXTRAS (`menuExtras.ts`), OPTIONS (`menuOptions.ts`: GAMEPLAY, CONTROLS, GRAPHICS with
   its CLASSIC STYLE / REMASTERED / EFFECTS submenus, SOUND, LANGUAGE), HELP and QUIT. `GameState.menuReturn` reopens
-  EXTRAS or MORE MODES when their screens and runs end.
+  EXTRAS, MORE MODES or MULTIPLAYER when their screens, runs and games end.
 - Menus are audited by `src/test/menuLayout.test.ts` (entries fit their frame, help texts fit the help panel), and
   `TEXT_AUDIT=<file> npx vitest run src/test` records texts that get cut off or drawn off screen in any scene test.
 - Training mode: `src/game/scenes/mainmenu/menuTraining.ts` (setup), `src/controller/dummy.ts` (the dummy),
@@ -269,6 +273,30 @@ only plays the originals, and the mod proves the modding system with content as 
   (`COMBO_SEARCH=1`: every timing of two and three moves against a standing dummy, with `src/test/comboSim.ts`),
   checked against every robot by `trialVerify.test.ts` (`COMBO_VERIFY=1`) into `trialData.ts`;
   `src/test/trials.test.ts` replays them all.
+- **Network games** (`src/net/`, MULTIPLAYER > LAN): delay based lockstep. Both games run the whole simulation and
+  only exchange their players' inputs, like a replay's: the fight is deterministic from the robots, the rules, the
+  random seed and the inputs. `GameState.net` is the session; both players get a `NetController`
+  (`controller/net.ts`), the local one owning the player's keyboard or gamepad (player 1's controls). The screens
+  played in step are the robot select screen, the VS screen and the fights; each one opened is a *phase*
+  (`NetSession.sceneChanged`, from `GameState.createScene`), and its input steps are the scene's input polls
+  (`Scene.doInputPoll`: `beginStep` samples the local device and sends its input for the step `delay` steps on,
+  `endStep` closes the step). A step needs the other game's input: until it is there `GameState.dynamicTickReady`
+  holds the engine's dynamic tick back (the static ticks, menus and pages go on), and after a moment
+  `net/waitingLabel.ts` says whom the game waits for. The delay is the host's (40 ms on a LAN) in the scene's steps,
+  the same in both games. Inputs a scene reads apart from the players' controls (ESC on the select and VS screens) are
+  injected into the local player's next step, so both games act on them at the same step; the select screen's mouse
+  is off. Each fight is seeded from the session's seed and its phase (`NetSession.fightSeed`), runs at the host's
+  speed and match settings (sent with the welcome, `NetRules`), never pauses (the pause menu and F1 open over the
+  running fight, the local robot standing still meanwhile; no SPEED; QUIT is LEAVE GAME), and every 30 steps the
+  games compare a checksum of both robots and the random generator (`fightChecksum`): a difference ends the game.
+  The victory screen is each game's own (the first one done waits at the select screen). The handshake
+  (`handshake.ts`) refuses another version or other content: the robots, arenas and pilots on, and a fingerprint of
+  their files (`netContent`). Leaving, the other game's goodbye, a closed connection or 15 seconds of silence end the
+  session; both games go back to MULTIPLAYER (`netplay.ts`). While the window is hidden the game keeps ticking
+  (`Engine.idle` on a timer), so the other player does not wait. Links (`link.ts`) carry text messages in order:
+  the desktop app's TCP connections (`src-tauri/src/lan.rs`, one writer thread per connection; the game batches its
+  messages so its calls keep their order), the dev server's relay (`vite.config.ts`, between two tabs), the tests'
+  loopback with latency (`src/test/netplay.test.ts` plays whole games on two engines at different frame rates).
 - **Special button** (`controller/special.ts`): the keyboard and gamepad controllers send the chosen special's whole
   input in one tick.
 - **Modes and records** (`game/modes/run.ts`): a run set on `GameState.modeRun` picks the opponents (on the robot
@@ -390,4 +418,8 @@ registry turns the names into numbers; `gs.modTest` shows the arena's hazards an
 The desktop app (`src-tauri`) opens the game's window, or Studio's when it is started with `--studio` or its file is
 named like `omf-studio.exe`; the game's **Extras › OMF Studio** opens Studio's window through the `open_studio`
 command. Both windows share the storage. The installer asks whether to add Studio's shortcuts
-(`src-tauri/installer/hooks.nsh`).
+(`src-tauri/installer/hooks.nsh`). LAN games are the desktop app's (`src-tauri/src/lan.rs`, through the `lan_*`
+commands and `lan:open` / `lan:data` / `lan:close` events): a hosted game waits on TCP port 2097 (the reference's
+network port; any free port when another program has it) and answers searches broadcast on UDP port 2097 to every
+network adapter; messages travel as text after their length. `lan.rs` has no Tauri in it, so its tests (`cargo test`)
+open real sockets on the loopback address without a window.

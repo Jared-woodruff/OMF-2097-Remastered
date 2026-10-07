@@ -18,6 +18,10 @@ tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
 tauri = { version = "2.11.6", features = [] }
+# LAN games (src/lan.rs): their messages, and the network adapters' broadcast addresses for finding games.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+if-addrs = "0.15"
 
 # Raw WebView2 event hooks in src/lib.rs (disable_browser_ui). Keep these on the same versions
 # Tauri resolves (`cargo tree -i webview2-com`), or the controller types won't match.

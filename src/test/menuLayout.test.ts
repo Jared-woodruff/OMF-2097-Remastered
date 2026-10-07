@@ -18,6 +18,7 @@ import { KEYBOARD_FRAME, menuKeyboardCreate } from '../game/scenes/mainmenu/menu
 import { menuLanguageCreate } from '../game/scenes/mainmenu/menuLanguage';
 import { menuMainCreate } from '../game/scenes/mainmenu/menuMain';
 import { menuModesCreate } from '../game/scenes/mainmenu/menuModes';
+import { menuMultiplayerCreate } from '../game/scenes/mainmenu/menuMultiplayer';
 import { menuOptionsCreate } from '../game/scenes/mainmenu/menuOptions';
 import { menuSoundCreate } from '../game/scenes/mainmenu/menuSound';
 import { menuTrainingCreate } from '../game/scenes/mainmenu/menuTraining';
@@ -93,6 +94,7 @@ describe.skipIf(!hasGameData)('menu layout', () => {
     const theme = mainMenuTheme();
     const menus: [string, Menu, Frame][] = [
       ['MAIN', menuMainCreate(s), MAIN_FRAME],
+      ['MULTIPLAYER', menuMultiplayerCreate(s), MAIN_FRAME],
       ['MORE MODES', menuModesCreate(s), MAIN_FRAME],
       ['TRAINING', menuTrainingCreate(s), MAIN_FRAME],
       ['EXTRAS', menuExtrasCreate(s), MAIN_FRAME],

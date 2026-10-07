@@ -251,7 +251,7 @@ page('The main menu', `
   <table>
     <tr><th style="width:30%">Entry</th><th>What it does</th></tr>
     <tr><td><b>One player game</b></td><td>You against the computer's pilots, one after another.</td></tr>
-    <tr><td><b>Two player game</b></td><td>Two pilots, one keyboard (or pads). The loser buys the pizza.</td></tr>
+    <tr><td><b>Multiplayer</b></td><td>Two pilots: one keyboard (or pads), or two computers on your network (LAN). The loser buys the pizza.</td></tr>
     <tr><td><b>Tournament play</b></td><td>The career: create a pilot, win prize money, upgrade your robot, climb the circuit (page 23).</td></tr>
     <tr><td><b>More modes</b></td><td>Arcade, survival and time attack (page 25), the training lab (page 26) and your own tournaments.</td></tr>
     <tr><td><b>Extras</b></td><td>The robot workshop, mods (the new robots and arenas are turned on here), OMF Studio, replays, records and achievements, the scoreboard, the demo and the credits.</td></tr>

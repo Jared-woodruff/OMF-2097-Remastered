@@ -68,6 +68,8 @@ import { FightCamera } from './video/camera';
 import { loadAnnouncer } from './audio/announcer';
 import { CtrlType } from './game/constants';
 import { MenuScene } from './video/stage/parallax';
+import { LanPage } from './net/lanPage';
+import { showNetWaiting } from './net/waitingLabel';
 
 const boot = document.getElementById('boot')!;
 {
@@ -361,8 +363,8 @@ async function main(): Promise<void> {
   // Remastered effects follow the game clock (dynamic ticks), so they pause and slow down with the game.
   const fxDirector = new FxDirector();
   const camera = new FightCamera();
-  // F1: the original help pages over the paused game.
-  const help = new HelpOverlay((paused) => (engine.paused = paused));
+  // F1: the original help pages over the paused game (a network game goes on: the other player is still playing).
+  const help = new HelpOverlay((paused) => (engine.paused = paused && !gs.net));
   // Touch controls: in fights (not replays, demos or the pause menu) and on the robot select screen.
   const touch = new TouchControls();
   const touchWanted = () => {
@@ -454,6 +456,8 @@ async function main(): Promise<void> {
       const menuCorner = gs.thisId === SceneId.MENU && gs.nextId === SceneId.MENU && !engine.waiting && !help.isOpen() &&
         !htmlHelpOpen() && !gs.credits;
       showVersionLabel(menuCorner);
+      // (a network game waiting a moment for the other game's inputs)
+      showNetWaiting(gs.net && gs.net.stalledMs() > 400 ? gs.net.opponent : null);
       showCreditsButton(menuCorner && gs.sc instanceof MainMenuScene && gs.sc.atMainPage());
       fxDirector.update(gs, engine.ticks + engine.alpha, renderer.options.mode === 'remastered');
       renderer.fx = fxDirector.frame;
@@ -670,6 +674,14 @@ async function main(): Promise<void> {
   app.showCredits = () => startCredits(gs, { links: !isDesktop });
   setCreditsButtonAction(() => startCredits(gs, { links: !isDesktop, from: 'main' }));
   app.showMods = () => help.open(new ModsPage());
+  // MULTIPLAYER > LAN: hosting and joining network games (net/lanPage.ts).
+  app.showLan = () => help.open(new LanPage(gs));
+  // A network game goes on while the window is hidden (the browser stops drawing it, and the other player would wait),
+  // and the other player hears when this one closes the game.
+  window.setInterval(() => {
+    if (document.hidden && gs.net) engine.idle(performance.now());
+  }, 15);
+  window.addEventListener('pagehide', () => gs.net?.leave());
   registerCustomTournaments();
   app.showRecords = () => help.open(new RecordsPage(() => Math.trunc(8 + MS_PER_OMF_TICK_SLOWEST - ((settings().gameplay.speed + 5) / 15) * MS_PER_OMF_TICK_SLOWEST)));
   const clips = new ClipExporter({

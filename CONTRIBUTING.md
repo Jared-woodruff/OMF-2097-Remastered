@@ -30,6 +30,9 @@ The remaster's own robots and arenas are generated from `src/gen` into their mod
 (committed: they come with the game as a mod). After changing their models, moves or scenes, run `npm run gen` (see
 [docs/BUILDING.md](docs/BUILDING.md)); a test fails when the robots' files are out of date.
 
+LAN games (**Multiplayer › LAN**) need the desktop app's networking, but the dev server stands in for it: two tabs of
+`npm run dev` find and join each other's games. `src/test/netplay.test.ts` plays whole network games headlessly.
+
 The dev server has a debug API for poking at the running game: `?fight=3&ai` starts a CPU fight in the Fire Pit,
 `?scene=MELEE` opens a scene directly, and `window.__omf` offers `step(ms)`, `key(code, down)`, `pointer(kind, x, y)`
 and `capture(name, w, h)` (writes a PNG to `.captures/`). See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#running).
@@ -41,7 +44,8 @@ and `capture(name, w, h)` (writes a PNG to `.captures/`). See [docs/ARCHITECTURE
   Keep reference quirks and comment them; deviations need a comment explaining why.
 - **Cosmetics never touch the simulation.** Remastered effects observe the game through `src/game/fx.ts` events and
   must not change game state or draw from the game's random generators (`src/test/gameplay-options.test.ts` checks
-  this).
+  this). Replays and LAN games rely on it: a fight must play out the same from the same inputs, whatever each
+  computer's settings.
 - **Classic mode stays pixel-exact.** Changes to the remastered renderer must not alter the classic path.
 - **Match the surrounding code**: naming, comment density and idioms. The layout of the code is described in
   [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

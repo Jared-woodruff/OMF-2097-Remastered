@@ -33,6 +33,7 @@ import { extraHarIds, modPilotIds, pilotBio, pilotInfo, pilotNameOf, pilotWinBit
 import { addPilotPortrait, nearestColor, pilotPortrait, PORTRAIT_FIRST, PORTRAIT_LAST } from '../../mods/portraits';
 import { modPilot } from '../../mods/registry';
 import { Scene } from '../scene';
+import { leaveNetGame } from '../../net/netplay';
 
 const MAX_STAT = 20;
 const TEXT_GREEN = 0xa6;
@@ -273,7 +274,8 @@ export class MeleeScene extends Scene {
     this.selectHilight = new Surface(51, 36, new Uint8Array(51 * 36), -1);
     this.selectHilight.source = { kind: 'generated', key: 'melee/highlight' };
 
-    // (The reference installs controller hooks here for network games; netplay is not part of this port.)
+    // (The reference installs controller hooks here for network games; this port's hand both players' inputs out through
+    // their session, net/session.ts.)
 
     // Load HAR and Pilot face portraits and har sprites for the selection grid
     this.loadPilotPortraits();
@@ -471,7 +473,7 @@ export class MeleeScene extends Scene {
 
   /** melee_tick (dynamic tick) */
   override dynamicTick(_paused: boolean): void {
-    // (Extra controller events only exist for network controllers, which this port does not have.)
+    // (The reference's network controllers have extra events here; this port's network games need none.)
     const player2 = this.gs.getPlayer(1);
     if (this.page === HAR_SELECT && this.ticks % 10 === 1) {
       this.har[0].dynamicTick();
@@ -712,6 +714,10 @@ export class MeleeScene extends Scene {
             if (!this.networkGame) {
               player1.pilot.name = pilotNameOf(player1.pilot.pilotId);
               player2.pilot.name = pilotNameOf(player2.pilot.pilotId);
+            } else if (gs.net) {
+              // (the reference's network players fight under the names they gave the lobby)
+              player1.pilot.name = gs.net.names[0];
+              player2.pilot.name = gs.net.names[1];
             }
             gs.setNext(SceneId.VS);
           }
@@ -770,7 +776,8 @@ export class MeleeScene extends Scene {
   /** Mouse (not in the original game): player 1 points at a portrait to move the cursor there and clicks to pick it. */
   override pointer(x: number, y: number, kind: import('../../controller/mouse').PointerKind): boolean {
     const cur = this.cursor[0];
-    if (cur.done) return false;
+    // (a network game's cursors only move with the inputs both games play)
+    if (cur.done || this.networkGame) return false;
     const column = Math.floor((x - 11) / 62), screenRow = Math.floor((y - 115) / 42);
     if (column < 0 || column > 4 || screenRow < 0 || screenRow > 1 || x - 11 - column * 62 > 52 || y - 115 - screenRow * 42 > 38) return false;
     const row = screenRow + this.viewTop;
@@ -800,12 +807,15 @@ export class MeleeScene extends Scene {
     const p2: CtrlEvent[] = [];
     player1.ctrl.poll(p1);
     player2.ctrl.poll(p2);
+    // (a network game's ESC comes with the players' inputs, so both games go back at the same step)
     for (const i of p1) {
-      if (i.type === 'action') this.handleAction(0, i.action);
+      if (i.type === 'action' && i.action === ACT_ESC && this.networkGame) this.escape(0);
+      else if (i.type === 'action') this.handleAction(0, i.action);
       else if (i.type === 'close') gs.setNext(SceneId.MENU);
     }
     for (const i of p2) {
-      if (i.type === 'action') this.handleAction(1, i.action);
+      if (i.type === 'action' && i.action === ACT_ESC && this.networkGame) this.escape(1);
+      else if (i.type === 'action') this.handleAction(1, i.action);
       else if (i.type === 'close') gs.setNext(SceneId.MENU);
     }
 
@@ -813,19 +823,30 @@ export class MeleeScene extends Scene {
     gs.menuPoll(menuEv, { playerScene: true });
     for (const i of menuEv) {
       if (i.type === 'action' && i.action === ACT_ESC) {
-        playMenuSound(20, 0);
-        if (this.page === HAR_SELECT) {
-          // restore the player selection (on the pilot page's cells)
-          this.page = PILOT_SELECT;
-          this.restoreCursorsTo(this.pilotIdA, this.pilotIdB);
-          this.loadPilotPortraitsPalette();
-        } else {
-          // (the reference returns to the network lobby when it came from there; no netplay in this port; a run of
-          // MORE MODES goes back there)
-          if (gs.modeRun) gs.menuReturn = 'modes';
-          gs.setNext(SceneId.MENU);
-        }
+        if (this.networkGame) gs.net?.inject(ACT_ESC);
+        else this.escape(0);
       }
+    }
+  }
+
+  /** ESC: back to the pilot page from the robot page, else out of the screen. */
+  private escape(player: number): void {
+    const gs = this.gs;
+    playMenuSound(20, 0);
+    if (this.page === HAR_SELECT) {
+      // restore the player selection (on the pilot page's cells)
+      this.page = PILOT_SELECT;
+      this.restoreCursorsTo(this.pilotIdA, this.pilotIdB);
+      this.loadPilotPortraitsPalette();
+    } else if (gs.net) {
+      // (the reference returns to the network lobby: here the network game ends, for both)
+      if (player === gs.net.localPlayer) leaveNetGame(gs);
+      else gs.net.leave(true);
+    } else {
+      // (a run of MORE MODES goes back there, a two player game to MULTIPLAYER)
+      if (gs.modeRun) gs.menuReturn = 'modes';
+      else if (gs.isTwoplayer()) gs.menuReturn = 'multiplayer';
+      gs.setNext(SceneId.MENU);
     }
   }
 

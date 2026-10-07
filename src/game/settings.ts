@@ -117,6 +117,11 @@ export interface Settings {
   tournament: {
     lastName: string;
   };
+  /** LAN games (MULTIPLAYER > LAN, net/lanPage.ts): the player's name there, and the address joined last. */
+  lan: {
+    name: string;
+    address: string;
+  };
   /** Training mode setup (last used). */
   training: {
     har: number;
@@ -227,6 +232,7 @@ export function defaultSettings(): Settings {
       },
     },
     tournament: { lastName: '' },
+    lan: { name: '', address: '' },
     training: {
       har: 0, pilot: 0, opponent: 5, arena: 0, dummy: 0, inputDisplay: true, frameData: true, hitboxes: false, reversal: 'off',
       trialsDone: [], tape: null,

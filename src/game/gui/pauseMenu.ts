@@ -107,13 +107,17 @@ export class ArenaPauseMenu {
       () => s.sound.soundVol, (v) => (s.sound.soundVol = v), (v) => audio.setSoundVolume(v / 10)));
     m.attach(new TextSlider('MUSIC', 'Raise or lower the volume of music. Press right or left to change.', 10, true,
       () => s.sound.musicVol, (v) => (s.sound.musicVol = v), (v) => audio.setMusicVolume(v / 10)));
-    m.attach(new TextSlider('SPEED', 'Change the speed of the game when in the arena. Press left or right to change.', 10, false,
-      () => s.gameplay.speed, (v) => (s.gameplay.speed = v), (v) => gs.setSpeed(v + 5)));
+    // (a network game plays at the host's speed)
+    if (!gs.net) {
+      m.attach(new TextSlider('SPEED', 'Change the speed of the game when in the arena. Press left or right to change.', 10, false,
+        () => s.gameplay.speed, (v) => (s.gameplay.speed = v), (v) => gs.setSpeed(v + 5)));
+    }
     m.attach(new TextSelector('GRAPHICS', 'Switch between the original pixel graphics and the remastered HD renderer (F2).',
       () => (s.video.graphics === 'classic' ? 0 : 1), (v) => (s.video.graphics = v === 0 ? 'classic' : 'remastered'),
       ['CLASSIC', 'REMASTERED'], (v) => app.setGraphicsMode(v === 0 ? 'classic' : 'remastered')));
-    const quitLabel = host.training ? 'EXIT TRAINING' : gs.isTournament() && !gs.matchSettings.sim ? 'FORFEIT' : 'QUIT';
-    const quitHelp = host.training ? 'Go back to the main menu.' : langGet(gs.isTournament() ? 323 : 322);
+    const quitLabel = host.training ? 'EXIT TRAINING' : gs.net ? 'LEAVE GAME' : gs.isTournament() && !gs.matchSettings.sim ? 'FORFEIT' : 'QUIT';
+    const quitHelp = host.training ? 'Go back to the main menu.'
+      : gs.net ? `Leave the network game: you and ${gs.net.opponent} go back to the main menu.` : langGet(gs.isTournament() ? 323 : 322);
     m.attach(new Button(quitLabel, quitHelp, false, false, () => {
       this.close();
       host.quitFight();

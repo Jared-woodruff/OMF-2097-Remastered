@@ -168,7 +168,7 @@ export class HeadlessRunner {
           gs.staticTick();
           this.staticWait -= STATIC_TICKS;
         }
-        hasDynamic = this.dynamicWait > dynMs;
+        hasDynamic = this.dynamicWait > dynMs && gs.dynamicTickReady();
         if (hasDynamic) {
           gs.dynamicTick();
           this.dynamicWait -= dynMs;
