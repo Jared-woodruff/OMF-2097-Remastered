@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="docs/media/hero.jpg" alt="One Must Fall 2097 Remastered: the 1994 robot fighting classic, rebuilt in HD for Windows and the web" width="100%">
+  <img src="docs/media/hero.jpg" alt="One Must Fall 2097 Remastered: the 1994 robot fighting classic, rebuilt in HD for Windows, macOS, Linux and the web" width="100%">
 </p>
 
 <p align="center">
-  <a href="https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest"><img src="docs/media/btn-download.png" alt="Download: free, for Windows" height="56"></a>
+  <a href="https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest"><img src="docs/media/btn-download.png" alt="Download: free, for Windows, macOS and Linux" height="56"></a>
   <a href="https://jared-woodruff.github.io/OMF-2097-Remastered/"><img src="docs/media/btn-web.png" alt="Play online: in your browser, free" height="56"></a>
   <br>
   <a href="#trailer"><img src="docs/media/btn-trailer.png" alt="Watch the trailer" height="56"></a>
@@ -27,8 +27,8 @@ In **One Must Fall 2097** (Diversions Entertainment, 1994), pilots climb into 90
 up a corporate tournament. It was one of the great DOS fighting games, and it has been **freeware since 1999**.
 
 **This project brings it back.** It is a faithful reimplementation of the game's engine that plays the **original game
-files**, as a free **Windows app** or in a **browser**. Play it exactly as it looked in 1994, or **remastered in HD**
-with new effects, modes and tools. One key, <kbd>F2</kbd>, switches between the two at any moment, even mid-fight.
+files**, as a free **app for Windows, macOS and Linux** or in a **browser**. Play it exactly as it looked in 1994, or
+**remastered in HD** with new effects, modes and tools. One key, <kbd>F2</kbd>, switches between the two at any moment, even mid-fight.
 
 <table>
   <tr>
@@ -45,8 +45,8 @@ with new effects, modes and tools. One key, <kbd>F2</kbd>, switches between the 
     </td>
     <td width="33%" valign="top">
       <h3><img src="docs/media/icon-modern.png" alt="" width="26" align="top"> Modern</h3>
-      A training lab, replays and clips, new modes, a robot workshop, mods and the OMF Studio mod tools, gamepads with
-      rumble, touch controls, and it works offline.
+      LAN games, fourteen languages, a training lab, replays and clips, new modes, a robot workshop, mods and the OMF
+      Studio mod tools, gamepads with rumble, touch controls, and it works offline.
     </td>
   </tr>
 </table>
@@ -68,17 +68,39 @@ with new effects, modes and tools. One key, <kbd>F2</kbd>, switches between the 
 <a id="play"></a>
 <p align="center"><a href="#play"><img src="docs/media/banner-play.jpg" alt="01 · Play" width="100%"></a></p>
 
-**Download the game for Windows, free** (version 0.2.1):
+**Download the game, free**, for your computer. Nothing to install: each download is the whole game in one file
+(on a Mac, an app in a zip), ready to run from anywhere.
 
-- **[The installer](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/download/v0.2.1/OMF-2097-Remastered-0.2.1-setup.exe)**
-  adds the game to the Start menu (and, if you like, OMF Studio).
-- **[The portable app](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/download/v0.2.1/omf2097-remastered.exe)**
-  is a single file that runs from anywhere.
-- **[OMF Studio](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/download/v0.2.1/omf-studio.exe)**, the
-  mod tools, is the same single file opening straight into Studio.
+| Your computer | Download |
+| --- | --- |
+| **Windows 10 or 11**, 64-bit (most PCs) | [The game](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest/download/OMF-2097-Remastered-windows-x64.exe) · [OMF Studio](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest/download/OMF-Studio-windows-x64.exe) |
+| **Windows 10 or 11** on ARM (Snapdragon PCs) | [The game](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest/download/OMF-2097-Remastered-windows-arm64.exe) · [OMF Studio](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest/download/OMF-Studio-windows-arm64.exe) |
+| **Windows 10**, 32-bit | [The game](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest/download/OMF-2097-Remastered-windows-x86.exe) · [OMF Studio](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest/download/OMF-Studio-windows-x86.exe) |
+| **macOS 12 or later** on Apple silicon (M1 and later) | [The game](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest/download/OMF-2097-Remastered-macos-arm64.zip) · [OMF Studio](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest/download/OMF-Studio-macos-arm64.zip) |
+| **macOS 12 or later** on Intel | [The game](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest/download/OMF-2097-Remastered-macos-x64.zip) · [OMF Studio](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest/download/OMF-Studio-macos-x64.zip) |
+| **Linux** on x64 (AppImage) | [The game](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest/download/OMF-2097-Remastered-linux-x86_64.AppImage) · [OMF Studio](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest/download/OMF-Studio-linux-x86_64.AppImage) |
+| **Linux** on ARM64 (AppImage) | [The game](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest/download/OMF-2097-Remastered-linux-aarch64.AppImage) · [OMF Studio](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest/download/OMF-Studio-linux-aarch64.AppImage) |
 
-Everything is included: the game, its HD artwork and its music, about 240 MB. It runs on Windows 10 and 11. The
-[release notes](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/tag/v0.2.1) list what's new.
+**OMF Studio**, the mod tools, is the same program opening straight into Studio (the game opens it too, from
+**Extras**). Everything is included: the game, its HD artwork and its music, about 240 MB. The
+[release notes](https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest) list what's new.
+
+<details>
+<summary><b>The first start on Windows, macOS and Linux</b></summary>
+
+<br>
+
+- **Windows** may say it protected your PC: the files aren't signed yet. Choose **More info**, then **Run anyway**. The
+  game runs on Microsoft's WebView2, which Windows 10 and 11 have. Windows XP, 7, 8 and 8.1 can't run it: WebView2
+  left them behind in 2023, and XP never had it.
+- **macOS**: unzip the app and move it to *Applications*. It isn't notarized by Apple yet, so the first time macOS
+  won't open it: go to **System Settings › Privacy & Security** and choose **Open Anyway**, once. For LAN games, let it
+  find devices on your local network when it asks.
+- **Linux**: let the AppImage run as a program (in its file's properties, or `chmod +x` in a terminal), then start it.
+  Some distributions need FUSE 2 for AppImages (the `libfuse2` package), and the Noto fonts for Chinese, Japanese,
+  Korean, Hindi, Bengali and Arabic.
+
+</details>
 
 **Or [play it online](https://jared-woodruff.github.io/OMF-2097-Remastered/)**, with nothing to install: it runs in any modern browser, on a computer, a tablet or a
 phone, and keeps working offline once it has loaded.
@@ -104,7 +126,8 @@ one-page quick start on page 2.
 | **Special** (one press) | / or numpad − | H |
 
 <kbd>Esc</kbd> pause &nbsp;·&nbsp; <kbd>F1</kbd> help &nbsp;·&nbsp; <kbd>F2</kbd> classic or remastered &nbsp;·&nbsp;
-<kbd>F11</kbd> fullscreen &nbsp;·&nbsp; <kbd>Print Screen</kbd> screenshot
+<kbd>F11</kbd> fullscreen &nbsp;·&nbsp; <kbd>Print Screen</kbd> screenshot &nbsp;·&nbsp; on a Mac, hold <kbd>Fn</kbd>
+for the F keys
 
 <details>
 <summary><b>Gamepads, touch screens, one-button specials and every other key</b></summary>
@@ -120,9 +143,9 @@ one-page quick start on page 2.
 - **Your own keys**: a modern keyboard layout (WASD for player 1), and any key rebound in **Options › Controls**.
   **Keys and buttons** (also in the pause menu) shows every action on the keyboard and the controller.
 - **Touch controls** on phones and tablets: a stick under your left thumb, punch, kick, special and pause buttons.
-- **Anywhere**: <kbd>F3</kbd> next song (your own music), <kbd>Alt</kbd>+<kbd>Enter</kbd> fullscreen, <kbd>F12</kbd>
-  screenshot (in the Windows app; screenshots, clips and videos go to *Downloads\OMF 2097 Remastered*). The mouse
-  works in every menu.
+- **Anywhere**: <kbd>F3</kbd> next song (your own music), <kbd>Alt</kbd>+<kbd>Enter</kbd> fullscreen (on a Mac also
+  <kbd>Ctrl</kbd>+<kbd>Cmd</kbd>+<kbd>F</kbd>), <kbd>F12</kbd> screenshot (in the desktop app; screenshots, clips and
+  videos go to the *OMF 2097 Remastered* folder in your *Downloads*). The mouse works in every menu.
 - **Training**: <kbd>F4</kbd> reset, <kbd>F5</kbd> record the dummy, <kbd>F6</kbd> play it back, <kbd>F8</kbd> frame
   data, <kbd>F9</kbd> hitboxes.
 - **Replays**: <kbd>Space</kbd> pause, <kbd>←</kbd> <kbd>→</kbd> step (or skip ahead while playing), <kbd>↑</kbd>
@@ -262,8 +285,8 @@ All of this is new, and none of it changes how the original plays unless you use
 **Multiplayer** in the main menu is the original two player game, and more:
 
 - **Local**: two players on one computer, sharing the keyboard or with controllers, as in 1994.
-- **LAN**: fight a friend on another computer of your home network, in the Windows app (a browser can't reach other
-  computers by itself, so the web version doesn't offer it). One of you hosts a game, the other picks it from the
+- **LAN**: fight a friend on another computer of your home network, in the desktop app on Windows, macOS or Linux
+  (a browser can't reach other computers by itself, so the web version doesn't offer it). One of you hosts a game, the other picks it from the
   games found on the network (or types the host's address), and it starts by itself: both screens say who plays whom
   and on which side, then you meet at the robot select screen. You both pick a pilot and a robot, the host picks the
   arena, and the fight starts once you've both pressed punch. A bar at the bottom of the screen always says whose
@@ -272,16 +295,17 @@ All of this is new, and none of it changes how the original plays unless you use
 
 Both computers play the very same fight, each running the game itself, tick for tick: they only tell each other what
 their player pressed (the same determinism that makes replays work). The host's gameplay options are used (speed,
-rounds, power and the advanced rules), both games must be the same version with the same mods on, and they keep
-checking that their fights agree. The first time you host, Windows may ask whether the game can use the
-network: allow it on private networks. LAN fights are saved as replays like any other.
+rounds, power and the advanced rules), both games must be the same version with the same mods on (on any of the three
+systems), and they keep checking that their fights agree. The first time you host, Windows may ask whether the game
+can use the network: allow it on private networks. A Mac asks whether it may find devices on your local network:
+allow it. On Linux with a firewall on, open port 2097 (TCP and UDP). LAN fights are saved as replays like any other.
 
 ### In your language
 
 The game speaks **English, German, Japanese, Chinese, Korean, Hindi, Bengali, Spanish, Portuguese, French, Arabic,
 Russian, Danish and Swedish**: the original game's texts (its menus, help pages, the news reports, the pilots' trash
-talk, the endings) and everything the remaster adds. It starts in your language: your browser's on the web, Windows'
-in the app. **Options › Language** lists them all, each written in itself, and switches at once; your choice stays.
+talk, the endings) and everything the remaster adds. It starts in your language: your browser's on the web, your
+system's in the app. **Options › Language** lists them all, each written in itself, and switches at once; your choice stays.
 English and German are the game's own 1994 texts, umlauts and all. The other languages are new translations, drawn in
 the original pixel font where its letters reach (Ã, Ê, Ø... are made in its style) and in your system's fonts for
 Cyrillic, Chinese, Japanese, Korean, Devanagari, Bengali and Arabic (right to left), sharp in both looks.
@@ -443,7 +467,7 @@ acoustics and moving scenery.
 both looks, in every mode and in replays. Drop a `.omfmod` file onto the game to install it, and turn it on or off in
 **Extras › Mods**.
 
-**OMF Studio** makes them. It opens from **Extras › OMF Studio** (the installer can add its own shortcut too), and it
+**OMF Studio** makes them. It opens from **Extras › OMF Studio** (or download it on its own, beside the game), and it
 works in the game's own formats, pixel for pixel. The new robots and arenas are a mod too: open them in OMF Studio to
 see how every animation, move and HD picture is put together.
 
@@ -481,12 +505,13 @@ npm install && npm run dev        # then open http://localhost:5173
 | Command | What you get |
 | --- | --- |
 | `npm run build` | The web version in `dist/`: a static site that works from any folder and offline after the first visit |
-| `npm run desktop:build` | The Windows app: the portable exe and the installer |
+| `npm run desktop:build` | The desktop app for the system you build on: the program on Windows, the app on macOS, the AppImage on Linux |
 | `npm test` | The test suite: the real game logic, run headless against the original data |
 | `npm run manual` | The game manual, as a PDF |
 
 [docs/BUILDING.md](docs/BUILDING.md) has the prerequisites, every other command (a lean web build, your own copy of the
-game data, the HD artwork pipeline) and how the remaster's own content is made.
+game data, the HD artwork pipeline) and how the remaster's own content is made. The release downloads for every system
+are built by GitHub Actions when a release is published (`.github/workflows/release.yml`).
 
 ### Under the hood
 
@@ -508,7 +533,7 @@ flowchart LR
 | Language and build | TypeScript 7, Vite 8 |
 | Graphics | WebGL2: the classic VGA pipeline, HD reconstruction, particles, lighting and post-processing |
 | Sound | Web Audio, an AudioWorklet mixer and a port of the game's MASI music driver |
-| Windows app | Tauri 2 (WebView2) |
+| Desktop app | Tauri 2: WebView2 on Windows, WebKit on macOS and Linux |
 | Tests | Vitest: 350 tests that run the game itself, headless, against the original data |
 
 - **The HD artwork** is matched to the game's pictures by a fingerprint of their pixels, so the game's code doesn't

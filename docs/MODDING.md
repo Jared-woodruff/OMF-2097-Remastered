@@ -13,9 +13,9 @@ the modes, replays and the move list.
   turned on there (or on the first start's setup screen). It cannot be removed, only turned off, and a mod installed
   with the same id takes its place. It is made with the same package format as any mod, so it is also the fullest
   example there is: OMF Studio opens a copy of it (**The new robots and arenas** on its start screen).
-- **Make one**: open **Extras › OMF Studio** (the desktop app opens it in its own window; the installer can also add
-  its shortcuts, and the exe opens it when started with `--studio` or named like `omf-studio.exe`), or `studio.html`
-  next to the web version.
+- **Make one**: open **Extras › OMF Studio** (the desktop app opens it in its own window; the OMF Studio downloads open
+  it straight away, and the game's own program does when started with `--studio`), or `studio.html` next to the web
+  version.
 
 ## OMF Studio
 

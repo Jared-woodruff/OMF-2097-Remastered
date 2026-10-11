@@ -5,11 +5,14 @@
 - **Node.js 22.12+** (developed on Node 24) and npm.
 - **The original game's data** comes with the repository (`public/gamedata/`; *One Must Fall 2097* is freeware, see
   [NOTICE.md](../NOTICE.md)), and so does the imported HD artwork (`public/hd/`).
-- **Desktop build only (Windows):**
-  - Rust stable with the MSVC toolchain (`x86_64-pc-windows-msvc`), via [rustup](https://rustup.rs).
-  - Visual Studio 2022 Build Tools with the "Desktop development with C++" workload (MSVC linker and Windows SDK).
-  - The Microsoft Edge WebView2 runtime. It comes with Windows 11 and current Windows 10.
-  - Network access for the first build. Cargo downloads crates, and the Tauri CLI downloads NSIS.
+- **Desktop build only:** Rust stable via [rustup](https://rustup.rs), network access for the first build (Cargo
+  downloads crates; on Linux the Tauri CLI also downloads the AppImage tools), and:
+  - Windows: Visual Studio 2022 Build Tools (or newer) with the "Desktop development with C++" workload (MSVC linker
+    and Windows SDK), and the Microsoft Edge WebView2 runtime, which comes with Windows 10 and 11.
+  - macOS: the Xcode command line tools (`xcode-select --install`).
+  - Linux: WebKitGTK 4.1 and the build tools; on Debian and Ubuntu `libwebkit2gtk-4.1-dev librsvg2-dev patchelf
+    libxdo-dev build-essential file`, and `gstreamer1.0-plugins-base gstreamer1.0-plugins-good` for the AppImage's
+    sound.
 
   See the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for details.
 
@@ -260,24 +263,47 @@ in IndexedDB, so later visits start right away. Nothing is uploaded. A service w
 site for offline play, and `public/manifest.webmanifest` makes it installable. Serve it over HTTPS (or localhost):
 browsers only run service workers there.
 
-## Desktop (Tauri 2, Windows)
+## Desktop (Tauri 2: Windows, macOS, Linux)
 
 | Command | What it does |
 | --- | --- |
 | `npm run desktop:dev` | Runs `npm run dev` and opens the game in a native window with hot reload. This is a debug build, so DevTools are available (F12 or right-click > Inspect). Port 5173 must be free. |
-| `npm run desktop:build` | Runs `npx vite build` (no typecheck), compiles the release exe with `dist/` embedded, and builds the installer. |
+| `npm run desktop:build` | Runs `npx vite build` (no typecheck) and compiles the release program with `dist/` embedded; on macOS it makes the `.app`, on Linux the AppImage. |
 
-`desktop:build` outputs:
+`desktop:build` outputs (no installers: every download is portable):
 
-- `src-tauri/target/release/omf2097-remastered.exe` is a standalone, portable exe. The game and its data are embedded, so it only needs the WebView2 runtime. Started with `--studio`, or copied under a name with "studio" in it (`omf-studio.exe`), it opens OMF Studio instead of the game.
-- `src-tauri/target/release/bundle/nsis/OMF 2097 Remastered_<version>_x64-setup.exe` is a per-user installer and needs no admin rights.
+- Windows: `src-tauri/target/release/omf2097-remastered.exe`, the whole game in one file. It only needs the WebView2
+  runtime.
+- macOS: `src-tauri/target/release/bundle/macos/OMF 2097 Remastered.app`, signed ad hoc (Apple Silicon runs nothing
+  unsigned). It is not notarized: on another Mac, **System Settings › Privacy & Security › Open Anyway** opens it the
+  first time.
+- Linux: `src-tauri/target/release/bundle/appimage/OMF 2097 Remastered_<version>_<arch>.AppImage`, with WebKitGTK and
+  GStreamer inside.
+
+The program opens OMF Studio instead of the game when it is started with `--studio`, or when its file is named like
+Studio: an exe or AppImage with "studio" in its name, a `.app` named like `OMF Studio.app` (`studio_start()` in
+`src-tauri/src/lib.rs`). The release's Studio downloads are the same program under such names.
 
 The first desktop build compiles all the Rust dependencies, which takes a few minutes. Later builds are incremental.
 
-Release builds turn off WebView2's browser shortcuts (F5 and Ctrl+R reload, Ctrl+F find, Ctrl+P print, and so on) and its
-right-click menu. The game still receives every key.
+Release builds turn off the browser's shortcuts on Windows (F5 and Ctrl+R reload, Ctrl+F find, Ctrl+P print, and so
+on) and its right-click menu everywhere (`blockBrowserMenu()` in `src/platform/desktop.ts`; text fields keep theirs).
+The game still receives every key. On macOS the menu bar's Quit closes the windows (so Studio saves first) instead of
+ending the program on the spot.
 
-The desktop app keeps its web storage (localStorage, IndexedDB) in `%LOCALAPPDATA%\com.omf2097.remastered\EBWebView`.
+The desktop app keeps its web storage (localStorage, IndexedDB) in `%LOCALAPPDATA%\com.omf2097.remastered\EBWebView`
+on Windows, in WebKit's store for the app's identifier on macOS, and in `~/.local/share/com.omf2097.remastered` on
+Linux.
+
+### Release downloads
+
+`.github/workflows/release.yml` builds the downloads when a release is published, and attaches them to it with the
+manual: the game and OMF Studio for Windows 10/11 (x64, ARM64 and 32-bit, cross-compiled on an x64 runner), macOS 12
+or later (Apple Silicon and Intel, both on an Apple Silicon runner) and Linux (x64 and ARM64 AppImages, each on its own
+kind of runner, Ubuntu 22.04 for an old enough glibc). The files carry no version in their names
+(`OMF-2097-Remastered-windows-x64.exe`, `OMF-Studio-macos-arm64.zip`...), so the README links to the latest release's
+files. Started by hand (Actions › Release packages › Run workflow), it builds a tag's downloads and attaches them to
+its release, or with no tag just builds them as the run's artifacts.
 
 The app version comes from `package.json`. Tauri settings are in `src-tauri/tauri.conf.json`, and window permissions are in
 `src-tauri/capabilities/default.json`. Game code reaches native window features through `src/platform/desktop.ts`.
@@ -288,17 +314,15 @@ frames from the app itself, pictures, sounds and fonts also from `data:` and `bl
 and Studio build their styles while they run, so Tauri is kept from adding a nonce to `style-src` (with a nonce there,
 browsers ignore `'unsafe-inline'` and refuse those styles). `npm run desktop:dev` runs under the looser `devCsp`.
 
-## App icon and installer artwork
+## App icon
 
-The icon and the installer images are original vector artwork in `tools/brand/`: `icon.svg`, a simplified
-`icon-small.svg` for 16 to 40 pixels, and the installer's `sidebar.html` (welcome and finish pages) and `header.html`.
-To change them, edit those files and run:
+The icon is original vector artwork in `tools/brand/`: `icon.svg`, and a simplified `icon-small.svg` for 16 to 40
+pixels. To change it, edit those files and run:
 
 ```sh
 npm run icons    # Python 3 with Pillow, and Microsoft Edge or Google Chrome
 ```
 
-It renders everything at 1024 pixels (4x for the installer images) in a headless browser, scales it down with Lanczos
-filtering, and writes `src-tauri/icons/*` (through `npx tauri icon`, plus an `icon.ico` with a separately rendered
-image for every size from 16 to 256 pixels), `src-tauri/installer/sidebar.bmp` (164x314) and `header.bmp` (150x57),
-`public/favicon.png` and the web app icons. `src-tauri/tauri.conf.json` points the installer at these files.
+It renders the icon at 1024 pixels in a headless browser, scales it down with Lanczos filtering, and writes
+`src-tauri/icons/*` (through `npx tauri icon`, plus an `icon.ico` with a separately rendered image for every size from
+16 to 256 pixels), `public/favicon.png` and the web app icons.
