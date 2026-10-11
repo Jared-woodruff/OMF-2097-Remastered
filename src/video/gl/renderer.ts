@@ -44,6 +44,8 @@ interface DynGlyphAtlas {
   failed: Set<number>;
   shelves: { y: number; h: number; x: number }[];
   bottom: number;
+  /** Full: it starts over with the next frame (not in the middle of one, whose letters are already placed). */
+  full: boolean;
 }
 
 /** Width/height ratio of one native pixel when the 320x200 image is shown at 4:3. */
@@ -167,6 +169,11 @@ export class GLRenderer {
   private indexedTarget: RenderTarget | null = null;
   private resolvedTarget: RenderTarget | null = null;
   /**
+   * The classic targets made so far, by size, the last used last: text of the system's fonts comes and goes (a combo's
+   * name in a fight), and its 4x targets are kept for the next time.
+   */
+  private classicTargets = new Map<string, [RenderTarget, RenderTarget]>();
+  /**
    * Classic: the indexed framebuffer's pixels per native pixel. More than 1 while letters of the system's fonts are on
    * screen (Surface.hires: Chinese, Arabic...), which are drawn at that resolution; the rest is the same picture.
    */
@@ -232,6 +239,11 @@ export class GLRenderer {
   private timerExt: { TIME_ELAPSED_EXT: number; GPU_DISJOINT_EXT: number } | null = null;
   private pendingQuery: WebGLQuery | null = null;
   private gpuSamples: number[] = [];
+  /** Without GPU timing (WebKit's WebGL: macOS, Linux): the remastered frames' intervals (ms), the last one's time. */
+  private frameIntervals: number[] = [];
+  private lastFrameAt = 0;
+  /** The display's refresh as the frames show it (a low percentile of their intervals; 60 Hz at the most). */
+  private refreshMs = 1000 / 60;
   /** Average GPU time of the remastered frames measured recently (ms), for diagnostics. */
   gpuFrameMs = 0;
   /** Integrated / mobile / software GPU (by renderer string). */
@@ -322,7 +334,9 @@ export class GLRenderer {
     // Start integrated / mobile GPUs at a moderate internal resolution; the timing refines it.
     const dbg = gl.getExtension('WEBGL_debug_renderer_info');
     const gpu = String(dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
-    this.isLowEndGpu = /intel|mali|adreno|powervr|apple gpu|llvmpipe|swiftshader|basic render/i.test(gpu);
+    // (WebKit names every Apple graphics chip "Apple GPU": a phone's or tablet's is modest, a Mac's is not)
+    const appleTouch = /apple gpu/i.test(gpu) && typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
+    this.isLowEndGpu = appleTouch || /intel|mali|adreno|powervr|llvmpipe|swiftshader|basic render/i.test(gpu);
     if (this.isLowEndGpu) this.hdMaxScale = 4;
   }
 
@@ -330,7 +344,11 @@ export class GLRenderer {
   private updateDynamicResolution(displayScale: number): void {
     const gl = this.gl;
     const ext = this.timerExt;
-    if (!ext || !this.pendingQuery) return;
+    if (!ext) {
+      this.adaptToFrameIntervals(displayScale);
+      return;
+    }
+    if (!this.pendingQuery) return;
     if (!gl.getQueryParameter(this.pendingQuery, gl.QUERY_RESULT_AVAILABLE)) return;
     const disjoint = gl.getParameter(ext.GPU_DISJOINT_EXT);
     const ns = gl.getQueryParameter(this.pendingQuery, gl.QUERY_RESULT) as number;
@@ -347,6 +365,27 @@ export class GLRenderer {
     if (avg > 9) this.hdMaxScale = Math.max(2, current * Math.max(0.6, Math.sqrt(7 / avg)));
     else if (avg < 4 && current < displayScale) this.hdMaxScale = current * 1.15;
     if (this.hdMaxScale >= displayScale) this.hdMaxScale = Infinity;
+  }
+
+  /**
+   * Dynamic resolution without GPU timing: frames that keep missing the display's refresh (their average interval well
+   * over it) lower the remastered render scale. It is never raised again: too slow is what matters.
+   */
+  private adaptToFrameIntervals(displayScale: number): void {
+    const now = performance.now();
+    const dt = now - this.lastFrameAt;
+    this.lastFrameAt = now;
+    // (a pause in the drawing: a hidden window, a scene loading)
+    if (dt <= 0 || dt > 100) return;
+    this.frameIntervals.push(dt);
+    if (this.frameIntervals.length < 90) return;
+    const sorted = this.frameIntervals.slice().sort((a, b) => a - b);
+    const avg = sorted.reduce((a, b) => a + b, 0) / sorted.length;
+    this.frameIntervals.length = 0;
+    // (not the shortest interval: two frames drawn close together would pass for a fast display)
+    this.refreshMs = Math.min(this.refreshMs, sorted[Math.floor(sorted.length / 10)]);
+    if (this.options.hdResolution !== 'auto' || avg < this.refreshMs * 1.35) return;
+    this.hdMaxScale = Math.max(2, Math.min(this.hdMaxScale, displayScale) * 0.8);
   }
 
   /**
@@ -465,7 +504,7 @@ export class GLRenderer {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      a = this.dynGlyphs = { tex, size, tiles: new Map(), failed: new Set(), shelves: [], bottom: 0 };
+      a = this.dynGlyphs = { tex, size, tiles: new Map(), failed: new Set(), shelves: [], bottom: 0, full: false };
     }
     const have = a.tiles.get(surf.id);
     if (have) return have;
@@ -475,7 +514,8 @@ export class GLRenderer {
       a.failed.add(surf.id);
       return null;
     }
-    // Shelf packing; when the atlas is full it starts over (the letters on screen are made again as they are drawn).
+    // Shelf packing; when the atlas is full it starts over with the next frame (the letters on screen are made again as
+    // they are drawn; until then, a letter that has no room is drawn from its picture).
     const place = (): [number, number] | null => {
       for (const sh of a.shelves) {
         if (cov.h <= sh.h && cov.h * 4 >= sh.h * 3 && sh.x + cov.w <= a.size) {
@@ -488,13 +528,11 @@ export class GLRenderer {
       a.bottom += cov.h;
       return [0, a.bottom - cov.h];
     };
-    let at = place();
+    if (a.full) return null;
+    const at = place();
     if (!at) {
-      a.tiles.clear();
-      a.shelves = [];
-      a.bottom = 0;
-      at = place();
-      if (!at) return null;
+      a.full = true;
+      return null;
     }
     const sdf = distanceFieldOf(cov.data, cov.w, cov.h, DYN_GLYPH_TEXELS);
     gl.bindTexture(gl.TEXTURE_2D, a.tex);
@@ -658,13 +696,27 @@ export class GLRenderer {
     const h = NATIVE_H * scale;
     this.classicScale = scale;
     if (this.indexedTarget && this.indexedTarget.w === w && this.indexedTarget.h === h) return;
-    this.indexedTarget?.dispose();
-    this.resolvedTarget?.dispose();
-    this.indexedTarget = new RenderTarget(gl, w, h, [
-      { internalFormat: gl.RGBA8, format: gl.RGBA, type: gl.UNSIGNED_BYTE },
-      { internalFormat: gl.R8, format: gl.RED, type: gl.UNSIGNED_BYTE },
-    ]);
-    this.resolvedTarget = new RenderTarget(gl, w, h, [{ internalFormat: gl.RGBA8, format: gl.RGBA, type: gl.UNSIGNED_BYTE, filter: gl.LINEAR }]);
+    const key = `${w}x${h}`;
+    let pair = this.classicTargets.get(key);
+    if (pair) {
+      this.classicTargets.delete(key);
+    } else {
+      pair = [
+        new RenderTarget(gl, w, h, [
+          { internalFormat: gl.RGBA8, format: gl.RGBA, type: gl.UNSIGNED_BYTE },
+          { internalFormat: gl.R8, format: gl.RED, type: gl.UNSIGNED_BYTE },
+        ]),
+        new RenderTarget(gl, w, h, [{ internalFormat: gl.RGBA8, format: gl.RGBA, type: gl.UNSIGNED_BYTE, filter: gl.LINEAR }]),
+      ];
+    }
+    this.classicTargets.set(key, pair);
+    // (four sizes at the most: 1x and 4x, each with and without the widescreen fight's width)
+    for (const [k, old] of this.classicTargets) {
+      if (this.classicTargets.size <= 4) break;
+      old.forEach((t) => t.dispose());
+      this.classicTargets.delete(k);
+    }
+    [this.indexedTarget, this.resolvedTarget] = pair;
   }
 
   private setBlendMode(mode: BlendMode): void {
@@ -1494,6 +1546,13 @@ export class GLRenderer {
   private renderHD(): void {
     const gl = this.gl;
     this.syncHdTables();
+    const dyn = this.dynGlyphs;
+    if (dyn?.full) {
+      dyn.tiles.clear();
+      dyn.shelves = [];
+      dyn.bottom = 0;
+      dyn.full = false;
+    }
     // The final image goes to `out`; everything is rendered at `vp`, which is scaled down when the dynamic
     // resolution caps the render scale (the composite then upscales it smoothly).
     const out = this.viewport();

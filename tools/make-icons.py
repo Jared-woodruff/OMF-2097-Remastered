@@ -1,17 +1,14 @@
 #!/usr/bin/env python3
-"""Renders the app icon and the installer artwork from their vector sources in tools/brand:
+"""Renders the app icon from its vector sources in tools/brand:
 
   tools/brand/icon.svg        the icon (48 px and up)
   tools/brand/icon-small.svg  the icon simplified for 16 to 40 px
-  tools/brand/sidebar.html    installer welcome / finish page image (164x314)
-  tools/brand/header.html     installer page header image (150x57)
 
 Outputs: src-tauri/icons/* (via `npx tauri icon`, keeping the desktop icons, then a hand-built icon.ico with a crisp
-image per size),
-src-tauri/installer/sidebar.bmp and header.bmp, public/favicon.png and the web app icons (public/icon-*.png).
+image per size), public/favicon.png and the web app icons (public/icon-*.png).
 
-Everything is rendered at 1024 px (or 4x) with Microsoft Edge (or Chrome) in headless mode and scaled down with
-Lanczos filtering. Needs Python 3 with Pillow, and Edge or Chrome.
+Everything is rendered at 1024 px with Microsoft Edge (or Chrome) in headless mode and scaled down with Lanczos
+filtering. Needs Python 3 with Pillow, and Edge or Chrome.
 
 Usage: python tools/make-icons.py
 """
@@ -27,7 +24,6 @@ from PIL import Image, ImageFilter
 ROOT = Path(__file__).resolve().parent.parent
 BRAND = ROOT / 'tools' / 'brand'
 ICONS = ROOT / 'src-tauri' / 'icons'
-INSTALLER = ROOT / 'src-tauri' / 'installer'
 PUBLIC = ROOT / 'public'
 
 
@@ -103,14 +99,7 @@ def main() -> None:
     emblem = scaled(big, 372)
     mask.alpha_composite(emblem, ((512 - 372) // 2, (512 - 372) // 2))
     mask.save(PUBLIC / 'icon-maskable-512.png')
-
-    # Installer artwork: 24-bit bitmaps at the sizes the installer shows them.
-    INSTALLER.mkdir(parents=True, exist_ok=True)
-    sidebar = render('sidebar.html', 656, 1256)
-    scaled(sidebar, 164, 314).convert('RGB').save(INSTALLER / 'sidebar.bmp')
-    header = render('header.html', 600, 228)
-    scaled(header, 150, 57).convert('RGB').save(INSTALLER / 'header.bmp')
-    print('Icons and installer artwork written.')
+    print('Icons written.')
 
 
 if __name__ == '__main__':

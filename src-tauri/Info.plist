@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Merged into the macOS app's Info.plist by Tauri: what macOS shows when it asks the player for a permission. -->
+<plist version="1.0">
+<dict>
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>LAN games: hosting a game, and finding and joining the games on your local network.</string>
+  <key>NSDownloadsFolderUsageDescription</key>
+  <string>Saving your replays, clips and mods in your Downloads folder.</string>
+</dict>
+</plist>

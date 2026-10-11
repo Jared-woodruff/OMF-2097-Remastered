@@ -1,0 +1,179 @@
+name: Release packages
+
+# Builds the release's portable packages and attaches them to it: the game and OMF Studio for Windows 10/11 (x64, ARM64
+# and 32-bit), macOS 12 or later (Apple Silicon and Intel) and Linux (x64 and ARM64 AppImages). Studio's package is
+# the same program under Studio's name, which opens Studio (src-tauri/src/lib.rs, studio_start). No installers: each
+# package runs as it is. It runs when a release is published; started by hand, it builds the packages of a tag and
+# attaches them to that tag's release, or with no tag just builds them (the run's artifacts). A pull request that
+# changes the desktop shell or this workflow builds them too, as a check (attaching nothing).
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release's tag to build and attach the packages to (empty - build the branch, attach nothing)
+        required: false
+        default: ''
+  pull_request:
+    paths:
+      - 'src-tauri/**'
+      - '.github/workflows/release.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.release.tag_name || inputs.tag || github.ref }}
+  # (a pull request's newer push replaces its check; a release's build always finishes)
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  TAG: ${{ github.event.release.tag_name || inputs.tag }}
+
+jobs:
+  package:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            platform: windows-x64
+          - name: Windows ARM64
+            os: windows-latest
+            target: aarch64-pc-windows-msvc
+            platform: windows-arm64
+          - name: Windows 32-bit
+            os: windows-latest
+            target: i686-pc-windows-msvc
+            platform: windows-x86
+          - name: macOS Apple Silicon
+            os: macos-latest
+            target: aarch64-apple-darwin
+            platform: macos-arm64
+          - name: macOS Intel
+            os: macos-latest
+            target: x86_64-apple-darwin
+            platform: macos-x64
+          - name: Linux x64
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            platform: linux-x86_64
+          - name: Linux ARM64
+            os: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            platform: linux-aarch64
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG || github.ref }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.target }}
+
+      # WebKitGTK and what the AppImage takes along: GStreamer plays the game's sound and music on Linux.
+      - name: Linux build tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev patchelf libxdo-dev build-essential file libfuse2 \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-good
+
+      - run: npm ci
+
+      # (Windows: the program alone; macOS: the .app bundle, signed ad hoc; Linux: the AppImage)
+      - name: Build
+        shell: bash
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: 1
+        run: |
+          case "$RUNNER_OS" in
+            Windows) bundles=--no-bundle ;;
+            macOS) bundles='--bundles app' ;;
+            *) bundles='--bundles appimage' ;;
+          esac
+          npx tauri build --target ${{ matrix.target }} $bundles
+
+      - name: Package
+        shell: bash
+        run: |
+          set -euo pipefail
+          # (no version in the names: the README links to the latest release's files by name)
+          game="OMF-2097-Remastered-${{ matrix.platform }}"
+          studio="OMF-Studio-${{ matrix.platform }}"
+          out="$GITHUB_WORKSPACE/packages"
+          release="src-tauri/target/${{ matrix.target }}/release"
+          mkdir -p "$out"
+          case "$RUNNER_OS" in
+            Windows)
+              cp "$release/omf2097-remastered.exe" "$out/$game.exe"
+              cp "$release/omf2097-remastered.exe" "$out/$studio.exe"
+              ;;
+            macOS)
+              cd "$release/bundle/macos"
+              ditto "OMF 2097 Remastered.app" "OMF Studio.app"
+              plist="OMF Studio.app/Contents/Info.plist"
+              /usr/libexec/PlistBuddy -c "Set :CFBundleName OMF Studio" "$plist"
+              /usr/libexec/PlistBuddy -c "Delete :CFBundleDisplayName" "$plist" 2>/dev/null || true
+              /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string OMF Studio" "$plist"
+              # (the renamed copy is signed again: its signature covers the Info.plist)
+              codesign --force --deep --sign - "OMF Studio.app"
+              ditto -c -k --keepParent "OMF 2097 Remastered.app" "$out/$game.zip"
+              ditto -c -k --keepParent "OMF Studio.app" "$out/$studio.zip"
+              ;;
+            Linux)
+              image=$(ls "$release"/bundle/appimage/*.AppImage | head -n 1)
+              cp "$image" "$out/$game.AppImage"
+              cp "$image" "$out/$studio.AppImage"
+              chmod +x "$out"/*.AppImage
+              ;;
+          esac
+          ls -l "$out"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: packages-${{ matrix.platform }}
+          path: packages/
+          if-no-files-found: error
+          # (a release keeps its files on the release itself; a check's are for a look, a few days)
+          retention-days: 3
+
+      - name: Attach to the release
+        if: env.TAG != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # (the ARM64 Linux runner's image may not have the GitHub CLI)
+          command -v gh > /dev/null || { sudo apt-get update && sudo apt-get install -y gh; }
+          gh release upload "$TAG" packages/* --clobber --repo "$GITHUB_REPOSITORY"
+
+  manual:
+    name: Manual
+    if: github.event.release.tag_name || inputs.tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Attach the manual to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" docs/manual/OMF-2097-Remastered-Manual.pdf --clobber --repo "$GITHUB_REPOSITORY"
