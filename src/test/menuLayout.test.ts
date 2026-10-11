@@ -15,9 +15,9 @@ import { menuGameplayCreate } from '../game/scenes/mainmenu/menuGameplay';
 import { menuClassicStyleCreate, menuEffectsCreate, menuGraphicsCreate, menuRemasteredCreate } from '../game/scenes/mainmenu/menuGraphics';
 import { menuInputCreate } from '../game/scenes/mainmenu/menuInput';
 import { KEYBOARD_FRAME, menuKeyboardCreate } from '../game/scenes/mainmenu/menuKeyboard';
-import { menuLanguageCreate } from '../game/scenes/mainmenu/menuLanguage';
 import { menuMainCreate } from '../game/scenes/mainmenu/menuMain';
 import { menuModesCreate } from '../game/scenes/mainmenu/menuModes';
+import { menuMultiplayerCreate } from '../game/scenes/mainmenu/menuMultiplayer';
 import { menuOptionsCreate } from '../game/scenes/mainmenu/menuOptions';
 import { menuSoundCreate } from '../game/scenes/mainmenu/menuSound';
 import { menuTrainingCreate } from '../game/scenes/mainmenu/menuTraining';
@@ -93,6 +93,7 @@ describe.skipIf(!hasGameData)('menu layout', () => {
     const theme = mainMenuTheme();
     const menus: [string, Menu, Frame][] = [
       ['MAIN', menuMainCreate(s), MAIN_FRAME],
+      ['MULTIPLAYER', menuMultiplayerCreate(s), MAIN_FRAME],
       ['MORE MODES', menuModesCreate(s), MAIN_FRAME],
       ['TRAINING', menuTrainingCreate(s), MAIN_FRAME],
       ['EXTRAS', menuExtrasCreate(s), MAIN_FRAME],
@@ -108,7 +109,6 @@ describe.skipIf(!hasGameData)('menu layout', () => {
       ['REMASTERED', menuRemasteredCreate(), MAIN_FRAME],
       ['EFFECTS', menuEffectsCreate(), MAIN_FRAME],
       ['SOUND', menuSoundCreate(s), MAIN_FRAME],
-      ['LANGUAGE', menuLanguageCreate(s), MAIN_FRAME],
     ];
     const issues = menus.flatMap(([name, m, f]) => audit(name, m, f, theme));
     expect(issues).toEqual([]);

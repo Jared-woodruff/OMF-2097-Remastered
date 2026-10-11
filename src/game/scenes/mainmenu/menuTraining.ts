@@ -13,9 +13,10 @@ import { ensureWorkshopRobot, harIdOf, isWorkshopHar, workshopSpecs } from '../.
 import { WORKSHOP_FIRST_ID } from '../../../gen/workshop';
 import type { MainMenuScene } from '../mainmenu';
 import { menuDone, settingsChanged } from './common';
+import { tr, trKey } from '../../../i18n/i18n';
 
 /** The original arenas' names as the menus write them (the game's texts say "The Desert"). */
-const ORIGINAL_ARENA_NAMES = ['STADIUM', 'DANGER ROOM', 'POWER PLANT', 'FIRE PIT', 'DESERT'];
+const ORIGINAL_ARENA_NAMES = [trKey('STADIUM'), trKey('DANGER ROOM'), trKey('POWER PLANT'), trKey('FIRE PIT'), trKey('DESERT')];
 const PILOTS = PILOT_NAMES.slice(0, 10);
 
 function setPilot(gs: GameState, player: number, pilotId: number, harId: number): void {
@@ -67,33 +68,32 @@ export function menuTrainingCreate(s: MainMenuScene): Menu {
   t.arena = allowedArena(t.arena);
   // (arenas are picked by number, like the robots: the list skips the remaster's when they are off)
   const arenaIds = arenaList();
-  const arenas = arenaIds.map((a) => ORIGINAL_ARENA_NAMES[a] ?? arenaName(a).toUpperCase());
+  const arenas = arenaIds.map((a) => (ORIGINAL_ARENA_NAMES[a] ? tr(ORIGINAL_ARENA_NAMES[a]) : arenaName(a).toUpperCase()));
   // (pilots by id too: the original ten, then the mods')
   const pilotIds = [...PILOTS.map((_, i) => i), ...modPilotIds()];
   if (!pilotIds.includes(t.pilot)) t.pilot = 0;
   const pilots = pilotIds.map((id) => PILOTS[id] ?? pilotNameOf(id).toUpperCase());
   const menu = new Menu();
-  menu.attach(Label.title('TRAINING'));
+  menu.attach(Label.title(tr('TRAINING')));
   menu.attach(new Filler());
   const sel = (title: string, help: string, key: 'har' | 'pilot' | 'opponent' | 'arena' | 'dummy', options: string[]) =>
     menu.attach(new TextSelector(title, help, () => t[key], (v) => (t[key] = v), options, settingsChanged));
   // Robots are picked by id (the list can skip ids).
   const robot = (title: string, help: string, key: 'har' | 'opponent') =>
     menu.attach(new TextSelector(title, help, () => Math.max(0, ids.indexOf(t[key])), (v) => (t[key] = ids[v] ?? 0), robots, settingsChanged));
-  robot('ROBOT', 'The robot you practice with (robots built in the workshop too).', 'har');
-  menu.attach(new TextSelector('PILOT', 'Your pilot. Pilots differ in power, agility and endurance.', () => Math.max(0, pilotIds.indexOf(t.pilot)),
+  robot(tr('ROBOT'), tr('The robot you practice with (robots built in the workshop too).'), 'har');
+  menu.attach(new TextSelector(tr('PILOT'), tr('Your pilot. Pilots differ in power, agility and endurance.'), () => Math.max(0, pilotIds.indexOf(t.pilot)),
     (v) => (t.pilot = pilotIds[v] ?? 0), pilots, settingsChanged));
-  robot('OPPONENT', 'The robot of the training dummy.', 'opponent');
-  menu.attach(new TextSelector('ARENA', 'Where to train. Hazards follow the GAMEPLAY setting.', () => Math.max(0, arenaIds.indexOf(t.arena)),
+  robot(tr('OPPONENT'), tr('The robot of the training dummy.'), 'opponent');
+  menu.attach(new TextSelector(tr('ARENA'), tr('Where to train. Hazards follow the GAMEPLAY setting.'), () => Math.max(0, arenaIds.indexOf(t.arena)),
     (v) => (t.arena = arenaIds[v] ?? 0), arenas, settingsChanged));
-  sel('DUMMY', 'What the dummy does: stand, crouch, jump, block high or low attacks, or fight back like the computer. ' +
-    'It can also be changed from the pause menu.', 'dummy', DUMMY_MODE_NAMES);
-  menu.attach(new Button('START', 'Practice moves and combos: nobody gets knocked out and health refills after every combo.',
+  sel(tr('DUMMY'), tr('What the dummy does: stand, crouch, jump, block high or low attacks, or fight back like the computer. It can also be changed from the pause menu.'), 'dummy', DUMMY_MODE_NAMES.map((s) => tr(s)));
+  menu.attach(new Button(tr('START'), tr('Practice moves and combos: nobody gets knocked out and health refills after every combo.'),
     false, false, () => {
       startTraining(s.gs);
       // (back to MORE MODES afterwards)
       s.gs.menuReturn = 'modes';
     }));
-  menu.attach(new Button('DONE', 'Go back to the other modes.', false, false, menuDone));
+  menu.attach(new Button(tr('DONE'), tr('Go back to the other modes.'), false, false, menuDone));
   return menu;
 }

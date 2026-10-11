@@ -1,6 +1,7 @@
 // HAR prices, upgrade prices and tournament winnings (port of the reference mechlab/har_economy.c + .h).
 import type { Pilot } from '../../../formats/pilot';
 import { globalRandom } from '../../../util/random';
+import { tr, clip } from '../../../i18n/i18n';
 
 export const enum HarUpgrade {
   ARM_POWER,
@@ -241,36 +242,36 @@ export function sellHighestValueUpgrade(pilot: Pilot): string | null {
   switch (maxIdx) {
     case 0:
       pilot.money += Math.trunc(prices[maxIdx] * 0.85);
-      sold = `LEVEL ${pilot.armPower + 1} ARM POWER`;
+      sold = tr('LEVEL {level} ARM POWER', { level: pilot.armPower + 1 });
       pilot.armPower--;
       break;
     case 1:
       pilot.money += Math.trunc(prices[maxIdx] * 0.85);
-      sold = `LEVEL ${pilot.armSpeed + 1} ARM SPEED`;
+      sold = tr('LEVEL {level} ARM SPEED', { level: pilot.armSpeed + 1 });
       pilot.armSpeed--;
       break;
     case 2:
       pilot.money += Math.trunc(prices[maxIdx] * 0.85);
-      sold = `LEVEL ${pilot.legPower + 1} LEG POWER`;
+      sold = tr('LEVEL {level} LEG POWER', { level: pilot.legPower + 1 });
       pilot.legPower--;
       break;
     case 3:
       pilot.money += Math.trunc(prices[maxIdx] * 0.85);
-      sold = `LEVEL ${pilot.legSpeed + 1} LEG SPEED`;
+      sold = tr('LEVEL {level} LEG SPEED', { level: pilot.legSpeed + 1 });
       pilot.legSpeed--;
       break;
     case 4:
       pilot.money += Math.trunc(prices[maxIdx] * 0.85);
-      sold = `LEVEL ${pilot.stunResistance + 1} STUN RES.`;
+      sold = tr('LEVEL {level} STUN RES.', { level: pilot.stunResistance + 1 });
       pilot.stunResistance--;
       break;
     case 5:
       pilot.money += Math.trunc(prices[maxIdx] * 0.85);
-      sold = `LEVEL ${pilot.armor + 1} ARMOR PLATE`;
+      sold = tr('LEVEL {level} ARMOR PLATE', { level: pilot.armor + 1 });
       pilot.armor--;
       break;
     default:
       return null;
   }
-  return sold.slice(0, SOLD_BUF_SIZE - 1); // snprintf(sold, SOLD_BUF_SIZE, ...)
+  return clip(sold, SOLD_BUF_SIZE - 1); // snprintf(sold, SOLD_BUF_SIZE, ...)
 }

@@ -12,6 +12,7 @@ import { registerScene, type GameState } from '../gameState';
 import { FontSize, HAlign, Text } from '../gui/text';
 import { GameObject } from '../object';
 import { Scene } from '../scene';
+import { tr } from '../../i18n/i18n';
 
 const END_TEXT = 992;
 const END1_TEXT = 993;
@@ -19,7 +20,7 @@ const END2_TEXT = 1003;
 
 /** A mod pilot's ending (pilot.json), or the game's own words when it has none. */
 function modEnding(pilotId: number, part: 0 | 1): string {
-  return modPilot(pilotId)?.info.ending[part] || MOD_ENDING[part];
+  return modPilot(pilotId)?.info.ending[part] || tr(MOD_ENDING[part]);
 }
 
 /** Splits like the reference str_split: empty pieces are dropped. */

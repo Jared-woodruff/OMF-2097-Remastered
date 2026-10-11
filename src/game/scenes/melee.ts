@@ -33,6 +33,10 @@ import { extraHarIds, modPilotIds, pilotBio, pilotInfo, pilotNameOf, pilotWinBit
 import { addPilotPortrait, nearestColor, pilotPortrait, PORTRAIT_FIRST, PORTRAIT_LAST } from '../../mods/portraits';
 import { modPilot } from '../../mods/registry';
 import { Scene } from '../scene';
+import { leaveNetGame } from '../../net/netplay';
+import type { NetSession } from '../../net/session';
+import type { NetStatus } from '../../net/statusBar';
+import { tr } from '../../i18n/i18n';
 
 const MAX_STAT = 20;
 const TEXT_GREEN = 0xa6;
@@ -40,6 +44,10 @@ const TEXT_SHADOW_GREEN = 0xa2;
 const TEXT_BLACK = 0xd1;
 const TEXT_SHADOW_BLACK = 0xd7;
 const RED_CURSOR_INDEX = 0xf6;
+/** The menu colors every scene has (vga.setMenuColors): bright green, light green, a dark shadow. */
+const MENU_BRIGHT_GREEN = 0xfd;
+const MENU_LIGHT_GREEN = 0xff;
+const MENU_SHADOW = 0xfc;
 const BLUE_CURSOR_INDEX = 0xf7;
 const VIOLET_CURSOR_INDEX = 0xf8;
 
@@ -208,6 +216,8 @@ export class MeleeScene extends Scene {
   cheatPilotStatsStat = [0, 0]; // which stat is selected
 
   networkGame = false;
+  /** A network game's badges on the big portraits: the local player's, and the players who have made their pick. */
+  private netBadges: { you: Text; ready: Text } | null = null;
 
   private lastKeyEvent: KeyboardEvent | null = null;
   private unsubscribeKeys: (() => void) | null = null;
@@ -255,7 +265,9 @@ export class MeleeScene extends Scene {
     // Player bio boxes and names for both players
     for (let i = 0; i < 2; i++) {
       const pilotId = i === 0 ? this.pilotIdA : this.pilotIdB;
-      this.playerBio[i] = createGreenText(156, 34, pilotBio(pilotId));
+      // (the reference's box is 34 high at y 66; centered in the panel's full height instead, a text up to seven lines long
+      // fits, the German and other languages' biographies, and a shorter one stays where it was)
+      this.playerBio[i] = createGreenText(156, 42, pilotBio(pilotId));
       this.playerName[i] = createBlackText(66, 6, pilotNameOf(pilotId));
       this.playerBio[i].setMargin({ left: 2, right: 2, top: 0, bottom: 0 });
     }
@@ -273,7 +285,8 @@ export class MeleeScene extends Scene {
     this.selectHilight = new Surface(51, 36, new Uint8Array(51 * 36), -1);
     this.selectHilight.source = { kind: 'generated', key: 'melee/highlight' };
 
-    // (The reference installs controller hooks here for network games; netplay is not part of this port.)
+    // (The reference installs controller hooks here for network games; this port's hand both players' inputs out through
+    // their session, net/session.ts.)
 
     // Load HAR and Pilot face portraits and har sprites for the selection grid
     this.loadPilotPortraits();
@@ -289,8 +302,8 @@ export class MeleeScene extends Scene {
     if (player2.selectable) {
       const s1 = gs.getPlayer(0).score;
       const s2 = gs.getPlayer(1).score;
-      this.wins[0] = createBlackText(160 - 8, 6, `Wins: ${s1.wins}`).setHAlign(HAlign.LEFT);
-      this.wins[1] = createBlackText(160 - 8, 6, `Wins: ${s2.wins}`).setHAlign(HAlign.RIGHT);
+      this.wins[0] = createBlackText(160 - 8, 6, tr('WINS: {wins}', { wins: s1.wins })).setHAlign(HAlign.LEFT);
+      this.wins[1] = createBlackText(160 - 8, 6, tr('WINS: {wins}', { wins: s2.wins })).setHAlign(HAlign.RIGHT);
 
       this.bigPortrait2 = new GameObject(gs, 320, 0);
       this.bigPortrait2.setAnimation(pilotBigPortraits);
@@ -471,7 +484,7 @@ export class MeleeScene extends Scene {
 
   /** melee_tick (dynamic tick) */
   override dynamicTick(_paused: boolean): void {
-    // (Extra controller events only exist for network controllers, which this port does not have.)
+    // (The reference's network controllers have extra events here; this port's network games need none.)
     const player2 = this.gs.getPlayer(1);
     if (this.page === HAR_SELECT && this.ticks % 10 === 1) {
       this.har[0].dynamicTick();
@@ -712,6 +725,10 @@ export class MeleeScene extends Scene {
             if (!this.networkGame) {
               player1.pilot.name = pilotNameOf(player1.pilot.pilotId);
               player2.pilot.name = pilotNameOf(player2.pilot.pilotId);
+            } else if (gs.net) {
+              // (the reference's network players fight under the names they gave the lobby)
+              player1.pilot.name = gs.net.names[0];
+              player2.pilot.name = gs.net.names[1];
             }
             gs.setNext(SceneId.VS);
           }
@@ -770,7 +787,8 @@ export class MeleeScene extends Scene {
   /** Mouse (not in the original game): player 1 points at a portrait to move the cursor there and clicks to pick it. */
   override pointer(x: number, y: number, kind: import('../../controller/mouse').PointerKind): boolean {
     const cur = this.cursor[0];
-    if (cur.done) return false;
+    // (a network game's cursors only move with the inputs both games play)
+    if (cur.done || this.networkGame) return false;
     const column = Math.floor((x - 11) / 62), screenRow = Math.floor((y - 115) / 42);
     if (column < 0 || column > 4 || screenRow < 0 || screenRow > 1 || x - 11 - column * 62 > 52 || y - 115 - screenRow * 42 > 38) return false;
     const row = screenRow + this.viewTop;
@@ -800,12 +818,15 @@ export class MeleeScene extends Scene {
     const p2: CtrlEvent[] = [];
     player1.ctrl.poll(p1);
     player2.ctrl.poll(p2);
+    // (a network game's ESC comes with the players' inputs, so both games go back at the same step)
     for (const i of p1) {
-      if (i.type === 'action') this.handleAction(0, i.action);
+      if (i.type === 'action' && i.action === ACT_ESC && this.networkGame) this.escape(0);
+      else if (i.type === 'action') this.handleAction(0, i.action);
       else if (i.type === 'close') gs.setNext(SceneId.MENU);
     }
     for (const i of p2) {
-      if (i.type === 'action') this.handleAction(1, i.action);
+      if (i.type === 'action' && i.action === ACT_ESC && this.networkGame) this.escape(1);
+      else if (i.type === 'action') this.handleAction(1, i.action);
       else if (i.type === 'close') gs.setNext(SceneId.MENU);
     }
 
@@ -813,19 +834,30 @@ export class MeleeScene extends Scene {
     gs.menuPoll(menuEv, { playerScene: true });
     for (const i of menuEv) {
       if (i.type === 'action' && i.action === ACT_ESC) {
-        playMenuSound(20, 0);
-        if (this.page === HAR_SELECT) {
-          // restore the player selection (on the pilot page's cells)
-          this.page = PILOT_SELECT;
-          this.restoreCursorsTo(this.pilotIdA, this.pilotIdB);
-          this.loadPilotPortraitsPalette();
-        } else {
-          // (the reference returns to the network lobby when it came from there; no netplay in this port; a run of
-          // MORE MODES goes back there)
-          if (gs.modeRun) gs.menuReturn = 'modes';
-          gs.setNext(SceneId.MENU);
-        }
+        if (this.networkGame) gs.net?.inject(ACT_ESC);
+        else this.escape(0);
       }
+    }
+  }
+
+  /** ESC: back to the pilot page from the robot page, else out of the screen. */
+  private escape(player: number): void {
+    const gs = this.gs;
+    playMenuSound(20, 0);
+    if (this.page === HAR_SELECT) {
+      // restore the player selection (on the pilot page's cells)
+      this.page = PILOT_SELECT;
+      this.restoreCursorsTo(this.pilotIdA, this.pilotIdB);
+      this.loadPilotPortraitsPalette();
+    } else if (gs.net) {
+      // (the reference returns to the network lobby: here the network game ends, for both)
+      if (player === gs.net.localPlayer) leaveNetGame(gs);
+      else gs.net.leave(true);
+    } else {
+      // (a run of MORE MODES goes back there, a two player game to MULTIPLAYER)
+      if (gs.modeRun) gs.menuReturn = 'modes';
+      else if (gs.isTwoplayer()) gs.menuReturn = 'multiplayer';
+      gs.setNext(SceneId.MENU);
     }
   }
 
@@ -860,7 +892,7 @@ export class MeleeScene extends Scene {
     video.draw(this.bgPlayerBio, 0, 62);
 
     this.playerName[0].draw(0, 52);
-    this.playerBio[0].draw(4, 66);
+    this.playerBio[0].draw(4, 62);
     this.playerStats[0].draw(74, 4);
     this.playerStats[1].draw(74, 22);
     this.playerStats[2].draw(74, 40);
@@ -874,7 +906,7 @@ export class MeleeScene extends Scene {
       video.draw(this.bgPlayerBio, 320 - this.bgPlayerBio.w, 62);
 
       this.playerName[1].draw(320 - 66, 52);
-      this.playerBio[1].draw(320 - this.bgPlayerBio.w + 4, 66);
+      this.playerBio[1].draw(320 - this.bgPlayerBio.w + 4, 62);
       this.playerStats[0].draw(320 - 66 - this.bgPlayerStats.w, 4);
       this.playerStats[1].draw(320 - 66 - this.bgPlayerStats.w, 22);
       this.playerStats[2].draw(320 - 66 - this.bgPlayerStats.w, 40);
@@ -967,6 +999,30 @@ export class MeleeScene extends Scene {
       this.wins[0]?.draw(8, 107);
       this.wins[1]?.draw(160, 107);
     }
+    if (this.networkGame && this.gs.net) this.renderNetBadges(this.gs.net.localPlayer);
+  }
+
+  /** A network game: YOU over the local player's big portrait, READY over those of the players who have picked. */
+  private renderNetBadges(me: number): void {
+    const badge = (s: string, color: number) => new Text(FontSize.BIG, 66, 10, s).setHAlign(HAlign.CENTER).setColor(color)
+      .setShadow(GLYPH_SHADOW_RIGHT | GLYPH_SHADOW_BOTTOM).setShadowColor(MENU_SHADOW);
+    this.netBadges ??= { you: badge(tr('YOU'), MENU_LIGHT_GREEN), ready: badge(tr('READY'), MENU_BRIGHT_GREEN) };
+    for (let i = 0; i < 2; i++) {
+      const x = i === 0 ? 0 : 320 - 66;
+      if (i === me) this.netBadges.you.draw(x, 3);
+      if (this.cursor[i].done) this.netBadges.ready.draw(x, 38);
+    }
+  }
+
+  /** A network game: whose pick is still to come (net/statusBar.ts). */
+  override netStatus(net: NetSession): NetStatus | null {
+    const me = net.localPlayer;
+    const what = this.page === PILOT_SELECT ? tr('PILOT') : tr('ROBOT');
+    if (!this.cursor[me].done) {
+      if (this.cursor[1 - me].done) return { text: tr('{opponent} IS READY: PICK YOUR {what}', { opponent: net.opponent, what }) };
+      return { text: me === 0 ? tr('PICK YOUR {what} (RED CURSOR)', { what }) : tr('PICK YOUR {what} (BLUE CURSOR)', { what }) };
+    }
+    return { text: tr('WAITING FOR {opponent} TO PICK A {what}', { opponent: net.opponent, what }), waiting: true };
   }
 
   private loadPilotPortraits(): void {

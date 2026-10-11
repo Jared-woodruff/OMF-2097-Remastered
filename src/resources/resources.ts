@@ -8,7 +8,8 @@ import { parseTournament, type TournamentFile } from '../formats/tournament';
 import { ANIM_JUMPING, JUMP_COORD_ADJUSTMENT } from '../game/constants';
 import { Surface } from '../video/surface';
 import { Animation, createAnimation } from './animation';
-import { getFile } from './files';
+import { getFile, hasFile } from './files';
+import { cp437ToUnicode } from '../i18n/cp437';
 import { getGenerated } from './generated';
 import { decodeSprite } from '../formats/sprite';
 import { setExtendedBackground } from '../video/hd/extend';
@@ -375,13 +376,44 @@ let language: string[] = [];
 /** Ids of the 23 strings OMF 2.1 added (netplay); 990-string language files lack them. */
 const LANG_21_NEW_IDS = [149, 150, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 267, 269, 270, 271, 284, 295, 305];
 
-export function loadLanguage(file = 'ENGLISH.DAT'): void {
-  // The trailing line break of every entry is not part of the text.
-  language = parseLanguage(getFile(file)).map((s) => (s.text.endsWith('\n') ? s.text.slice(0, -1) : s.text));
-  if (language.length === 990) {
+/** A language file of the original game: its texts in Unicode, by the ids of the 1013-text layout. */
+function readLanguageFile(file: string): string[] {
+  // The trailing line break of every entry is not part of the text; the files are in code page 437.
+  const texts = parseLanguage(getFile(file)).map((s) => {
+    const text = cp437ToUnicode(s.text);
+    return text.endsWith('\n') ? text.slice(0, -1) : text;
+  });
+  if (texts.length === 990) {
     // Older files (e.g. GERMAN.DAT): insert placeholders so ids line up with the 1013-entry layout.
-    for (const id of LANG_21_NEW_IDS) language.splice(id, 0, '');
+    for (const id of LANG_21_NEW_IDS) texts.splice(id, 0, '');
   }
+  return texts;
+}
+
+/** Uses a language file of the original game (ENGLISH.DAT, GERMAN.DAT). */
+export function loadLanguage(file = 'ENGLISH.DAT'): void {
+  useLanguageTexts(readLanguageFile(file));
+}
+
+/**
+ * The original game's texts in a language (i18n/i18n.ts): English and German are the game's own files, the other
+ * languages their translations (public/lang/<code>.json); what a translation leaves empty stays English.
+ */
+export function loadOriginalTexts(code: string, translated: string[] | null): void {
+  const english = readLanguageFile('ENGLISH.DAT');
+  const own = code === 'de' && hasFile('GERMAN.DAT') ? readLanguageFile('GERMAN.DAT') : translated;
+  if (!own) {
+    useLanguageTexts(english);
+    return;
+  }
+  useLanguageTexts(english.map((en, id) => {
+    const t = own[id];
+    return t ? (t.endsWith('\n') ? t.slice(0, -1) : t) : en;
+  }));
+}
+
+function useLanguageTexts(texts: string[]): void {
+  language = texts;
   // The remaster's robots take the unused entries after the robot names (31 + HAR id); so do the workshop's.
   GENERATED_HAR_NAMES.forEach((name, i) => {
     if (!language[42 + i]) language[42 + i] = name;

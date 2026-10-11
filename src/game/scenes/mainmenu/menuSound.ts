@@ -11,6 +11,7 @@ import { Button, Label, Menu, TextSelector, TextSlider } from '../../gui/widgets
 import { settings, type Settings } from '../../settings';
 import type { MainMenuScene } from '../mainmenu';
 import { menuDone, settingsChanged } from './common';
+import { tr, trn } from '../../../i18n/i18n';
 
 function sound(): Settings['sound'] {
   return settings().sound;
@@ -21,17 +22,17 @@ const ANNOUNCERS: Settings['sound']['announcer'][] = ['off', 'male', 'female'];
 
 function libraryHelp(): string {
   const n = audio.myMusicCount;
-  return `${n === 0 ? 'Your music library is empty.' : `${n} song${n === 1 ? '' : 's'} in your music library.`} ` +
-    'Add MP3, OGG, WAV, FLAC or M4A files here, or drop them onto the game window at any time.';
+  return `${n === 0 ? tr('Your music library is empty.') : trn(n, '{n} song in your music library.', '{n} songs in your music library.')} ` +
+    tr('Add MP3, OGG, WAV, FLAC or M4A files here, or drop them onto the game window at any time.');
 }
 
 export function menuSoundCreate(_s: MainMenuScene): Menu {
   const menu = new Menu();
   // Ten entries: no spacer row under the title, and rows a little closer.
   menu.padding = 2;
-  menu.attach(Label.title('SOUND'));
+  menu.attach(Label.title(tr('SOUND')));
   // menu_audio_sound_slide
-  const volume = new TextSlider('SOUND', 'Raise or lower the volume of all sound effects. Press right or left to change.', 10, true,
+  const volume = new TextSlider(tr('SOUND'), tr('Raise or lower the volume of all sound effects. Press right or left to change.'), 10, true,
     () => sound().soundVol, (pos) => (sound().soundVol = pos), (pos) => {
       audio.setSoundVolume(pos / 10);
       settingsChanged();
@@ -39,43 +40,42 @@ export function menuSoundCreate(_s: MainMenuScene): Menu {
   volume.disablePanning = true;
   menu.attach(volume);
   // menu_audio_music_slide
-  menu.attach(new TextSlider('MUSIC', 'Raise or lower the volume of music. Press right or left to change.', 10, true,
+  menu.attach(new TextSlider(tr('MUSIC'), tr('Raise or lower the volume of music. Press right or left to change.'), 10, true,
     () => sound().musicVol, (pos) => (sound().musicVol = pos), (pos) => {
       audio.setMusicVolume(pos / 10);
       settingsChanged();
     }));
-  menu.attach(new TextSelector('ANNOUNCER', 'The voice that calls the rounds, the knockouts and the winners, and reads the news after fights: a man or a woman.',
-    () => Math.max(0, ANNOUNCERS.indexOf(sound().announcer)), (pos) => (sound().announcer = ANNOUNCERS[pos]), ['OFF', 'MALE', 'FEMALE'],
+  menu.attach(new TextSelector(tr('ANNOUNCER'), tr('The voice that calls the rounds, the knockouts and the winners, and reads the news after fights: a man or a woman.'),
+    () => Math.max(0, ANNOUNCERS.indexOf(sound().announcer)), (pos) => (sound().announcer = ANNOUNCERS[pos]), [tr('OFF'), tr('MALE'), tr('FEMALE')],
     (pos) => {
       previewAnnouncer(ANNOUNCERS[pos]);
       settingsChanged();
     }));
-  menu.attach(new TextSelector('ENHANCED MUSIC',
-    'ON plays the music with high quality interpolation. OFF resamples it like the original sound card mixer.',
-    () => (sound().enhancedMusic ? 1 : 0), (pos) => (sound().enhancedMusic = pos === 1), ['OFF', 'ON'], (pos) => {
+  menu.attach(new TextSelector(tr('ENHANCED MUSIC'),
+    tr('ON plays the music with high quality interpolation. OFF resamples it like the original sound card mixer.'),
+    () => (sound().enhancedMusic ? 1 : 0), (pos) => (sound().enhancedMusic = pos === 1), [tr('OFF'), tr('ON')], (pos) => {
       audio.setQuality(pos === 1 ? 'enhanced' : 'classic');
       settingsChanged();
     }));
-  menu.attach(new TextSelector('ACOUSTICS',
-    'The sound effects echo like in the arena they are heard in: the stadium, the steel room, the power plant hall, the ' +
-    'fire pit and the open desert.',
-    () => (sound().acoustics ? 1 : 0), (pos) => (sound().acoustics = pos === 1), ['OFF', 'ON'], (pos) => {
+  menu.attach(new TextSelector(tr('ACOUSTICS'),
+    tr('The sound effects echo like in the arena they are heard in: the stadium, the steel room, the power plant hall, the fire pit and the open desert.'),
+    () => (sound().acoustics ? 1 : 0), (pos) => (sound().acoustics = pos === 1), [tr('OFF'), tr('ON')], (pos) => {
       audio.setAcoustics(pos === 1);
       settingsChanged();
     }));
-  menu.attach(new TextSelector('IMPACT BASS', 'A deep thump under heavy hits, wall slams and knockouts.',
-    () => (sound().impactBass ? 1 : 0), (pos) => (sound().impactBass = pos === 1), ['OFF', 'ON'], (pos) => {
+  menu.attach(new TextSelector(tr('IMPACT BASS'), tr('A deep thump under heavy hits, wall slams and knockouts.'),
+    () => (sound().impactBass ? 1 : 0), (pos) => (sound().impactBass = pos === 1), [tr('OFF'), tr('ON')], (pos) => {
       audio.setImpactBass(pos === 1);
       settingsChanged();
     }));
-  menu.attach(new TextSelector('MY MUSIC',
-    'Play your own songs instead of the original soundtrack: OFF, in FIGHTS (a new song every fight) or ALWAYS. F3 skips to another song.',
-    () => Math.max(0, MY_MUSIC.indexOf(sound().myMusic)), (pos) => (sound().myMusic = MY_MUSIC[pos]), ['OFF', 'FIGHTS', 'ALWAYS'],
+  menu.attach(new TextSelector(tr('MY MUSIC'),
+    tr('Play your own songs instead of the original soundtrack: OFF, in FIGHTS (a new song every fight) or ALWAYS. F3 skips to another song.'),
+    () => Math.max(0, MY_MUSIC.indexOf(sound().myMusic)), (pos) => (sound().myMusic = MY_MUSIC[pos]), [tr('OFF'), tr('FIGHTS'), tr('ALWAYS')],
     (pos) => {
       audio.setMyMusicMode(MY_MUSIC[pos]);
       settingsChanged();
     }));
-  const add = new Button('ADD SONGS', libraryHelp(), false, false, () => {
+  const add = new Button(tr('ADD SONGS'), libraryHelp(), false, false, () => {
     void pickAudioFiles().then(async (files) => {
       const n = await addTracks(files).catch(() => 0);
       if (n > 0) await audio.reloadMyMusic();
@@ -86,16 +86,16 @@ export function menuSoundCreate(_s: MainMenuScene): Menu {
   menu.attach(add);
   // Removing asks for a second press.
   let armed = 0;
-  const removeHelp = () => (audio.myMusicCount ? 'Remove all songs from your music library (your files stay where they are).' : 'Your music library is empty.');
-  const remove = new Button('REMOVE SONGS', removeHelp(), false, false, () => {
+  const removeHelp = () => (audio.myMusicCount ? tr('Remove all songs from your music library (your files stay where they are).') : tr('Your music library is empty.'));
+  const remove = new Button(tr('REMOVE SONGS'), removeHelp(), false, false, () => {
     if (audio.myMusicCount === 0) return;
     if (!armed) {
       armed = 120;
-      remove.setText('PRESS AGAIN');
+      remove.setText(tr('PRESS AGAIN'));
       return;
     }
     armed = 0;
-    remove.setText('REMOVE SONGS');
+    remove.setText(tr('REMOVE SONGS'));
     void clearTracks().then(() => audio.reloadMyMusic()).then(() => {
       add.setHelp(libraryHelp());
       remove.setHelp(removeHelp());
@@ -103,8 +103,8 @@ export function menuSoundCreate(_s: MainMenuScene): Menu {
   });
   menu.attach(remove);
   menu.onTick = () => {
-    if (armed && --armed === 0) remove.setText('REMOVE SONGS');
+    if (armed && --armed === 0) remove.setText(tr('REMOVE SONGS'));
   };
-  menu.attach(new Button('DONE', 'Go back to the options.', false, false, menuDone));
+  menu.attach(new Button(tr('DONE'), tr('Go back to the options.'), false, false, menuDone));
   return menu;
 }

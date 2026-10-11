@@ -9,6 +9,7 @@ import { hasFighter, langGet } from '../resources/resources';
 import { globalRandom } from '../util/random';
 import { HarId, ORIGINAL_ARENAS, ORIGINAL_HAR_TYPES, PILOT_INFO, PILOT_SEX_FEMALE, PILOT_SEX_MALE, type PilotInfo } from './constants';
 import { workshopReady } from './workshop/registry';
+import { tr } from '../i18n/i18n';
 
 /** The remaster's new robots (their mod's): Plug trades them, custom tournaments put opponents on them. */
 export const EXTRA_HAR_IDS = [HarId.GLACIER, HarId.TEMPEST, HarId.HELIX, HarId.SPECTRE];
@@ -24,8 +25,9 @@ export function extraRobotsEnabled(): boolean {
  */
 export function specialNames(harId: number): Record<number, string> {
   const own = modRobot(harId)?.info.moves;
-  if (own && Object.keys(own).length) return own;
-  return genRobot(harId)?.specialNames ?? own ?? {};
+  const names = own && Object.keys(own).length ? own : genRobot(harId)?.specialNames ?? own ?? {};
+  // (in the game's language: the remaster's robots' are translated, a mod's stay as they are)
+  return Object.fromEntries(Object.entries(names).map(([k, v]) => [k, tr(v)]));
 }
 
 /** The mods' robots that can be picked. */
@@ -86,7 +88,7 @@ export function allowedArena(arena: number): number {
 /** Name of an arena (the original game's text for its own five). */
 export function arenaName(arena: number): string {
   if (arena < ORIGINAL_ARENAS) return langGet(56 + arena).replace(/\n$/, '');
-  return modArena(arena)?.info.name ?? '';
+  return tr(modArena(arena)?.info.name ?? '');
 }
 
 /**
@@ -95,13 +97,14 @@ export function arenaName(arena: number): string {
  */
 export function arenaNewsName(arena: number): string {
   if (arena < ORIGINAL_ARENAS) return arenaName(arena).replace(/^the /i, '');
-  return modArena(arena)?.info.newsName ?? arenaNewsName(0);
+  const a = modArena(arena);
+  return a ? tr(a.info.newsName) : arenaNewsName(0);
 }
 
 /** Description of an arena for the VS screen. */
 export function arenaDescription(arena: number): string {
   if (arena < ORIGINAL_ARENAS) return langGet(66 + arena).replace(/\n$/, '');
-  return modArena(arena)?.info.description ?? '';
+  return tr(modArena(arena)?.info.description ?? '');
 }
 
 /**

@@ -3,13 +3,14 @@ import { HAlign, TEXT_BRIGHT_GREEN, TEXT_MEDIUM_GREEN } from '../../gui/text';
 import { Filler, Label, Menu } from '../../gui/widgets';
 import { settings, type KeyBindings } from '../../settings';
 import { keyName } from './keyNames';
+import { tr, trKey } from '../../../i18n/i18n';
 
 /** Binding slots in the order of the custom keyboard menu (reference menu_get_key keynum 0..9). */
 export const KEY_ACTIONS: readonly (keyof KeyBindings)[] = [
   'jumpUp', 'jumpRight', 'walkRight', 'duckForward', 'duck', 'duckBack', 'walkBack', 'jumpLeft', 'punch', 'kick', 'special',
 ];
-const ACTION_NAMES = ['jump up', 'jump right', 'walk right', 'duck forward', 'duck', 'duck back', 'walk back', 'jump left', 'punch', 'kick',
-  'special'];
+const ACTION_NAMES = [trKey('jump up'), trKey('jump right'), trKey('walk right'), trKey('duck forward'), trKey('duck'), trKey('duck back'),
+  trKey('walk back'), trKey('jump left'), trKey('punch'), trKey('kick'), trKey('special')];
 
 const COLOR_WARNING = 0xf6;
 const WAIT_TICKS = 20;
@@ -29,7 +30,7 @@ export function isKeyBound(code: string): string | null {
   for (const player of [1, 2]) {
     const keys = playerKeys(player);
     for (let i = 0; i < KEY_ACTIONS.length; i++) {
-      if ((keys[KEY_ACTIONS[i]] ?? []).includes(code)) return `${keyName(code)} bound to P${player} ${ACTION_NAMES[i]}.`;
+      if ((keys[KEY_ACTIONS[i]] ?? []).includes(code)) return tr('{key} bound to P{player} {action}.', { key: keyName(code), player, action: tr(ACTION_NAMES[i]) });
     }
   }
   return null;
@@ -47,7 +48,7 @@ export class PresskeyMenu extends Menu {
    */
   constructor(readonly player: number, readonly slotIndex: number, private onKey: (code: string) => void) {
     super();
-    this.text = [Label.title('PRESS A KEY FOR'), Label.title('THIS ACTION ...'), Label.title('')];
+    this.text = [Label.title(tr('PRESS A KEY FOR')), Label.title(tr('THIS ACTION ...')), Label.title('')];
     for (const l of this.text) {
       l.overrideColor = TEXT_BRIGHT_GREEN;
       l.halign = HAlign.CENTER;

@@ -1,6 +1,7 @@
 // A small button in the main menu's bottom left corner, over the version label, that plays the remaster's credits (HTML
 // over the game, in the menus' look: the navy grid in its blue frame, green letters; gold on a blue bar when pointed at).
 import { ensureUiFont, UI_FONT } from './uiFont';
+import { tr } from '../i18n/i18n';
 
 let button: HTMLButtonElement | null = null;
 let shown = false;
@@ -40,7 +41,7 @@ export function showCreditsButton(visible: boolean): void {
     // (never focused: the game's keys stay the game's, and ENTER cannot press it again)
     button.tabIndex = -1;
     button.innerHTML = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 0.5 L9.5 5 L1 9.5 Z"/></svg>Play the credits';
-    button.title = "The remaster's credits, fought out to Hadal Static's Twenty Ninety-Seven (Remix)";
+    button.title = tr("The remaster's credits, fought out to Hadal Static's Twenty Ninety-Seven (Remix)");
     button.addEventListener('mousedown', (e) => e.preventDefault());
     button.addEventListener('click', () => {
       if (shown) onPlay();

@@ -8,6 +8,7 @@ import type { MainMenuScene } from '../mainmenu';
 import { menuDone, parentMenu } from './common';
 import { setupPlayerInput } from './menuMain';
 import { menuTrainingCreate } from './menuTraining';
+import { tr } from '../../../i18n/i18n';
 
 /** Starts an arcade, survival or time attack run: player 1 picks a pilot and a robot, then the fights begin. */
 function startRun(s: MainMenuScene, kind: RunKind): void {
@@ -25,18 +26,14 @@ function startRun(s: MainMenuScene, kind: RunKind): void {
 
 export function menuModesCreate(s: MainMenuScene): Menu {
   const menu = new Menu();
-  menu.attach(Label.title('MORE MODES'));
+  menu.attach(Label.title(tr('MORE MODES')));
   menu.attach(new Filler());
-  menu.attach(new Button('ARCADE', 'Eight fights against the computer, better and better, with Kreissack last. A lost fight is ' +
-    'fought again; your score and time are kept.', false, false, () => startRun(s, 'arcade')));
-  menu.attach(new Button('SURVIVAL', 'One round against one opponent after the other, with the health you have left (a ' +
-    'quarter comes back after each win). How many can you beat?', false, false, () => startRun(s, 'survival')));
-  menu.attach(new Button('TIME ATTACK', 'Five one round fights as fast as you can: the clock runs while you fight.', false, false,
+  menu.attach(new Button(tr('ARCADE'), tr('Eight fights against the computer, better and better, with Kreissack last. A lost fight is fought again; your score and time are kept.'), false, false, () => startRun(s, 'arcade')));
+  menu.attach(new Button(tr('SURVIVAL'), tr('One round against one opponent after the other, with the health you have left (a quarter comes back after each win). How many can you beat?'), false, false, () => startRun(s, 'survival')));
+  menu.attach(new Button(tr('TIME ATTACK'), tr('Five one round fights as fast as you can: the clock runs while you fight.'), false, false,
     () => startRun(s, 'timeattack')));
-  menu.attach(new Button('TRAINING', 'The training lab: practice moves and combos against a dummy, with frame data, ' +
-    'hitboxes and combo trials.', false, false, (b) => parentMenu(b).setSubmenu(menuTrainingCreate(s))));
-  menu.attach(new Button('MY TOURNAMENTS', 'Make your own tournaments from the installed ones, with the new robots if you ' +
-    'like, and play them from TOURNAMENT PLAY.', false, false, () => app.showTournaments()));
-  menu.attach(new Button('DONE', 'Go back to the main menu.', false, false, menuDone));
+  menu.attach(new Button(tr('TRAINING'), tr('The training lab: practice moves and combos against a dummy, with frame data, hitboxes and combo trials.'), false, false, (b) => parentMenu(b).setSubmenu(menuTrainingCreate(s))));
+  menu.attach(new Button(tr('MY TOURNAMENTS'), tr('Make your own tournaments from the installed ones, with the new robots if you like, and play them from TOURNAMENT PLAY.'), false, false, () => app.showTournaments()));
+  menu.attach(new Button(tr('DONE'), tr('Go back to the main menu.'), false, false, menuDone));
   return menu;
 }

@@ -13,6 +13,7 @@ import { createScoreboard, emptyScoreEntry, SCORE_ENTRIES, scoresClear, scoresRe
 import { scoreFormat } from '../score';
 import { Scene } from '../scene';
 import { settings } from '../settings';
+import { tr } from '../../i18n/i18n';
 
 const MAX_PAGES = ROUND_TYPE_NAMES.length - 1;
 const SCORE_COUNT = 20;
@@ -120,11 +121,11 @@ export class ScoreboardScene extends Scene {
   }
 
   private setTitle(): void {
-    this.title.set(`SCOREBOARD - ${ROUND_TYPE_NAMES[this.page]}`);
+    this.title.set(tr('SCOREBOARD - {rounds}', { rounds: tr(ROUND_TYPE_NAMES[this.page]) }));
   }
 
   private setSubtitle(): void {
-    this.subtitle.set(scoreRow('PLAYER NAME', 'ROBOT', 'PILOT', 'SCORE'));
+    this.subtitle.set(scoreRow(tr('PLAYER NAME'), tr('ROBOT'), tr('PILOT'), tr('SCORE')));
   }
 
   private setScores(): void {

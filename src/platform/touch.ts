@@ -3,6 +3,7 @@
 // mouse clicks), on touch screens once they are touched (OPTIONS > CONTROLS > TOUCH PAD: AUTO), always (ON) or never.
 // Player 1 plays with them: the keyboard controller reads touchPad() like a gamepad.
 import { setKeyState } from '../controller/input';
+import { tr } from '../i18n/i18n';
 
 export interface TouchPad {
   up: boolean;
@@ -101,7 +102,7 @@ export class TouchControls {
       background: 'rgba(20, 30, 50, 0.35)', border: '2px solid rgba(160, 200, 255, 0.4)', color: 'rgba(220, 235, 255, 0.8)',
       font: '700 18px/44px "Segoe UI", system-ui, sans-serif', textAlign: 'center', pointerEvents: 'auto', touchAction: 'none',
     }, this.root);
-    pause.textContent = 'II';
+    pause.textContent = tr('II');
     pause.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       setKeyState('Escape', true);

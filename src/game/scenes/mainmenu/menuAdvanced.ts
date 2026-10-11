@@ -4,13 +4,14 @@ import { Button, Filler, Label, Menu, TextSelector } from '../../gui/widgets';
 import { settings, type Settings } from '../../settings';
 import type { MainMenuScene } from '../mainmenu';
 import { lang, parentMenu, settingsChanged } from './common';
+import { tr, trKey } from '../../../i18n/i18n';
 
-const ON_OFF_OPTS = ['OFF', 'ON'];
+const ON_OFF_OPTS = [trKey('OFF'), trKey('ON')];
 const THROW_RANGES = ['0%', '20%', '40%', '60%', '80%', '100%', '120%', '140%', '160%', '180%', '200%', '220%', '240%', '260%', '280%', '300%'];
 const JUMP_HEIGHTS = ['80%', '85%', '90%', '95%', '100%', '105%', '110%', '115%', '120%', '125%', '130%'];
 const HIT_PAUSES = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
 const VITALITIES = ['80%', '100%', '120%', '140%', '160%', '180%', '200%', '220%', '240%', '260%', '280%', '300%', '320%', '340%', '360%', '380%', '400%'];
-const KNOCK_DOWNS = ['NONE', 'KICKS', 'PUNCHES', 'BOTH'];
+const KNOCK_DOWNS = [trKey('NONE'), trKey('KICKS'), trKey('PUNCHES'), trKey('BOTH')];
 const BLOCK_DAMAGES = ['0%', '5%', '10%', '15%', '20%', '25%', '30%', '35%'];
 
 function clamp(v: number, lo: number, hi: number): number {
@@ -31,24 +32,24 @@ export function menuAdvancedCreate(_s: MainMenuScene): Menu {
     blockDamage: clamp(Math.trunc(advanced().blockDamage / 5), 0, 7),
   };
   const onOff = (title: string, help: string, key: 'rehitMode' | 'defensiveThrows') =>
-    new TextSelector(title, help, () => (advanced()[key] ? 1 : 0), (pos) => (advanced()[key] = pos === 1), ON_OFF_OPTS, settingsChanged);
+    new TextSelector(title, help, () => (advanced()[key] ? 1 : 0), (pos) => (advanced()[key] = pos === 1), ON_OFF_OPTS.map((o) => tr(o)), settingsChanged);
   const localOpt = (title: string, help: string, key: keyof typeof local, opts: string[]) =>
     new TextSelector(title, help, () => local[key], (pos) => (local[key] = pos), opts);
 
-  menu.attach(Label.title('ADVANCED'));
+  menu.attach(Label.title(tr('ADVANCED')));
   menu.attach(new Filler());
-  menu.attach(onOff('REHIT MODE', lang(276), 'rehitMode'));
+  menu.attach(onOff(tr('REHIT MODE'), lang(276), 'rehitMode'));
   // The reference disables DEF. THROWS, KNOCK DOWN and BLOCK DAMAGE (its fight engine never implemented them); this
   // version implements them after the original game's descriptions (see har.ts).
-  menu.attach(onOff('DEF. THROWS', lang(277), 'defensiveThrows'));
-  menu.attach(localOpt('THROW RANGE', lang(278), 'throwRange', THROW_RANGES));
-  menu.attach(localOpt('JUMP HEIGHT', lang(279), 'jumpHeight', JUMP_HEIGHTS));
-  menu.attach(new TextSelector('HIT PAUSE', lang(280), () => advanced().hitPause, (pos) => (advanced().hitPause = pos), HIT_PAUSES, settingsChanged));
-  menu.attach(localOpt('VITALITY x', lang(281), 'vitality', VITALITIES));
-  menu.attach(new TextSelector('KNOCK DOWN', lang(282), () => advanced().knockDown, (pos) => (advanced().knockDown = pos as KnockDownMode),
-    KNOCK_DOWNS, settingsChanged));
-  menu.attach(localOpt('BLOCK DAMAGE', lang(283), 'blockDamage', BLOCK_DAMAGES));
-  menu.attach(new Button('DONE', 'Go back to the gameplay menu.', false, false, (b) => {
+  menu.attach(onOff(tr('DEF. THROWS'), lang(277), 'defensiveThrows'));
+  menu.attach(localOpt(tr('THROW RANGE'), lang(278), 'throwRange', THROW_RANGES));
+  menu.attach(localOpt(tr('JUMP HEIGHT'), lang(279), 'jumpHeight', JUMP_HEIGHTS));
+  menu.attach(new TextSelector(tr('HIT PAUSE'), lang(280), () => advanced().hitPause, (pos) => (advanced().hitPause = pos), HIT_PAUSES, settingsChanged));
+  menu.attach(localOpt(tr('VITALITY x'), lang(281), 'vitality', VITALITIES));
+  menu.attach(new TextSelector(tr('KNOCK DOWN'), lang(282), () => advanced().knockDown, (pos) => (advanced().knockDown = pos as KnockDownMode),
+    KNOCK_DOWNS.map((o) => tr(o)), settingsChanged));
+  menu.attach(localOpt(tr('BLOCK DAMAGE'), lang(283), 'blockDamage', BLOCK_DAMAGES));
+  menu.attach(new Button(tr('DONE'), tr('Go back to the gameplay menu.'), false, false, (b) => {
     // menu_advanced_done()
     const a = advanced();
     a.throwRange = local.throwRange * 20;

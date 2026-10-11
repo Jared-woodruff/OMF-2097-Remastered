@@ -15,8 +15,11 @@ import { helpOverlayOpen } from '../gui/helpOverlay';
 import { menuMainCreate } from './mainmenu/menuMain';
 import { menuExtrasCreate } from './mainmenu/menuExtras';
 import { menuModesCreate } from './mainmenu/menuModes';
+import { menuMultiplayerCreate } from './mainmenu/menuMultiplayer';
 import { PresskeyMenu } from './mainmenu/menuPresskey';
 import { randomArena } from '../roster';
+import { onLanguageChange, tr } from '../../i18n/i18n';
+import { menuOptionsCreate } from './mainmenu/menuOptions';
 
 /** keyboard_binds_key(): whether a key is one of the keyboard controller's bindings. */
 function keyboardBindsKey(ctrl: KeyboardController, code: string): boolean {
@@ -33,6 +36,7 @@ export class MainMenuScene extends Scene {
   swallowKey: string | null = null;
   private lastKeyEvent: KeyboardEvent | null = null;
   private unsubscribeKeys: () => void;
+  private unsubscribeLanguage: () => void;
 
   constructor(gs: GameState) {
     super(gs, SceneId.MENU);
@@ -63,14 +67,15 @@ export class MainMenuScene extends Scene {
     const root = menuMainCreate(this);
     this.frame.setRoot(root);
     this.frame.layout();
-    // Back from a screen of EXTRAS (a replay, the credits, a workshop robot tried out) or from a run or training of
-    // MORE MODES: that menu is open again.
+    // Back from a screen of EXTRAS (a replay, the credits, a workshop robot tried out), from a run or training of
+    // MORE MODES, or from a game of MULTIPLAYER: that menu is open again.
     if (gs.menuReturn) {
-      const title = gs.menuReturn === 'extras' ? 'EXTRAS' : 'MORE MODES';
+      const back = gs.menuReturn;
+      const title = back === 'extras' ? tr('EXTRAS') : back === 'modes' ? tr('MORE MODES') : tr('MULTIPLAYER');
       const entry = root.items.find((c) => c instanceof Button && c.text.str === title);
       if (entry) {
         root.select(entry);
-        root.setSubmenu(gs.menuReturn === 'extras' ? menuExtrasCreate(this) : menuModesCreate(this));
+        root.setSubmenu(back === 'extras' ? menuExtrasCreate(this) : back === 'modes' ? menuModesCreate(this) : menuMultiplayerCreate(this));
       }
     }
     gs.menuReturn = null;
@@ -91,6 +96,24 @@ export class MainMenuScene extends Scene {
     this.unsubscribeKeys = onKey((code, e) => {
       if (this.gs.sc === this && !helpOverlayOpen()) this.keyEvent(code, e);
     });
+    // A new language: the menus again in it, OPTIONS open where LANGUAGE was chosen.
+    this.unsubscribeLanguage = onLanguageChange(() => this.rebuildMenus());
+  }
+
+  /** Makes the menus again (in the language spoken now), with OPTIONS open. */
+  private rebuildMenus(): void {
+    this.frame.free();
+    this.frame = new GuiFrame(mainMenuTheme(), 165, 5, 151, 119);
+    const root = menuMainCreate(this);
+    this.frame.setRoot(root);
+    this.frame.layout();
+    const options = root.items.find((c) => c instanceof Button && c.text.str === tr('OPTIONS'));
+    if (!options) return;
+    root.select(options);
+    const sub = menuOptionsCreate(this);
+    root.setSubmenu(sub);
+    const language = sub.items.find((c) => c instanceof Button && c.text.str === tr('LANGUAGE'));
+    if (language) sub.select(language);
   }
 
   /** The main page shows (no submenu open over it). */
@@ -152,6 +175,7 @@ export class MainMenuScene extends Scene {
   /** mainmenu_free() */
   override free(): void {
     this.unsubscribeKeys();
+    this.unsubscribeLanguage();
     this.frame.free();
     saveSettings();
   }

@@ -22,6 +22,7 @@ import type { ChrFile } from '../../tournament/chr';
 import type { MechlabScene } from '../mechlab';
 import { MECHLAB_BRIGHT_GREEN, MECHLAB_DARK_GREEN, tournamentAiDifficulty } from './common';
 import { MAX_ARM_POWER, MAX_ARM_SPEED, MAX_ARMOR, MAX_LEG_POWER, MAX_LEG_SPEED, MAX_STUN_RES } from './harEconomy';
+import { tr } from '../../../i18n/i18n';
 
 /** Components of the current dashboard, for easy access (dashboard_widgets). */
 export interface DashboardWidgets {
@@ -199,7 +200,7 @@ function labDashSimUpdatePortraits(dw: DashboardWidgets): void {
   for (let i = start, j = 0; j < 5 && i <= totalCharacters; i++) {
     if (i < 1) continue;
     if (i === dw.simRank) dw.photoHighlight!.setPosHints(6 + j * 60, -1);
-    dw.ranks[j].setText(`Rank\n${i}`);
+    dw.ranks[j].setText(tr('Rank\n{rank}', { rank: i }));
     if (i === pilot.rank) {
       dw.photo[j].setFromSprite(pilot.photo);
       j++;
@@ -331,15 +332,15 @@ export function labDashMainCreate(s: MechlabScene, dw: DashboardWidgets): XYSize
   xy.attachAt(dw.photo[0], 12, -1, -1, -1);
 
   // Texts
-  dw.name = smallLabel('NO NAME', MECHLAB_BRIGHT_GREEN);
-  dw.rank = smallLabel('RANK: 0', MECHLAB_DARK_GREEN);
-  dw.wins = smallLabel('WINS: 0', MECHLAB_DARK_GREEN);
-  dw.losses = smallLabel('LOSES: 0', MECHLAB_DARK_GREEN);
-  dw.money = smallLabel('MONEY: $ 0K', MECHLAB_DARK_GREEN);
-  dw.tournament = smallLabel('NO TOURNAMENT', MECHLAB_BRIGHT_GREEN);
-  dw.harName = smallLabel('HAR NAME', MECHLAB_BRIGHT_GREEN);
+  dw.name = smallLabel(tr('NO NAME'), MECHLAB_BRIGHT_GREEN);
+  dw.rank = smallLabel(tr('RANK: 0'), MECHLAB_DARK_GREEN);
+  dw.wins = smallLabel(tr('WINS: 0'), MECHLAB_DARK_GREEN);
+  dw.losses = smallLabel(tr('LOSES: 0'), MECHLAB_DARK_GREEN);
+  dw.money = smallLabel(tr('MONEY: $ 0K'), MECHLAB_DARK_GREEN);
+  dw.tournament = smallLabel(tr('NO TOURNAMENT'), MECHLAB_BRIGHT_GREEN);
+  dw.harName = smallLabel(tr('HAR NAME'), MECHLAB_BRIGHT_GREEN);
   dw.harName.halign = HAlign.CENTER;
-  dw.harMoves = smallLabel('HAR MOVES', MECHLAB_BRIGHT_GREEN);
+  dw.harMoves = smallLabel(tr('HAR MOVES'), MECHLAB_BRIGHT_GREEN);
   dw.harMoves.halign = HAlign.CENTER;
 
   xy.attachAt(dw.name, 12, 58, 200, 6);
@@ -384,7 +385,7 @@ export function labDashSimCreate(s: MechlabScene, dw: DashboardWidgets): XYSizer
   for (let i = 0; i < 5; i++) {
     dw.photo[i] = new Portrait(0);
     xy.attachAt(dw.photo[i], 6 + i * 60, -1, -1, -1);
-    const rank = smallLabel('NO RANK', TEXT_MEDIUM_GREEN);
+    const rank = smallLabel(tr('NO RANK'), TEXT_MEDIUM_GREEN);
     rank.halign = HAlign.CENTER;
     dw.ranks[i] = rank;
     xy.attachAt(rank, 6 + i * 60, 58, 50, -1);
@@ -393,10 +394,10 @@ export function labDashSimCreate(s: MechlabScene, dw: DashboardWidgets): XYSizer
   labDashSimUpdatePortraits(dw);
 
   // Texts
-  dw.name = smallLabel('NAME: NO NAME', TEXT_DARK_GREEN);
-  dw.harName = smallLabel('MODEL: NO MODEL', TEXT_DARK_GREEN);
-  dw.wins = smallLabel('WINS: 0', TEXT_DARK_GREEN);
-  dw.losses = smallLabel('LOSES: 0', TEXT_DARK_GREEN);
+  dw.name = smallLabel(tr('NAME: NO NAME'), TEXT_DARK_GREEN);
+  dw.harName = smallLabel(tr('MODEL: NO MODEL'), TEXT_DARK_GREEN);
+  dw.wins = smallLabel(tr('WINS: 0'), TEXT_DARK_GREEN);
+  dw.losses = smallLabel(tr('LOSES: 0'), TEXT_DARK_GREEN);
 
   xy.attachAt(dw.name, 18, 70, 200, 6);
   xy.attachAt(dw.harName, 12, 76, 200, 6);
@@ -410,21 +411,21 @@ export function labDashSimCreate(s: MechlabScene, dw: DashboardWidgets): XYSizer
 function harMovesText(harId: number): string {
   if (harId < ORIGINAL_HAR_TYPES) return langGet(492 + harId);
   // (in the originals' style: "Ice Lance")
-  const names = Object.values(specialNames(harId)).map((n) => n.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()));
-  return `SPECIAL MOVES:\n\n${names.join('\n\n')}`;
+  const names = Object.values(specialNames(harId)).map((n) => n.toLowerCase().replace(/(^|[^\p{L}\p{M}'])(\p{L})/gu, (_, before: string, c: string) => before + c.toUpperCase()));
+  return tr('SPECIAL MOVES:\n\n{names}', { names: names.join('\n\n') });
 }
 
 /** lab_dash_main_create_gauges(): pilot stats (small gauges) and HAR upgrades (big gauges, sized per HAR). */
 export function labDashMainCreateGauges(xy: XYSizer, dw: DashboardWidgets, pilot: Pilot): XYSizer {
-  const power = smallLabel('POWER', MECHLAB_DARK_GREEN);
-  const agility = smallLabel('AGILITY', MECHLAB_DARK_GREEN);
-  const endurance = smallLabel('ENDURANCE', MECHLAB_DARK_GREEN);
-  const armPower = smallLabel('ARM POWER', MECHLAB_DARK_GREEN);
-  const legPower = smallLabel('LEG POWER', MECHLAB_DARK_GREEN);
-  const armor = smallLabel('ARMOR', MECHLAB_DARK_GREEN);
-  const armSpeed = smallLabel('ARM SPEED', MECHLAB_DARK_GREEN);
-  const legSpeed = smallLabel('LEG SPEED', MECHLAB_DARK_GREEN);
-  const stunRes = smallLabel('STUN RES', MECHLAB_DARK_GREEN);
+  const power = smallLabel(tr('POWER'), MECHLAB_DARK_GREEN);
+  const agility = smallLabel(tr('AGILITY'), MECHLAB_DARK_GREEN);
+  const endurance = smallLabel(tr('ENDURANCE'), MECHLAB_DARK_GREEN);
+  const armPower = smallLabel(tr('ARM POWER'), MECHLAB_DARK_GREEN);
+  const legPower = smallLabel(tr('LEG POWER'), MECHLAB_DARK_GREEN);
+  const armor = smallLabel(tr('ARMOR'), MECHLAB_DARK_GREEN);
+  const armSpeed = smallLabel(tr('ARM SPEED'), MECHLAB_DARK_GREEN);
+  const legSpeed = smallLabel(tr('LEG SPEED'), MECHLAB_DARK_GREEN);
+  const stunRes = smallLabel(tr('STUN RES'), MECHLAB_DARK_GREEN);
   const har = pilot.harId;
 
   // Bars and texts (bottom left side)
@@ -468,10 +469,10 @@ export function labDashMainUpdate(s: MechlabScene, dw: DashboardWidgets): void {
   // P1 is always the one being edited in tournament dashboard
   const pilot = s.gs.getPlayer(0).pilot;
 
-  dw.rank!.setText(pilot.rank === 0 ? 'RANK: NO RANK' : `RANK: ${pilot.rank}`);
-  dw.wins!.setText(`WINS: ${pilot.wins}`);
-  dw.losses!.setText(`LOSES: ${pilot.losses}`);
-  dw.money!.setText(`MONEY: $ ${scoreFormat(pilot.money)}K`);
+  dw.rank!.setText(pilot.rank === 0 ? tr('RANK: NO RANK') : tr('RANK: {rank}', { rank: pilot.rank }));
+  dw.wins!.setText(tr('WINS: {wins}', { wins: pilot.wins }));
+  dw.losses!.setText(tr('LOSES: {losses}', { losses: pilot.losses }));
+  dw.money!.setText(tr('MONEY: $ {money}K', { money: scoreFormat(pilot.money) }));
 
   dw.harName!.setText(harName(pilot.harId));
   dw.harMoves!.setText(harMovesText(pilot.harId));
@@ -495,10 +496,10 @@ export function labDashMainUpdate(s: MechlabScene, dw: DashboardWidgets): void {
 
 /** lab_dash_sim_update(): shows an opponent on the SIM dashboard. */
 export function labDashSimUpdate(_s: MechlabScene, dw: DashboardWidgets, pilot: Pilot): void {
-  dw.wins!.setText(`WINS: ${pilot.wins}`);
-  dw.losses!.setText(`LOSES: ${pilot.losses}`);
-  dw.harName!.setText(`MODEL: ${harName(pilot.harId)}`.slice(0, 63));
-  dw.name!.setText(`NAME: ${pilot.name}`.slice(0, 63));
+  dw.wins!.setText(tr('WINS: {wins}', { wins: pilot.wins }));
+  dw.losses!.setText(tr('LOSES: {losses}', { losses: pilot.losses }));
+  dw.harName!.setText(tr('MODEL: {robot}', { robot: harName(pilot.harId) }).slice(0, 63));
+  dw.name!.setText(tr('NAME: {name}', { name: pilot.name }).slice(0, 63));
 
   labDashSimUpdatePortraits(dw);
 

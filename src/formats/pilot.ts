@@ -1,3 +1,4 @@
+import { cp437ToUnicode, unicodeToCp437 } from '../i18n/cp437';
 import { BinaryReader, BinaryWriter, xorDecode } from '../util/reader';
 import { Palette } from './palette';
 import type { Sprite } from './sprite';
@@ -108,7 +109,7 @@ export class Pilot {
 
   /** The 68-byte "player" portion shared by CHR enemy records. */
   loadPlayer(r: BinaryReader): void {
-    this.name = r.fixedStr(18);
+    this.name = cp437ToUnicode(r.fixedStr(18));
     this.wins = r.u16();
     this.losses = r.u16();
     this.rank = r.u8();
@@ -137,7 +138,7 @@ export class Pilot {
   }
 
   savePlayer(w: BinaryWriter): void {
-    w.fixedStr(this.name, 18);
+    w.fixedStr(unicodeToCp437(this.name), 18);
     w.u16(this.wins);
     w.u16(this.losses);
     w.u8(this.rank);
@@ -160,7 +161,7 @@ export class Pilot {
     this.unknownA = r.u32();
     this.loadPlayer(r);
     this.trnName = r.fixedStr(13);
-    this.trnDesc = r.fixedStr(31);
+    this.trnDesc = cp437ToUnicode(r.fixedStr(31));
     this.trnImage = r.fixedStr(13);
     this.trnRankMoney = r.f32();
     this.trnWinningsMult = r.f32();
@@ -233,7 +234,7 @@ export class Pilot {
     w.u32(this.unknownA);
     this.savePlayer(w);
     w.fixedStr(this.trnName, 13);
-    w.fixedStr(this.trnDesc, 31);
+    w.fixedStr(unicodeToCp437(this.trnDesc), 31);
     w.fixedStr(this.trnImage, 13);
     w.f32(this.trnRankMoney);
     w.f32(this.trnWinningsMult);
@@ -287,7 +288,7 @@ export class Pilot {
     const p = new Pilot();
     const block = xorDecode(r.bytes(PILOT_BLOCK_LENGTH), PILOT_BLOCK_LENGTH & 0xff);
     p.loadFull(new BinaryReader(block));
-    for (let m = 0; m < PILOT_QUOTE_COUNT; m++) p.quotes[m] = r.paddedStr();
+    for (let m = 0; m < PILOT_QUOTE_COUNT; m++) p.quotes[m] = cp437ToUnicode(r.paddedStr());
     return p;
   }
 
@@ -298,6 +299,6 @@ export class Pilot {
     const block = new Uint8Array(PILOT_BLOCK_LENGTH);
     block.set(pw.toBytes().subarray(0, PILOT_BLOCK_LENGTH));
     w.bytes(xorDecode(block, PILOT_BLOCK_LENGTH & 0xff));
-    for (let m = 0; m < PILOT_QUOTE_COUNT; m++) w.paddedStr(this.quotes[m] ?? '');
+    for (let m = 0; m < PILOT_QUOTE_COUNT; m++) w.paddedStr(unicodeToCp437(this.quotes[m] ?? ''));
   }
 }

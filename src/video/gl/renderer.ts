@@ -10,7 +10,7 @@ import { hdAssets, type HdImage } from '../hd/assets';
 import { HD_ASSET_FS, HD_ASSET_VS, HD_BGART_FS } from '../hd/artShaders';
 import { HUD_BAR_FS, HUD_BAR_VS } from '../hd/hudShaders';
 import { IndexAtlas, type AtlasRect } from './atlas';
-import { GLYPH_MARGIN, GLYPH_RANGE, GLYPH_TEXELS, type GlyphAtlas } from '../hd/typeface';
+import { distanceFieldOf, GLYPH_MARGIN, GLYPH_RANGE, GLYPH_TEXELS, type GlyphAtlas } from '../hd/typeface';
 import { createTexture, FULLSCREEN_VS, Program, RenderTarget } from './glutil';
 import type { Backdrop } from '../stage/backdrop';
 import { arenaGeometry, type ArenaGeometry } from '../hd/geometry';
@@ -33,6 +33,19 @@ const VERTEX_BYTES = 32;
 /** HD artwork quads: pos, HD uv, native uv (floats), 4 x ivec4 (shorts), drawn page rect (4 floats, texels). */
 const HD_VERTEX_BYTES = 72;
 const MAX_HD_QUADS = 2048;
+/** Atlas texels per native pixel of the letters of the system's fonts (distance fields, see dynGlyphTile). */
+const DYN_GLYPH_TEXELS = 8;
+
+interface DynGlyphAtlas {
+  tex: WebGLTexture;
+  size: number;
+  /** Tile origins by surface id. */
+  tiles: Map<number, [number, number]>;
+  failed: Set<number>;
+  shelves: { y: number; h: number; x: number }[];
+  bottom: number;
+}
+
 /** Width/height ratio of one native pixel when the 320x200 image is shown at 4:3. */
 const PIXEL_ASPECT = (4 / 320) / (3 / 200);
 
@@ -153,6 +166,13 @@ export class GLRenderer {
   private quadCmd: (DrawCmd | null)[] = new Array(MAX_QUADS).fill(null);
   private indexedTarget: RenderTarget | null = null;
   private resolvedTarget: RenderTarget | null = null;
+  /**
+   * Classic: the indexed framebuffer's pixels per native pixel. More than 1 while letters of the system's fonts are on
+   * screen (Surface.hires: Chinese, Arabic...), which are drawn at that resolution; the rest is the same picture.
+   */
+  private classicScale = 1;
+  /** Letters of the system's fonts as distance fields (remastered; Surface.hires), made as they are first drawn. */
+  private dynGlyphs: DynGlyphAtlas | null = null;
   private hdTarget: RenderTarget | null = null;
   private bloomA: RenderTarget | null = null;
   private bloomB: RenderTarget | null = null;
@@ -429,6 +449,62 @@ export class GLRenderer {
     this.glyphs = { tex, w: atlas.w, h: atlas.h, tiles: atlas.tiles, halftone: atlas.halftone };
   }
 
+  /**
+   * The atlas tile of a letter of the system's fonts (its distance field: made, and stored, the first time it is drawn),
+   * or null when it cannot be made.
+   */
+  private dynGlyphTile(surf: Surface): [number, number] | null {
+    const gl = this.gl;
+    let a = this.dynGlyphs;
+    if (!a) {
+      const size = Math.min(4096, gl.getParameter(gl.MAX_TEXTURE_SIZE) as number);
+      const tex = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texStorage2D(gl.TEXTURE_2D, 1, gl.R8, size, size);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      a = this.dynGlyphs = { tex, size, tiles: new Map(), failed: new Set(), shelves: [], bottom: 0 };
+    }
+    const have = a.tiles.get(surf.id);
+    if (have) return have;
+    if (a.failed.has(surf.id)) return null;
+    const cov = surf.hires!.coverage(DYN_GLYPH_TEXELS, GLYPH_MARGIN);
+    if (!cov || cov.w > a.size || cov.h > a.size) {
+      a.failed.add(surf.id);
+      return null;
+    }
+    // Shelf packing; when the atlas is full it starts over (the letters on screen are made again as they are drawn).
+    const place = (): [number, number] | null => {
+      for (const sh of a.shelves) {
+        if (cov.h <= sh.h && cov.h * 4 >= sh.h * 3 && sh.x + cov.w <= a.size) {
+          sh.x += cov.w;
+          return [sh.x - cov.w, sh.y];
+        }
+      }
+      if (a.bottom + cov.h > a.size) return null;
+      a.shelves.push({ y: a.bottom, h: cov.h, x: cov.w });
+      a.bottom += cov.h;
+      return [0, a.bottom - cov.h];
+    };
+    let at = place();
+    if (!at) {
+      a.tiles.clear();
+      a.shelves = [];
+      a.bottom = 0;
+      at = place();
+      if (!at) return null;
+    }
+    const sdf = distanceFieldOf(cov.data, cov.w, cov.h, DYN_GLYPH_TEXELS);
+    gl.bindTexture(gl.TEXTURE_2D, a.tex);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, at[0], at[1], cov.w, cov.h, gl.RED, gl.UNSIGNED_BYTE, sdf);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+    a.tiles.set(surf.id, at);
+    return at;
+  }
+
   /** Whether this frame goes through the remastered path. */
   private get remastered(): boolean {
     return this.options.mode === 'remastered' && this.hdError === null;
@@ -576,10 +652,11 @@ export class GLRenderer {
   // ---------------------------------------------------------------------------------
   // Classic path
 
-  private ensureClassicTargets(logicalW: number): void {
+  private ensureClassicTargets(logicalW: number, scale = 1): void {
     const gl = this.gl;
-    const w = logicalW;
-    const h = NATIVE_H;
+    const w = logicalW * scale;
+    const h = NATIVE_H * scale;
+    this.classicScale = scale;
     if (this.indexedTarget && this.indexedTarget.w === w && this.indexedTarget.h === h) return;
     this.indexedTarget?.dispose();
     this.resolvedTarget?.dispose();
@@ -622,8 +699,10 @@ export class GLRenderer {
     const vp = this.viewport();
     // Only fights are extended; other screens are pillarboxed in classic mode.
     const ext = drawList.wideStyle === WIDE_AMBIENT ? 0 : Math.round(vp.ext);
-    this.ensureClassicTargets(NATIVE_W + ext * 2);
     const count = drawList.count;
+    let scale = 1;
+    for (let i = 0; i < count; i++) scale = Math.max(scale, drawList.cmds[i].surf.hires?.scale ?? 1);
+    this.ensureClassicTargets(NATIVE_W + ext * 2, scale);
     // With widescreen, the scene background is replaced by its extended (mirrored) version.
     let extBg: Surface | null = null;
     let bgIndex = -1;
@@ -673,6 +752,7 @@ export class GLRenderer {
     this.bindTex(0, rt.textures[0], pp, 'u_image');
     pp.f4('u_srcRect', 0, 0, 1, 1);
     pp.f2('u_texSize', rt.w, rt.h);
+    pp.f('u_scanScale', this.classicScale);
     pp.f2('u_pixelScale', vw / rt.w, vp.h / rt.h);
     pp.i('u_mode', this.options.scaleMode === 'crt' ? 2 : this.options.scaleMode === 'smooth' ? 1 : 0);
     gl.bindVertexArray(this.emptyVao);
@@ -691,8 +771,8 @@ export class GLRenderer {
     if (quads <= 0) return;
     const sp = this.spriteProg;
     sp.use();
-    sp.f2('u_fbSize', it.w, it.h);
-    sp.f('u_ditherScale', 1);
+    sp.f2('u_fbSize', it.w / this.classicScale, it.h / this.classicScale);
+    sp.f('u_ditherScale', this.classicScale);
     sp.i('u_hd', 0);
     this.bindTex(0, this.atlas.tex, sp, 'u_atlas');
     this.bindTex(1, this.remapTex, sp, 'u_remaps');
@@ -1003,6 +1083,10 @@ export class GLRenderer {
     p.f2('u_glyphSdfSize', g?.w ?? 1, g?.h ?? 1);
     p.f('u_glyphTexels', GLYPH_TEXELS);
     p.f('u_glyphRange', GLYPH_RANGE);
+    const dyn = this.dynGlyphs;
+    this.bindTex(5, dyn?.tex ?? this.fxPasses.black, p, 'u_glyphDyn');
+    p.f2('u_glyphDynSize', dyn?.size ?? 1, dyn?.size ?? 1);
+    p.f('u_glyphDynTexels', DYN_GLYPH_TEXELS);
     // The credits (FBUFOPT_CREDITS): index-adding sprites brighten the background's colors (see HD_SPRITE_FS).
     const bg = this.addBgRect;
     p.f4('u_addBg', bg?.x ?? 0, bg?.y ?? 0, bg?.w ?? 0, bg ? bg.h : 0);
@@ -1165,9 +1249,15 @@ export class GLRenderer {
         const options = font ? c.options | 0x100 : c.options;
         // Clean HD letters are drawn with a margin of two pixels for their halo (the atlas border is transparent).
         const plain = font && c.mode === BlendMode.SET && c.w === r.w && c.h === r.h;
-        const text = hdText && plain;
+        // A letter of the system's fonts: its distance field (flags 0x200 | 0x800).
+        const dyn = font && c.mode === BlendMode.SET && c.surf.hires ? this.dynGlyphTile(c.surf) : null;
+        const text = hdText && (plain || dyn !== null);
         const tile = glyphs && plain ? glyphs.tiles.get(c.surf.source!.key) : undefined;
-        if (tile) {
+        if (dyn) {
+          const m = GLYPH_MARGIN, k = DYN_GLYPH_TEXELS;
+          this.writeQuad(nx, c.fx - m, c.fy - m, c.w + 2 * m, c.h + 2 * m, { x: dyn[0], y: dyn[1], w: (c.w + 2 * m) * k, h: (c.h + 2 * m) * k },
+            0, c.surf.transparent, c.remapOffset, c.remapRounds, c.palOffset, c.palLimit, c.opacity, options | 0x200 | 0x800, c.mode);
+        } else if (tile) {
           // The remastered typeface: the glyph's distance field over its cell and margin (flag 0x200, uv in its texels;
           // 0x400: at half strength).
           const m = GLYPH_MARGIN, k = GLYPH_TEXELS;

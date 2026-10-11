@@ -1,7 +1,9 @@
+import { cp437ToUnicode } from '../i18n/cp437';
 import { BinaryReader } from '../util/reader';
 import { Palette } from './palette';
 import { Pilot } from './pilot';
 import { Sprite } from './sprite';
+import { trnText } from '../i18n/i18n';
 
 export const MAX_TRN_LOCALES = 10;
 export const MAX_TRN_ENDING_HARS = 11;
@@ -66,6 +68,25 @@ function parseDescription(loc: TournamentLocale): void {
   loc.descColor = color;
 }
 
+/**
+ * A tournament's texts in the game's language (i18n trnText): its German locale in German, else its English one with
+ * the translations of its description and endings.
+ */
+export function localizedLocale(trn: TournamentFile): TournamentLocale | undefined {
+  const en = trn.locales[0];
+  if (!en) return en;
+  const de = trn.locales[1];
+  const text = (s: string, german: string | undefined) => trnText(s, german);
+  const loc: TournamentLocale = {
+    ...en,
+    title: text(en.title, de?.title),
+    description: text(en.description, de?.description),
+    endTexts: en.endTexts.map((pages, har) => pages.map((p, i) => (p ? text(p, de?.endTexts[har]?.[i]) : p))),
+  };
+  parseDescription(loc);
+  return loc;
+}
+
 export function parseTournament(data: Uint8Array, filename: string): TournamentFile {
   const r = new BinaryReader(data);
   if (data.length < 1582) throw new Error('TRN: file too small');
@@ -115,15 +136,15 @@ export function parseTournament(data: Uint8Array, filename: string): TournamentF
   const picLen = r.u16();
   trn.picFile = picLen > 0 ? r.fixedStr(picLen) : '';
   for (const loc of trn.locales) {
-    loc.title = r.paddedStr();
-    loc.description = r.paddedStr();
+    loc.title = cp437ToUnicode(r.paddedStr());
+    loc.description = cp437ToUnicode(r.paddedStr());
     parseDescription(loc);
   }
   if (r.pos !== victoryTextOffset) throw new Error('TRN: victory text offset mismatch');
   for (const loc of trn.locales) {
     for (let har = 0; har < MAX_TRN_ENDING_HARS; har++) {
       const pages: string[] = [];
-      for (let page = 0; page < MAX_TRN_ENDING_PAGES; page++) pages.push(r.paddedStr());
+      for (let page = 0; page < MAX_TRN_ENDING_PAGES; page++) pages.push(cp437ToUnicode(r.paddedStr()));
       loc.endTexts.push(pages);
     }
   }

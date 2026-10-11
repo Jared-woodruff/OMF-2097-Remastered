@@ -11,6 +11,7 @@ import { settings } from '../settings';
 import { SPECIAL_SLOTS } from '../../controller/special';
 import { FontSize, GLYPH_SHADOW_BOTTOM, GLYPH_SHADOW_RIGHT, Text } from './text';
 import { Component, Label, Menu, playMenuSound } from './widgets';
+import { tr, trKey } from '../../i18n/i18n';
 
 export interface MoveListEntry {
   /** What is shown: the move's name, or its kind. */
@@ -26,11 +27,11 @@ export interface MoveListEntry {
 }
 
 const KINDS: [number[], string][] = [
-  [[CAT_CLOSE], 'THROW'],
-  [[CAT_LOW, CAT_MEDIUM, CAT_HIGH], 'SPECIAL'],
-  [[CAT_JUMPING], 'AIR'],
-  [[CAT_SCRAP], 'SCRAP'],
-  [[CAT_DESTRUCTION], 'DESTRUCT'],
+  [[CAT_CLOSE], trKey('THROW')],
+  [[CAT_LOW, CAT_MEDIUM, CAT_HIGH], trKey('SPECIAL')],
+  [[CAT_JUMPING], trKey('AIR')],
+  [[CAT_SCRAP], trKey('SCRAP')],
+  [[CAT_DESTRUCTION], trKey('DESTRUCT')],
 ];
 
 /** Plain attacks (a button, possibly with one direction): only listed when they are throws. */
@@ -88,12 +89,11 @@ class MoveListView extends Component {
 
   constructor(private onSwitch: () => void, private onDone: () => void) {
     super();
-    this.setHelp('Directions as if facing right: enter them in order, then punch (P) or kick (K); a dot means releasing ' +
-      'the direction. S: the special button does it in one press. Left or right shows the other robot.');
+    this.setHelp(tr('Directions as if facing right: enter them in order, then punch (P) or kick (K); a dot means releasing the direction. S: the special button does it in one press. Left or right shows the other robot.'));
   }
 
   private label(e: MoveListEntry): Text {
-    return this.text(this.labels, e.label, FontSize.SMALL, KIND_COLORS[e.kind] ?? 0xe6);
+    return this.text(this.labels, tr(e.label), FontSize.SMALL, KIND_COLORS[e.kind] ?? 0xe6);
   }
 
   private text(map: Map<string, Text>, s: string, font: FontSize, color: number): Text {

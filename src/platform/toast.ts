@@ -1,5 +1,6 @@
 // Short notices over the game (a song starting, songs added to the music library), outside the game's own rendering.
 import { ensureUiFont, UI_FONT } from './uiFont';
+import { tr } from '../i18n/i18n';
 
 let el: HTMLDivElement | null = null;
 let timer = 0;

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { app } from '../app';
 import { audio } from '../audio/audio';
 import { setKeyState } from '../controller/input';
+import { useLanguage } from '../i18n/i18n';
 import { KeyboardController } from '../controller/keyboard';
 import { CtrlType, SceneId } from '../game/constants';
 import type { GameState } from '../game/gameState';
@@ -11,6 +12,7 @@ import { activeMenu } from '../game/scenes/mainmenu/common';
 import { HelpMenu } from '../game/scenes/mainmenu/menuHelp';
 import { PresskeyMenu } from '../game/scenes/mainmenu/menuPresskey';
 import { defaultSettings, settings } from '../game/settings';
+import { setLanBackend, type LanBackend } from '../net/lan';
 import { drawList } from '../video/draw';
 import { vga } from '../video/vga';
 import { createGame, hasGameData, HeadlessRunner, installBrowserShims } from './harness';
@@ -86,6 +88,7 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    setLanBackend(undefined);
     for (const k of ['Enter', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) setKeyState(k, false);
   });
 
@@ -137,9 +140,14 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     expect(gs.nextId).toBe(SceneId.MELEE);
   });
 
-  it('TWO PLAYER GAME: both keyboard, player 2 on key set 1, then MELEE', () => {
+  it('MULTIPLAYER > LOCAL (the two player game): both keyboard, player 2 on key set 1, then MELEE', () => {
     press('ArrowDown');
-    expect(selectedText()).toBe('TWO PLAYER GAME');
+    expect(selectedText()).toBe('MULTIPLAYER');
+    press('Enter');
+    // (no LAN games here: a browser cannot reach other computers)
+    expect(current().items.filter((c) => c instanceof Button).map((c) => (c as Button).text.str)).toEqual(
+      ['LOCAL', 'ONLINE', 'DONE']);
+    expect(selectedText()).toBe('LOCAL');
     press('Enter');
     expect(gs.nextId).toBe(SceneId.MELEE);
     const c1 = gs.getPlayer(0).ctrl, c2 = gs.getPlayer(1).ctrl;
@@ -150,11 +158,35 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     expect(gs.isTwoplayer()).toBe(true);
     run.advance(500);
     expect(gs.thisId).toBe(SceneId.MELEE);
+    // ESC on the pilots: back to the main menu, MULTIPLAYER open again.
+    press('Escape');
+    run.advance(500);
+    expect(gs.thisId).toBe(SceneId.MENU);
+    expect(selectedText()).toBe('LOCAL');
+  });
+
+  it('MULTIPLAYER > LAN (the desktop app) opens the LAN page; ONLINE is still to come', () => {
+    setLanBackend({ kind: 'network' } as LanBackend);
+    const lan = vi.spyOn(app, 'showLan').mockImplementation(() => undefined);
+    open('MULTIPLAYER');
+    expect(current().items.filter((c) => c instanceof Button).map((c) => (c as Button).text.str)).toEqual(
+      ['LOCAL', 'LAN', 'ONLINE', 'DONE']);
+    open('LAN');
+    expect(lan).toHaveBeenCalledTimes(1);
+    goTo('ONLINE');
+    press('Enter');
+    expect(gs.nextId).toBe(SceneId.MENU);
+    press('Escape');
+    expect(selectedText()).toBe('MULTIPLAYER');
+    gs.menuReturn = 'multiplayer';
+    gs.swapScene(SceneId.MENU);
+    run.advance(400);
+    expect(selectedText()).toBe('LOCAL');
   });
 
   it('the three ways to play, then MORE MODES, EXTRAS, OPTIONS, HELP and QUIT; TOURNAMENT, DEMO and SCOREBOARD start their scenes', () => {
     expect(root().items.map((c) => (c as Button).text.str)).toEqual(
-      ['ONE PLAYER GAME', 'TWO PLAYER GAME', 'TOURNAMENT PLAY', 'MORE MODES', 'EXTRAS', 'OPTIONS', 'HELP', 'QUIT']);
+      ['ONE PLAYER GAME', 'MULTIPLAYER', 'TOURNAMENT PLAY', 'MORE MODES', 'EXTRAS', 'OPTIONS', 'HELP', 'QUIT']);
     press('ArrowDown', 2);
     expect(selectedText()).toBe('TOURNAMENT PLAY');
     press('Enter');
@@ -502,12 +534,19 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     expect(current()).toBe(root());
   });
 
-  it('LANGUAGE lists the usable languages', () => {
+  it('LANGUAGE opens the language page; a new language remakes the menus, still on LANGUAGE', () => {
+    const page = vi.spyOn(app, 'showLanguage').mockImplementation(() => undefined);
     open('OPTIONS', 'LANGUAGE');
-    expect(selectedText()).toBe('English');
-    press('ArrowDown');
-    expect(selectedText()).toBe('DONE');
-    press('Enter');
+    expect(page).toHaveBeenCalledTimes(1);
     expect(selectedText()).toBe('LANGUAGE');
+    try {
+      useLanguage('sv', { ui: { LANGUAGE: 'SPRÅK', OPTIONS: 'INSTÄLLNINGAR' }, original: null });
+      run.advance(100);
+      expect(selectedText()).toBe('SPRÅK');
+      press('Escape');
+      expect(selectedText()).toBe('INSTÄLLNINGAR');
+    } finally {
+      useLanguage('en', { ui: {}, original: null });
+    }
   });
 });

@@ -70,7 +70,8 @@ export class Engine {
         gs.staticTick();
         this.staticWait -= STATIC_TICKS;
       }
-      hasDynamic = this.dynamicWait > dynMs;
+      // (a network game waits here for the other game's inputs)
+      hasDynamic = this.dynamicWait > dynMs && gs.dynamicTickReady();
       if (hasDynamic) {
         gs.dynamicTick();
         this.dynamicWait -= dynMs;
@@ -82,6 +83,13 @@ export class Engine {
       }
     } while (limit-- && (hasStatic || hasDynamic));
     this.alpha = Math.max(0, Math.min(1, this.dynamicWait / Math.max(1, gs.msPerDyntick())));
+  }
+
+  /** Runs the game up to now without drawing (a network game goes on while the window is hidden). */
+  idle(now: number): void {
+    const dt = now - this.last;
+    this.last = now;
+    if (!this.paused && !this.waiting) this.advance(dt);
   }
 
   frame(now: number): void {

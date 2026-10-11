@@ -9,6 +9,7 @@ import * as P from '../fighter/poses';
 import { ball, capsule, FX, fxMat, wedge } from '../robots/parts';
 import { SPECTRE as MODEL } from '../robots/spectre';
 import type { GenRobot } from './types';
+import { trKey } from '../../i18n/i18n';
 
 const BEAM = fxMat(FX.purple, true, 0.1);
 const CORE = fxMat(FX.steel, true, 0.6);
@@ -109,5 +110,5 @@ export const SPECTRE: GenRobot = {
       P.fight(b, { lean: 6, twist: -10, root: [3, 0], handB: [b.A * 0.98, b.H * 0.72], handF: [b.A * 0.9, b.H * 0.78] }),
     ][k],
   }),
-  specialNames: { [MOVE.SPECIAL1]: 'PHOTON BEAM', [MOVE.SPECIAL2]: 'PHASE SHIFT', [MOVE.SPECIAL3]: 'SHADOW STRIKE' },
+  specialNames: { [MOVE.SPECIAL1]: trKey('PHOTON BEAM'), [MOVE.SPECIAL2]: trKey('PHASE SHIFT'), [MOVE.SPECIAL3]: trKey('SHADOW STRIKE') },
 };

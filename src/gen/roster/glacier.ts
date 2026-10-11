@@ -9,6 +9,7 @@ import * as P from '../fighter/poses';
 import { cone, FX, fxMat, wedge } from '../robots/parts';
 import { GLACIER as MODEL } from '../robots/glacier';
 import type { GenRobot } from './types';
+import { trKey } from '../../i18n/i18n';
 
 const ICE = fxMat(FX.cyan, false, 0.05, 1);
 const ICE_HI = fxMat(FX.steel, false, 0.15, 1);
@@ -143,5 +144,5 @@ export const GLACIER: GenRobot = {
     ][k],
     strikeTags: 'mx+56my+0m39',
   }),
-  specialNames: { [MOVE.SPECIAL1]: 'ICE LANCE', [MOVE.SPECIAL2]: 'GLACIAL RAM', [MOVE.SPECIAL3]: 'FROST SPIKES' },
+  specialNames: { [MOVE.SPECIAL1]: trKey('ICE LANCE'), [MOVE.SPECIAL2]: trKey('GLACIAL RAM'), [MOVE.SPECIAL3]: trKey('FROST SPIKES') },
 };

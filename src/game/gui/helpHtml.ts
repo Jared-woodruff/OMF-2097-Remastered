@@ -13,6 +13,7 @@ import { settings } from '../settings';
 import { PC, Page } from './page';
 import { FontSize, HAlign } from './text';
 import { playMenuSound } from './widgets';
+import { tr, trKey, lang, langInfo } from '../../i18n/i18n';
 
 export interface HelpBlock {
   kind: 'title' | 'heading' | 'text';
@@ -25,20 +26,10 @@ export interface HelpPageDoc {
   blocks: HelpBlock[];
 }
 
-/** The upper half of code page 437, the DOS character set of the language files (the German texts' letters). */
-const CP437_HIGH =
-  'ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀' +
-  'αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ ';
-
-/** A language file string's characters as Unicode (they are the game font's code page 437 codes). */
-export function cp437(text: string): string {
-  return text.replace(/[-ÿ]/g, (c) => CP437_HIGH[c.charCodeAt(0) - 0x80] ?? c);
-}
-
 /** Parses a help text of the language file (its markup: {SIZE n}, {COLOR:NAME}, {CENTER ON}...). */
 export function parseHelpText(source: string): HelpPageDoc {
   // (a German page has a size tag without its closing brace: "{SIZE 6Nicht nur...")
-  const src = cp437(source).replace(/\{(SIZE|SPACINGG?|WIDTH) *(\d+)(?=[^\d}])/g, '{$1 $2}');
+  const src = source.replace(/\{(SIZE|SPACINGG?|WIDTH) *(\d+)(?=[^\d}])/g, '{$1 $2}');
   // (the pages are laid out in the big font until they say otherwise, see menuHelp.ts)
   let size = 8;
   let color = '';
@@ -102,7 +93,7 @@ export function htmlHelpWanted(): boolean {
 }
 
 /** The page's keys, drawn by the game under the text like the other pages' (records: "< > PAGE   ESC BACK"). */
-const KEYS = 'UP/DOWN TOPIC   < > SCROLL   ESC BACK';
+const KEYS = trKey('UP/DOWN TOPIC   < > SCROLL   ESC BACK');
 
 // Sizes are in the game's pixels (--ux across, --uy down: 320 x 200 on the screen, see place()), colors are the pages'
 // palette (page.ts PC: white, grey, dim, gold, the lists' selection bar, the letters' shadow).
@@ -208,7 +199,7 @@ export class HtmlHelpMenu extends Page {
     const toc = el('nav', 'omfh-toc');
     this.topics = this.pages.map((p, i) => {
       const b = el('button', 'omfh-topic');
-      b.append(el('b', undefined, String(i + 1).padStart(2, '0')), el('span', undefined, p.title || `Page ${i + 1}`));
+      b.append(el('b', undefined, String(i + 1).padStart(2, '0')), el('span', undefined, p.title || tr('Page {n}', { n: i + 1 })));
       b.addEventListener('click', () => this.show(i, true));
       toc.appendChild(b);
       return b;
@@ -217,8 +208,11 @@ export class HtmlHelpMenu extends Page {
     this.article.addEventListener('scroll', () => this.showMore(), { passive: true });
     this.more = el('div', 'omfh-more', '▼');
     const close = el('button', 'omfh-close', 'X');
-    close.title = 'Close';
+    close.title = tr('Close');
     close.addEventListener('click', () => this.close());
+    // (the language's letter forms and direction: Arabic reads from the right)
+    root.lang = lang();
+    toc.dir = this.article.dir = langInfo().rtl ? 'rtl' : 'ltr';
     frame.append(toc, this.article, this.more, close);
     root.appendChild(frame);
     // A click beside the frame closes the help, like ESC, and so does a right click (as on the other pages).
@@ -312,8 +306,8 @@ export class HtmlHelpMenu extends Page {
       this.remove();
       return;
     }
-    this.drawFrame('HELP');
-    this.drawText('keys', KEYS, 160, 184, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    this.drawFrame(tr('HELP'));
+    this.drawText('keys', tr(KEYS), 160, 184, FontSize.SMALL, PC.dim, HAlign.CENTER);
   }
 
   override tick(): void {

@@ -28,6 +28,10 @@ export const app = {
   showCredits(): void {},
   /** Shows the installed mods. */
   showMods(): void {},
+  /** Shows the LAN games page: hosting a network game, finding and joining one. */
+  showLan(): void {},
+  /** Shows the language page (every language the game speaks, and AUTOMATIC). */
+  showLanguage(): void {},
   /** Notified whenever settings change so the host can apply them. */
   settingsChanged(): void {},
 };

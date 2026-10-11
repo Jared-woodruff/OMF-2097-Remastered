@@ -7,6 +7,7 @@ import { TrnMenu } from '../../gui/trnMenu';
 import { Label } from '../../gui/widgets';
 import type { MechlabScene } from '../mechlab';
 import { spriteButtonFromDetails, type ButtonDetails } from './buttonDetails';
+import { tr } from '../../../i18n/i18n';
 
 function setDifficulty(c: SpriteButton, s: MechlabScene, difficulty: number): void {
   const player1 = s.gs.getPlayer(0);
@@ -64,7 +65,7 @@ export function labMenuDifficultyselectCreate(s: MechlabScene): TrnMenu {
   }
 
   // Add text label
-  const label = new Label('SELECT A DIFFICULTY LEVEL');
+  const label = new Label(tr('SELECT A DIFFICULTY LEVEL'));
   label.overrideColor = TEXT_MEDIUM_GREEN;
   label.font = FontSize.SMALL;
   label.setPosHints(87, 155);

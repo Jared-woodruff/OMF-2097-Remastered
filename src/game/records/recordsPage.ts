@@ -8,8 +8,9 @@ import { playMenuSound } from '../gui/widgets';
 import { formatMs } from '../modes/run';
 import { settings } from '../settings';
 import { ACHIEVEMENTS, records } from './records';
+import { tr, trn, trKey, lang } from '../../i18n/i18n';
 
-const TABS = ['STATISTICS', 'MODES', 'ACHIEVEMENTS'];
+const TABS = [trKey('STATISTICS'), trKey('MODES'), trKey('ACHIEVEMENTS')];
 
 export class RecordsPage extends Page {
   private tab = 0;
@@ -51,12 +52,12 @@ export class RecordsPage extends Page {
   }
 
   override render(): void {
-    this.drawFrame('RECORDS');
-    TABS.forEach((t, i) => this.drawText(`tab${i}`, t, 60 + i * 100, 25, FontSize.SMALL, i === this.tab ? PC.gold : PC.dim, HAlign.CENTER));
+    this.drawFrame(tr('RECORDS'));
+    TABS.forEach((t, i) => this.drawText(`tab${i}`, tr(t), 60 + i * 100, 25, FontSize.SMALL, i === this.tab ? PC.gold : PC.dim, HAlign.CENTER));
     if (this.tab === 0) this.renderStats();
     else if (this.tab === 1) this.renderModes();
     else this.renderAchievements();
-    this.drawText('h', '< > PAGE   ESC BACK', 160, 184, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    this.drawText('h', tr('< > PAGE   ESC BACK'), 160, 184, FontSize.SMALL, PC.dim, HAlign.CENTER);
   }
 
   private row(key: string, label: string, value: string, x: number, y: number): void {
@@ -68,37 +69,37 @@ export class RecordsPage extends Page {
     const r = records();
     const rate = r.fights ? `${Math.round((r.wins * 100) / r.fights)}%` : '-';
     const secs = Math.round((r.ticks * this.msPerTick()) / 1000);
-    const time = `${Math.trunc(secs / 3600)}H ${String(Math.trunc(secs / 60) % 60).padStart(2, '0')}M`;
+    const time = tr('{hours}H {minutes}M', { hours: Math.trunc(secs / 3600), minutes: String(Math.trunc(secs / 60) % 60).padStart(2, '0') });
     const rows: [string, string][] = [
-      ['FIGHTS', `${r.fights}`], ['WINS', `${r.wins}  (${rate})`], ['LOSSES', `${r.losses}`], ['PERFECT ROUNDS', `${r.perfects}`],
-      ['SCRAP FINISHES', `${r.scraps}`], ['DESTRUCTIONS', `${r.destructions}`], ['LONGEST COMBO', `${r.bestCombo} HITS`],
-      ['TIME FIGHTING', time], ['CLIPS SAVED', `${r.clips}`],
+      [tr('FIGHTS'), `${r.fights}`], [tr('WINS'), `${r.wins}  (${rate})`], [tr('LOSSES'), `${r.losses}`], [tr('PERFECT ROUNDS'), `${r.perfects}`],
+      [tr('SCRAP FINISHES'), `${r.scraps}`], [tr('DESTRUCTIONS'), `${r.destructions}`], [tr('LONGEST COMBO'), trn(r.bestCombo, '{n} HIT', '{n} HITS')],
+      [tr('TIME FIGHTING'), time], [tr('CLIPS SAVED'), `${r.clips}`],
     ];
     rows.forEach(([l, v], i) => this.row(`s${i}`, l, v, 96, 42 + i * 10));
     // The robots played most.
     const robots = Object.entries(r.robots).map(([id, s]) => ({ id: Number(id), ...s })).sort((a, b) => b.fights - a.fights).slice(0, 8);
-    this.drawText('rt1', 'ROBOT', 178, 42, FontSize.SMALL, PC.dim);
-    this.drawText('rt2', 'FIGHTS', 266, 42, FontSize.SMALL, PC.dim, HAlign.RIGHT);
-    this.drawText('rt3', 'WINS', 302, 42, FontSize.SMALL, PC.dim, HAlign.RIGHT);
+    this.drawText('rt1', tr('ROBOT'), 178, 42, FontSize.SMALL, PC.dim);
+    this.drawText('rt2', tr('FIGHTS'), 266, 42, FontSize.SMALL, PC.dim, HAlign.RIGHT);
+    this.drawText('rt3', tr('WINS'), 302, 42, FontSize.SMALL, PC.dim, HAlign.RIGHT);
     robots.forEach((b, i) => {
       const y = 52 + i * 10;
       this.drawText(`rn${i}`, HAR_NAMES[b.id] ?? '?', 178, y, FontSize.SMALL, PC.white);
       this.drawText(`rf${i}`, `${b.fights}`, 266, y, FontSize.SMALL, PC.white, HAlign.RIGHT);
       this.drawText(`rw${i}`, `${b.wins}`, 302, y, FontSize.SMALL, PC.white, HAlign.RIGHT);
     });
-    if (!robots.length) this.drawText('none', 'NO FIGHTS YET', 178, 52, FontSize.SMALL, PC.dim);
+    if (!robots.length) this.drawText('none', tr('NO FIGHTS YET'), 178, 52, FontSize.SMALL, PC.dim);
   }
 
   private renderModes(): void {
     const r = records();
     const trials = settings().training.trialsDone.length;
     const rows: [string, string][] = [
-      ['ARCADE CLEARED', `${r.arcade.clears} TIME${r.arcade.clears === 1 ? '' : 'S'}`],
-      ['ARCADE BEST SCORE', r.arcade.bestScore ? `${r.arcade.bestScore}` : '-'],
-      ['ARCADE FASTEST', r.arcade.fastest ? formatMs(r.arcade.fastest) : '-'],
-      ['SURVIVAL BEST', `${r.survival.best} WIN${r.survival.best === 1 ? '' : 'S'}`],
-      ['TIME ATTACK BEST', r.timeattack.best ? formatMs(r.timeattack.best) : '-'],
-      ['COMBO TRIALS DONE', `${trials}`],
+      [tr('ARCADE CLEARED'), trn(r.arcade.clears, '{n} TIME', '{n} TIMES')],
+      [tr('ARCADE BEST SCORE'), r.arcade.bestScore ? `${r.arcade.bestScore}` : '-'],
+      [tr('ARCADE FASTEST'), r.arcade.fastest ? formatMs(r.arcade.fastest) : '-'],
+      [tr('SURVIVAL BEST'), trn(r.survival.best, '{n} WIN', '{n} WINS')],
+      [tr('TIME ATTACK BEST'), r.timeattack.best ? formatMs(r.timeattack.best) : '-'],
+      [tr('COMBO TRIALS DONE'), `${trials}`],
     ];
     rows.forEach(([l, v], i) => this.row(`m${i}`, l, v, 176, 50 + i * 14));
   }
@@ -106,16 +107,16 @@ export class RecordsPage extends Page {
   private renderAchievements(): void {
     const r = records();
     const n = ACHIEVEMENTS.filter((a) => r.achievements[a.id]).length;
-    this.drawText('an', `${n} OF ${ACHIEVEMENTS.length} EARNED`, 160, 164, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    this.drawText('an', tr('{n} OF {count} EARNED', { n, count: ACHIEVEMENTS.length }), 160, 164, FontSize.SMALL, PC.dim, HAlign.CENTER);
     ACHIEVEMENTS.forEach((a, i) => {
       const done = !!r.achievements[a.id];
       const x = i < 10 ? 20 : 166, y = 40 + (i % 10) * 10;
       const color = i === this.pick ? PC.gold : done ? PC.green : PC.dark;
-      this.drawText(`a${i}`, `${done ? '*' : ' '} ${a.title}`, x, y, FontSize.SMALL, color);
+      this.drawText(`a${i}`, `${done ? '*' : ' '} ${tr(a.title)}`, x, y, FontSize.SMALL, color);
     });
     const a = ACHIEVEMENTS[this.pick];
     const when = r.achievements[a.id];
-    const date = when ? `  (${new Date(when).toLocaleDateString('en-GB').toUpperCase()})` : '';
-    this.drawText('ad', `${a.text.toUpperCase()}${date}`, 160, 148, FontSize.SMALL, when ? PC.green : PC.grey, HAlign.CENTER);
+    const date = when ? `  (${new Date(when).toLocaleDateString(lang()).toUpperCase()})` : '';
+    this.drawText('ad', `${tr(a.text).toUpperCase()}${date}`, 160, 148, FontSize.SMALL, when ? PC.green : PC.grey, HAlign.CENTER);
   }
 }

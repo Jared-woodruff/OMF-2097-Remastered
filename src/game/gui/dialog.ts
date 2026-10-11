@@ -3,6 +3,7 @@ import { NATIVE_H, NATIVE_W } from '../../video/draw';
 import { ACT_ESC, CtrlType } from '../constants';
 import { FontSize, Text, TEXT_BRIGHT_GREEN, TEXT_MEDIUM_GREEN } from './text';
 import { Button, Filler, GuiFrame, Label, Menu, type GuiTheme } from './widgets';
+import { tr } from '../../i18n/i18n';
 
 export const enum DialogStyle {
   YES_NO,
@@ -61,12 +62,12 @@ export class Dialog {
     menu.attach(menu2);
     menu2.setSizeHints(-1, 12);
     if (style === DialogStyle.CANCEL) {
-      menu2.attach(new Button('CANCEL', null, false, true, () => this.cancel()));
+      menu2.attach(new Button(tr('CANCEL'), null, false, true, () => this.cancel()));
     } else if (style === DialogStyle.YES_NO) {
-      menu2.attach(new Button('YES', null, false, true, () => this.yesOk()));
-      menu2.attach(new Button('NO', null, false, true, () => this.no()));
+      menu2.attach(new Button(tr('YES'), null, false, true, () => this.yesOk()));
+      menu2.attach(new Button(tr('NO'), null, false, true, () => this.no()));
     } else if (style === DialogStyle.OK) {
-      menu2.attach(new Button('OK', null, false, true, () => this.yesOk()));
+      menu2.attach(new Button(tr('OK'), null, false, true, () => this.yesOk()));
     }
     this.frame = new GuiFrame(theme, x, y, w, h);
     this.frame.setRoot(menu);

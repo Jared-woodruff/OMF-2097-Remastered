@@ -7,6 +7,7 @@ import { ANIM_IDLE, isArenaScene, PILOT_INFO, SceneId } from './game/constants';
 import { GameState, hasScene } from './game/gameState';
 import { setPilotColors } from './game/pilotColors';
 import { loadSettings, saveSettings, settings } from './game/settings';
+import { loadKeyboardLayout } from './game/scenes/mainmenu/keyNames';
 import './game/scenes/index';
 import { registerPlaceholders } from './game/scenes/placeholder';
 import { getFile, preloadAll } from './resources/files';
@@ -20,7 +21,11 @@ import { installModFiles, ModsPage } from './mods/modsPage';
 import { MOD_EXTENSION } from './mods/package';
 import { loadStoredGameFiles, provideGameFiles } from './platform/gameData';
 import { showImportScreen } from './platform/importScreen';
-import { fonts, langGet, loadLanguage, soundBank } from './resources/resources';
+import { fonts, langGet, loadOriginalTexts, soundBank } from './resources/resources';
+import { setLanguage, setOriginalTextsLoader, tr, trKey, trn } from './i18n/i18n';
+import { madeGlyphs } from './game/gui/glyphs';
+import { startBootTips } from './platform/bootTips';
+import { FontSize, getFont } from './game/gui/text';
 import { GLRenderer } from './video/gl/renderer';
 import { drawList } from './video/draw';
 import { framed, isDesktop, isFullscreen, quitApp, setFullscreen, toggleFullscreen } from './platform/desktop';
@@ -50,6 +55,7 @@ import { ACT_ESC, ACT_PUNCH } from './game/constants';
 import { ReplaysPage } from './game/replay/replaysPage';
 import { RunResultsPage } from './game/modes/resultsPage';
 import { RecordsPage } from './game/records/recordsPage';
+import { LanguagePage } from './game/gui/languagePage';
 import { suspendRecords } from './game/records/records';
 import { MS_PER_OMF_TICK_SLOWEST } from './game/constants';
 import { ReplaySession } from './game/replay/playback';
@@ -68,6 +74,8 @@ import { FightCamera } from './video/camera';
 import { loadAnnouncer } from './audio/announcer';
 import { CtrlType } from './game/constants';
 import { MenuScene } from './video/stage/parallax';
+import { LanPage } from './net/lanPage';
+import { showNetStatus } from './net/statusBar';
 
 const boot = document.getElementById('boot')!;
 {
@@ -105,7 +113,7 @@ const restart = () => {
 };
 canvas.addEventListener('webglcontextlost', (e) => {
   e.preventDefault();
-  toast('The graphics were reset: the game starts again...', 8000);
+  toast(tr('The graphics were reset: the game starts again...'), 8000);
   window.setTimeout(restart, 3000);
 });
 canvas.addEventListener('webglcontextrestored', restart);
@@ -140,7 +148,7 @@ function watchPixelRatio(): void {
 }
 
 /** What a graphics driver that refuses the remastered look's shaders gets told (see GLRenderer.hdError). */
-const REMASTERED_UNAVAILABLE = "The remastered look can't run on this computer's graphics driver: the game is shown in the classic look.";
+const REMASTERED_UNAVAILABLE = trKey("The remastered look can't run on this computer's graphics driver: the game is shown in the classic look.");
 
 /** Font family name of the remastered typeface. */
 const TYPEFACE_FAMILY = 'OMF Remastered';
@@ -158,31 +166,36 @@ async function main(): Promise<void> {
   window.addEventListener('resize', resize);
   watchPixelRatio();
   autoHideCursor();
+  // The language: the player's choice, else their system's (the loading screen and the import screen speak it too);
+  // ?lang=<code> tries one out without saving it.
+  loadSettings();
+  // (the key names follow the keyboard's layout; it may change while the game is away)
+  void loadKeyboardLayout();
+  window.addEventListener('focus', () => void loadKeyboardLayout());
+  await setLanguage(new URLSearchParams(location.search).get('lang') ?? settings().language).catch(() => undefined);
+  startBootTips(boot);
   // The original game data: from the server (npm run extract, the desktop app), else imported earlier in this
   // browser, else the player provides it now (web version).
   const fromServer = await preloadAll((loaded, total) => {
-    bootStatus('LOADING GAME DATA', (loaded / total) * 0.8);
+    bootStatus(tr('LOADING GAME DATA'), (loaded / total) * 0.8);
   });
   if (!fromServer && !(await loadStoredGameFiles())) {
     boot.style.display = 'none';
     provideGameFiles(await showImportScreen());
     boot.style.display = '';
-    bootStatus('LOADING GAME DATA', 0.8);
+    bootStatus(tr('LOADING GAME DATA'), 0.8);
   }
   // The mods that are on: their robots, arenas and pilots join the game (src/mods): the ones that come with the game
   // (the remaster's new robots and arenas) and the installed ones; ?modtest: OMF Studio's test fight, with the project
   // it is testing (and the new robots and arenas when it names them).
-  bootStatus('LOADING THE MODS', 0.82);
+  bootStatus(tr('LOADING THE MODS'), 0.82);
   const bootParams = new URLSearchParams(location.search);
   const modTestError = await loadMods(bootParams.has('modtest'), testNamesExtras(bootParams) ? [EXTRAS_MOD_ID] : []);
   loadSettings();
-  try {
-    loadLanguage(settings().language);
-  } catch {
-    loadLanguage();
-  }
+  // (the original game's texts in that language: its own language files, or their translations)
+  setOriginalTextsLoader(loadOriginalTexts);
   initInput();
-  bootStatus('STARTING THE RENDERER', 0.86);
+  bootStatus(tr('STARTING THE RENDERER'), 0.86);
   const renderer = new GLRenderer(canvas);
   // HD artwork (optional: only if the imported bundles are installed).
   await hdAssets.init(renderer.gl, 'hd/');
@@ -350,19 +363,19 @@ async function main(): Promise<void> {
   audio.setRoom(gs.sc.isArena() ? arenaLook(gs.thisId - SceneId.ARENA0) : -1);
   wantGenerated();
   // The first screen waits (briefly) for its artwork so it does not pop in.
-  bootStatus('LOADING ARTWORK', 0.9);
+  bootStatus(tr('LOADING ARTWORK'), 0.9);
   if (renderer.options.mode === 'remastered') menuScene.load(MENU_LAYERS);
   await hdAssets.whenReady(artworkFor(), 4000);
   // (a mod's pictures too: Studio's tests start in a fight)
   for (const end = performance.now() + 4000; modArt.loading && performance.now() < end;) await new Promise((r) => setTimeout(r, 30));
   if (gs.thisId === SceneId.MENU) await menuScene.whenReady(4000);
-  bootStatus('READY', 1);
+  bootStatus(tr('READY'), 1);
 
   // Remastered effects follow the game clock (dynamic ticks), so they pause and slow down with the game.
   const fxDirector = new FxDirector();
   const camera = new FightCamera();
-  // F1: the original help pages over the paused game.
-  const help = new HelpOverlay((paused) => (engine.paused = paused));
+  // F1: the original help pages over the paused game (a network game goes on: the other player is still playing).
+  const help = new HelpOverlay((paused) => (engine.paused = paused && !gs.net));
   // Touch controls: in fights (not replays, demos or the pause menu) and on the robot select screen.
   const touch = new TouchControls();
   const touchWanted = () => {
@@ -454,6 +467,8 @@ async function main(): Promise<void> {
       const menuCorner = gs.thisId === SceneId.MENU && gs.nextId === SceneId.MENU && !engine.waiting && !help.isOpen() &&
         !htmlHelpOpen() && !gs.credits;
       showVersionLabel(menuCorner);
+      // (a network game: what to do on its screens, or whom it waits for)
+      showNetStatus(gs);
       showCreditsButton(menuCorner && gs.sc instanceof MainMenuScene && gs.sc.atMainPage());
       fxDirector.update(gs, engine.ticks + engine.alpha, renderer.options.mode === 'remastered');
       renderer.fx = fxDirector.frame;
@@ -526,8 +541,10 @@ async function main(): Promise<void> {
     if (typefaceWanted) return;
     typefaceWanted = true;
     const url = new URL('fonts/Orbitron.ttf', location.href).href;
+    // (with the letters the fonts lack, made for the game's other Latin languages: Ã, Ê, Ø...)
+    const extras = { small: madeGlyphs(getFont(FontSize.SMALL)), big: madeGlyphs(getFont(FontSize.BIG)) };
     const here = () => void loadTypeface(url, TYPEFACE_FAMILY).then((ok) => {
-      const atlas = ok ? buildGlyphAtlas(TYPEFACE_FAMILY, fonts()) : null;
+      const atlas = ok ? buildGlyphAtlas(TYPEFACE_FAMILY, fonts(), extras) : null;
       if (atlas) renderer.setGlyphAtlas(atlas);
     });
     try {
@@ -541,7 +558,7 @@ async function main(): Promise<void> {
         worker.terminate();
         here();
       };
-      worker.postMessage({ url, family: TYPEFACE_FAMILY, fonts: fonts() });
+      worker.postMessage({ url, family: TYPEFACE_FAMILY, fonts: fonts(), extras });
     } catch {
       here();
     }
@@ -573,7 +590,7 @@ async function main(): Promise<void> {
     settings().video.graphics = mode;
     saveSettings();
     applySettings();
-    if (mode === 'remastered' && renderer.hdError) toast(REMASTERED_UNAVAILABLE, 6000);
+    if (mode === 'remastered' && renderer.hdError) toast(tr(REMASTERED_UNAVAILABLE), 6000);
   };
   app.getGraphicsMode = () => settings().video.graphics;
   app.settingsChanged = () => {
@@ -607,18 +624,18 @@ async function main(): Promise<void> {
     for (const [i, p] of record.meta.players.entries()) {
       if (isWorkshopHar(p.harId)) ensureWorkshopRobot(p.harId - harIdOf(0));
       if (!hasFighter(p.harId)) {
-        toast(isWorkshopHar(p.harId) ? 'This fight was played with a robot that is not in the workshop any more.'
-          : 'This fight was played with a robot of a mod that is not on (EXTRAS > MODS).', 4000);
+        toast(isWorkshopHar(p.harId) ? tr('This fight was played with a robot that is not in the workshop any more.')
+          : tr('This fight was played with a robot of a mod that is not on (EXTRAS > MODS).'), 4000);
         return false;
       }
       const design = record.meta.designs?.[i];
       if (design && design !== workshopDesign(p.harId)) {
-        toast('This fight was played with an earlier design of a workshop robot: it would not play out the same.', 5000);
+        toast(tr('This fight was played with an earlier design of a workshop robot: it would not play out the same.'), 5000);
         return false;
       }
     }
     if (!arenaAvailable(record.meta.arena)) {
-      toast('This fight was played in an arena of a mod that is not on (EXTRAS > MODS).', 4000);
+      toast(tr('This fight was played in an arena of a mod that is not on (EXTRAS > MODS).'), 4000);
       return false;
     }
     new ReplaySession(gs, record, () => {
@@ -670,7 +687,16 @@ async function main(): Promise<void> {
   app.showCredits = () => startCredits(gs, { links: !isDesktop });
   setCreditsButtonAction(() => startCredits(gs, { links: !isDesktop, from: 'main' }));
   app.showMods = () => help.open(new ModsPage());
+  // MULTIPLAYER > LAN: hosting and joining network games (net/lanPage.ts).
+  app.showLan = () => help.open(new LanPage(gs));
+  // A network game goes on while the window is hidden (the browser stops drawing it, and the other player would wait),
+  // and the other player hears when this one closes the game.
+  window.setInterval(() => {
+    if (document.hidden && gs.net) engine.idle(performance.now());
+  }, 15);
+  window.addEventListener('pagehide', () => gs.net?.leave());
   registerCustomTournaments();
+  app.showLanguage = () => help.open(new LanguagePage());
   app.showRecords = () => help.open(new RecordsPage(() => Math.trunc(8 + MS_PER_OMF_TICK_SLOWEST - ((settings().gameplay.speed + 5) / 15) * MS_PER_OMF_TICK_SLOWEST)));
   const clips = new ClipExporter({
     canvas,
@@ -693,8 +719,8 @@ async function main(): Promise<void> {
       const p = (n: number) => String(n).padStart(2, '0');
       const name = `OMF 2097 ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}.png`;
       saveFile(name, blob, 'image/png')
-        .then((where) => toast(`Screenshot saved${where === name ? '' : `: ${where}`}`, 3500))
-        .catch(() => toast('The screenshot could not be saved.', 3500));
+        .then((where) => toast(where === name ? tr('Screenshot saved') : tr('Screenshot saved: {where}', { where }), 3500))
+        .catch(() => toast(tr('The screenshot could not be saved.'), 3500));
     }, 'image/png');
   };
   // (Windows gives PRINT SCREEN to the page only as a key release)
@@ -734,7 +760,7 @@ async function main(): Promise<void> {
 
   // The player's own music: songs dropped onto the window go to the library; a notice names each song as it starts.
   audio.onSong = (name) => toast(`\u266A  ${name}`);
-  audio.onMyMusicFailed = () => toast("Your songs could not be played here: the game's own music plays instead.", 6000);
+  audio.onMyMusicFailed = () => toast(tr("Your songs could not be played here: the game's own music plays instead."), 6000);
   window.addEventListener('dragover', (e) => {
     if (e.dataTransfer?.types.includes('Files')) e.preventDefault();
   });
@@ -748,19 +774,20 @@ async function main(): Promise<void> {
       void installModFiles(mods).then(({ installed, errors }) => {
         if (errors.length) toast(errors[0], 6000);
         if (installed.length) {
-          toast(`${installed.join(', ')} installed: ${installed.length === 1 ? 'it plays' : 'they play'} from the next start (EXTRAS > MODS).`, 6000);
+          toast(trn(installed.length, '{mods} installed: it plays from the next start (EXTRAS > MODS).', '{mods} installed: they play from the next start (EXTRAS > MODS).', { mods: installed.join(', ') }), 6000);
         }
       });
       return;
     }
     if (audioFiles(files).length === 0) {
-      if (files.length) toast(`Drop songs to add them to your music, or ${MOD_EXTENSION} files to install mods.`, 5000);
+      if (files.length) toast(tr('Drop songs to add them to your music, or {MOD_EXTENSION} files to install mods.', { MOD_EXTENSION }), 5000);
       return;
     }
     void addTracks(files).then(async (n) => {
       await audio.reloadMyMusic();
-      toast(`${n} song${n === 1 ? '' : 's'} added to your music (${audio.myMusicCount} in total). OPTIONS > SOUND > MY MUSIC chooses where they play.`, 5000);
-    }).catch(() => toast('The songs could not be saved in this browser.'));
+      toast(trn(n, '{n} song added to your music ({total} in total). OPTIONS > SOUND > MY MUSIC chooses where they play.',
+        '{n} songs added to your music ({total} in total). OPTIONS > SOUND > MY MUSIC chooses where they play.', { total: audio.myMusicCount }), 5000);
+    }).catch(() => toast(tr('The songs could not be saved in this browser.')));
   });
 
   // The web version: closing the tab in the middle of a fight asks first (player 2's Ctrl + W is the browser's close
@@ -791,8 +818,8 @@ async function main(): Promise<void> {
   }
   hideBoot();
   engine.start();
-  if (renderer.hdError) toast(REMASTERED_UNAVAILABLE, 8000);
-  if (modTestError) toast(`The mod could not be tested: ${modTestError}`, 8000);
+  if (renderer.hdError) toast(tr(REMASTERED_UNAVAILABLE), 8000);
+  if (modTestError) toast(tr('The mod could not be tested: {modTestError}', { modTestError }), 8000);
   // Development: ?credits starts the remaster's credits (=n: at the n-th fight; past the last: the end titles).
   if (import.meta.env.DEV && params.has('credits')) startCredits(gs, { links: !isDesktop, start: Number(params.get('credits')) || 0 });
 

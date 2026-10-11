@@ -9,6 +9,7 @@ import * as P from '../fighter/poses';
 import { cone, cylinder, FX, fxMat, wedge } from '../robots/parts';
 import { HELIX as MODEL } from '../robots/helix';
 import type { GenRobot } from './types';
+import { trKey } from '../../i18n/i18n';
 
 const STEEL = fxMat(FX.steel, false, 0, 1);
 const GOLD = fxMat(FX.gold, false, 0.1, 1);
@@ -130,5 +131,5 @@ export const HELIX: GenRobot = {
       P.fight(b, { lean: 24, twist: 30, root: [9, 0], drop: 0.14, handF: [b.A * 1.02, b.H * 0.8], handB: [b.A * 0.3, b.S - 10], joints: { handF: [0, 120, 0] } }),
     ][k],
   }),
-  specialNames: { [MOVE.SPECIAL1]: 'DRILL RUSH', [MOVE.SPECIAL2]: 'CORKSCREW', [MOVE.SPECIAL3]: 'DRILL BIT' },
+  specialNames: { [MOVE.SPECIAL1]: trKey('DRILL RUSH'), [MOVE.SPECIAL2]: trKey('CORKSCREW'), [MOVE.SPECIAL3]: trKey('DRILL BIT') },
 };

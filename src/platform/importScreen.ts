@@ -1,6 +1,7 @@
 // First-run screen of the web version: asks for the original game files (OMF21.EXE, a zip or an installed folder),
 // unpacks them in the browser and keeps them for later visits. Nothing is uploaded anywhere.
 import { extractGameFiles, GameDataError, storeGameFiles } from './gameData';
+import { tr } from '../i18n/i18n';
 
 const CSS = `
 #omf-import { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px;
@@ -95,20 +96,20 @@ export function showImportScreen(): Promise<Map<string, Uint8Array>> {
       if (busy || files.length === 0) return;
       busy = true;
       try {
-        setStatus('Reading the game files…');
+        setStatus(tr('Reading the game files…'));
         const found = await extractGameFiles(files, (t) => setStatus(t));
-        setStatus(`Found ${found.size} game files. Saving them in this browser…`);
+        setStatus(tr('Found {size} game files. Saving them in this browser…', { size: found.size }));
         try {
           await storeGameFiles(found);
         } catch {
           // Private browsing can refuse storage: play anyway, the files are just not kept.
         }
-        setStatus('Ready!');
+        setStatus(tr('Ready!'));
         root.remove();
         style.remove();
         resolve(found);
       } catch (err) {
-        setStatus(err instanceof GameDataError ? err.message : `Could not read the files: ${(err as Error)?.message ?? err}`, true);
+        setStatus(err instanceof GameDataError ? err.message : tr('Could not read the files: {error}', { error: String((err as Error)?.message ?? err) }), true);
       } finally {
         busy = false;
       }

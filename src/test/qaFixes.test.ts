@@ -28,6 +28,7 @@ describe('the engine', () => {
       msPerDyntick: () => 112,
       staticTick: () => undefined,
       dynamicTick: () => ticks++,
+      dynamicTickReady: () => true,
       paletteTransform: () => undefined,
     } as unknown as GameState;
     const engine = new Engine(gs, { render: () => undefined });

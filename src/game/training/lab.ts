@@ -17,6 +17,7 @@ import type { GameObject } from '../object';
 import { harData } from '../objects/har';
 import { projectileGetOwner } from '../objects/projectile';
 import { Tag } from '../../script/tags';
+import { tr } from '../../i18n/i18n';
 
 export const enum FrameKind {
   IDLE,
@@ -226,10 +227,10 @@ export class FrameMeter {
       }
     }
     const d = this.data;
-    let s = 'STARTUP -  ACTIVE -  RECOVERY -';
+    let s = tr('STARTUP -  ACTIVE -  RECOVERY -');
     if (d) {
-      const adv = d.advantage === null ? '' : `  ON ${d.contact === 'block' ? 'BLOCK' : 'HIT'} ${d.advantage > 0 ? '+' : ''}${d.advantage}`;
-      s = `STARTUP ${d.startup || '-'}  ACTIVE ${d.active || '-'}  RECOVERY ${d.recovery}  TOTAL ${d.total}${adv}`;
+      const adv = d.advantage === null ? '' : '  ' + (d.contact === 'block' ? tr('ON BLOCK {advantage}', { advantage: `${d.advantage > 0 ? '+' : ''}${d.advantage}` }) : tr('ON HIT {advantage}', { advantage: `${d.advantage > 0 ? '+' : ''}${d.advantage}` }));
+      s = tr('STARTUP {startup}  ACTIVE {active}  RECOVERY {recovery}  TOTAL {total}', { startup: d.startup || '-', active: d.active || '-', recovery: d.recovery, total: d.total }) + adv;
     }
     this.text.set(s);
     this.text.draw(0, METER_Y + 11);

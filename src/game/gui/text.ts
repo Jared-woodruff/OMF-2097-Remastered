@@ -1,5 +1,9 @@
-// Bitmap text rendering with the original fonts (port of the reference text engine).
+// Bitmap text rendering with the original fonts (port of the reference text engine), in every language: the layout
+// places units (glyphs.ts: a letter of the original fonts, or a word or character of a script the system's fonts draw),
+// wraps lines at spaces and hyphens (and between Chinese and Japanese characters), and lays right-to-left text (Arabic)
+// out from the right. Texts in the original fonts' letters are laid out exactly as the original game does.
 import { fonts } from '../../resources/resources';
+import { isRtlParagraph, shapeText, UnitKind, visualOrder, type TextUnit } from './glyphs';
 import { video } from '../../video/draw';
 import { Surface } from '../../video/surface';
 
@@ -69,15 +73,9 @@ export function getFont(size: FontSize): Font {
   return size === FontSize.BIG ? fontCache.big : fontCache.small;
 }
 
-function glyphFor(font: Font, ch: string): Surface | null {
-  const code = ch.charCodeAt(0) - 32;
-  if (code < 0 || code >= font.glyphs.length) return null;
-  return font.glyphs[code];
-}
-
-/** Draws a glyph surface (pixel value 1) with the given palette color. */
-export function drawGlyph(glyph: Surface, x: number, y: number, color: number, opacity = 255): void {
-  video.drawFull(glyph, x, y, glyph.w, glyph.h, 0, 0, color - 1, 255, opacity, 0, 0);
+/** Draws a glyph surface (pixel value 1) with the given palette color (over w x h native pixels: its own size). */
+export function drawGlyph(glyph: Surface, x: number, y: number, color: number, opacity = 255, w = glyph.w, h = glyph.h): void {
+  video.drawFull(glyph, x, y, w, h, 0, 0, color - 1, 255, opacity, 0, 0);
 }
 
 export interface TextMargin {
@@ -91,6 +89,9 @@ interface LayoutItem {
   glyph: Surface;
   x: number;
   y: number;
+  /** Size drawn (native pixels; a high-resolution glyph's surface is larger). */
+  w: number;
+  h: number;
 }
 
 export class Text {
@@ -108,6 +109,8 @@ export class Text {
   shadow = GLYPH_SHADOW_NONE;
   wordWrap = true;
   direction = TextDirection.HORIZONTAL;
+  /** Right to left (Arabic): null finds it from the text (see isRtlParagraph). */
+  rtl: boolean | null = null;
   private items: LayoutItem[] = [];
   /** The laid out rows' ranges of the string. */
   private rowRanges: [number, number][] = [];
@@ -208,7 +211,7 @@ export class Text {
   layout(): void {
     if (!this.dirty) return;
     this.dirty = false;
-    const r = computeLayout(this.str, getFont(this.font), this.w, this.h, this.valign, this.halign, this.margin, this.lineSpacing, this.letterSpacing, this.wordWrap, this.direction);
+    const r = computeLayout(this.str, getFont(this.font), this.w, this.h, this.valign, this.halign, this.margin, this.lineSpacing, this.letterSpacing, this.wordWrap, this.direction, this.rtl ?? isRtlParagraph(this.str));
     this.items = r.items;
     this.layoutW = r.w;
     this.layoutH = r.h;
@@ -233,13 +236,13 @@ export class Text {
     if (s) {
       for (const it of this.items) {
         const gx = it.x + x, gy = it.y + y;
-        if (s & GLYPH_SHADOW_RIGHT) drawGlyph(it.glyph, gx + 1, gy, this.shadowColor, opacity);
-        if (s & GLYPH_SHADOW_LEFT) drawGlyph(it.glyph, gx - 1, gy, this.shadowColor, opacity);
-        if (s & GLYPH_SHADOW_BOTTOM) drawGlyph(it.glyph, gx, gy + 1, this.shadowColor, opacity);
-        if (s & GLYPH_SHADOW_TOP) drawGlyph(it.glyph, gx, gy - 1, this.shadowColor, opacity);
+        if (s & GLYPH_SHADOW_RIGHT) drawGlyph(it.glyph, gx + 1, gy, this.shadowColor, opacity, it.w, it.h);
+        if (s & GLYPH_SHADOW_LEFT) drawGlyph(it.glyph, gx - 1, gy, this.shadowColor, opacity, it.w, it.h);
+        if (s & GLYPH_SHADOW_BOTTOM) drawGlyph(it.glyph, gx, gy + 1, this.shadowColor, opacity, it.w, it.h);
+        if (s & GLYPH_SHADOW_TOP) drawGlyph(it.glyph, gx, gy - 1, this.shadowColor, opacity, it.w, it.h);
       }
     }
-    for (const it of this.items) drawGlyph(it.glyph, it.x + x, it.y + y, this.color, opacity);
+    for (const it of this.items) drawGlyph(it.glyph, it.x + x, it.y + y, this.color, opacity, it.w, it.h);
   }
 
   /**
@@ -252,11 +255,14 @@ export class Text {
     full.layout();
     const ranges = full.rowRanges;
     if (ranges.length <= 1) return [this];
+    // (each line in the paragraph's direction)
+    const rtl = this.rtl ?? isRtlParagraph(this.str);
     return ranges.map(([s, e], i) => {
       const t = new Text(this.font, this.w, 0xffff, this.str.slice(s, e)).setColor(this.color).setShadowColor(this.shadowColor)
         .setShadow(this.shadow).setHAlign(this.halign).setWordWrap(false).setLetterSpacing(this.letterSpacing)
         .setMargin({ ...this.margin, top: i === 0 ? this.margin.top : 0, bottom: i === ranges.length - 1 ? this.margin.bottom : this.lineSpacing });
       t.docX = this.docX;
+      t.rtl = rtl;
       return t;
     });
   }
@@ -274,29 +280,38 @@ export class Text {
   }
 }
 
-function findNextLineEnd(s: string, font: Font, start: number, letterSpacing: number, maxWidth: number, wordWrap: boolean): number {
-  const len = s.length;
+/**
+ * Where the line starting at unit `start` ends (the unit after it). As the original: the line takes units while they
+ * fit, and ends after its last space or hyphen (or before its last Chinese / Japanese character) when the next does not.
+ */
+function findNextLineEnd(units: TextUnit[], start: number, letterSpacing: number, maxWidth: number, wordWrap: boolean): number {
+  const len = units.length;
   if (len === 0) return 0;
   let cutOff = start;
   let foundCut = false;
   let pos = 0;
   for (let i = start; i < len; i++) {
-    const c = s[i];
-    if (c === '\n') return i + 1;
-    if (c === ' ' || c === '-') {
+    const u = units[i];
+    if (u.kind === UnitKind.NEWLINE) return i + 1;
+    if (i > start && u.breakBefore) {
+      cutOff = i;
+      foundCut = true;
+    }
+    if ((u.kind === UnitKind.SPACE && !u.glue) || u.kind === UnitKind.HYPHEN) {
       cutOff = i + 1;
       foundCut = true;
     }
-    if (!glyphFor(font, c)) continue;
-    pos += letterSpacing + font.w;
-    if (pos > maxWidth) return foundCut && wordWrap ? cutOff : i;
+    if (!u.glyph) continue;
+    pos += letterSpacing + u.w;
+    // (a word of the system's fonts wider than the box gets a line of its own)
+    if (pos > maxWidth) return foundCut && wordWrap ? cutOff : i === start && u.hires ? i + 1 : i;
   }
   return len;
 }
 
 function computeLayout(
   s: string, font: Font, bboxW: number, bboxH: number, valign: VAlign, halign: HAlign, margin: TextMargin,
-  lineSpacing: number, letterSpacing: number, wordWrap: boolean, direction: TextDirection = TextDirection.HORIZONTAL,
+  lineSpacing: number, letterSpacing: number, wordWrap: boolean, direction: TextDirection = TextDirection.HORIZONTAL, rtl = false,
 ): { items: LayoutItem[]; w: number; h: number; rows: number; ranges: [number, number][] } {
   // Vertical text swaps the axes: rows run down the box and "vertical" alignment applies along x (the fonts are
   // square, so glyph widths and heights are interchangeable in the row metrics).
@@ -305,19 +320,20 @@ function computeLayout(
   const boxH = (bboxH - margin.top - margin.bottom) & 0xffff;
   const maxWidth = isH ? boxW : boxH;
   const maxHeight = isH ? boxH : boxW;
+  const units = shapeText(s, font);
   const rows: { start: number; end: number; w: number; h: number }[] = [];
   let start = 0;
   let line = 0;
   let rowHeights = 0;
   let maxRowWidth = 0;
-  while (start < s.length) {
-    const next = findNextLineEnd(s, font, start, letterSpacing, maxWidth, wordWrap);
+  while (start < units.length) {
+    const next = findNextLineEnd(units, start, letterSpacing, maxWidth, wordWrap);
     if (next === start) break;
     let end = next;
-    const last = s[next - 1];
-    if (last === '\n' || last === ' ') end--;
+    const last = units[next - 1].kind;
+    if (last === UnitKind.NEWLINE || last === UnitKind.SPACE) end--;
     let w = 0;
-    for (let i = start; i < end; i++) if (glyphFor(font, s[i])) w += font.w;
+    for (let i = start; i < end; i++) if (units[i].glyph) w += units[i].w;
     w += (end - start - 1) * letterSpacing;
     if (end - start <= 0) w = 0;
     const total = rowHeights + line * lineSpacing;
@@ -328,23 +344,27 @@ function computeLayout(
     start = next;
     line++;
   }
+  // Right-to-left text starts at the right of its box (when it has one).
+  const align = rtl && halign === HAlign.LEFT && maxWidth < 0x1000 ? HAlign.RIGHT : halign;
   const blockH = rowHeights + Math.max(0, line - 1) * lineSpacing;
   const items: LayoutItem[] = [];
   let y = valign === VAlign.TOP ? 0 : valign === VAlign.MIDDLE ? (maxHeight - blockH) >> 1 : maxHeight - blockH;
   for (const row of rows) {
-    let x = halign === HAlign.LEFT ? 0 : halign === HAlign.CENTER ? (maxWidth - row.w) >> 1 : maxWidth - row.w;
-    for (let i = row.start; i < row.end; i++) {
-      const g = glyphFor(font, s[i]);
-      if (!g) continue;
-      items.push({ glyph: g, x: margin.left + (isH ? x : y), y: margin.top + (isH ? y : x) });
-      x += letterSpacing + (isH ? g.w : g.h);
+    let x = align === HAlign.LEFT ? 0 : align === HAlign.CENTER ? (maxWidth - row.w) >> 1 : maxWidth - row.w;
+    for (const u of visualOrder(units.slice(row.start, row.end), rtl)) {
+      if (!u.glyph) continue;
+      for (const p of u.pieces) {
+        items.push({ glyph: p.surf, x: margin.left + (isH ? x + p.dx : y + p.dy), y: margin.top + (isH ? y + p.dy : x + p.dx), w: p.w, h: p.h });
+      }
+      x += letterSpacing + u.w;
     }
     // (reference quirk: vertical rows advance by the row length, not its thickness)
     y += lineSpacing + (isH ? row.h : row.w);
   }
+  const at = (u: number) => (u < units.length ? units[u].start : s.length);
   return {
     items, w: maxRowWidth + margin.left + margin.right, h: blockH + margin.top + margin.bottom, rows: rows.length,
-    ranges: rows.map((r) => [r.start, r.end] as [number, number]),
+    ranges: rows.map((r) => [at(r.start), r.end > r.start ? units[r.end - 1].end : at(r.start)] as [number, number]),
   };
 }
 
@@ -481,16 +501,15 @@ function flowTexts(pieces: DocPiece[], margin: Partial<TextMargin>): Text[] {
   let x = 0;
   for (const p of pieces) {
     const f = getFont(p.font);
-    for (const m of p.text.matchAll(/\n| |[^ \n-]*-|[^ \n-]+/g)) {
-      const s = m[0];
+    for (const tok of tokens(p.text, f)) {
+      const s = tok.text;
       let line = lines[lines.length - 1];
       if (s === '\n') {
         lines.push({ toks: [], piece: p, wrapped: false });
         x = 0;
         continue;
       }
-      let w = 0;
-      for (const ch of s) if (glyphFor(f, ch)) w += f.w;
+      const w = tok.w;
       const kind = s === ' ' ? 'space' : 'word';
       if (kind === 'word' && x + w > avail && line.toks.some((t) => t.kind === 'word')) {
         while (line.toks.length && line.toks[line.toks.length - 1].kind === 'space') line.toks.pop();
@@ -534,6 +553,32 @@ function flowTexts(pieces: DocPiece[], margin: Partial<TextMargin>): Text[] {
       fx += fr.w;
     });
   });
+  return out;
+}
+
+/**
+ * A text's pieces for flowing it: newlines, spaces, and the words between them (each ending after a hyphen, or before
+ * a Chinese / Japanese character), with their widths.
+ */
+function tokens(text: string, font: Font): { text: string; w: number }[] {
+  const out: { text: string; w: number }[] = [];
+  let word: TextUnit[] = [];
+  const flush = () => {
+    if (!word.length) return;
+    out.push({ text: text.slice(word[0].start, word[word.length - 1].end), w: word.reduce((sum, u) => sum + (u.glyph ? u.w : 0), 0) });
+    word = [];
+  };
+  for (const u of shapeText(text, font)) {
+    if (u.kind === UnitKind.NEWLINE || (u.kind === UnitKind.SPACE && !u.glue)) {
+      flush();
+      out.push({ text: u.kind === UnitKind.NEWLINE ? '\n' : ' ', w: u.kind === UnitKind.SPACE ? u.w : 0 });
+      continue;
+    }
+    if (u.breakBefore) flush();
+    word.push(u);
+    if (u.kind === UnitKind.HYPHEN) flush();
+  }
+  flush();
   return out;
 }
 

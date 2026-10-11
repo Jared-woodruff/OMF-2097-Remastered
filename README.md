@@ -204,8 +204,8 @@ Everything from the original is here, playing its own data files:
   <img src="docs/media/screen-help.jpg" alt="The help pages, with their topics beside them" width="49%">
 </p>
 
-The menus were tidied up without losing anything: the three ways to play first, then **More modes**, **Extras** and
-**Options**. And a few things the 1994 menus promised now work, like the *defensive throws*, *knock down* and *block
+The menus were tidied up without losing anything: the three ways to play first (the two player game is now
+**Multiplayer**, with LAN games beside it), then **More modes**, **Extras** and **Options**. And a few things the 1994 menus promised now work, like the *defensive throws*, *knock down* and *block
 damage* rules.
 
 <br>
@@ -256,6 +256,35 @@ Remastered fights get a layer of modern effects, driven by what happens in the f
 <p align="center"><a href="#new-ways-to-play"><img src="docs/media/banner-gameplay.jpg" alt="05 · New ways to play" width="100%"></a></p>
 
 All of this is new, and none of it changes how the original plays unless you use it.
+
+### Multiplayer on your network
+
+**Multiplayer** in the main menu is the original two player game, and more:
+
+- **Local**: two players on one computer, sharing the keyboard or with controllers, as in 1994.
+- **LAN**: fight a friend on another computer of your home network, in the Windows app (a browser can't reach other
+  computers by itself, so the web version doesn't offer it). One of you hosts a game, the other picks it from the
+  games found on the network (or types the host's address), and it starts by itself: both screens say who plays whom
+  and on which side, then you meet at the robot select screen. You both pick a pilot and a robot, the host picks the
+  arena, and the fight starts once you've both pressed punch. A bar at the bottom of the screen always says whose
+  move it is, and *YOU* and *READY* show over the players' portraits.
+- **Online**: coming soon.
+
+Both computers play the very same fight, each running the game itself, tick for tick: they only tell each other what
+their player pressed (the same determinism that makes replays work). The host's gameplay options are used (speed,
+rounds, power and the advanced rules), both games must be the same version with the same mods on, and they keep
+checking that their fights agree. The first time you host, Windows may ask whether the game can use the
+network: allow it on private networks. LAN fights are saved as replays like any other.
+
+### In your language
+
+The game speaks **English, German, Japanese, Chinese, Korean, Hindi, Bengali, Spanish, Portuguese, French, Arabic,
+Russian, Danish and Swedish**: the original game's texts (its menus, help pages, the news reports, the pilots' trash
+talk, the endings) and everything the remaster adds. It starts in your language: your browser's on the web, Windows'
+in the app. **Options › Language** lists them all, each written in itself, and switches at once; your choice stays.
+English and German are the game's own 1994 texts, umlauts and all. The other languages are new translations, drawn in
+the original pixel font where its letters reach (Ã, Ê, Ø... are made in its style) and in your system's fonts for
+Cyrillic, Chinese, Japanese, Korean, Devanagari, Bengali and Arabic (right to left), sharp in both looks.
 
 ### Training lab
 
@@ -353,7 +382,6 @@ and every winner's card flying onto the tower (**Play the credits** on the main 
 - **Arena acoustics** (sounds echo like the stadium or the steel Danger Room) and an **impact bass** under heavy hits.
 - **Achievements** announce themselves the moment they're earned.
 - **Auto pause** when you switch to another window.
-- **The German texts as written**, umlauts and all.
 
 </details>
 

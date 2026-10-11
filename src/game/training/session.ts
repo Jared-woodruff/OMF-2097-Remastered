@@ -13,6 +13,7 @@ import { saveSettings, settings } from '../settings';
 import { FrameMeter, renderHitboxes } from './lab';
 import { robotTrials, TrialRunner, type Trial } from './trials';
 import { TAG_HUD, video } from '../../video/draw';
+import { tr } from '../../i18n/i18n';
 
 /** The longest recording (game ticks, about 25 seconds). */
 const MAX_RECORD_TICKS = 900;
@@ -85,15 +86,15 @@ export class TrainingLab {
   /** What the dummy can answer with: nothing, a jump, the recording, or one of its robot's special moves and throws. */
   reversalChoices(): ReversalChoice[] {
     const out: ReversalChoice[] = [
-      { label: 'OFF', value: { kind: 'off' }, key: 'off' },
-      { label: 'JUMP', value: { kind: 'jump' }, key: 'jump' },
-      { label: 'RECORDING', value: { kind: 'tape' }, key: 'tape' },
+      { label: tr('OFF'), value: { kind: 'off' }, key: 'off' },
+      { label: tr('JUMP'), value: { kind: 'jump' }, key: 'jump' },
+      { label: tr('RECORDING'), value: { kind: 'tape' }, key: 'tape' },
     ];
     const obj = this.host.harObj(1);
     for (const m of harMoveList(harData(obj).afData)) {
       if (m.kind !== 'SPECIAL' && m.kind !== 'THROW') continue;
       const words = `${m.inputs.map((d) => DIR_WORDS[d] ?? d).join(' ')}${m.inputs.length ? '+' : ''}${m.button}`;
-      const label = m.label !== m.kind ? m.label : m.kind === 'THROW' ? `THROW ${words}` : words;
+      const label = m.label !== m.kind ? m.label : m.kind === 'THROW' ? tr('THROW {words}', { words }) : words;
       const value: Reversal = { kind: 'move', moveString: m.moveString };
       if (!out.some((c) => c.key === reversalKey(value))) out.push({ label, value, key: reversalKey(value) });
     }
@@ -156,7 +157,7 @@ export class TrainingLab {
     while (b > a && idle(r.frames[b - 1])) b--;
     const frames = r.frames.slice(a, b);
     if (!frames.length) {
-      this.flash('NOTHING RECORDED');
+      this.flash(tr('NOTHING RECORDED'));
       return;
     }
     settings().training.tape = { frames, facing: r.facing };
@@ -164,7 +165,7 @@ export class TrainingLab {
     this.host.setTrainingDummy(DummyMode.PLAYBACK);
     settings().training.dummy = DummyMode.PLAYBACK;
     this.configureDummy();
-    this.flash(`RECORDED ${(frames.length * this.gs.msPerDyntick() / 1000).toFixed(1)} S   DUMMY: PLAYBACK`);
+    this.flash(tr('RECORDED {toFixed} S   DUMMY: PLAYBACK', { toFixed: (frames.length * this.gs.msPerDyntick() / 1000).toFixed(1) }));
   }
 
   toggleRecording(): void {
@@ -176,7 +177,7 @@ export class TrainingLab {
   playTape(): void {
     const d = this.dummy();
     if (!getTape()) {
-      this.flash('RECORD THE DUMMY FIRST (F5)');
+      this.flash(tr('RECORD THE DUMMY FIRST (F5)'));
       return;
     }
     if (!d) this.host.setTrainingDummy(DummyMode.STAND);
@@ -243,7 +244,7 @@ export class TrainingLab {
         this.startTrial(t.index + 1);
       } else {
         this.stopTrials();
-        this.flash('ALL TRIALS COMPLETE!', 240);
+        this.flash(tr('ALL TRIALS COMPLETE!'), 240);
       }
     }
   }
@@ -277,12 +278,12 @@ export class TrainingLab {
       case 'F8':
         t.frameData = !t.frameData;
         saveSettings();
-        this.flash(`FRAME DATA ${t.frameData ? 'ON' : 'OFF'}`, 90);
+        this.flash(t.frameData ? tr('FRAME DATA ON') : tr('FRAME DATA OFF'), 90);
         return true;
       case 'F9':
         t.hitboxes = !t.hitboxes;
         saveSettings();
-        this.flash(`HITBOXES ${t.hitboxes ? 'ON' : 'OFF'}`, 90);
+        this.flash(t.hitboxes ? tr('HITBOXES ON') : tr('HITBOXES OFF'), 90);
         return true;
     }
     return false;
@@ -300,7 +301,7 @@ export class TrainingLab {
     let note = this.noteTicks > 0 ? this.note : '';
     if (this.rec) {
       const secs = (this.rec.frames.length * this.gs.msPerDyntick()) / 1000;
-      note = `RECORDING THE DUMMY ${secs.toFixed(1)} S   -   F5 OR PAUSE STOPS`;
+      note = tr('RECORDING THE DUMMY {secs} S   -   F5 OR PAUSE STOPS', { secs: secs.toFixed(1) });
     }
     if (note) {
       this.noteText.set(note);

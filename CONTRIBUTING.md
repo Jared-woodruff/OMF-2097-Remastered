@@ -30,6 +30,10 @@ The remaster's own robots and arenas are generated from `src/gen` into their mod
 (committed: they come with the game as a mod). After changing their models, moves or scenes, run `npm run gen` (see
 [docs/BUILDING.md](docs/BUILDING.md)); a test fails when the robots' files are out of date.
 
+LAN games (**Multiplayer › LAN**) need the desktop app's networking (`npm run desktop:dev`), but the dev server can
+stand in for it: two tabs of `npm run dev` opened with `?devlan` (e.g. `http://localhost:5173/?scene=MENU&devlan`) find
+and join each other's games. `src/test/netplay.test.ts` plays whole network games headlessly.
+
 The dev server has a debug API for poking at the running game: `?fight=3&ai` starts a CPU fight in the Fire Pit,
 `?scene=MELEE` opens a scene directly, and `window.__omf` offers `step(ms)`, `key(code, down)`, `pointer(kind, x, y)`
 and `capture(name, w, h)` (writes a PNG to `.captures/`). See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#running).
@@ -41,10 +45,34 @@ and `capture(name, w, h)` (writes a PNG to `.captures/`). See [docs/ARCHITECTURE
   Keep reference quirks and comment them; deviations need a comment explaining why.
 - **Cosmetics never touch the simulation.** Remastered effects observe the game through `src/game/fx.ts` events and
   must not change game state or draw from the game's random generators (`src/test/gameplay-options.test.ts` checks
-  this).
+  this). Replays and LAN games rely on it: a fight must play out the same from the same inputs, whatever each
+  computer's settings.
 - **Classic mode stays pixel-exact.** Changes to the remastered renderer must not alter the classic path.
 - **Match the surrounding code**: naming, comment density and idioms. The layout of the code is described in
   [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Texts and languages
+
+The game speaks fourteen languages (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#languages)). Write every text
+the remaster shows in English, wrapped for translation:
+
+```ts
+tr('ONE PLAYER GAME')                      // a text
+tr('{name} WINS', { name })                // with values: placeholders, never glued-on English
+trn(n, '{n} WIN', '{n} WINS')              // with a number: the language's plural forms
+const MODES = [trKey('ARCADE'), ...];      // a table made at start-up: marked here, tr(MODES[i]) where shown
+```
+
+Whole sentences only (no `tr('...') + tr('...')`), and never compare a translated text in the game's logic. Then:
+
+```sh
+node tools/i18n.mjs check          # every language: what is translated, placeholders and plural forms
+node tools/i18n.mjs todo fr fr.json  # what a language still lacks, to translate into public/lang/ui/fr.json
+```
+
+A text without a translation shows in English until one is added to `public/lang/ui/<code>.json` (an object keyed by
+the English text). `?lang=<code>` in the URL tries a language out; `GAME_LANG=<code> TEXT_AUDIT=audit.jsonl npx vitest run`
+runs the tests in it and lists the texts that don't fit their place.
 
 ## What not to commit
 

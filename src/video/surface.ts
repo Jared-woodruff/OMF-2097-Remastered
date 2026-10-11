@@ -13,6 +13,17 @@ export interface HdSource {
 }
 
 /**
+ * A letter drawn by the system's fonts at a high resolution (game/gui/hiresText.ts): its surface is `scale` times the
+ * size it is drawn at. The classic renderer draws the surface at that resolution; the remastered one makes a distance
+ * field from its coverage.
+ */
+export interface HiresGlyph {
+  scale: number;
+  /** The letter's coverage (0..255 per texel) at `texels` per native pixel, with `margin` native pixels around it. */
+  coverage(texels: number, margin: number): { data: Uint8ClampedArray; w: number; h: number } | null;
+}
+
+/**
  * An 8-bit indexed image. `transparent` is the palette index treated as transparent
  * (0 for sprites, -1 for opaque images like backgrounds).
  * Surfaces are immutable once handed to the renderer, except via `touch()` which
@@ -41,6 +52,8 @@ export class Surface {
    * screen's robots carry pieces of the background around them, which the HD background already has.
    */
   hdOwnColors = false;
+  /** A high-resolution letter (drawn smaller than its size, see HiresGlyph). */
+  hires: HiresGlyph | null = null;
 
   constructor(w: number, h: number, data?: Uint8Array, transparent = 0) {
     this.w = w;

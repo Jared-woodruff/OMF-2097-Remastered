@@ -8,6 +8,7 @@ import { Label } from '../../gui/widgets';
 import { scoreFormat } from '../../score';
 import type { MechlabScene } from '../mechlab';
 import { spriteButtonFromDetails, type ButtonDetails } from './buttonDetails';
+import { tr, trKey } from '../../../i18n/i18n';
 
 // "I don't care anymore, sorry" (reference: module-level labels of the current training menu)
 let label1: Label | null = null;
@@ -78,17 +79,17 @@ export function labMenuTrainingDone(c: SpriteButton, _s: MechlabScene): void {
 }
 
 const DETAILS_LIST: ButtonDetails<MechlabScene>[] = [
-  { cb: labMenuTrainingPower, text: 'POWER', dir: TextDirection.HORIZONTAL, halign: HAlign.CENTER, valign: VAlign.TOP, margin: { left: 0, right: 0, top: 2, bottom: 0 }, disabled: false },
-  { cb: labMenuTrainingAgility, text: 'AGILITY', dir: TextDirection.HORIZONTAL, halign: HAlign.CENTER, valign: VAlign.TOP, margin: { left: 0, right: 0, top: 2, bottom: 0 }, disabled: false },
-  { cb: labMenuTrainingEndurance, text: 'ENDUR.', dir: TextDirection.HORIZONTAL, halign: HAlign.CENTER, valign: VAlign.TOP, margin: { left: 0, right: 0, top: 2, bottom: 0 }, disabled: false },
-  { cb: labMenuTrainingDone, text: 'DONE', dir: TextDirection.VERTICAL, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 1, right: 0, top: 0, bottom: 0 }, disabled: false },
+  { cb: labMenuTrainingPower, text: trKey('POWER'), dir: TextDirection.HORIZONTAL, halign: HAlign.CENTER, valign: VAlign.TOP, margin: { left: 0, right: 0, top: 2, bottom: 0 }, disabled: false },
+  { cb: labMenuTrainingAgility, text: trKey('AGILITY'), dir: TextDirection.HORIZONTAL, halign: HAlign.CENTER, valign: VAlign.TOP, margin: { left: 0, right: 0, top: 2, bottom: 0 }, disabled: false },
+  { cb: labMenuTrainingEndurance, text: trKey('ENDUR.'), dir: TextDirection.HORIZONTAL, halign: HAlign.CENTER, valign: VAlign.TOP, margin: { left: 0, right: 0, top: 2, bottom: 0 }, disabled: false },
+  { cb: labMenuTrainingDone, text: trKey('vertical|DONE'), dir: TextDirection.VERTICAL, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 1, right: 0, top: 0, bottom: 0 }, disabled: false },
 ];
 
 function focusCourse(s: MechlabScene, stat: Stat, titleId: number, hintId: number): void {
   const pilot = s.gs.getPlayer(0).pilot;
   label1?.setText(langGet(titleId));
   if (pilot[stat] > 23) {
-    label2?.setText('UNAVAILABLE');
+    label2?.setText(tr('UNAVAILABLE'));
   } else {
     // char price_str[16]; snprintf(tmp, 32, "$ %sK", price_str)
     label2?.setText(`$ ${scoreFormat(PRICES[pilot[stat]]).slice(0, 15)}K`.slice(0, 31));

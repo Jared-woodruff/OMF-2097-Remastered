@@ -16,10 +16,12 @@ import { settings } from '../settings';
 import { langGet } from '../../resources/resources';
 import { globalRandom } from '../../util/random';
 import { app } from '../../app';
+import { trKey } from '../../i18n/i18n';
 
 export type RunKind = 'arcade' | 'survival' | 'timeattack' | 'exhibition';
 
-export const RUN_NAMES: Record<RunKind, string> = { arcade: 'ARCADE', survival: 'SURVIVAL', timeattack: 'TIME ATTACK', exhibition: 'WORKSHOP' };
+/** (English: shown with tr()) */
+export const RUN_NAMES: Record<RunKind, string> = { arcade: trKey('ARCADE'), survival: trKey('SURVIVAL'), timeattack: trKey('TIME ATTACK'), exhibition: trKey('WORKSHOP') };
 
 const ARCADE_FIGHTS = 8;
 const TIME_ATTACK_FIGHTS = 5;

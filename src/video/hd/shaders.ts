@@ -364,6 +364,9 @@ uniform sampler2D u_glyphSdf;  // the remastered typeface's glyphs as distance f
 uniform vec2 u_glyphSdfSize;
 uniform float u_glyphTexels;   // texels per native pixel
 uniform float u_glyphRange;    // native pixels of distance each side of an edge
+uniform sampler2D u_glyphDyn;  // letters the system's fonts draw (flag 0x800 with 0x200; Surface.hires), as distance fields
+uniform vec2 u_glyphDynSize;
+uniform float u_glyphDynTexels;
 uniform vec4 u_addBg;      // the credits: atlas rect of the background that index-adding sprites brighten (w 0: none)
 uniform vec2 u_scale;      // (as in the vertex shader: target pixels per native pixel, offset, target size)
 uniform vec2 u_offset;
@@ -439,8 +442,11 @@ void main() {
 
   if ((g_options & 0x200) != 0) {
     // Text in the remastered typeface: the glyph's distance field, fitted in its original cell (v_uv in its texels).
-    float dist = (texture(u_glyphSdf, v_uv / u_glyphSdfSize).r * 255.0 - 128.0) * u_glyphRange / 127.0;
-    float px = max(max(fwidth(v_uv.x), fwidth(v_uv.y)) / u_glyphTexels, 1e-4);
+    // 0x800: a letter of the system's fonts (another atlas, its own density).
+    bool dyn = (g_options & 0x800) != 0;
+    float sdf = dyn ? texture(u_glyphDyn, v_uv / u_glyphDynSize).r : texture(u_glyphSdf, v_uv / u_glyphSdfSize).r;
+    float dist = (sdf * 255.0 - 128.0) * u_glyphRange / 127.0;
+    float px = max(max(fwidth(v_uv.x), fwidth(v_uv.y)) / (dyn ? u_glyphDynTexels : u_glyphTexels), 1e-4);
     bool halfTone = (g_options & 0x400) != 0;
     if (halfTone) op *= 0.5;
     if (u_textPass == 1) {

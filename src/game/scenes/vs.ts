@@ -22,17 +22,24 @@ import {
 import { registerScene, type FightStats, type GamePlayer, type GameState } from '../gameState';
 import { Dialog, DialogResult, DialogStyle } from '../gui/dialog';
 import { FontSize, GLYPH_SHADOW_BOTTOM, GLYPH_SHADOW_RIGHT, HAlign, Text, TEXT_DARK_GREEN, VAlign } from '../gui/text';
-import { menuBackground, MenuBackgroundStyle } from '../gui/widgets';
+import { menuBackground, MenuBackgroundStyle, playMenuSound } from '../gui/widgets';
 import { GameObject } from '../object';
 import { paletteLoadPlayerColors } from '../pilotColors';
 import { Scene } from '../scene';
 import { scoreFormat } from '../score';
 import { settings } from '../settings';
 import { calculateTradeValue, harPrice } from './mechlab/harEconomy';
+import type { NetSession } from '../../net/session';
+import type { NetStatus } from '../../net/statusBar';
+import { tr, trnText } from '../../i18n/i18n';
 
 const TEXT_GREEN = 0xa7;
 const COLOR_GREEN = 0xa7;
 const COLOR_YELLOW = 0xcf;
+/** The menu colors every scene has (vga.setMenuColors): bright green, light green, a dark shadow. */
+const MENU_BRIGHT_GREEN = 0xfd;
+const MENU_LIGHT_GREEN = 0xff;
+const MENU_SHADOW = 0xfc;
 
 // fight_stats.h
 export const PLUG_TEXT_START = 587;
@@ -179,11 +186,11 @@ function createReportCard(fs: FightStats): ReportCard {
   const money = [fs.winnings, fs.bonuses, fs.repairCost, fs.profit].map((m) => scoreFormat(m));
   return {
     plugWhine,
-    reportTitle: createTitleText('FINANCIAL REPORT'),
-    statsTitle: createTitleText('FIGHT\nSTATISTICS'),
-    opponentTitle: createTitleText('OPPONENT'),
-    reportLeft: createLabelsText('WINNINGS:\nBONUSES:\nREPAIR COST:\nPROFIT:'),
-    statsSelfLeft: createLabelsText('HITS LANDED:\nAVERAGE DAMAGE:\nFAILED ATTACKS:\nHIT/MISS RATIO:'),
+    reportTitle: createTitleText(tr('FINANCIAL REPORT')),
+    statsTitle: createTitleText(tr('FIGHT\nSTATISTICS')),
+    opponentTitle: createTitleText(tr('OPPONENT')),
+    reportLeft: createLabelsText(tr('WINNINGS:\nBONUSES:\nREPAIR COST:\nPROFIT:')),
+    statsSelfLeft: createLabelsText(tr('HITS LANDED:\nAVERAGE DAMAGE:\nFAILED ATTACKS:\nHIT/MISS RATIO:')),
     reportRight: createValuesText(`$ ${money[0]}K\n$ ${money[1]}K\n$ ${money[2]}K\n$ ${money[3]}K`),
     statsSelfRight: createValuesText(
       `${fmtU(fs.hitsLanded[0])}\n${fmtF1(fs.averageDamage[0])}\n${fmtU(fs.totalAttacks[0] - fs.hitsLanded[0])}\n${fmtU(fs.hitMissRatio[0])}%`,
@@ -229,6 +236,9 @@ export class VsScene extends Scene {
   tooPatheticDialog: Dialog;
 
   vsText: Text | null = null;
+  /** A network game: the players who have pressed PUNCH to fight (the host picks the arena before), and the badges. */
+  netReady: [boolean, boolean] = [false, false];
+  private netBadges: { you: Text; ready: Text } | null = null;
   insults: (Text | null)[] = [null, null];
   /** Kreissack, but not on Veteran or higher: he will not fight. */
   private easyKreissack = false;
@@ -416,7 +426,7 @@ export class VsScene extends Scene {
       this.insults = [null, createInsultText(lang(747), 170, 60)];
     } else if (player1.chr && p2Pilot) {
       // tournament mode
-      this.insults = [null, createInsultText(p2Pilot.quotes[0] ?? '', 150, 60)];
+      this.insults = [null, createInsultText(trnText(p2Pilot.quotes[0] ?? '', p2Pilot.quotes[1]), 150, 60)];
     } else if (p2Pilot) {
       // 1 player: what the player's pilot says, and the opponent's answer. A mod pilot says its own lines (its line for
       // that original pilot, or its line for anyone), and gives the originals theirs; otherwise the originals speak to
@@ -502,7 +512,7 @@ export class VsScene extends Scene {
     this.arenaSelectBg = menuBackground(211, 50, MenuBackgroundStyle.MELEE_VS);
 
     // Quit Dialog
-    this.quitDialog = new Dialog(DialogStyle.YES_NO, 'Are you sure you want to quit this game?', 72, 60);
+    this.quitDialog = new Dialog(DialogStyle.YES_NO, tr('Are you sure you want to quit this game?'), 72, 60);
     this.quitDialog.userdata = this;
     this.quitDialog.clicked = (dlg, result) => this.quitDialogClicked(dlg, result);
 
@@ -543,7 +553,8 @@ export class VsScene extends Scene {
   /** vs_handle_action */
   /** Mouse (not in the original game): a click continues like the punch button; dialogs get their own clicks first. */
   override pointer(_x: number, _y: number, kind: import('../../controller/mouse').PointerKind): boolean {
-    if (kind !== 'click') return false;
+    // (a network game goes on with the inputs both games play)
+    if (kind !== 'click' || this.gs.net) return false;
     this.handleAction(ACT_PUNCH, CtrlType.KEYBOARD);
     return true;
   }
@@ -637,7 +648,8 @@ export class VsScene extends Scene {
     }
   }
 
-  // vs_dynamic_tick only forwards the extra events of network controllers; netplay is not part of this port.
+  // vs_dynamic_tick only forwards the extra events of network controllers; this port's network games hand the players'
+  // inputs out through their session (net/session.ts) and need none.
 
   /** vs_static_tick */
   override staticTick(_paused: boolean): void {
@@ -651,6 +663,10 @@ export class VsScene extends Scene {
     const player1 = gs.getPlayer(0);
     const menuEv: CtrlEvent[] = [];
     gs.menuPoll(menuEv, { playerScene: true });
+    if (gs.net) {
+      this.netInputPoll(menuEv);
+      return;
+    }
 
     // game_state_handle_event(): in demo mode ESC returns to the main menu and ENTER skips straight to a random
     // arena, before the scene sees the input. The TS game state has no such hook, so it is emulated here.
@@ -693,6 +709,57 @@ export class VsScene extends Scene {
     for (const i of p1) {
       if (i.type === 'action') this.handleAction(i.action, i.source);
       else if (i.type === 'close') gs.setNext(SceneId.MENU);
+    }
+  }
+
+  /**
+   * A network game: the host (player 1) picks the arena as in a two player game, and the fight starts once both players
+   * have pressed PUNCH (or KICK) to say they are ready (the host's arena is settled then); either player's ESC goes back
+   * to the robot select screen. ESC comes with the players' inputs, so both games act on it at the same step.
+   */
+  private netInputPoll(menuEv: CtrlEvent[]): void {
+    const gs = this.gs;
+    if (menuEv.some((e) => e.type === 'action' && e.action === ACT_ESC)) gs.net?.inject(ACT_ESC);
+    for (let player = 0; player < 2; player++) {
+      const ev: CtrlEvent[] = [];
+      gs.getPlayer(player).ctrl.poll(ev);
+      for (const i of ev) {
+        if (i.type === 'close') gs.setNext(SceneId.MENU);
+        else if (i.action === ACT_ESC) gs.setNext(SceneId.MELEE);
+        else if (this.netReady[player]) continue;
+        else if (i.action === ACT_PUNCH || i.action === ACT_KICK) {
+          this.netReady[player] = true;
+          playMenuSound(20);
+        } else if (player === 0) {
+          this.handleAction(i.action, i.source);
+        }
+      }
+    }
+    if (this.netReady[0] && this.netReady[1]) gs.setNext(SceneId.ARENA0 + gs.arena);
+  }
+
+  /** A network game: whose PUNCH is still to come (net/statusBar.ts). */
+  override netStatus(net: NetSession): NetStatus | null {
+    const [hostReady, guestReady] = this.netReady;
+    const [host, guest] = net.names;
+    if (net.localPlayer === 0) {
+      if (!hostReady) return { text: guestReady ? tr('{guest} IS READY: PICK THE ARENA, THEN PUNCH', { guest }) : tr('PICK THE ARENA (LEFT/RIGHT), THEN PUNCH') };
+      return { text: guestReady ? tr('GET READY!') : tr('WAITING FOR {guest} TO PRESS PUNCH', { guest }), waiting: true };
+    }
+    if (!guestReady) return { text: hostReady ? tr('{host} IS READY: PRESS PUNCH TO FIGHT', { host }) : tr('{host} PICKS THE ARENA: PUNCH WHEN READY', { host }) };
+    return { text: hostReady ? tr('GET READY!') : tr('WAITING FOR {host} TO PICK THE ARENA', { host }), waiting: true };
+  }
+
+  /** A network game: YOU over the local player's portrait, READY over those of the players who have pressed PUNCH. */
+  private renderNetBadges(me: number): void {
+    const badge = (s: string, color: number) => new Text(FontSize.BIG, 60, 10, s).setHAlign(HAlign.CENTER).setColor(color)
+      .setShadow(GLYPH_SHADOW_RIGHT | GLYPH_SHADOW_BOTTOM).setShadowColor(MENU_SHADOW);
+    this.netBadges ??= { you: badge(tr('YOU'), MENU_LIGHT_GREEN), ready: badge(tr('READY'), MENU_BRIGHT_GREEN) };
+    for (let i = 0; i < 2; i++) {
+      const x = i === 0 ? 0 : 320 - 60;
+      // (above the portraits: the status bar is at the bottom of the screen)
+      if (i === me) this.netBadges.you.draw(x, 134);
+      if (this.netReady[i]) this.netBadges.ready.draw(x, 145);
     }
   }
 
@@ -749,6 +816,8 @@ export class VsScene extends Scene {
   /** vs_render_overlay */
   override renderOverlay(): void {
     video.setTag(TAG_MENU);
+    // (over the portraits, which are scene objects)
+    if (this.gs.net) this.renderNetBadges(this.gs.net.localPlayer);
     if (this.quitDialog.isVisible()) this.quitDialog.render();
     if (this.tooPatheticDialog.isVisible()) this.tooPatheticDialog.render();
   }

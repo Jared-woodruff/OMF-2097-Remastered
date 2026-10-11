@@ -9,7 +9,9 @@ import { parentMenu } from './common';
 import { menuExtrasCreate } from './menuExtras';
 import { menuHelpCreate } from './menuHelp';
 import { menuModesCreate } from './menuModes';
+import { menuMultiplayerCreate } from './menuMultiplayer';
 import { menuOptionsCreate } from './menuOptions';
+import { tr } from '../../../i18n/i18n';
 
 /**
  * The reference's `if(ctrl_type == KEYBOARD) _setup_keyboard(gs, player, player); else if(GAMEPAD) _setup_joystick(...)`.
@@ -42,8 +44,8 @@ function mainmenu1v1(s: MainMenuScene): void {
   gs.setNext(SceneId.MELEE);
 }
 
-/** mainmenu_1v2(): two human players. */
-function mainmenu1v2(s: MainMenuScene): void {
+/** mainmenu_1v2(): two human players (MULTIPLAYER > LOCAL). */
+export function mainmenu1v2(s: MainMenuScene): void {
   const gs = s.gs;
   setupPlayerInput(gs, 0);
   setupPlayerInput(gs, 1);
@@ -73,19 +75,20 @@ function mainmenuMechlab(s: MainMenuScene): void {
 }
 
 /**
- * The main menu. The original's three ways to play come first, then the remaster's: its other modes, its extras (the
- * workshop, replays, records and the original's DEMO and SCOREBOARD), and one OPTIONS menu for the original's
- * CONFIGURATION and GAMEPLAY menus and the remaster's settings.
+ * The main menu. The original's three ways to play come first (its two player game is MULTIPLAYER's LOCAL, beside the
+ * network games), then the remaster's: its other modes, its extras (the workshop, replays, records and the original's
+ * DEMO and SCOREBOARD), and one OPTIONS menu for the original's CONFIGURATION and GAMEPLAY menus and the remaster's
+ * settings.
  */
 export function menuMainCreate(s: MainMenuScene): Menu {
   const menu = new Menu();
-  menu.attach(new Button('ONE PLAYER GAME', null, false, false, () => mainmenu1v1(s)));
-  menu.attach(new Button('TWO PLAYER GAME', null, false, false, () => mainmenu1v2(s)));
-  menu.attach(new Button('TOURNAMENT PLAY', null, false, false, () => mainmenuMechlab(s)));
-  menu.attach(new Button('MORE MODES', null, false, false, (b) => parentMenu(b).setSubmenu(menuModesCreate(s))));
-  menu.attach(new Button('EXTRAS', null, false, false, (b) => parentMenu(b).setSubmenu(menuExtrasCreate(s))));
-  menu.attach(new Button('OPTIONS', null, false, false, (b) => parentMenu(b).setSubmenu(menuOptionsCreate(s))));
-  menu.attach(new Button('HELP', null, false, false, (b) => parentMenu(b).setSubmenu(menuHelpCreate(s))));
-  menu.attach(new Button('QUIT', null, false, false, () => mainmenuQuit(s)));
+  menu.attach(new Button(tr('ONE PLAYER GAME'), null, false, false, () => mainmenu1v1(s)));
+  menu.attach(new Button(tr('MULTIPLAYER'), null, false, false, (b) => parentMenu(b).setSubmenu(menuMultiplayerCreate(s))));
+  menu.attach(new Button(tr('TOURNAMENT PLAY'), null, false, false, () => mainmenuMechlab(s)));
+  menu.attach(new Button(tr('MORE MODES'), null, false, false, (b) => parentMenu(b).setSubmenu(menuModesCreate(s))));
+  menu.attach(new Button(tr('EXTRAS'), null, false, false, (b) => parentMenu(b).setSubmenu(menuExtrasCreate(s))));
+  menu.attach(new Button(tr('OPTIONS'), null, false, false, (b) => parentMenu(b).setSubmenu(menuOptionsCreate(s))));
+  menu.attach(new Button(tr('HELP'), null, false, false, (b) => parentMenu(b).setSubmenu(menuHelpCreate(s))));
+  menu.attach(new Button(tr('QUIT'), null, false, false, () => mainmenuQuit(s)));
   return menu;
 }

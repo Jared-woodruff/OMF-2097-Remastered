@@ -17,6 +17,7 @@ import { addPilotPortrait } from '../../mods/portraits';
 import { modPilot } from '../../mods/registry';
 import { ANY_WIN_QUOTES, WIN_QUOTES } from '../pilotWords';
 import { Scene } from '../scene';
+import { tr, trn } from '../../i18n/i18n';
 
 const COLOR_YELLOW = 0xcf;
 const COLOR_GREEN = 0xa7;
@@ -32,7 +33,8 @@ export function winQuote(pilotId: number): string {
   // (a mod pilot's own lines)
   const own = modPilot(pilotId)?.info.quotes;
   const q = own?.length ? own : WIN_QUOTES[pilotId] ?? ANY_WIN_QUOTES;
-  return q[globalRandom.int(q.length)];
+  // (the remaster's lines in the game's language; a mod's stay as they are)
+  return tr(q[globalRandom.int(q.length)]);
 }
 
 export class VictoryScene extends Scene {
@@ -83,30 +85,30 @@ export class VictoryScene extends Scene {
       gs.addObject(portrait, RENDER_LAYER_TOP, false, false);
     }
 
-    const name = (gs.victoryStats?.name || pilot.name || `PLAYER ${winnerId + 1}`).toUpperCase();
-    this.title = new Text(FontSize.BIG, 320, 10, `${name} WINS!`).setHAlign(HAlign.CENTER).setColor(COLOR_YELLOW)
+    const name = (gs.victoryStats?.name || pilot.name || tr('PLAYER {n}', { n: winnerId + 1 })).toUpperCase();
+    this.title = new Text(FontSize.BIG, 320, 10, tr('{name} WINS!', { name })).setHAlign(HAlign.CENTER).setColor(COLOR_YELLOW)
       .setShadowColor(COLOR_SHADOW).setShadow(GLYPH_SHADOW_RIGHT | GLYPH_SHADOW_BOTTOM);
     // The line goes where the VS screen's dialogue goes: next to the portrait.
-    this.quote = new Text(FontSize.SMALL, 200, 34, `"${winQuote(pilot.pilotId)}"`).setHAlign(HAlign.CENTER).setVAlign(VAlign.MIDDLE)
+    this.quote = new Text(FontSize.SMALL, 200, 34, tr('"{quote}"', { quote: winQuote(pilot.pilotId) })).setHAlign(HAlign.CENTER).setVAlign(VAlign.MIDDLE)
       .setColor(COLOR_YELLOW).setShadowColor(COLOR_SHADOW).setShadow(GLYPH_SHADOW_RIGHT | GLYPH_SHADOW_BOTTOM);
-    this.hint = new Text(FontSize.SMALL, 150, 8, 'PRESS A BUTTON').setHAlign(HAlign.CENTER).setColor(COLOR_GREEN);
+    this.hint = new Text(FontSize.SMALL, 150, 8, tr('PRESS A BUTTON')).setHAlign(HAlign.CENTER).setColor(COLOR_GREEN);
 
     const st = gs.victoryStats;
     if (st) {
       const time = `${Math.floor(st.seconds / 60)}:${String(st.seconds % 60).padStart(2, '0')}`;
       const rows: [string, string][] = [
-        ['ROUNDS', `${st.rounds[0]} - ${st.rounds[1]}`],
-        ['TIME', time],
-        ['HITS', String(st.hits)],
-        ['ACCURACY', `${st.accuracy}%`],
-        ['BEST COMBO', st.bestCombo > 1 ? `${st.bestCombo} HITS` : '-'],
+        [tr('ROUNDS'), `${st.rounds[0]} - ${st.rounds[1]}`],
+        [tr('TIME'), time],
+        [tr('HITS'), String(st.hits)],
+        [tr('ACCURACY'), `${st.accuracy}%`],
+        [tr('BEST COMBO'), st.bestCombo > 1 ? trn(st.bestCombo, '{n} HIT', '{n} HITS') : '-'],
       ];
       const w = PANEL_W - 16;
       this.rows = rows.map(([l, v]) => [
         new Text(FontSize.SMALL, w, 8, l).setColor(COLOR_LABEL),
         new Text(FontSize.SMALL, w, 8, v).setHAlign(HAlign.RIGHT).setColor(COLOR_VALUE),
       ]);
-      const note = st.finish === FINISH_DESTRUCTION ? 'DESTRUCTION!' : st.finish === FINISH_SCRAP ? 'SCRAP!' : st.perfect ? 'PERFECT!' : '';
+      const note = st.finish === FINISH_DESTRUCTION ? tr('DESTRUCTION!') : st.finish === FINISH_SCRAP ? tr('SCRAP!') : st.perfect ? tr('PERFECT!') : '';
       if (note) {
         this.highlight = new Text(FontSize.BIG, w, 10, note).setHAlign(HAlign.CENTER).setColor(COLOR_YELLOW)
           .setShadowColor(COLOR_SHADOW).setShadow(GLYPH_SHADOW_RIGHT | GLYPH_SHADOW_BOTTOM);
