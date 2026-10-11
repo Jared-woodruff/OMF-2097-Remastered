@@ -59,6 +59,8 @@ export class TouchControls {
       position: 'fixed', inset: '0', pointerEvents: 'none', zIndex: '15', display: 'none', userSelect: 'none',
       touchAction: 'none', webkitUserSelect: 'none',
     });
+    // (the pad is the same in every language: the stick at the left, the buttons at the right)
+    this.root.dir = 'ltr';
     document.body.appendChild(this.root);
     // The stick: anywhere in the lower left part of the screen.
     this.stickZone = el('div', { position: 'absolute', left: '0', bottom: '0', width: '45%', height: '70%', pointerEvents: 'auto', touchAction: 'none' }, this.root);

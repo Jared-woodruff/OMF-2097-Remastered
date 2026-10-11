@@ -23,8 +23,17 @@ export function isSyncedScene(id: SceneId): boolean {
 const SUM_EVERY = 30;
 /** A ping this often (ms) keeps the connection's silence short when no inputs flow (the victory screen). */
 const PING_EVERY_MS = 1000;
+/** At most one answer (pong) this often (ms): a game pings once a second, one that pings faster is flooding. */
+const PONG_EVERY_MS = 250;
 /** Nothing heard for this long (ms): the other game is gone. */
 const TIMEOUT_MS = 15000;
+/**
+ * Waiting this long (ms) for the other game's inputs: it is stuck, even if it still answers (its pings alone do not keep
+ * a game going). A game waits for the other for a victory screen or a screen's artwork at most, seconds.
+ */
+const STALLED_MS = 60000;
+/** The other game is late by this much (ms): the status bar says so, and the local player's ESC is read meanwhile. */
+const LATE_MS = 400;
 /** At most this many steps of delay. */
 const MAX_DELAY = 12;
 /**
@@ -98,6 +107,7 @@ export class NetSession {
   private peerBye: string | null = null;
   private lastHeard: number;
   private lastPing: number;
+  private lastPong = -Infinity;
   private stalledAt = -1;
   private timer: ReturnType<typeof setInterval> | null = null;
   /** The last round trip time measured (ms). */
@@ -112,7 +122,8 @@ export class NetSession {
     this.now = opts.now ?? (() => performance.now());
     this.lastHeard = this.lastPing = this.now();
     this.link.setHandlers((text) => this.receive(text), (reason) => this.linkClosed(reason));
-    if (opts.timers !== false) this.timer = setInterval(() => this.heartbeat(), 250);
+    // (the other game may have left already: its goodbye waited in the link, and the game is over before it began)
+    if (opts.timers !== false && !this.ended) this.timer = setInterval(() => this.heartbeat(), 250);
   }
 
   /** The other player's name. */
@@ -182,6 +193,14 @@ export class NetSession {
   /** How long the game has been waiting for the other one (ms; 0: it is not). */
   stalledMs(): number {
     return this.stalledAt < 0 || this.ended ? 0 : this.now() - this.stalledAt;
+  }
+
+  /**
+   * The game has waited for the other one long enough to say so: the status bar does, and the local player's ESC is read
+   * meanwhile (Scene.doStaticTick: the input steps stand still, and the player must be able to leave).
+   */
+  late(): boolean {
+    return this.stalledMs() > LATE_MS;
   }
 
   /** An input step begins (before the scene polls the players): the local input is sampled and sent. */
@@ -275,9 +294,14 @@ export class NetSession {
         this.compareSums(key);
         return;
       }
-      case 'ping':
+      case 'ping': {
+        // (an answer now and then at most: a game that pings faster than it should is not answered each time)
+        const now = this.now();
+        if (now - this.lastPong < PONG_EVERY_MS) return;
+        this.lastPong = now;
         this.send({ t: 'pong', n: m.n });
         return;
+      }
       case 'pong':
         this.rtt = Math.max(0, this.now() - m.n);
         return;
@@ -307,17 +331,21 @@ export class NetSession {
     else this.end({ kind: 'lost', message: tr('The connection to {opponent} was lost.', { opponent: this.opponent }) });
   }
 
-  /** Pings now and then, and gives up on a game that stopped answering (called on a timer). */
+  /**
+   * Pings now and then, and gives up on a game that stopped answering, or that answers but has not sent the inputs this
+   * one waits for in a long while (called on a timer).
+   */
   heartbeat(): void {
     if (this.ended) return;
     const now = this.now();
-    if (now - this.lastHeard > TIMEOUT_MS) {
+    if (now - this.lastHeard > TIMEOUT_MS || this.stalledMs() > STALLED_MS) {
       this.end({ kind: 'timeout', message: tr('{opponent} stopped answering: the network game ended.', { opponent: this.opponent }) });
       return;
     }
     if (now - this.lastPing >= PING_EVERY_MS) {
       this.lastPing = now;
-      this.send({ t: 'ping', n: now });
+      // (in whole milliseconds, like every number of the messages)
+      this.send({ t: 'ping', n: Math.round(now) });
     }
   }
 

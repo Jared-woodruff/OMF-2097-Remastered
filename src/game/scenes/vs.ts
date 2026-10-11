@@ -34,6 +34,8 @@ import type { NetStatus } from '../../net/statusBar';
 import { tr, trnText } from '../../i18n/i18n';
 
 const TEXT_GREEN = 0xa7;
+/** The top of the box of the arena to pick (two players). */
+const ARENA_BOX_Y = 150;
 const COLOR_GREEN = 0xa7;
 const COLOR_YELLOW = 0xcf;
 /** The menu colors every scene has (vga.setMenuColors): bright green, light green, a dark shadow. */
@@ -750,6 +752,11 @@ export class VsScene extends Scene {
     return { text: hostReady ? tr('GET READY!') : tr('WAITING FOR {host} TO PICK THE ARENA', { host }), waiting: true };
   }
 
+  /** (the arena to pick, its picture and description, fill the bottom of the screen: the bar goes over it) */
+  override netStatusAbove(): number | undefined {
+    return this.gs.getPlayer(1).selectable ? ARENA_BOX_Y : undefined;
+  }
+
   /** A network game: YOU over the local player's portrait, READY over those of the players who have pressed PUNCH. */
   private renderNetBadges(me: number): void {
     const badge = (s: string, color: number) => new Text(FontSize.BIG, 60, 10, s).setHAlign(HAlign.CENTER).setColor(color)
@@ -794,7 +801,7 @@ export class VsScene extends Scene {
 
     if (player2.selectable) {
       // arena selection
-      video.draw(this.arenaSelectBg, 55, 150);
+      video.draw(this.arenaSelectBg, 55, ARENA_BOX_Y);
       this.arenaName?.draw(56 + 72, 152);
       this.arenaDesc?.draw(56 + 72, 153);
     } else if (this.easyKreissack) {

@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::io::{self, Read, Write};
 use std::net::{IpAddr, Ipv4Addr, Shutdown, SocketAddr, TcpListener, TcpStream, ToSocketAddrs, UdpSocket};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
@@ -21,14 +21,27 @@ pub const PORT: u16 = 2097;
 const GAME: &str = "omf2097r";
 /// The longest message (bytes): a longer one ends the connection.
 pub const MAX_MESSAGE: usize = 64 * 1024;
+/// How many messages may wait for a connection's writer. A game sends a few small ones a game tick, and stops when the
+/// other game stops answering: a queue this long means the other computer does not read them, and the connection is
+/// dropped rather than its queue growing.
+const WRITE_QUEUE: usize = 1024;
+/// The most a connection may bring in a second (messages, bytes), far above what a game sends (a few small messages a
+/// game tick): a computer that sends more is flooding this one (each message goes on to the game's page), and is cut off.
+const FLOOD_MESSAGES: u32 = 2000;
+const FLOOD_BYTES: usize = 4 * 1024 * 1024;
 /// How long joining waits for the host's computer to answer.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 /// How long a search listens for answers.
 const SCAN_TIME: Duration = Duration::from_millis(900);
 /// How often the hosting threads look whether they should stop.
 const POLL: Duration = Duration::from_millis(50);
-/// What a second guest hears (the game's own rejection message).
-const BUSY: &str = r#"{"t":"reject","reason":"That game is already being played."}"#;
+/// What a second guest hears (the game's own rejection message; the code says it in the guest's language).
+const BUSY: &str = r#"{"t":"reject","reason":"That game is already being played.","code":"busy"}"#;
+/// Adapters other computers do not reach this one by (their names contain these, in lower case): virtual machines' and
+/// containers' (Hyper-V's and WSL's "vEthernet (...)", Docker, VirtualBox, VMware, libvirt, LXC, Podman). Windows may list
+/// one of their 172.x addresses first.
+const VIRTUAL_ADAPTERS: &[&str] =
+  &["vethernet", "wsl", "docker", "virtualbox", "vmware", "hyper-v", "vboxnet", "vmnet", "virbr", "veth", "br-", "lxc", "podman"];
 
 /// What the game hears: a guest joined the hosted game, a message, a connection's end.
 pub trait LanEvents: Send + Sync + 'static {
@@ -47,11 +60,14 @@ pub struct LanGame {
   pub busy: bool,
 }
 
-/// This computer: a name for the player (the user's), and its network addresses (to tell a friend).
+/// This computer: a name for the player (the user's), its network addresses (to tell a friend: the likeliest first), and
+/// its system ("windows", "macos", "linux": the LAN page says what the system may ask before the game can use the
+/// network).
 #[derive(Serialize, Clone, Debug)]
 pub struct LanInfo {
   pub name: String,
   pub addresses: Vec<String>,
+  pub os: &'static str,
 }
 
 /// A connection made by joining.
@@ -64,8 +80,8 @@ pub struct Joined {
 struct Conn {
   /// (to cut the connection off)
   stream: TcpStream,
-  /// The writer thread's queue: dropping it lets the writer send what is queued and close.
-  tx: Sender<Vec<u8>>,
+  /// The writer thread's queue (WRITE_QUEUE long): dropping it lets the writer send what is queued and close.
+  tx: SyncSender<Vec<u8>>,
 }
 
 struct Hosting {
@@ -162,7 +178,7 @@ impl Lan {
     stream.set_nodelay(true)?;
     let reader = stream.try_clone()?;
     let writer = stream.try_clone()?;
-    let (tx, rx) = mpsc::channel();
+    let (tx, rx) = mpsc::sync_channel(WRITE_QUEUE);
     let id = self.next_id.fetch_add(1, Ordering::Relaxed) + 1;
     self.conns.lock().unwrap().insert(id, Conn { stream, tx });
     // (before its messages)
@@ -176,8 +192,10 @@ impl Lan {
   }
 
   fn read_loop(self: Arc<Self>, id: u32, mut stream: TcpStream) {
+    let mut flood = Flood::new();
     let reason = loop {
       match read_message(&mut stream) {
+        Ok(text) if flood.too_much(text.len()) => break "the other game sent too much".to_string(),
         Ok(text) => self.events.data(id, text),
         Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => break "closed".to_string(),
         Err(e) => break e.to_string(),
@@ -190,15 +208,31 @@ impl Lan {
     self.events.closed(id, reason);
   }
 
-  /// Sends messages on a connection (queued for its writer, in order).
+  /// Sends messages on a connection (queued for its writer, in order). A queue that is full (the other computer does
+  /// not read what this one sends) drops the connection: the game hears it closed.
   pub fn send(&self, id: u32, texts: Vec<String>) -> Result<(), String> {
-    let conns = self.conns.lock().unwrap();
+    let mut conns = self.conns.lock().unwrap();
     let c = conns.get(&id).ok_or("not connected")?;
+    let mut full = false;
     for text in texts {
       if text.len() > MAX_MESSAGE {
         return Err("message too long".into());
       }
-      c.tx.send(frame(&text)).map_err(|_| "not connected")?;
+      match c.tx.try_send(frame(&text)) {
+        Ok(()) => {}
+        Err(TrySendError::Full(_)) => {
+          full = true;
+          break;
+        }
+        Err(TrySendError::Disconnected(_)) => return Err("not connected".into()),
+      }
+    }
+    if full {
+      // (its reader then ends, and says so)
+      if let Some(c) = conns.remove(&id) {
+        let _ = c.stream.shutdown(Shutdown::Both);
+      }
+      return Err("the other game does not read what this one sends".into());
     }
     Ok(())
   }
@@ -223,6 +257,29 @@ fn frame(text: &str) -> Vec<u8> {
   f.extend_from_slice(&(text.len() as u32).to_be_bytes());
   f.extend_from_slice(text.as_bytes());
   f
+}
+
+/// What a connection has brought in the last second (FLOOD_MESSAGES, FLOOD_BYTES).
+struct Flood {
+  since: Instant,
+  messages: u32,
+  bytes: usize,
+}
+
+impl Flood {
+  fn new() -> Flood {
+    Flood { since: Instant::now(), messages: 0, bytes: 0 }
+  }
+
+  /// A message of `len` bytes came in: whether the connection now brings too much.
+  fn too_much(&mut self, len: usize) -> bool {
+    if self.since.elapsed() >= Duration::from_secs(1) {
+      *self = Flood::new();
+    }
+    self.messages += 1;
+    self.bytes += len;
+    self.messages > FLOOD_MESSAGES || self.bytes > FLOOD_BYTES
+  }
 }
 
 fn read_message(stream: &mut TcpStream) -> io::Result<String> {
@@ -316,7 +373,8 @@ fn read_answer(datagram: &[u8], from: SocketAddr) -> Option<LanGame> {
   })
 }
 
-/// The network adapters' IPv4 addresses and broadcast addresses (up, not loopback or self-assigned).
+/// The network adapters' IPv4 addresses and broadcast addresses (up, not loopback or self-assigned), the likeliest one
+/// for other computers to reach this one by first (address_rank).
 fn adapters() -> Vec<(Ipv4Addr, Ipv4Addr)> {
   let mut out = Vec::new();
   for i in if_addrs::get_if_addrs().unwrap_or_default() {
@@ -325,12 +383,33 @@ fn adapters() -> Vec<(Ipv4Addr, Ipv4Addr)> {
     }
     if let if_addrs::IfAddr::V4(a) = &i.addr {
       let broadcast = a.broadcast.unwrap_or_else(|| Ipv4Addr::from(u32::from(a.ip) | !u32::from(a.netmask)));
-      out.push((a.ip, broadcast));
+      out.push((address_rank(&i.name, i.is_p2p(), a.ip), a.ip, broadcast));
     }
   }
-  // (home networks' addresses first: the one to tell a friend)
-  out.sort_by_key(|(ip, _)| !ip.is_private());
-  out
+  // (a stable sort: the system's order among equals)
+  out.sort_by_key(|(rank, ..)| *rank);
+  out.into_iter().map(|(_, ip, broadcast)| (ip, broadcast)).collect()
+}
+
+/// How likely an adapter's address is the one other computers reach this one by (lower first): a home network's
+/// (192.168.x.x and 10.x.x.x, then 172.16-31.x.x, which virtual machines' networks often use), then any other; and all
+/// of them before those of virtual adapters and tunnels (VPNs).
+fn address_rank(adapter: &str, tunnel: bool, ip: Ipv4Addr) -> u8 {
+  let name = adapter.to_lowercase();
+  let virtual_adapter = tunnel || VIRTUAL_ADAPTERS.iter().any(|v| name.contains(v));
+  let [a, b, ..] = ip.octets();
+  let rank = if a == 192 && b == 168 || a == 10 {
+    0
+  } else if ip.is_private() {
+    1
+  } else {
+    2
+  };
+  if virtual_adapter {
+    rank + 3
+  } else {
+    rank
+  }
 }
 
 /// Looks for games on the network for a moment: asks every adapter's broadcast address (and this computer).
@@ -347,13 +426,19 @@ pub fn scan() -> io::Result<Vec<LanGame>> {
   }
   let start = Instant::now();
   let mut asked = 0u32;
+  // (whether a search went out on the network, past this computer; else why not)
+  let mut sent = false;
+  let mut failed: Option<io::Error> = None;
   let mut games: Vec<LanGame> = Vec::new();
   let mut buf = [0u8; 1024];
   while start.elapsed() < SCAN_TIME {
     // (asked twice: a datagram can be lost)
     if asked < 2 && start.elapsed() >= Duration::from_millis(300 * u64::from(asked)) {
       for t in &targets {
-        let _ = udp.send_to(search.as_bytes(), (*t, PORT));
+        match udp.send_to(search.as_bytes(), (*t, PORT)) {
+          Ok(_) => sent |= !t.is_loopback(),
+          Err(e) => failed = Some(e),
+        }
       }
       asked += 1;
     }
@@ -381,23 +466,28 @@ pub fn scan() -> io::Result<Vec<LanGame>> {
     }
     out.push(g);
   }
+  // Not one search went out on the network: there is none, or the system does not let the game use it (macOS asks for
+  // the local network first). The game says so, rather than that it found no games (one on this computer still shows).
+  if !sent && out.is_empty() {
+    return Err(failed.unwrap_or_else(|| io::Error::new(io::ErrorKind::NotConnected, "no network")));
+  }
   Ok(out)
 }
 
-/// This computer's user name and network addresses.
+/// This computer's user name, network addresses and system.
 pub fn info() -> LanInfo {
   let name = ["USERNAME", "USER", "COMPUTERNAME", "HOSTNAME"]
     .iter()
     .filter_map(|k| std::env::var(k).ok())
     .find(|s| !s.trim().is_empty())
     .unwrap_or_default();
-  LanInfo { name, addresses: adapters().iter().map(|(ip, _)| ip.to_string()).collect() }
+  LanInfo { name, addresses: adapters().iter().map(|(ip, _)| ip.to_string()).collect(), os: std::env::consts::OS }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use std::sync::mpsc::RecvTimeoutError;
+  use std::sync::mpsc::{RecvTimeoutError, Sender};
 
   /// Records what the game would hear.
   struct Heard(Mutex<Sender<(String, u32, String)>>);
@@ -487,5 +577,35 @@ mod tests {
     let g = read_answer(br#"{"t":"here","game":"omf2097r","name":"A\u0007B","port":2097,"version":"1","busy":true}"#, from).unwrap();
     assert_eq!((g.name.as_str(), g.address.as_str(), g.busy), ("AB", "192.168.1.9", true));
     assert!(read_answer(br#"{"t":"here","game":"omf2097r","name":"A","port":99999,"version":"1"}"#, from).is_none());
+  }
+
+  #[test]
+  fn the_address_to_tell_a_friend_comes_first() {
+    let ip = |s: &str| s.parse::<Ipv4Addr>().unwrap();
+    // (Windows with WSL or Hyper-V lists its vEthernet adapter's 172.x address first)
+    let mut found = [
+      ("vEthernet (WSL (Hyper-V firewall))", false, ip("172.27.48.1")),
+      ("VirtualBox Host-Only Network", false, ip("192.168.56.1")),
+      ("Ethernet 2", false, ip("172.20.1.5")),
+      ("Wi-Fi", false, ip("192.168.1.20")),
+      ("WireGuard", true, ip("10.8.0.2")),
+      ("docker0", false, ip("172.17.0.1")),
+      ("eth1", false, ip("84.12.1.2")),
+    ];
+    found.sort_by_key(|(name, tunnel, ip)| address_rank(name, *tunnel, *ip));
+    let names: Vec<&str> = found.iter().map(|(name, ..)| *name).collect();
+    assert_eq!(names[..3], ["Wi-Fi", "Ethernet 2", "eth1"]);
+    assert!(address_rank("en0", false, ip("10.0.0.7")) < address_rank("Ethernet", false, ip("172.16.0.7")));
+    assert!(BUSY.contains(r#""code":"busy""#));
+  }
+
+  #[test]
+  fn a_connection_that_floods_is_cut_off() {
+    let mut f = Flood::new();
+    for _ in 0..FLOOD_MESSAGES {
+      assert!(!f.too_much(60));
+    }
+    assert!(f.too_much(60));
+    assert!(Flood::new().too_much(FLOOD_BYTES + 1));
   }
 }

@@ -6,17 +6,18 @@ import { NetController } from '../controller/net';
 import { Pilot } from '../formats/pilot';
 import { AiDifficulty, CtrlType, ORIGINAL_HAR_TYPES, SceneId } from '../game/constants';
 import type { GameState } from '../game/gameState';
-import { helpOverlayOpen } from '../game/gui/helpOverlay';
+import { helpOverlayHeld } from '../game/gui/helpOverlay';
 import { harData } from '../game/objects/har';
 import { arenaList, extraHarIds, modPilotIds, pilotInfo, pilotNameOf } from '../game/roster';
 import { settings } from '../game/settings';
+import { modArena } from '../mods/registry';
 import { toast } from '../platform/toast';
 import { getFile } from '../resources/files';
 import { getGenerated } from '../resources/generated';
 import { harFileName } from '../resources/resources';
 import type { NetContent, NetRules } from './protocol';
 import type { NetEnd, NetSession } from './session';
-import { tr } from '../i18n/i18n';
+import { trKey } from '../i18n/i18n';
 
 /** The input delay of LAN games (ms): room for a frame's timing on both computers and the network's few milliseconds. */
 export const LAN_DELAY_MS = 40;
@@ -54,6 +55,9 @@ export function netContent(): NetContent {
     text(`A${a}`);
     const b = fileBytes(`ARENA${a}.BK`);
     if (b) h = fnv(h, b);
+    // (a mod arena's description plays in the fights too: the original arena whose behavior it has, its animations)
+    const info = modArena(a)?.info;
+    if (info) text(JSON.stringify(info));
   }
   // (a mod pilot's stats and colors play in the fights)
   for (const p of pilots) text(`P${p}${pilotNameOf(p)}${JSON.stringify(pilotInfo(p))}`);
@@ -130,7 +134,8 @@ export function startNetGame(gs: GameState, session: NetSession, opts: NetGameOp
   gs.training = false;
   gs.modeRun = null;
   gs.credits = null;
-  gs.modeLabel = tr('LAN');
+  // (a key: the replay list says it in the language of the moment)
+  gs.modeLabel = trKey('LAN');
   const device = opts.device ?? localDevice(gs);
   for (let i = 0; i < 2; i++) {
     const p = gs.getPlayer(i);
@@ -144,8 +149,9 @@ export function startNetGame(gs: GameState, session: NetSession, opts: NetGameOp
     p.selectable = true;
   }
   session.checksum = () => fightChecksum(gs);
-  // (the local player stands still while a menu of their own is open: the pause menu, the help)
-  session.suppressLocal = () => helpOverlayOpen() || (gs.sc as { menuVisible?: boolean }).menuVisible === true;
+  // (the local player stands still while a menu of their own is open, the help or the pause menu, and until the key that
+  // closed it is let go: it must not act in the game)
+  session.suppressLocal = () => helpOverlayHeld() || gs.sc.netLocalHeld();
   session.onEnd = (end) => {
     netGameEnded(gs, session, end);
     opts.onEnd?.(end);
@@ -164,9 +170,19 @@ function netGameEnded(gs: GameState, session: NetSession, end: NetEnd): void {
   if (gs.net !== session) return;
   gs.net = null;
   gs.paused = false;
-  gs.menuReturn = 'multiplayer';
-  // (now, even in the middle of a screen change: the next screen would be one of the network game's)
-  if (gs.thisId !== SceneId.MENU || gs.nextId !== SceneId.MENU) {
+  if (gs.thisId === SceneId.MENU) {
+    // It ended before the robot select screen opened (the other player called it off at once): the main menu stays as
+    // it is, MULTIPLAYER open, and what the network game set up goes, as the main menu does when it opens.
+    gs.nextId = SceneId.MENU;
+    gs.nextWaitTicks = 0;
+    gs.menuReturn = null;
+    gs.matchSettingsReset();
+    gs.setSpeed(settings().gameplay.speed + 5);
+    gs.modeLabel = null;
+    gs.reconfigureControllers();
+  } else {
+    gs.menuReturn = 'multiplayer';
+    // (now, even in the middle of a screen change: the next screen would be one of the network game's)
     if (gs.nextWaitTicks > 0) gs.nextId = SceneId.MENU;
     else gs.setNext(SceneId.MENU);
   }

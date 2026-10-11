@@ -2,11 +2,11 @@
 // (spread over the ranks, the champion always among them), their robots as they were or some or all of them on the
 // remaster's robots, and more or less prize money. They are joined like the others, from TOURNAMENT PLAY. Their
 // descriptions are kept in the browser's storage and shared as .omftrn files.
-import type { TournamentFile } from '../../formats/tournament';
+import { localizedLocale, type TournamentFile } from '../../formats/tournament';
 import { customTournamentNames, hasFighter, loadTournament, registerTournament } from '../../resources/resources';
 import { listFiles } from '../../resources/files';
 import { EXTRA_HAR_IDS } from '../roster';
-import { tr, trKey, trn } from '../../i18n/i18n';
+import { onLanguageChange, tr, trKey, trn } from '../../i18n/i18n';
 
 export interface CustomTournamentSpec {
   v: 1;
@@ -38,10 +38,15 @@ export function baseTournaments(): string[] {
   return listFiles('.TRN').filter((n) => !customTournamentNames().includes(n));
 }
 
-// (a tournament's name is the player's, typed in the game's letters A-Z and 0-9 like a pilot's: its defaults are not
-// translated)
+// (a tournament's name is the player's, typed in the game's letters A-Z and 0-9 like a pilot's: the files keep it so)
 export function cleanTitle(s: string): string {
   return s.toUpperCase().replace(/[^A-Z0-9 ]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24) || 'CUSTOM TOURNAMENT';
+}
+
+/** A new tournament's name: CUSTOM TOURNAMENT 1... in the game's language when its letters can be kept, else in English. */
+export function defaultTitle(slot: number): string {
+  const name = tr('CUSTOM TOURNAMENT {n}', { n: slot + 1 });
+  return cleanTitle(name) === name ? name : `CUSTOM TOURNAMENT ${slot + 1}`;
 }
 
 export function defaultTournament(): CustomTournamentSpec {
@@ -85,7 +90,9 @@ export function buildCustomTournament(spec: CustomTournamentSpec, slot: number, 
     });
   }
   const prize = PRIZES[spec.prize];
-  const baseTitle = base.locales[0]?.title ?? base.filename;
+  // (the description is in the game's language, the tournament it is made from named in it too: built again when the
+  // language changes, see registerCustomTournaments)
+  const baseTitle = localizedLocale(base)?.title || base.filename;
   const count = enemies.filter((p) => !p.secret).length;
   const who = { name: spec.name, base: baseTitle.toUpperCase() };
   const description = (spec.robots === 2 ? trn(count, '{name}: {n} OPPONENT FROM THE {base} ON THE NEW ROBOTS.', '{name}: {n} OPPONENTS FROM THE {base} ON THE NEW ROBOTS.', who)
@@ -151,9 +158,20 @@ export function setCustomTournament(slot: number, spec: CustomTournamentSpec | n
   return register(slot);
 }
 
-/** Registers every stored custom tournament (at startup, once the game data is loaded). */
+let followsLanguage = false;
+
+/**
+ * Registers every stored custom tournament (at startup, once the game data is loaded), and again whenever the language
+ * changes (their descriptions are written in it).
+ */
 export function registerCustomTournaments(): void {
   for (let i = 0; i < CUSTOM_SLOTS; i++) register(i);
+  if (!followsLanguage) {
+    followsLanguage = true;
+    onLanguageChange(() => {
+      for (let i = 0; i < CUSTOM_SLOTS; i++) register(i);
+    });
+  }
 }
 
 /** Forgets the stored tournaments (tests). */

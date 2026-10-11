@@ -16,6 +16,7 @@ import { ACT_DOWN, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_UP, type CtrlTy
 import { FontSize, HAlign } from '../gui/text';
 import { Page, PC } from '../gui/page';
 import { playMenuSound } from '../gui/widgets';
+import { typedChar, type TypedKey } from '../scenes/mainmenu/keyNames';
 import { ensureWorkshopRobot, harIdOf, setWorkshopSpec, workshopSpecs } from './registry';
 import { tr, trn, trKey } from '../../i18n/i18n';
 
@@ -212,7 +213,7 @@ export class WorkshopPage extends Page {
     return 1;
   }
 
-  override key(code: string): boolean {
+  override key(code: string, e?: TypedKey): boolean {
     if (this.slot < 0) {
       if (code === 'Delete' || code === 'Backspace') {
         if (!workshopSpecs()[this.sel]) return true;
@@ -238,17 +239,20 @@ export class WorkshopPage extends Page {
       }
       return false;
     }
-    // Typing a name (on the NAME row).
+    // Typing a name (on the NAME row): what the player's keyboard types, in the letters a name holds (A-Z, 0-9).
     if (ROWS[this.row] !== 'name') return false;
     const s = this.spec;
     if (code === 'Backspace') {
       s.name = s.name.slice(0, -1);
     } else {
-      const m = /^Key([A-Z])$/.exec(code) ?? /^Digit([0-9])$/.exec(code);
-      if (!m) return false;
-      s.name = (s.name + m[1]).slice(0, 10);
+      const ch = typedChar(code, e, (c) => /^[A-Z0-9]$/.test(c));
+      if (!ch) return false;
+      s.name = (s.name + ch).slice(0, 10);
     }
-    setWorkshopSpec(this.slot, { ...s, colors: [...s.colors] as [number, number, number], name: cleanName(s.name || tr('ROBOT')) });
+    // (an emptied name is saved as ROBOT, in the game's language when a name can hold its letters: ROBÔ cannot)
+    const robot = tr('ROBOT');
+    const name = cleanName(s.name || (cleanName(robot) === robot ? robot : 'ROBOT'));
+    setWorkshopSpec(this.slot, { ...s, colors: [...s.colors] as [number, number, number], name });
     return true;
   }
 

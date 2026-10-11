@@ -1,9 +1,12 @@
 // Single-line text entry field (port of the reference gui textinput).
 // Keyboard: typed characters arrive through `keyEvent` (the SDL_TEXTINPUT/SDL_KEYDOWN events of the reference);
 // menu actions move the caret. Gamepad: up/down scroll through a character wheel.
+import { cp437Code } from '../../i18n/cp437';
 import { video } from '../../video/draw';
 import { Surface } from '../../video/surface';
 import { ACT_DOWN, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_STOP, ACT_UP, CtrlType } from '../constants';
+import { typedChar } from '../scenes/mainmenu/keyNames';
+import { fontGlyph } from './glyphs';
 import { drawGlyph, FontSize, getFont, GLYPH_SHADOW_NONE, HAlign, Text } from './text';
 import { Component, CURSOR_CHAR, type GuiTheme } from './widgets';
 
@@ -24,9 +27,11 @@ export function textinputWheelStep(charset: string, current: string, up: boolean
 }
 
 function isValidInput(ch: string): boolean {
-  // isprint() in the C locale: 0x20..0x7E.
-  const c = ch.charCodeAt(0);
-  return ch.length === 1 && c >= 0x20 && c <= 0x7e && ch !== '@' && ch !== '~';
+  // isprint() in the C locale: 0x20..0x7E; and the Latin letters of code page 437 (ä, é, ñ...: the names are saved in
+  // it, pilots' in their CHR files, high scores in SCORES.DAT).
+  const c = cp437Code(ch);
+  if (c >= 0x80) return /^\p{Script=Latin}$/u.test(ch);
+  return c >= 0x20 && c <= 0x7e && ch !== '@' && ch !== '~';
 }
 
 export class TextInput extends Component {
@@ -214,8 +219,7 @@ export class TextInput extends Component {
     if (this.selected && !this.disabled && this.wheelActive() && this.pos < this.buf.length) {
       // Draw the character under the block cursor in black so it stays readable.
       const gp = this.text.glyphPos(this.pos);
-      const font = getFont(this.text.font);
-      const glyph = font.glyphs[this.buf.charCodeAt(this.pos) - 32];
+      const glyph = fontGlyph(getFont(this.text.font), this.buf[this.pos]);
       if (gp && glyph) drawGlyph(glyph, this.x + left + gp[0], this.y + top + gp[1], 0);
     }
   }
@@ -281,16 +285,16 @@ export class TextInput extends Component {
 
   /**
    * Raw keyboard input (reference textinput_event). A browser keydown carries both the SDL_KEYDOWN and the
-   * SDL_TEXTINPUT (`e.key` for printable keys) parts. Every key press is consumed.
+   * SDL_TEXTINPUT (`e.key` for printable keys) parts: what the key types on the player's keyboard (keyNames.ts
+   * typedChar: a Russian or Arabic one types the US letters). Every key press is consumed.
    */
   override keyEvent(code: string, e: KeyboardEvent): boolean {
     if (this.lastSource !== CtrlType.KEYBOARD) {
       this.lastSource = CtrlType.KEYBOARD;
       this.dirty = true;
     }
-    const ch = e.key ?? '';
-    const typed = ch.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey;
-    if (typed && isValidInput(ch) && (this.filterCb === null || this.filterCb(ch))) {
+    const ch = typedChar(code, e, (c) => isValidInput(c) && (this.filterCb === null || this.filterCb(c)), false);
+    if (ch !== null) {
       this.buf = this.buf.slice(0, this.pos) + ch + this.buf.slice(this.pos);
       this.buf = this.buf.slice(0, Math.max(0, this.maxChars - 1));
       this.pos = Math.min(this.pos + 1, this.buf.length);

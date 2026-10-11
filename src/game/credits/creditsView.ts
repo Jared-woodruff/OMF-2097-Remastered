@@ -99,7 +99,7 @@ const EMBLEMS: Record<Exclude<CreditEmblem, 'avatar' | 'cover'>, string> = {
 // and in the screen's layers those of the game's picture wherever it is. The VS card and the credit's card sit under the
 // fight's HUD (its bars and names take the top 30 rows), clear of the robots' heads.
 const CSS = `
-.omfc { position: fixed; inset: 0; z-index: 18; overflow: hidden; pointer-events: none; user-select: none; color: #f2f4f7;
+.omfc { position: fixed; inset: 0; z-index: 18; overflow: hidden; pointer-events: none; -webkit-user-select: none; user-select: none; color: #f2f4f7;
   font-family: ${UI_FONT}; --ux: 4.5px; --uy: 5.4px; --ox: 0px; --oy: 0px; }
 .omfc a, .omfc button { pointer-events: auto; }
 .omfc-stage { position: absolute; inset: 0; background: #03050f; }
@@ -244,6 +244,9 @@ export function openCreditsView(opts: CreditsViewOptions): CreditsView {
   const count = NUMBERS[CREDIT_BATTLES.length] ?? String(CREDIT_BATTLES.length);
   const root = document.createElement('div');
   root.className = 'omfc';
+  // (the credits are in English, laid out from the left whatever the game's language)
+  root.lang = 'en';
+  root.dir = 'ltr';
   root.innerHTML = `<div class="omfc-stage"><div class="omfc-vignette"></div></div>
 <div class="omfc-card omfg"></div>
 <div class="omfc-crt omfg-scale"><div class="omfc-cover omfg"><div class="omfc-upnext"><div class="omfc-upnext-em"></div><div class="omfc-upnext-count omfg-s omfg-gold"></div>

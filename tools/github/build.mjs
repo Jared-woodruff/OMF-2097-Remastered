@@ -30,7 +30,7 @@ const only = new Set(args.filter((a, i) => !a.startsWith('--') && (outAt < 0 || 
 /** The README's sections: their banners (docs/media/banner-<key>.jpg) and navigation buttons (nav-<key>.png). */
 const SECTIONS = [
   { key: 'play', anchor: 'play', nav: 'Play', title: 'Play',
-    line: 'Free for Windows: download it, set it up in one screen, and fight', pic: { menu: true } },
+    line: 'Free for Windows, macOS and Linux: download it, set it up in one screen, and fight', pic: { menu: true } },
   { key: 'modes', anchor: 'classic-remastered', nav: 'Classic / Remastered', title: 'Classic / Remastered',
     line: 'The pixel-exact 1994 picture or HD at any resolution, one key apart',
     pic: { gif: 'docs/media/classic-vs-remastered.gif', frame: 30, pos: '50% 40%' } },
@@ -50,7 +50,7 @@ const SECTIONS = [
     line: 'Make robots, arenas and pilots in the game\'s own formats, then play them',
     pic: { src: 'docs/media/studio-mod.jpg', pos: '52% 60%', zoom: 1.8 } },
   { key: 'build', anchor: 'build', nav: 'Build & tech', title: 'Build it yourself',
-    line: 'The web version and the Windows app from source, and how it all works',
+    line: 'The web version and the desktop app from source, and how it all works',
     pic: { src: 'public/hd/scene-ARENA2/wide_1.webp', pos: '50% 62%' } },
   { key: 'credits', anchor: 'credits', nav: 'Credits', title: 'Credits & license',
     line: 'Diversions Entertainment, Epic MegaGames, OpenOMF and everyone who made this',
@@ -59,7 +59,7 @@ const SECTIONS = [
 
 /** The README's big buttons (docs/media/btn-<key>.png): the ways in. */
 const BUTTONS = [
-  { key: 'download', kind: 'go', icon: 'download', label: 'Download', sub: 'Free, for Windows' },
+  { key: 'download', kind: 'go', icon: 'download', label: 'Download', sub: 'Free: Windows, macOS, Linux' },
   { key: 'web', kind: 'go', icon: 'globe', label: 'Play online', sub: 'In your browser, free' },
   { key: 'trailer', kind: 'menu', icon: 'play', label: 'Trailer', sub: 'Three minutes, sound on' },
   { key: 'manual', kind: 'menu', icon: 'book', label: 'Manual', sub: '32 pages, PDF' },
@@ -72,7 +72,7 @@ const PILLARS = ['faithful', 'remastered', 'modern'];
 /** The docs' headers (docs/media/doc-<key>.jpg). */
 const DOCS = [
   { key: 'modding', title: 'Mods and OMF Studio', line: 'Robots, arenas and pilots in the game\'s own formats, pixel for pixel', pic: { src: 'docs/media/studio.jpg', pos: '12% 8%', zoom: 1.2 } },
-  { key: 'building', title: 'Building', line: 'The web version, the Windows app, the HD artwork and the remaster\'s own content', pic: { menu: true } },
+  { key: 'building', title: 'Building', line: 'The web version, the desktop app, the HD artwork and the remaster\'s own content', pic: { menu: true } },
   { key: 'architecture', title: 'Architecture', line: 'How the code is organized, and how the C reference maps to it', pic: { src: 'docs/media/lab-frames.jpg', pos: '8% 40%', zoom: 1.9 } },
   { key: 'contributing', title: 'Contributing', line: 'How to work on the remaster: tests, conventions, what belongs in the repository', pic: { src: 'docs/media/workshop.jpg', pos: '50% 30%' } },
   { key: 'notice', title: 'Notice', line: 'The game\'s freeware terms, the remastered artwork and the licenses', pic: { src: 'docs/media/credits-hero.jpg', pos: '50% 38%' } },

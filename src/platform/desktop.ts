@@ -26,8 +26,22 @@ interface TauriGlobal {
   };
 }
 
-const tauri: TauriGlobal | undefined =
-  typeof window === 'undefined' ? undefined : (window as Window & { __TAURI__?: TauriGlobal }).__TAURI__;
+type WithTauri = Window & { __TAURI__?: TauriGlobal };
+
+/** The page's own API, or in a frame (OMF Studio's test of a mod) its page's: macOS's and Linux's WebKit give the shell's API to the window's page only. */
+function findTauri(): TauriGlobal | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const own = (window as WithTauri).__TAURI__;
+  if (own || window.self === window.top) return own;
+  try {
+    return (window.top as WithTauri | null)?.__TAURI__;
+  } catch {
+    // (a page of another site: not the shell's)
+    return undefined;
+  }
+}
+
+const tauri: TauriGlobal | undefined = findTauri();
 
 /** The game's native window when running in the desktop shell. */
 const appWindow: TauriWindow | undefined = tauri?.window.getCurrentWindow();
@@ -36,13 +50,27 @@ const appWindow: TauriWindow | undefined = tauri?.window.getCurrentWindow();
 export const isDesktop: boolean = appWindow !== undefined;
 
 /**
- * Inside another page's frame (OMF Studio's test of a mod): the desktop shell's API reaches frames too, but the window
- * is Studio's, so the game leaves it alone (fullscreen, title, closing); saving files still works.
+ * Inside another page's frame (OMF Studio's test of a mod): the desktop shell's API reaches frames too (through the
+ * page, see findTauri), but the window is Studio's, so the game leaves it alone (fullscreen, title, closing); saving
+ * files still works.
  */
 export const framed: boolean = typeof window !== 'undefined' && window.self !== window.top;
 
 /** The native window the game may change (not when framed). */
 const ownWindow: TauriWindow | undefined = framed ? undefined : appWindow;
+
+/**
+ * Desktop release builds: no browser menu on a right click (Reload, Inspect...) except in text fields, where it has
+ * copy and paste. On Windows the shell turns WebView2's off too (src-tauri/src/lib.rs); macOS's and Linux's WebKit show
+ * theirs unless the page stops it.
+ */
+export function blockBrowserMenu(): void {
+  if (!isDesktop || import.meta.env.DEV) return;
+  window.addEventListener('contextmenu', (e) => {
+    const t = e.target;
+    if (!(t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || (t instanceof HTMLElement && t.isContentEditable))) e.preventDefault();
+  });
+}
 
 function warn(what: string, err: unknown): void {
   console.warn(`[platform] ${what} failed:`, err);

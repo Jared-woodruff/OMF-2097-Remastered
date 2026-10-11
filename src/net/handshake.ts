@@ -9,8 +9,11 @@ import { tr } from '../i18n/i18n';
 /** How long either side waits for the other's answer (ms). */
 const ANSWER_MS = 10000;
 
-/** Why a game turns another away: different versions, different robots, arenas or pilots, other files. */
-export type RejectCode = 'version' | 'robots' | 'arenas' | 'pilots' | 'files';
+/**
+ * Why a game turns another away: different versions, different robots, arenas or pilots, other files; or it is being
+ * played already (the desktop app's answer to a second guest, src-tauri/src/lan.rs).
+ */
+export type RejectCode = 'version' | 'robots' | 'arenas' | 'pilots' | 'files' | 'busy';
 
 /** A reason in the game's language (detail: the two versions). */
 export function rejectText(code: string, detail: readonly string[] = []): string {
@@ -21,6 +24,7 @@ export function rejectText(code: string, detail: readonly string[] = []): string
     case 'arenas': return tr('The two games have different arenas. {mods}', { mods });
     case 'pilots': return tr('The two games have different pilots. {mods}', { mods });
     case 'files': return tr("The two games' robot or arena files differ (another version of the original game, or of a mod).");
+    case 'busy': return tr('THAT GAME IS ALREADY BEING PLAYED.');
     default: return tr('The other game sent something unexpected.');
   }
 }
@@ -71,13 +75,13 @@ function answer(link: NetLink, ms = ANSWER_MS): Promise<NetMessage> {
       link.detach();
       fn();
     };
-    const timer = setTimeout(() => finish(() => reject(new Error('The other game did not answer.'))), ms);
+    const timer = setTimeout(() => finish(() => reject(new Error(tr('The other game did not answer.')))), ms);
     link.setHandlers(
       (text) => {
         const m = parseMessage(text);
         if (m) finish(() => resolve(m));
       },
-      () => finish(() => reject(new Error('The other game closed the connection.'))),
+      () => finish(() => reject(new Error(tr('The other game closed the connection.')))),
     );
   });
 }

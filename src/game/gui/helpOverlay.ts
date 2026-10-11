@@ -2,7 +2,9 @@
 // you can press the F1 key at any time to bring up these instructions"). Shown full screen on the main menu backdrop
 // with the main menu's palette (text colors are palette entries, which differ from scene to scene); the scene's
 // palette is restored on close. The controls screen (controlsScreen.ts) and the remaster's pages (page.ts: replays,
-// records...) are shown the same way.
+// records...) are shown the same way. A network game is not paused (the other player is still playing): the keys stay
+// the help's until the one that closed it is let go (helpOverlayHeld), and a screen that opens meanwhile gets its own
+// palette back (sceneChanged).
 import { connectedPads, isDown, readPad } from '../../controller/input';
 import type { PointerKind } from '../../controller/mouse';
 import type { Palette, RemapTables } from '../../formats/palette';
@@ -17,11 +19,21 @@ import { Page } from './page';
 import { playMenuSound, type Menu } from './widgets';
 
 let openOverlay: HelpOverlay | null = null;
+/** The help closed last (the key that closed it may still be down). */
+let closedOverlay: HelpOverlay | null = null;
 let mainBk: Bk | null = null;
 
 /** Whether the F1 help is on screen (scenes ignore their own key handling meanwhile). */
 export function helpOverlayOpen(): boolean {
   return openOverlay !== null;
+}
+
+/**
+ * Whether the keys are still the help's: it is on screen, or the key or button that closed it is still down. A game that
+ * goes on under the help (a network game) must not take them as the player's: ESC would leave the game, ENTER punch.
+ */
+export function helpOverlayHeld(): boolean {
+  return openOverlay !== null || (closedOverlay?.held() ?? false);
 }
 
 export class HelpOverlay {
@@ -34,6 +46,8 @@ export class HelpOverlay {
   /** Key or pad button that closed the help: the game stays paused until it is released (it must not act in the game). */
   private releaseKey: string | null = null;
   private releasePad = false;
+  /** Closed, the game not resumed yet (it is once the closing key is released). */
+  private resuming = false;
   private padPrev = { up: false, down: false, left: false, right: false, back: false, punch: false };
   private savedPalette: Palette | null = null;
   private savedRemaps: RemapTables | null = null;
@@ -55,9 +69,21 @@ export class HelpOverlay {
     this.controls = kind === 'controls';
     this.menu = this.page ?? (this.controls ? new ControlsMenu() : htmlHelpWanted() ? new HtmlHelpMenu(helpTexts()) : new HelpMenu());
     openOverlay = this;
-    mainBk ??= loadBk('MAIN.BK');
     this.savedPalette = vga.base.clone();
     this.savedRemaps = vga.remaps.clone();
+    this.setColors();
+    this.page?.onOpen();
+    this.releaseKey = null;
+    this.releasePad = false;
+    this.resuming = false;
+    this.padPrev = { up: true, down: true, left: true, right: true, back: true, punch: true };
+    this.setPaused(true);
+    playMenuSound(20);
+  }
+
+  /** The help's colors: the main menu's palette, and the controls screen's or the page's own entries. */
+  private setColors(): void {
+    mainBk ??= loadBk('MAIN.BK');
     vga.setBasePalette(mainBk.palettes[0]);
     vga.setRemaps(mainBk.remaps[0]);
     setMenuColors();
@@ -66,12 +92,17 @@ export class HelpOverlay {
     if (this.menu instanceof Page) this.menu.setColors();
     vga.setBaseIndex(0, 0, 0, 0);
     vga.render();
-    this.page?.onOpen();
-    this.releaseKey = null;
-    this.releasePad = false;
-    this.padPrev = { up: true, down: true, left: true, right: true, back: true, punch: true };
-    this.setPaused(true);
-    playMenuSound(20);
+  }
+
+  /**
+   * A screen opened under the help (a network game goes on: its fight ended, or the game did): its palette, just set up,
+   * is the one to come back to, and the help keeps its own meanwhile.
+   */
+  sceneChanged(): void {
+    if (!this.menu) return;
+    this.savedPalette = vga.base.clone();
+    this.savedRemaps = vga.remaps.clone();
+    this.setColors();
   }
 
   close(releaseKey: string | null, fromPad = false): void {
@@ -89,15 +120,24 @@ export class HelpOverlay {
     }
     this.releaseKey = releaseKey;
     this.releasePad = fromPad;
+    this.resuming = true;
+    closedOverlay = this;
     playMenuSound(20);
     this.tryResume();
   }
 
-  private tryResume(): void {
-    if (this.releaseKey && isDown(this.releaseKey)) return;
-    if (this.releasePad && this.anyPadButton()) return;
+  /** The key or pad button that closed the help is still down (read as it is now: no frame needs to come first). */
+  held(): boolean {
+    if (this.releaseKey && isDown(this.releaseKey)) return true;
+    if (this.releasePad && this.anyPadButton()) return true;
     this.releaseKey = null;
     this.releasePad = false;
+    return false;
+  }
+
+  private tryResume(): void {
+    if (!this.resuming || this.held()) return;
+    this.resuming = false;
     this.setPaused(false);
   }
 
@@ -109,8 +149,8 @@ export class HelpOverlay {
     return false;
   }
 
-  /** Keyboard input while open (returns true when consumed). */
-  key(code: string): boolean {
+  /** Keyboard input while open (returns true when consumed); `e`: the key press (what it types, for a page's names). */
+  key(code: string, e?: KeyboardEvent): boolean {
     const m = this.menu;
     if (!m) return false;
     const page = this.page;
@@ -123,7 +163,7 @@ export class HelpOverlay {
       else if (code === 'ArrowLeft' || code === 'Numpad4') page.action(ACT_LEFT, CtrlType.KEYBOARD);
       else if (code === 'ArrowRight' || code === 'Numpad6') page.action(ACT_RIGHT, CtrlType.KEYBOARD);
       else if (code === 'ShiftRight') page.action(ACT_KICK, CtrlType.KEYBOARD);
-      else page.key(code);
+      else page.key(code, e);
       if (page.finished) this.close(code);
       return true;
     }
@@ -182,10 +222,13 @@ export class HelpOverlay {
     } else if (kind === 'wheelUp' && m.action(ACT_UP, CtrlType.KEYBOARD)) playMenuSound(19);
   }
 
-  /** Per frame: gamepad input while open, and resuming the game once the closing key is released. */
+  /**
+   * Per frame (and now and then while the window is hidden: nothing is drawn then): gamepad input while open, a page's
+   * own update, and resuming the game once the closing key is released.
+   */
   update(): void {
     if (!this.menu) {
-      if (this.releaseKey || this.releasePad) this.tryResume();
+      this.tryResume();
       return;
     }
     const now = { up: false, down: false, left: false, right: false, back: false, punch: false };
@@ -211,6 +254,7 @@ export class HelpOverlay {
       if (kick && !this.padKick) page.action(ACT_KICK, CtrlType.GAMEPAD);
       this.padKick = kick;
       this.padPrev = now;
+      page.update();
       if (pressed('back') && !page.back()) this.close(null, true);
       else if (page.finished) this.close(null, true);
       return;

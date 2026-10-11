@@ -17,6 +17,8 @@ export function showVersionLabel(visible: boolean): void {
     ensureUiFont();
     label = document.createElement('div');
     label.id = 'omf-version';
+    // (English, the name and then the version, in a language read from the right too)
+    label.dir = 'ltr';
     label.textContent = APP_VERSION ? `${PRODUCT_NAME} · v${APP_VERSION}` : PRODUCT_NAME;
     label.style.cssText = [
       'position: fixed', 'left: max(14px, 1.3vw)', 'bottom: max(10px, 1.3vh)', 'z-index: 5', 'pointer-events: none',

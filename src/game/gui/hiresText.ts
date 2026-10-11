@@ -113,7 +113,11 @@ function fitOf(script: GlyphScript, size: 'small' | 'big'): Fit | null {
   return fit;
 }
 
-/** A cluster's picture: its surface (HIRES_SCALE times larger), drawn at (dx, dy) over w x h; its advance. */
+/**
+ * A cluster's picture: its surface (HIRES_SCALE times larger), drawn at (dx, dy) over w x h; its advance. A turned
+ * cluster (for a column of text) is the word a quarter turn round: dx runs down the column and dy across it, w x h
+ * is its size on the screen, and the advance is down the column.
+ */
 export interface ClusterGlyph {
   surf: Surface;
   dx: number;
@@ -136,12 +140,14 @@ function estimate(text: string, script: GlyphScript, cell: number): number {
 
 /**
  * The picture of a cluster of a script in the small or big font's cell. `upper`: the small font, which has capitals
- * only (its letters are capitals in every script that has them).
+ * only (its letters are capitals in every script that has them). `turn`: the word a quarter turn right (its letters'
+ * tops to the right: a left-to-right word reads down) or left (tops to the left, its right end at the top: a right-to-left
+ * word reads down).
  */
-export function clusterGlyph(text: string, script: GlyphScript, size: 'small' | 'big', upper: boolean): ClusterGlyph {
+export function clusterGlyph(text: string, script: GlyphScript, size: 'small' | 'big', upper: boolean, turn?: 'right' | 'left'): ClusterGlyph {
   const shown = upper ? text.toUpperCase() : text;
   const fit = fitOf(script, size);
-  const key = `${size}|${script}|${fit?.font ?? ''}|${shown}`;
+  const key = `${size}|${script}|${fit?.font ?? ''}|${turn ?? ''}|${shown}`;
   const have = clusters.get(key);
   if (have) {
     // (most recently used last)
@@ -155,8 +161,9 @@ export function clusterGlyph(text: string, script: GlyphScript, size: 'small' | 
   const ctx = fit ? measurer() : null;
   if (!fit || !ctx) {
     const advance = estimate(shown, script, cell);
-    const surf = new Surface(advance * HIRES_SCALE, cell * HIRES_SCALE, undefined, 0);
-    g = { surf, dx: 0, dy: 0, w: advance, h: cell, advance };
+    const [w, h] = turn ? [cell, advance] : [advance, cell];
+    const surf = new Surface(w * HIRES_SCALE, h * HIRES_SCALE, undefined, 0);
+    g = { surf, dx: 0, dy: 0, w, h, advance };
   } else {
     ctx.font = fit.font;
     ctx.direction = rtl ? 'rtl' : 'ltr';
@@ -170,8 +177,10 @@ export function clusterGlyph(text: string, script: GlyphScript, size: 'small' | 
     const y0 = Math.floor(Math.min(0, fit.base - m.actualBoundingBoxAscent));
     const y1 = Math.ceil(Math.max(cell, fit.base + m.actualBoundingBoxDescent));
     const w = x1 - x0, h = y1 - y0;
+    // (the picture's size on the screen: turned, the word's height across and its length down)
+    const [sw, sh] = turn ? [h, w] : [w, h];
     const coverage = (texels: number, margin: number): { data: Uint8ClampedArray; w: number; h: number } | null => {
-      const cw = (w + 2 * margin) * texels, ch = (h + 2 * margin) * texels;
+      const cw = (sw + 2 * margin) * texels, ch = (sh + 2 * margin) * texels;
       const c = context(cw, ch);
       if (!c) return null;
       c.font = fit.font;
@@ -179,7 +188,11 @@ export function clusterGlyph(text: string, script: GlyphScript, size: 'small' | 
       c.textAlign = 'left';
       c.textBaseline = 'alphabetic';
       c.fillStyle = '#fff';
-      c.setTransform(texels, 0, 0, texels, (margin - x0) * texels, (margin - y0) * texels);
+      // (the word's point (x, y) goes to: unturned (x - x0, y - y0); turned right (y1 - y, x - x0); turned left
+      // (y - y0, x1 - x))
+      if (turn === 'right') c.setTransform(0, texels, -texels, 0, (y1 + margin) * texels, (margin - x0) * texels);
+      else if (turn === 'left') c.setTransform(0, -texels, texels, 0, (margin - y0) * texels, (x1 + margin) * texels);
+      else c.setTransform(texels, 0, 0, texels, (margin - x0) * texels, (margin - y0) * texels);
       c.fillText(shown, 0, fit.base);
       const rgba = c.getImageData(0, 0, cw, ch).data;
       const data = new Uint8ClampedArray(cw * ch);
@@ -187,12 +200,16 @@ export function clusterGlyph(text: string, script: GlyphScript, size: 'small' | 
       return { data, w: cw, h: ch };
     };
     const cov = coverage(HIRES_SCALE, 0);
-    const pixels = new Uint8Array(w * HIRES_SCALE * h * HIRES_SCALE);
+    const pixels = new Uint8Array(sw * HIRES_SCALE * sh * HIRES_SCALE);
     if (cov) for (let i = 0; i < pixels.length; i++) pixels[i] = cov.data[i] >= 128 ? 1 : 0;
-    const surf = new Surface(w * HIRES_SCALE, h * HIRES_SCALE, pixels, 0);
+    const surf = new Surface(sw * HIRES_SCALE, sh * HIRES_SCALE, pixels, 0);
     const hires: HiresGlyph = { scale: HIRES_SCALE, coverage };
     surf.hires = hires;
-    g = { surf, dx: x0, dy: y0, w, h, advance };
+    // (turned right, the word's top (y0) is at the column's right, across the cell; turned left, at its left. Down the
+    // column, its left end (x0) comes first, or (turned left) its right end (x1, before the advance))
+    if (turn === 'right') g = { surf, dx: x0, dy: cell - y1, w: sw, h: sh, advance };
+    else if (turn === 'left') g = { surf, dx: advance - x1, dy: y0, w: sw, h: sh, advance };
+    else g = { surf, dx: x0, dy: y0, w, h, advance };
   }
   g.surf.source = { kind: 'font', key: `hires/${nextKey++}` };
   clusters.set(key, g);

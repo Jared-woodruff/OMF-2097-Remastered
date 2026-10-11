@@ -38,7 +38,7 @@ export interface RoomLayout {
 
 export const ROOM_CSS = `
 .omfcr { position: fixed; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; background: #060607; display: none; }
-.omfcr img { position: absolute; display: block; max-width: none; user-select: none; }
+.omfcr img { position: absolute; display: block; max-width: none; -webkit-user-select: none; user-select: none; }
 .omfcr-fill { left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; opacity: .55; }
 .omfcr-off { animation: omfcr-dim .85s cubic-bezier(.5,0,.9,.5) forwards; }
 @keyframes omfcr-dim { to { opacity: 0; } }

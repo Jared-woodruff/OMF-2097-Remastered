@@ -1,9 +1,10 @@
 // Scene base class (port of the reference scene prototype).
+import type { CtrlEvent } from '../controller/controller';
 import type { Palette } from '../formats/palette';
 import { loadAf, loadBk, bkGetInfo, type Af, type Bk } from '../resources/resources';
 import { video } from '../video/draw';
 import { setMenuColors, vga } from '../video/vga';
-import { isArenaScene, RENDER_LAYER_BOTTOM, sceneBk, SceneId } from './constants';
+import { ACT_ESC, isArenaScene, RENDER_LAYER_BOTTOM, sceneBk, SceneId } from './constants';
 import type { GameState } from './gameState';
 import { GameObject } from './object';
 import type { NetSession } from '../net/session';
@@ -125,11 +126,32 @@ export class Scene {
   netStatus(_net: NetSession): NetStatus | null {
     return null;
   }
+  /** A network game: the native row the status bar sits above (the screen has its own things below), else the bottom. */
+  netStatusAbove(): number | undefined {
+    return undefined;
+  }
+  /**
+   * A network game: the local player's input is held back (a menu of their own is open over the screen, or the key that
+   * closed it is still down): they stand still meanwhile.
+   */
+  netLocalHeld(): boolean {
+    return false;
+  }
+  /**
+   * A network game waiting for the other game: the input steps stand still, so the scene reads none. The local player's
+   * ESC is read meanwhile (on the static ticks): it leaves the game.
+   */
+  netStalledInput(): void {
+    const ev: CtrlEvent[] = [];
+    this.gs.menuPoll(ev, { playerScene: true });
+    if (ev.some((e) => e.type === 'action' && e.action === ACT_ESC)) this.gs.net?.leave();
+  }
 
   // ---- driver entry points (not usually overridden) ------------------------------------
   doStaticTick(paused: boolean): void {
     this.staticTicksSinceStart++;
     this.staticTick(paused);
+    if (this.gs.net?.late() && this.takesInput()) this.netStalledInput();
   }
 
   doDynamicTick(paused: boolean): void {

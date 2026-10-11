@@ -11,25 +11,28 @@ export interface NetStatus {
   text: string;
   /** They wait for the other player (else it is their move). */
   waiting?: boolean;
+  /** The native row the bar sits above (Scene.netStatusAbove), else the window's bottom. */
+  above?: number;
 }
 
 /** The players' colors: their cursors on the select screen. */
 const SIDE_COLORS = ['#ff5a50', '#5b8cff'];
-
-/** The other game is late by this much (ms): the bar says so. */
-const LATE_MS = 400;
 
 /** What the bar shows now (null: nothing). */
 export function netStatusOf(gs: GameState): (NetStatus & { side: 0 | 1 }) | null {
   const net = gs.net;
   if (!net || net.ended) return null;
   const side = net.localPlayer;
-  if (net.stalledMs() > LATE_MS) {
+  // (the other game is late: NetSession.late)
+  if (net.late()) {
     // (the other game is not on this screen yet: still on the one before, the victory screen say)
-    return { side, waiting: true, text: net.peerArrived() ? tr('WAITING FOR {opponent}...', { opponent: net.opponent }) : tr('WAITING FOR {opponent} TO GET HERE...', { opponent: net.opponent }) };
+    return {
+      side, waiting: true, above: gs.sc.netStatusAbove(),
+      text: net.peerArrived() ? tr('WAITING FOR {opponent}...', { opponent: net.opponent }) : tr('WAITING FOR {opponent} TO GET HERE...', { opponent: net.opponent }),
+    };
   }
   const s = net.synced && gs.thisId === gs.nextId ? gs.sc.netStatus(net) : null;
-  return s ? { side, ...s } : null;
+  return s ? { side, above: gs.sc.netStatusAbove(), ...s } : null;
 }
 
 let bar: HTMLDivElement | null = null;
@@ -37,11 +40,15 @@ let tag: HTMLSpanElement | null = null;
 let line: HTMLSpanElement | null = null;
 let shown = '';
 
-/** Shows the bar as the game is now (called every frame: the page is touched on changes only). */
-export function showNetStatus(gs: GameState): void {
+/**
+ * Shows the bar as the game is now (called every frame: the page is touched on changes only). `windowY`: a native row's
+ * place in the window (CSS pixels), for a screen that keeps the bar above its own things.
+ */
+export function showNetStatus(gs: GameState, windowY?: (nativeY: number) => number): void {
   if (typeof document === 'undefined' || !document.body) return;
   const s = netStatusOf(gs);
-  const key = s ? `${s.side}|${s.waiting}|${s.text}` : '';
+  const bottom = s?.above !== undefined && windowY ? Math.max(0, Math.round(window.innerHeight - windowY(s.above) + 4)) : null;
+  const key = s ? `${s.side}|${s.waiting}|${s.text}|${bottom}` : '';
   if (key === shown) return;
   shown = key;
   if (!bar) {
@@ -50,7 +57,7 @@ export function showNetStatus(gs: GameState): void {
     bar.id = 'omf-net-status';
     Object.assign(bar.style, {
       position: 'fixed', left: '50%', bottom: '1%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center',
-      gap: '0.8em', padding: '6px 16px 6px 6px', zIndex: '19', maxWidth: '92vw', whiteSpace: 'nowrap',
+      gap: '0.8em', paddingBlock: '6px', paddingInline: '6px 16px', zIndex: '19', maxWidth: '92vw', whiteSpace: 'nowrap',
       font: `600 clamp(12px, 0.8vw, 17px)/1.3 ${UI_FONT}`, letterSpacing: '0.08em', color: '#e8f1ff',
       background: 'rgba(6, 10, 30, 0.86)', border: '1px solid rgba(90, 140, 255, 0.5)', borderRadius: '10px',
       boxShadow: '0 4px 18px rgba(0,0,0,0.55)', pointerEvents: 'none', opacity: '0', transition: 'opacity 0.25s',
@@ -70,6 +77,7 @@ export function showNetStatus(gs: GameState): void {
   tag!.style.background = SIDE_COLORS[s.side];
   line!.textContent = s.text;
   line!.style.color = s.waiting ? '#ffd27a' : '#e8f1ff';
+  bar.style.bottom = bottom === null ? '1%' : `${bottom}px`;
   bar.style.borderColor = s.waiting ? 'rgba(255, 190, 90, 0.55)' : 'rgba(90, 140, 255, 0.5)';
   bar.style.opacity = '1';
 }

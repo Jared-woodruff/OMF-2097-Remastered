@@ -36,7 +36,8 @@
   "bundle": {
     "active": true,
     "targets": [
-      "nsis"
+      "app",
+      "appimage"
     ],
     "category": "ActionGame",
     "shortDescription": "One Must Fall 2097 Remastered",
@@ -48,13 +49,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "windows": {
-      "nsis": {
-        "installMode": "currentUser",
-        "installerIcon": "icons/icon.ico",
-        "headerImage": "installer/header.bmp",
-        "sidebarImage": "installer/sidebar.bmp",
-        "installerHooks": "installer/hooks.nsh"
+    "macOS": {
+      "minimumSystemVersion": "12.0",
+      "signingIdentity": "-"
+    },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": true
       }
     }
   }

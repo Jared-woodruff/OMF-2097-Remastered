@@ -6,6 +6,12 @@ import { STATIC_TICKS } from './game/constants';
 
 const MAX_TICKS_PER_FRAME = 10;
 const TICK_EXPIRY_MS = 100;
+/**
+ * A hidden window's game catches up in steps of a frame, at most this much at a time (ms): the browser may run its
+ * timers only once a second then (WebKit, and Chromium's background throttling).
+ */
+const IDLE_STEP_MS = 16;
+const IDLE_CATCH_UP_MS = 1000;
 
 export interface FrameRenderer {
   render(gs: GameState, alpha: number): void;
@@ -85,11 +91,16 @@ export class Engine {
     this.alpha = Math.max(0, Math.min(1, this.dynamicWait / Math.max(1, gs.msPerDyntick())));
   }
 
-  /** Runs the game up to now without drawing (a network game goes on while the window is hidden). */
+  /**
+   * Runs the game up to now without drawing: a network game goes on while the window is hidden (the other player would
+   * wait for it). Nothing is drawn, so nothing waits for a scene's artwork either.
+   */
   idle(now: number): void {
-    const dt = now - this.last;
+    let dt = Math.min(now - this.last, IDLE_CATCH_UP_MS);
     this.last = now;
-    if (!this.paused && !this.waiting) this.advance(dt);
+    this.waiting = false;
+    if (this.paused) return;
+    for (; dt > 0; dt -= IDLE_STEP_MS) this.advance(Math.min(dt, IDLE_STEP_MS));
   }
 
   frame(now: number): void {

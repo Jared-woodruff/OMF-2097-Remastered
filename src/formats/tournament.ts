@@ -83,7 +83,12 @@ export function localizedLocale(trn: TournamentFile): TournamentLocale | undefin
     description: text(en.description, de?.description),
     endTexts: en.endTexts.map((pages, har) => pages.map((p, i) => (p ? text(p, de?.endTexts[har]?.[i]) : p))),
   };
-  parseDescription(loc);
+  // Another text is laid out by its own markup; one without any keeps the English one's place, width and color (a
+  // custom tournament sets those itself, on a description without markup).
+  if (loc.description !== en.description) {
+    if (/\{[A-Z]/.test(loc.description)) parseDescription(loc);
+    else loc.strippedDescription = loc.description;
+  }
   return loc;
 }
 

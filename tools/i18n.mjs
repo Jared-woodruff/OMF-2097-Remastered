@@ -12,11 +12,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(path.join(ROOT, 'package.json'));
-const { parseAst } = await import(require.resolve('rolldown/parseAst'));
+// (a file URL: Windows paths are not URLs to import())
+const { parseAst } = await import(pathToFileURL(require.resolve('rolldown/parseAst')).href);
 const UI_DIR = path.join(ROOT, 'public/lang/ui');
 const CODES = ['de', 'ja', 'zh', 'ko', 'hi', 'bn', 'es', 'pt', 'fr', 'ar', 'ru', 'da', 'sv'];
 

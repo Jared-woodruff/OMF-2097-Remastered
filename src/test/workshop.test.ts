@@ -2,15 +2,19 @@
 // lands its special moves), and robot files are read carefully.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { harMoveList } from '../game/gui/moveList';
-import { HAR_NAMES } from '../game/constants';
+import { ACT_PUNCH, CtrlType, HAR_NAMES, SceneId } from '../game/constants';
 import { harData } from '../game/objects/har';
-import { ensureWorkshopRobot, harIdOf, readyWorkshopHars, resetWorkshop, setWorkshopSpec, workshopReady } from '../game/workshop/registry';
+import {
+  ensureWorkshopRobot, harIdOf, readyWorkshopHars, resetWorkshop, setWorkshopSpec, workshopReady, workshopSpecs,
+} from '../game/workshop/registry';
+import { WorkshopPage } from '../game/workshop/workshopPage';
 import { defaultSpec, readSpec, scaleShape, workshopPreview, type WorkshopSpec } from '../gen/workshop';
 import { ShapeKind } from '../gen/geometry';
 import { genRobot } from '../gen/roster';
+import { useLanguage } from '../i18n/i18n';
 import { langGet } from '../resources/resources';
 import { ComboSim } from './comboSim';
-import { hasExtras, hasGameData, loadExtras } from './harness';
+import { createGame, hasExtras, hasGameData, loadExtras } from './harness';
 
 beforeEach(() => resetWorkshop());
 
@@ -30,6 +34,38 @@ describe('workshop files', () => {
     const tbox = scaleShape({ kind: ShapeKind.TBOX, a: 1, b: 1, c: 1, r: 0.5, k: 0.7 }, 1.5);
     expect(tbox.k).toBe(0.7);
     expect(tbox.c).toBe(1.5);
+  });
+});
+
+describe.skipIf(!hasGameData)('the workshop page', () => {
+  it('names a robot by what the player\'s keyboard types, ROBOT when the name is emptied', () => {
+    createGame(SceneId.MENU);
+    const page = new WorkshopPage({ train() {}, fight() {} });
+    // (a new robot in the first slot)
+    page.action(ACT_PUNCH, CtrlType.KEYBOARD);
+    const type = (code: string, key: string) => page.key(code, { key } as KeyboardEvent);
+    const name = () => workshopSpecs()[0]?.name;
+    const empty = () => {
+      for (let i = 0; i < 10; i++) page.key('Backspace');
+    };
+    empty();
+    // A German keyboard's Z (the US Y), a Russian one's к (the US R), a French é (E without its accent).
+    type('KeyY', 'z');
+    type('KeyR', 'к');
+    type('Digit2', 'é');
+    expect(name()).toBe('ZRE');
+    try {
+      empty();
+      useLanguage('de', { ui: { ROBOT: 'ROBOTER' }, original: null });
+      type('Backspace', 'Backspace');
+      expect(name()).toBe('ROBOTER');
+      // (ROBÔ would be saved as ROB: the English name)
+      useLanguage('pt', { ui: { ROBOT: 'ROBÔ' }, original: null });
+      type('Backspace', 'Backspace');
+      expect(name()).toBe('ROBOT');
+    } finally {
+      useLanguage('en', { ui: {}, original: null });
+    }
   });
 });
 

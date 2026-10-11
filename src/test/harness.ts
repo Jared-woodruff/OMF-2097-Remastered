@@ -8,7 +8,7 @@ import { readModPackage, type ModPackage } from '../mods/package';
 import { registerModPackage } from '../mods/registry';
 import { loadLanguage, loadOriginalTexts } from '../resources/resources';
 import { setOriginalTextsLoader, useLanguage } from '../i18n/i18n';
-import { isLangCode } from '../i18n/languages';
+import { isLangCode, type LangCode } from '../i18n/languages';
 import { PILOT_INFO, SceneId } from '../game/constants';
 import { GameState } from '../game/gameState';
 import { setPilotColors } from '../game/pilotColors';
@@ -128,12 +128,16 @@ export function loadGameData(): void {
   loadLanguage();
   // GAME_LANG=<code>: the tests run in that language (with TEXT_AUDIT, what does not fit its place in it).
   const code = process.env.GAME_LANG;
-  if (code && isLangCode(code)) {
-    const json = (p: string) => (fs.existsSync(path.join(LANG_DIR, p)) ? JSON.parse(fs.readFileSync(path.join(LANG_DIR, p), 'utf8')) : null);
-    setOriginalTextsLoader(loadOriginalTexts);
-    useLanguage(code, { ui: json(`ui/${code}.json`) ?? {}, original: json(`${code}.json`), trn: json(`trn/${code}.json`) ?? undefined });
-  }
+  if (code && isLangCode(code)) useLanguageFiles(code);
   loaded = true;
+}
+
+/** Speaks a language with its files from public/lang (English: none), as the game does once they are loaded. */
+export function useLanguageFiles(code: LangCode): void {
+  const json = (p: string) => (fs.existsSync(path.join(LANG_DIR, p)) ? JSON.parse(fs.readFileSync(path.join(LANG_DIR, p), 'utf8')) : null);
+  setOriginalTextsLoader(loadOriginalTexts);
+  if (code === 'en') useLanguage('en', { ui: {}, original: null });
+  else useLanguage(code, { ui: json(`ui/${code}.json`) ?? {}, original: json(`${code}.json`), trn: json(`trn/${code}.json`) ?? undefined });
 }
 
 /** The language files (public/lang). */

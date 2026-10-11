@@ -69,7 +69,8 @@ export function parseMessage(text: string): NetMessage | null {
       return int(o.p) && int(o.s) && int(o.h) ? (o as NetMessage) : null;
     case 'ping':
     case 'pong':
-      return int(o.n) ? (o as NetMessage) : null;
+      // (a clock reading: any number)
+      return typeof o.n === 'number' && Number.isFinite(o.n) ? (o as NetMessage) : null;
     case 'bye':
     case 'reject':
       return str(o.reason) ? (o as NetMessage) : null;

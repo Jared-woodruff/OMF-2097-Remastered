@@ -209,14 +209,18 @@ The game speaks English, German, Japanese, Chinese (simplified), Korean, Hindi, 
   Windows' display languages first (the shell's `os_languages` command, `sys-locale`), then WebView2's. `main.ts` sets
   the language before anything is shown (the loading screen, the import and setup screens speak it), `?lang=<code>`
   tries one out. Choosing one (OPTIONS > LANGUAGE, `gui/languagePage.ts`; the first start's setup) applies at once
-  (`setLanguage`, `onLanguageChange`: the main menu rebuilds itself) and is kept. Settings saved before (revision 6)
-  keep German and let the old English default follow the system.
+  (`setLanguage`, `onLanguageChange`: the main menu rebuilds itself) and is kept; when choices come faster than their
+  files load, the last one wins. The page's `lang` and `dir` follow it: in Arabic the HTML over the game reads from the
+  right, and what must not turn around (the touch pad, the version, the credits) says `dir="ltr"`. Settings saved
+  before (revision 6) keep German and let the old English default follow the system.
 - **The original game's texts** (`langGet`): English and German are the game's own ENGLISH.DAT and GERMAN.DAT, decoded
   from code page 437 when read (`cp437.ts`; so are the tournaments' and pilots' texts); the other languages are
   `public/lang/<code>.json`, arrays of the same 1013 texts (`loadOriginalTexts`: an empty one falls back to English).
+  `public/lang/de.json` fixes a few of GERMAN.DAT's texts (English ones, a help text too long for its box), by index.
   The original tournaments' own texts (descriptions, endings, the opponents' taunts) have English and German in their
   files; the other languages translate them by their English in `public/lang/trn/<code>.json` (`trnText`,
-  `formats/tournament.ts` `localizedLocale`).
+  `formats/tournament.ts` `localizedLocale`), and so does German where its file only repeats the English (the World
+  Championship: `public/lang/trn/de.json`).
 - **The remaster's texts** are written in English in the code: `tr('ONE PLAYER GAME')`, `tr('{name} WINS', { name })`,
   `trn(n, '{n} WIN', '{n} WINS')` (plural forms by `Intl.PluralRules`), `trKey('...')` in tables made before the
   language is known (translated where shown). Each language's translations are `public/lang/ui/<code>.json`, by the
@@ -471,9 +475,8 @@ the fight, or the one-player game at its pilot select screen, its VS screen or i
 registry turns the names into numbers; `gs.modTest` shows the arena's hazards and Kreissack whatever the settings).
 
 The desktop app (`src-tauri`) opens the game's window, or Studio's when it is started with `--studio` or its file is
-named like `omf-studio.exe`; the game's **Extras › OMF Studio** opens Studio's window through the `open_studio`
-command. Both windows share the storage. The installer asks whether to add Studio's shortcuts
-(`src-tauri/installer/hooks.nsh`). LAN games are the desktop app's (`src-tauri/src/lan.rs`, through the `lan_*`
+named like Studio (`OMF-Studio-….exe`, `OMF Studio.app`, `OMF-Studio-….AppImage`); the game's **Extras › OMF Studio**
+opens Studio's window through the `open_studio` command. Both windows share the storage. LAN games are the desktop app's (`src-tauri/src/lan.rs`, through the `lan_*`
 commands and `lan:open` / `lan:data` / `lan:close` events): a hosted game waits on TCP port 2097 (the reference's
 network port; any free port when another program has it) and answers searches broadcast on UDP port 2097 to every
 network adapter; messages travel as text after their length. `lan.rs` has no Tauri in it, so its tests (`cargo test`)

@@ -26,6 +26,7 @@ import type { ChrFile } from './tournament/chr';
 import type { ReplaySession } from './replay/playback';
 import type { NetSession } from '../net/session';
 import { HarScreencaps } from './harScreencap';
+import { helpOverlayHeld } from './gui/helpOverlay';
 
 export interface MatchSettings {
   throwRange: number;
@@ -182,7 +183,10 @@ export class GameState {
   training = false;
   /** Watching a saved fight (see replay/playback.ts). */
   replay: ReplaySession | null = null;
-  /** The game mode's name in the replay list, for modes the players' controllers do not tell apart (e.g. SURVIVAL). */
+  /**
+   * The game mode's name in the replay list, for modes the players' controllers do not tell apart (e.g. SURVIVAL): in
+   * English (the list translates it).
+   */
   modeLabel: string | null = null;
   /** Sound effects are not played (a replay jumping to a moment runs the fight silently). */
   silent = false;
@@ -438,6 +442,8 @@ export class GameState {
       // instead, the error reported.
       if (id === SceneId.MENU) throw err;
       console.error(`The ${SceneId[id]} scene could not open:`, err);
+      // (a network game ends with it, the other player told: their game would wait for this one on that screen)
+      this.net?.leave();
       this.thisId = this.nextId = SceneId.MENU;
       this.createScene(SceneId.MENU);
     }
@@ -674,7 +680,11 @@ export class GameState {
   menuPoll(ev: CtrlEvent[], opts?: MenuPollOptions): void {
     this.menuCtrl.last = this.menuCtrl.current;
     this.menuCtrl.current = 0;
+    const from = ev.length;
     menuPoll(this.menuCtrl, ev, opts);
+    // (the keys are the F1 help's while it is open, and until the one that closed it is let go: a game that goes on
+    // under it, a network game, must not take them; the poll still runs, so a key held through stays a held one)
+    if (helpOverlayHeld()) ev.length = from;
   }
 }
 

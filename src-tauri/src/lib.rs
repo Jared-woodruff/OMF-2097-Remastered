@@ -1,8 +1,8 @@
-//! Desktop shell for One Must Fall 2097 Remastered: WebView2 windows hosting the Vite-built web
-//! game (index.html) and OMF Studio, the modding tool (studio.html). The program opens the game,
-//! or Studio when it is started with `--studio` or its file is named like `omf-studio.exe` (the
-//! release's Studio download is this program under that name). The game opens Studio in a second
-//! window (`open_studio`); both share the game's storage, so Studio installs mods straight into it.
+//! Desktop shell for One Must Fall 2097 Remastered: windows (WebView2 on Windows, WebKit on macOS and Linux) hosting
+//! the Vite-built web game (index.html) and OMF Studio, the modding tool (studio.html). The program opens the game,
+//! or Studio when it is started with `--studio` or its file is named like Studio (the release's Studio downloads are
+//! this program under Studio's name: `OMF-Studio-….exe`, `OMF Studio.app`, `OMF-Studio-….AppImage`). The game opens
+//! Studio in a second window (`open_studio`); both share the game's storage, so Studio installs mods straight into it.
 //! Permissions are in `capabilities/default.json`; the frontend talks to Tauri through
 //! `src/platform/desktop.ts`. LAN games (hosting, finding and joining them) are in `lan.rs`, reached through the
 //! `lan_*` commands below (the game's `src/net/lan.ts`).
@@ -17,22 +17,35 @@ use tauri::{webview::PageLoadEvent, Emitter, Manager, State, WebviewUrl, Webview
 /// Show a window after this long even if the page never reports that it finished loading.
 const SHOW_WINDOW_FALLBACK: Duration = Duration::from_secs(5);
 
-/// WebView2's arguments: the same for every window (windows that share the storage must agree on them).
-const BROWSER_ARGS: &str =
-  "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required";
+/// WebView2's arguments: the same for every window (windows that share the storage must agree on them). Timers keep
+/// their pace in a hidden window: a LAN game goes on while its window is minimized (src/main.ts, the hidden loop).
+const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required \
+   --disable-background-timer-throttling";
 
 /// The kinds of file the game and Studio save: pictures, clips, replays and the game's own files (nothing that runs).
 const SAVE_EXTENSIONS: &[&str] = &["png", "gif", "mp4", "webm", "rec", "omfmod", "omfbot", "omftrn", "zip", "json"];
 
-/// Whether this start opens OMF Studio instead of the game.
+/// Whether this start opens OMF Studio instead of the game: `--studio`, or the program's file is named like Studio.
+/// The file is the one the player started: the AppImage itself on Linux (not the program unpacked from it), the `.app`
+/// bundle on macOS (its program inside keeps the game's name).
 fn studio_start() -> bool {
   // (args_os: an argument that is not valid Unicode must not stop the program)
-  let flag = std::env::args_os().skip(1).any(|a| a.eq_ignore_ascii_case("--studio"));
-  let named = std::env::current_exe()
-    .ok()
-    .and_then(|p| p.file_stem().map(|s| s.to_string_lossy().to_lowercase()))
-    .is_some_and(|name| name.contains("studio"));
-  flag || named
+  if std::env::args_os().skip(1).any(|a| a.eq_ignore_ascii_case("--studio")) {
+    return true;
+  }
+  let named = |p: &std::path::Path| p.file_stem().is_some_and(|s| s.to_string_lossy().to_lowercase().contains("studio"));
+  if let Some(image) = std::env::var_os("APPIMAGE") {
+    return named(std::path::Path::new(&image));
+  }
+  let Ok(exe) = std::env::current_exe() else {
+    return false;
+  };
+  if cfg!(target_os = "macos") {
+    if let Some(app) = exe.ancestors().find(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("app"))) {
+      return named(app);
+    }
+  }
+  named(&exe)
 }
 
 /// Opens a window: the game ("main", index.html) or OMF Studio ("studio", studio.html). Created hidden and
@@ -61,6 +74,8 @@ fn open_window(app: &tauri::AppHandle, studio: bool) -> tauri::Result<tauri::Web
     // (files dropped on the window reach the page: mods, music, pictures)
     .disable_drag_drop_handler()
     .additional_browser_args(BROWSER_ARGS)
+    // (macOS 14 and later: WebKit would pause a page hidden for a while, a LAN game with it)
+    .background_throttling(tauri::utils::config::BackgroundThrottlingPolicy::Disabled)
     .build()?;
   let handle = app.clone();
   let label = label.to_string();
@@ -94,7 +109,25 @@ async fn open_studio(app: tauri::AppHandle) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-  tauri::Builder::default()
+  // Linux with NVIDIA's driver: WebKitGTK's DMA-BUF renderer can leave the window blank (unless the player chose).
+  #[cfg(target_os = "linux")]
+  if std::path::Path::new("/proc/driver/nvidia").exists() && std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+    std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+  }
+  let builder = tauri::Builder::default();
+  #[cfg(target_os = "macos")]
+  let builder = builder.menu(mac_menu).on_menu_event(|app, event| {
+    if event.id() == QUIT_MENU_ID {
+      let windows = app.webview_windows();
+      if windows.is_empty() {
+        app.exit(0);
+      }
+      for window in windows.values() {
+        let _ = window.close();
+      }
+    }
+  });
+  let started = builder
     // Windows are created hidden (open_window) and shown once their page has loaded.
     .on_page_load(|webview, payload| {
       if payload.event() == PageLoadEvent::Finished {
@@ -118,8 +151,93 @@ pub fn run() {
       lan_send,
       lan_close
     ])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .run(tauri::generate_context!());
+  if let Err(e) = started {
+    fatal(&e.to_string());
+  }
+}
+
+/// The id of the macOS menu bar's Quit (mac_menu).
+#[cfg(target_os = "macos")]
+const QUIT_MENU_ID: &str = "quit";
+
+/// macOS: Tauri's default menu bar (Services, Hide, the Edit menu text fields need for copy and paste, full screen...),
+/// but its Quit closes the windows as their close buttons do, so OMF Studio saves its project first; the default Quit
+/// ends the program on the spot. The program ends once its last window has closed.
+#[cfg(target_os = "macos")]
+fn mac_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
+  use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
+  let name = app.package_info().name.clone();
+  let about = AboutMetadata { name: Some(name.clone()), version: Some(app.package_info().version.to_string()), ..Default::default() };
+  let quit = MenuItem::with_id(app, QUIT_MENU_ID, format!("Quit {name}"), true, Some("Cmd+Q"))?;
+  Menu::with_items(
+    app,
+    &[
+      &Submenu::with_items(
+        app,
+        name.clone(),
+        true,
+        &[
+          &PredefinedMenuItem::about(app, None, Some(about))?,
+          &PredefinedMenuItem::separator(app)?,
+          &PredefinedMenuItem::services(app, None)?,
+          &PredefinedMenuItem::separator(app)?,
+          &PredefinedMenuItem::hide(app, None)?,
+          &PredefinedMenuItem::hide_others(app, None)?,
+          &PredefinedMenuItem::separator(app)?,
+          &quit,
+        ],
+      )?,
+      &Submenu::with_items(app, "File", true, &[&PredefinedMenuItem::close_window(app, None)?])?,
+      &Submenu::with_items(
+        app,
+        "Edit",
+        true,
+        &[
+          &PredefinedMenuItem::undo(app, None)?,
+          &PredefinedMenuItem::redo(app, None)?,
+          &PredefinedMenuItem::separator(app)?,
+          &PredefinedMenuItem::cut(app, None)?,
+          &PredefinedMenuItem::copy(app, None)?,
+          &PredefinedMenuItem::paste(app, None)?,
+          &PredefinedMenuItem::select_all(app, None)?,
+        ],
+      )?,
+      &Submenu::with_items(app, "View", true, &[&PredefinedMenuItem::fullscreen(app, None)?])?,
+      &Submenu::with_items(
+        app,
+        "Window",
+        true,
+        &[
+          &PredefinedMenuItem::minimize(app, None)?,
+          &PredefinedMenuItem::maximize(app, None)?,
+          &PredefinedMenuItem::separator(app)?,
+          &PredefinedMenuItem::close_window(app, None)?,
+        ],
+      )?,
+    ],
+  )
+}
+
+/// The program could not start (no window could be made: on Windows, most likely no WebView2 Runtime). Says so in a
+/// message box (a Windows program started from Explorer has no console to print to), then ends.
+fn fatal(error: &str) -> ! {
+  #[cfg(windows)]
+  {
+    #[link(name = "user32")]
+    extern "system" {
+      fn MessageBoxW(hwnd: *mut std::ffi::c_void, text: *const u16, caption: *const u16, kind: u32) -> i32;
+    }
+    let wide = |s: &str| s.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
+    let text = wide(&format!(
+      "One Must Fall 2097 Remastered could not start.\n\n{error}\n\nIt needs the Microsoft Edge WebView2 Runtime, which Windows 10 and 11 normally have. If yours does not, install it from https://developer.microsoft.com/microsoft-edge/webview2/ and start the game again."
+    ));
+    let caption = wide("One Must Fall 2097 Remastered");
+    // (MB_OK | MB_ICONERROR)
+    unsafe { MessageBoxW(std::ptr::null_mut(), text.as_ptr(), caption.as_ptr(), 0x10) };
+  }
+  eprintln!("One Must Fall 2097 Remastered could not start: {error}");
+  std::process::exit(1);
 }
 
 /// LAN games' events, for the game's window: `lan:open` (a guest joined the hosted game), `lan:data` (a message),
@@ -191,8 +309,8 @@ fn lan_close(lan: State<'_, Arc<lan::Lan>>, id: u32) {
   lan.close(id);
 }
 
-/// Saves a file the game hands over (a replay, a video or GIF clip) in Downloads\OMF 2097
-/// Remastered, adding a number when the name is taken. The request body is the file's bytes and
+/// Saves a file the game hands over (a replay, a video or GIF clip) in the Downloads folder's OMF 2097
+/// Remastered folder, adding a number when the name is taken. The request body is the file's bytes and
 /// the `x-file-name` header its name (see `saveFile` in src/platform/files.ts); only the kinds of
 /// file in `SAVE_EXTENSIONS`. Returns the path. Async, the writing on a blocking thread: a large
 /// clip must not hold up the windows.
@@ -215,7 +333,9 @@ async fn save_file(app: tauri::AppHandle, request: tauri::ipc::Request<'_>) -> R
   if !allowed {
     return Err(format!("not a kind of file the game saves: {name}"));
   }
-  let dir = app.path().download_dir().map_err(|e| e.to_string())?.join("OMF 2097 Remastered");
+  // (Linux without the XDG user folders set up has no Downloads folder of record: ~/Downloads then)
+  let downloads = app.path().download_dir().or_else(|_| app.path().home_dir().map(|home| home.join("Downloads")));
+  let dir = downloads.map_err(|e| e.to_string())?.join("OMF 2097 Remastered");
   let data = data.clone();
   tauri::async_runtime::spawn_blocking(move || {
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;

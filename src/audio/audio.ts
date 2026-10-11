@@ -4,6 +4,7 @@ import workletUrl from './worklet.ts?worker&url';
 import { pitchedSampleRate, SOUND_CHANNEL_COUNT, soundSampleRate, type SoundOpts } from './soundOpts';
 import type { SoundEntry } from '../formats/misc';
 import { CustomMusicPlayer, myMusicFor, type MyMusicMode } from './customMusic';
+import { isDesktop } from '../platform/desktop';
 
 export const AUDIO_INVALID_HANDLE = 0;
 
@@ -484,7 +485,26 @@ export class AudioSystem {
     const el = new Audio();
     el.preload = 'auto';
     el.addEventListener('error', () => onError(), { once: true });
-    el.src = url;
+    let stopped = false;
+    // (the desktop app on macOS and Linux serves its files whole, without the byte ranges WebKit's media player needs
+    // to play and seek: the song is read first and played from memory)
+    let memory: string | null = null;
+    if (isDesktop && !/^(blob|data):/.test(url) && !/Windows/.test(navigator.userAgent)) {
+      void fetch(url)
+        .then((r) => {
+          if (!r.ok) throw new Error(`${url}: ${r.status}`);
+          return r.blob();
+        })
+        .then((blob) => {
+          if (stopped) return;
+          memory = URL.createObjectURL(blob);
+          el.src = memory;
+          void el.play().catch(() => undefined);
+        })
+        .catch(() => onError());
+    } else {
+      el.src = url;
+    }
     const src = ctx.createMediaElementSource(el);
     // (the song's own level, for a cut to another file: see cutTo)
     const elGain = ctx.createGain();
@@ -500,8 +520,7 @@ export class AudioSystem {
     gain.connect(this.out);
     this.trackGain = gain;
     if (ctx.state !== 'running') void ctx.resume();
-    void el.play().catch(() => undefined);
-    let stopped = false;
+    if (el.src) void el.play().catch(() => undefined);
     /** After a cut: the file playing instead, the song position it plays at the context time `at`. */
     let cut: { source: AudioBufferSourceNode; gain: GainNode; at: number; pos: number } | null = null;
     /** The song's own file paused after a cut (a timer). */
@@ -575,6 +594,7 @@ export class AudioSystem {
           el.pause();
           el.removeAttribute('src');
           el.load();
+          if (memory) URL.revokeObjectURL(memory);
           try {
             cut?.source.stop();
           } catch {

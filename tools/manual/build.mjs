@@ -210,21 +210,21 @@ page('Getting started', `
   ${title('Chapter 2', 'Getting started')}
   <div class="two">
     <div>
-      <h2>Windows</h2>
-      <p>Download the game from the project's GitHub page (<i>github.com/Jared-woodruff/OMF-2097-Remastered</i>, Releases).
-      There are two ways to play:</p>
+      <h2>Windows, macOS, Linux</h2>
+      <p>Download the game for your computer from the project's GitHub page (<i>github.com/Jared-woodruff/OMF-2097-Remastered</i>,
+      Releases). Nothing to install: the whole game is one file (on a Mac, an app in a zip).</p>
       <ul>
-        <li><b>The installer</b> puts the game in your Start menu, with an uninstaller.</li>
-        <li><b>The portable version</b> is one file. Run it from anywhere, even a USB stick.</li>
+        <li><b>Windows</b> may warn about an unknown publisher: <b>More info &rsaquo; Run anyway</b>.</li>
+        <li><b>macOS</b>, the first time: <b>System Settings &rsaquo; Privacy &amp; Security &rsaquo; Open Anyway</b>.</li>
+        <li><b>Linux</b>: let the AppImage run as a program (<i>chmod +x</i>).</li>
       </ul>
-      <p>Windows may warn you about an unknown publisher the first time: choose <b>More info &rsaquo; Run anyway</b>.</p>
       <h2>The web</h2>
       <p>The game also runs in any modern browser, and keeps working offline after the first visit.</p>
     </div>
     <div>
       <div class="tip" data-label="SYSTEM REQUIREMENTS">
         <ul>
-          <li>Windows 10 or 11 (64-bit), or a modern web browser</li>
+          <li>Windows 10/11, macOS 12+, Linux, or a modern web browser</li>
           <li>A graphics card that speaks WebGL 2 (anything from the last ten years)</li>
           <li>About 250 MB of disk space</li>
           <li>Keyboard, gamepad or touch screen</li>
@@ -235,7 +235,7 @@ page('Getting started', `
       <p>The game's original files come with the download. No CD, no install disks, no serial number, no "insert disk 2".</p>
       <h2>Your saved data</h2>
       <p>Settings, tournament careers, replays and records are saved automatically. Screenshots (${key('PRINT SCREEN')},
-      or ${key('F12')} in the Windows app), replays and clips you export go to <b>Downloads\\OMF 2097 Remastered</b>
+      or ${key('F12')} in the desktop app), replays and clips you export go to <b>Downloads &rsaquo; OMF 2097 Remastered</b>
       (in a browser, to its downloads).</p>
     </div>
   </div>
@@ -301,7 +301,7 @@ page('Controls', `
     <tr><td>${key('F2')}</td><td>Switch between the classic and the remastered look</td></tr>
     <tr><td>${key('F3')}</td><td>Next song, when your own music is playing</td></tr>
     <tr><td>${key('F11')} ${key('ALT')}+${key('ENTER')}</td><td>Full screen on and off</td></tr>
-    <tr><td>${key('PRINT SCREEN')} ${key('F12')}</td><td>Screenshot (${key('F12')} in the Windows app)</td></tr>
+    <tr><td>${key('PRINT SCREEN')} ${key('F12')}</td><td>Screenshot (${key('F12')} in the desktop app)</td></tr>
     <tr><td>${key('ESC')}</td><td>Pause in a fight; back in menus</td></tr>
   </table>
   <table>
@@ -644,10 +644,11 @@ page('Troubleshooting', `
   <table>
     <tr><th style="width:38%">Problem</th><th>Solution</th></tr>
     <tr><td><b>Windows says it protected my PC.</b></td><td>The download is not signed yet. Choose <b>More info</b>, then <b>Run anyway</b>.</td></tr>
+    <tr><td><b>My Mac won't open the game.</b></td><td>It is not notarized by Apple yet. Open <b>System Settings &rsaquo; Privacy &amp; Security</b> and choose <b>Open Anyway</b>.</td></tr>
     <tr><td><b>The game runs slowly.</b></td><td>Press ${key('F2')} for the classic look, or turn off effects in <b>Options &rsaquo; Graphics &rsaquo; Effects</b>.</td></tr>
     <tr><td><b>My gamepad does nothing.</b></td><td>Press any button on it once: the game only sees a pad after a button press. Check <b>Options &rsaquo; Controls</b>.</td></tr>
     <tr><td><b>There is no sound.</b></td><td>Click or press a key once: browsers only start sound after you do. Check the volumes in <b>Options &rsaquo; Sound</b>.</td></tr>
-    <tr><td><b>Where are my screenshots?</b></td><td>In <b>Downloads\\OMF 2097 Remastered</b>, with exported replays and clips (in a browser, in its downloads).</td></tr>
+    <tr><td><b>Where are my screenshots?</b></td><td>In <b>Downloads &rsaquo; OMF 2097 Remastered</b>, with exported replays and clips (in a browser, in its downloads).</td></tr>
     <tr><td><b>I cannot find Nova.</b></td><td>That is between you and the robot select screen.</td></tr>
   </table>
   <div class="dark">

@@ -35,6 +35,8 @@ export const enum UnitKind {
   NEWLINE,
   /** A hyphen: a line may end after it. */
   HYPHEN,
+  /** A soft hyphen (U+00AD): not drawn, but a line may end there, with a hyphen drawn. */
+  SOFT_HYPHEN,
 }
 
 /** Bidirectional class of a unit: left to right (Latin, digits), right to left (Arabic), neutral. */
@@ -316,11 +318,18 @@ function dirOf(ch: string): UnitDir {
   return /[\p{L}\p{N}]/u.test(ch) ? 'l' : 'n';
 }
 
+/** Scripts whose letters join or stack up into words: their words are drawn whole, never letter by letter. */
+function isJoinedScript(script: GlyphScript): boolean {
+  return script === 'arabic' || script === 'devanagari' || script === 'bengali';
+}
+
 /**
  * The units of a text in a font: a unit per character the fonts draw (the original's layout, unchanged), a unit per
- * word of a script the system's fonts draw (per character in Chinese and Japanese).
+ * word of a script the system's fonts draw (per character in Chinese and Japanese). `vertical`: for a column of letters
+ * (the mech lab's QUIT): the system's fonts' letters stand one per cell like the fonts' own, and the words of the
+ * scripts whose letters join are turned to read down the column.
  */
-export function shapeText(s: string, font: GlyphFont): TextUnit[] {
+export function shapeText(s: string, font: GlyphFont, vertical = false): TextUnit[] {
   const units: TextUnit[] = [];
   /** The fonts draw it (or what stands in for it). */
   const drawable = (c: string) => !isCjk(c) && !isJoining(c) && (SUBSTITUTE[c] ?? c).split('').every((x) => fontGlyph(font, x));
@@ -334,6 +343,11 @@ export function shapeText(s: string, font: GlyphFont): TextUnit[] {
     const next = i + ch.length;
     if (ch === '\n') {
       units.push(unit(i, next, UnitKind.NEWLINE, 0, [], false, 'n'));
+      i = next;
+      continue;
+    }
+    if (ch === '\u00ad') {
+      units.push(unit(i, next, UnitKind.SOFT_HYPHEN, 0, [], false, 'n'));
       i = next;
       continue;
     }
@@ -356,7 +370,8 @@ export function shapeText(s: string, font: GlyphFont): TextUnit[] {
     // A cluster for the system's fonts: one Chinese / Japanese character, else a word (with the marks, joiners and
     // punctuation that go with it).
     // (Korean syllables too take a cell each, as the translation's columns expect; its lines break at spaces)
-    const cellWide = isCjk(ch) || script === 'hangul';
+    const turned = vertical && isJoinedScript(script);
+    const cellWide = isCjk(ch) || script === 'hangul' || (vertical && !turned);
     let end = next;
     if (!cellWide) {
       while (end < s.length) {
@@ -369,10 +384,15 @@ export function shapeText(s: string, font: GlyphFont): TextUnit[] {
       while (end < s.length && isJoining(s[end])) end++;
     }
     const text = s.slice(i, end);
-    const g = clusterGlyph(text, script, fontName, font.w === 6);
+    // (a word turned for a column: Arabic, written right to left, a quarter turn left, the others right, so that each
+    // starts at the top)
+    const g = clusterGlyph(text, script, fontName, font.w === 6, turned ? (script === 'arabic' ? 'left' : 'right') : undefined);
     // (a Chinese, Japanese or Korean character takes one cell, as the original's letters: the translations are laid
     // out so)
-    const u = unit(i, end, UnitKind.CHAR, cellWide ? cell : g.advance, [{ surf: g.surf, dx: g.dx + (cellWide ? Math.round((cell - g.advance) / 2) : 0), dy: g.dy, w: g.w, h: g.h }], true, script === 'arabic' ? 'r' : 'l');
+    const centre = cellWide ? Math.round((cell - g.advance) / 2) : 0;
+    // (in a column the layout swaps the axes back: dx runs down it, dy across it)
+    const piece = vertical && !turned ? { surf: g.surf, dx: g.dy, dy: g.dx + centre, w: g.w, h: g.h } : { surf: g.surf, dx: g.dx + centre, dy: g.dy, w: g.w, h: g.h };
+    const u = unit(i, end, UnitKind.CHAR, cellWide ? cell : g.advance, [piece], true, script === 'arabic' ? 'r' : 'l');
     u.hires = true;
     units.push(u);
     i = end;

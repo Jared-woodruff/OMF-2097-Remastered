@@ -1,12 +1,15 @@
 // "Achievement unlocked" over the game (records.ts earns them): a banner that slides in above the bottom of the screen
 // with a trophy, the achievement and what it was for, then slides away; several in a row are shown one after another.
 import { ensureUiFont, UI_FONT } from './uiFont';
+import { tr } from '../i18n/i18n';
 
 const SHOW_MS = 4600;
 
+// (the trophy at the start of the line: the left, or the right in Arabic)
 const CSS = `
 .omfa { position: fixed; left: 50%; bottom: 13%; z-index: 21; display: flex; align-items: center; gap: clamp(12px, 1vw, 22px);
-  min-width: min(clamp(380px, 26vw, 620px), 86vw); max-width: 86vw; padding: clamp(12px, .9vw, 20px) clamp(20px, 1.5vw, 34px) clamp(12px, .9vw, 20px) clamp(14px, 1vw, 22px);
+  min-width: min(clamp(380px, 26vw, 620px), 86vw); max-width: 86vw; padding-block: clamp(12px, .9vw, 20px);
+  padding-inline: clamp(14px, 1vw, 22px) clamp(20px, 1.5vw, 34px);
   border-radius: clamp(14px, 1vw, 22px); pointer-events: none; overflow: hidden; font-family: ${UI_FONT};
   color: #fff; border: 2px solid transparent; opacity: 0; transform: translate(-50%, 40px) scale(.94);
   transition: opacity .45s, transform .55s cubic-bezier(.2,.9,.25,1.2);
@@ -51,7 +54,7 @@ function next(): void {
   const [title, text] = item;
   const el = document.createElement('div');
   el.className = 'omfa';
-  el.innerHTML = `<div class="omfa-icon">${TROPHY}</div><div><div class="omfa-label">ACHIEVEMENT UNLOCKED</div>
+  el.innerHTML = `<div class="omfa-icon">${TROPHY}</div><div><div class="omfa-label">${escape(tr('ACHIEVEMENT UNLOCKED'))}</div>
     <div class="omfa-title">${escape(title)}</div><div class="omfa-text">${escape(text)}</div></div>`;
   document.body.appendChild(el);
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('omfa-show')));
