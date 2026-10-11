@@ -13,7 +13,7 @@
 
 <a id="trailer"></a>
 
-https://github.com/user-attachments/assets/3c2f7574-e944-42c4-b5b6-c7361e1e6be7
+https://github.com/user-attachments/assets/d54e20f6-d5cb-4679-bc40-b049ac0770e3
 
 <p align="center">
   <sub><b>Sound on.</b> A fan trailer: 1994 on an old PC in the game's colors, then 32 years later in HD, the new robots
