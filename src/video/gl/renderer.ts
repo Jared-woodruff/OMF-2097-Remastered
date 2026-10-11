@@ -242,8 +242,6 @@ export class GLRenderer {
   /** Without GPU timing (WebKit's WebGL: macOS, Linux): the remastered frames' intervals (ms), the last one's time. */
   private frameIntervals: number[] = [];
   private lastFrameAt = 0;
-  /** The display's refresh as the frames show it (a low percentile of their intervals; 60 Hz at the most). */
-  private refreshMs = 1000 / 60;
   /** Average GPU time of the remastered frames measured recently (ms), for diagnostics. */
   gpuFrameMs = 0;
   /** Integrated / mobile / software GPU (by renderer string). */
@@ -368,8 +366,10 @@ export class GLRenderer {
   }
 
   /**
-   * Dynamic resolution without GPU timing: frames that keep missing the display's refresh (their average interval well
-   * over it) lower the remastered render scale. It is never raised again: too slow is what matters.
+   * Dynamic resolution without GPU timing: frames that keep missing their beat lower the remastered render scale. The
+   * beat is a low percentile of the last 90 frames' intervals: missed frames spread the intervals out (one refresh,
+   * then two), while a steady lower rate (a 30 Hz display, a Mac's Low Power Mode) is an even beat and fine. The scale
+   * is never raised again: too slow is what matters.
    */
   private adaptToFrameIntervals(displayScale: number): void {
     const now = performance.now();
@@ -382,9 +382,9 @@ export class GLRenderer {
     const sorted = this.frameIntervals.slice().sort((a, b) => a - b);
     const avg = sorted.reduce((a, b) => a + b, 0) / sorted.length;
     this.frameIntervals.length = 0;
-    // (not the shortest interval: two frames drawn close together would pass for a fast display)
-    this.refreshMs = Math.min(this.refreshMs, sorted[Math.floor(sorted.length / 10)]);
-    if (this.options.hdResolution !== 'auto' || avg < this.refreshMs * 1.35) return;
+    // (not the shortest interval: two frames drawn close together would pass for a faster beat)
+    const beat = sorted[Math.floor(sorted.length / 10)];
+    if (this.options.hdResolution !== 'auto' || avg < beat * 1.35) return;
     this.hdMaxScale = Math.max(2, Math.min(this.hdMaxScale, displayScale) * 0.8);
   }
 
