@@ -118,9 +118,9 @@ let systemPick: LangCode | null = null;
 
 /** The language a setting means ('auto': the system's). */
 export function resolveLanguage(setting: string, system: readonly string[] = []): LangCode {
-  if (isLangCode(setting)) return setting;
+  // (known whatever the setting: the language page and the setup screen name it as AUTOMATIC's)
   systemPick ??= pickLanguage(system);
-  return systemPick;
+  return isLangCode(setting) ? setting : systemPick;
 }
 
 /** The language the system prefers (known once initLanguage ran; English before). */

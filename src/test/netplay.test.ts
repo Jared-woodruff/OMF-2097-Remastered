@@ -216,6 +216,32 @@ describe('net handshake', () => {
   });
 });
 
+describe('net session', () => {
+  it('lets go of inputs and sums no game would send (far off screens and steps): they cannot pile up', () => {
+    const pair = new LoopbackPair(0);
+    const rules = {
+      match: { throwRange: 100, hitPause: 4, blockDamage: 0, vitality: 100, jumpHeight: 100, knockDown: 0, rehit: false, defensiveThrows: false,
+        power1: 5, power2: 5, hazards: true, rounds: 1, fightMode: 0, sim: false },
+      speed: 7, delayMs: 40,
+    };
+    const session = new NetSession({ link: pair.a, localPlayer: 0, names: ['HOST', 'GUEST'], rules, seed: 1, timers: false });
+    const send = (m: object) => pair.b.send(JSON.stringify(m));
+    for (let i = 0; i < 500; i++) {
+      send({ t: 'in', p: 1000 + i, s: 0, sc: SceneId.MELEE, a: [] });
+      send({ t: 'in', p: 1, s: 100000 + i, sc: SceneId.MELEE, a: [] });
+      send({ t: 'sum', p: 0, s: 100000 + i, h: i });
+    }
+    // (the other game on the next screen first: kept for when this one gets there)
+    send({ t: 'in', p: 1, s: 3, sc: SceneId.MELEE, a: [ACT_PUNCH] });
+    pair.run();
+    const inner = session as unknown as { remote: Map<number, { steps: Map<number, number[]> }>; remoteSums: Map<string, number> };
+    expect([...inner.remote.keys()]).toEqual([1]);
+    expect([...inner.remote.get(1)!.steps.keys()]).toEqual([3]);
+    expect(inner.remoteSums.size).toBe(0);
+    expect(session.ended).toBeNull();
+  });
+});
+
 describe.skipIf(!hasGameData)('network games', () => {
   it('both games play the same select screen, VS screen and fight, tick for tick', () => {
     const net = netGame(12, [masher(1), masher(2)]);

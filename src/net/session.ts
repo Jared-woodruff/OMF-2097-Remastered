@@ -27,6 +27,13 @@ const PING_EVERY_MS = 1000;
 const TIMEOUT_MS = 15000;
 /** At most this many steps of delay. */
 const MAX_DELAY = 12;
+/**
+ * How far the other game's messages can be from this one's: a screen or two ahead (it got there first), and some
+ * steps either way (each game waits for the other's inputs, so the two are never more than a delay or two apart).
+ * Messages further off are dropped: a game never sends them, and kept they would only pile up.
+ */
+const PHASES_AHEAD = 2;
+const STEP_WINDOW = 4 * MAX_DELAY + SUM_EVERY;
 
 /** Why a network game ended. */
 export type NetEndKind = 'left' | 'peerLeft' | 'lost' | 'timeout' | 'desync';
@@ -247,7 +254,9 @@ export class NetSession {
     this.lastHeard = this.now();
     switch (m.t) {
       case 'in': {
-        if (m.p < this.phase) return;
+        if (m.p < this.phase || m.p > this.phase + PHASES_AHEAD) return;
+        const from = m.p === this.phase ? this.step : 0;
+        if (m.s < from || m.s > from + STEP_WINDOW) return;
         let r = this.remote.get(m.p);
         if (!r) this.remote.set(m.p, (r = { scene: m.sc, steps: new Map() }));
         // (the other game is on another screen: the two have gone their own ways)
@@ -259,6 +268,8 @@ export class NetSession {
         return;
       }
       case 'sum': {
+        // (sums of another phase would be let go anyway: a new screen clears them)
+        if (m.p !== this.phase || Math.abs(m.s - this.step) > STEP_WINDOW) return;
         const key = `${m.p}:${m.s}`;
         this.remoteSums.set(key, m.h >>> 0);
         this.compareSums(key);

@@ -58,6 +58,13 @@ describe('the language setting', () => {
     expect(loadSettings().language).toBe('auto');
   });
 
+  it('knows the system\'s language for AUTOMATIC even when another one is chosen', async () => {
+    vi.resetModules();
+    const fresh = await import('../i18n/i18n');
+    expect(fresh.resolveLanguage('de', ['ja-JP', 'en'])).toBe('de');
+    expect(fresh.systemLanguage()).toBe('ja');
+  });
+
   it('is what the LANGUAGE page chooses: spoken at once and kept', async () => {
     installBrowserShims();
     setLanguageFetcher(async (p) => read(p.replace(/^lang\//, '')));
