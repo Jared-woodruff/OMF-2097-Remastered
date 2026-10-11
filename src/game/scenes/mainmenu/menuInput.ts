@@ -6,6 +6,7 @@ import { defaultSettings, settings } from '../../settings';
 import type { MainMenuScene } from '../mainmenu';
 import { menuDone, menuLinkMenu, parentMenu, settingsChanged } from './common';
 import { KEYBOARD_FRAME, menuKeyboardCreate } from './menuKeyboard';
+import { tr } from '../../../i18n/i18n';
 
 /**
  * RIGHT KEYBOARD / LEFT KEYBOARD (menu_set_right_keyboard / menu_set_left_keyboard): the chosen layout goes to the
@@ -56,22 +57,21 @@ function padName(nth: number): string {
 
 export function menuInputCreate(s: MainMenuScene, playerId: number): Menu {
   const menu = new Menu();
-  menu.attach(Label.title(`CHOOSE INPUT\nDEVICE FOR\nPLAYER ${playerId}`));
+  menu.attach(Label.title(tr('CHOOSE INPUT\nDEVICE FOR\nPLAYER {playerId}', { playerId })));
   menu.attach(new Filler());
-  menu.attach(new Button('RIGHT KEYBOARD',
-    'This will use the arrow keys or the numeric keypad for movement, enter for punch and right shift for kick.',
+  menu.attach(new Button(tr('RIGHT KEYBOARD'),
+    tr('This will use the arrow keys or the numeric keypad for movement, enter for punch and right shift for kick.'),
     false, false, () => setKeyboardLayout(s, playerId, true)));
-  menu.attach(new Button('LEFT KEYBOARD',
-    "This will set 'q', 'w', and 'e' for jumping directions, 'a' and 'd' for left and right and 'z', 'x' and 'c' " +
-    'for ducking. Left ctrl and left shift control punching and kicking.',
+  menu.attach(new Button(tr('LEFT KEYBOARD'),
+    tr('This will set \'q\', \'w\', and \'e\' for jumping directions, \'a\' and \'d\' for left and right and \'z\', \'x\' and \'c\' for ducking. Left ctrl and left shift control punching and kicking.'),
     false, false, () => setKeyboardLayout(s, playerId, false)));
-  menu.attach(new Button('CUSTOM KEYBOARD', 'Invent your own keyboard settings.', false, false, (b) => {
+  menu.attach(new Button(tr('CUSTOM KEYBOARD'), tr('Invent your own keyboard settings.'), false, false, (b) => {
     // menu_set_custom_keyboard(): the keyboard menu has its own, wider frame.
     const f = KEYBOARD_FRAME;
     menuLinkMenu(parentMenu(b), menuKeyboardCreate(s, playerId), f.x, f.y, f.w, f.h);
   }));
-  const joy1 = new Button('JOYSTICK 1', 'Use joystick 1.', false, false, () => setJoystick(s, playerId, 0));
-  const joy2 = new Button('JOYSTICK 2', 'Use joystick 2.', false, false, () => setJoystick(s, playerId, 1));
+  const joy1 = new Button(tr('JOYSTICK 1'), tr('Use joystick 1.'), false, false, () => setJoystick(s, playerId, 0));
+  const joy2 = new Button(tr('JOYSTICK 2'), tr('Use joystick 2.'), false, false, () => setJoystick(s, playerId, 1));
   const joys = [joy1, joy2];
   const joyHelp = ['', ''];
   // The reference disables the joystick entries when there are not enough joysticks. Browsers only report a gamepad
@@ -82,7 +82,7 @@ export function menuInputCreate(s: MainMenuScene, playerId: number): Menu {
       if (count > i) {
         j.setDisabled(false);
         const name = padName(i);
-        const help = `Use joystick ${i + 1}.${name ? ` (${name})` : ''}`;
+        const help = tr('Use joystick {n}.', { n: i + 1 }) + (name ? ` (${name})` : '');
         if (help !== joyHelp[i]) {
           joyHelp[i] = help;
           j.setHelp(help);
@@ -96,7 +96,7 @@ export function menuInputCreate(s: MainMenuScene, playerId: number): Menu {
   menu.attach(joy1);
   menu.attach(joy2);
   // Not ported: INPUT DELAY (local netplay practice; there is no netplay in this version).
-  menu.attach(new Button('DONE', 'Leave without changing anything.', false, false, menuDone));
+  menu.attach(new Button(tr('DONE'), tr('Leave without changing anything.'), false, false, menuDone));
   menu.onTick = updateJoysticks;
   return menu;
 }

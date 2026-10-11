@@ -31,6 +31,7 @@ import { settings } from '../settings';
 import { calculateTradeValue, harPrice } from './mechlab/harEconomy';
 import type { NetSession } from '../../net/session';
 import type { NetStatus } from '../../net/statusBar';
+import { tr, trnText } from '../../i18n/i18n';
 
 const TEXT_GREEN = 0xa7;
 const COLOR_GREEN = 0xa7;
@@ -185,11 +186,11 @@ function createReportCard(fs: FightStats): ReportCard {
   const money = [fs.winnings, fs.bonuses, fs.repairCost, fs.profit].map((m) => scoreFormat(m));
   return {
     plugWhine,
-    reportTitle: createTitleText('FINANCIAL REPORT'),
-    statsTitle: createTitleText('FIGHT\nSTATISTICS'),
-    opponentTitle: createTitleText('OPPONENT'),
-    reportLeft: createLabelsText('WINNINGS:\nBONUSES:\nREPAIR COST:\nPROFIT:'),
-    statsSelfLeft: createLabelsText('HITS LANDED:\nAVERAGE DAMAGE:\nFAILED ATTACKS:\nHIT/MISS RATIO:'),
+    reportTitle: createTitleText(tr('FINANCIAL REPORT')),
+    statsTitle: createTitleText(tr('FIGHT\nSTATISTICS')),
+    opponentTitle: createTitleText(tr('OPPONENT')),
+    reportLeft: createLabelsText(tr('WINNINGS:\nBONUSES:\nREPAIR COST:\nPROFIT:')),
+    statsSelfLeft: createLabelsText(tr('HITS LANDED:\nAVERAGE DAMAGE:\nFAILED ATTACKS:\nHIT/MISS RATIO:')),
     reportRight: createValuesText(`$ ${money[0]}K\n$ ${money[1]}K\n$ ${money[2]}K\n$ ${money[3]}K`),
     statsSelfRight: createValuesText(
       `${fmtU(fs.hitsLanded[0])}\n${fmtF1(fs.averageDamage[0])}\n${fmtU(fs.totalAttacks[0] - fs.hitsLanded[0])}\n${fmtU(fs.hitMissRatio[0])}%`,
@@ -425,7 +426,7 @@ export class VsScene extends Scene {
       this.insults = [null, createInsultText(lang(747), 170, 60)];
     } else if (player1.chr && p2Pilot) {
       // tournament mode
-      this.insults = [null, createInsultText(p2Pilot.quotes[0] ?? '', 150, 60)];
+      this.insults = [null, createInsultText(trnText(p2Pilot.quotes[0] ?? '', p2Pilot.quotes[1]), 150, 60)];
     } else if (p2Pilot) {
       // 1 player: what the player's pilot says, and the opponent's answer. A mod pilot says its own lines (its line for
       // that original pilot, or its line for anyone), and gives the originals theirs; otherwise the originals speak to
@@ -511,7 +512,7 @@ export class VsScene extends Scene {
     this.arenaSelectBg = menuBackground(211, 50, MenuBackgroundStyle.MELEE_VS);
 
     // Quit Dialog
-    this.quitDialog = new Dialog(DialogStyle.YES_NO, 'Are you sure you want to quit this game?', 72, 60);
+    this.quitDialog = new Dialog(DialogStyle.YES_NO, tr('Are you sure you want to quit this game?'), 72, 60);
     this.quitDialog.userdata = this;
     this.quitDialog.clicked = (dlg, result) => this.quitDialogClicked(dlg, result);
 
@@ -742,18 +743,18 @@ export class VsScene extends Scene {
     const [hostReady, guestReady] = this.netReady;
     const [host, guest] = net.names;
     if (net.localPlayer === 0) {
-      if (!hostReady) return { text: guestReady ? `${guest} IS READY: PICK THE ARENA, THEN PUNCH` : 'PICK THE ARENA (LEFT/RIGHT), THEN PUNCH' };
-      return { text: guestReady ? 'GET READY!' : `WAITING FOR ${guest} TO PRESS PUNCH`, waiting: true };
+      if (!hostReady) return { text: guestReady ? tr('{guest} IS READY: PICK THE ARENA, THEN PUNCH', { guest }) : tr('PICK THE ARENA (LEFT/RIGHT), THEN PUNCH') };
+      return { text: guestReady ? tr('GET READY!') : tr('WAITING FOR {guest} TO PRESS PUNCH', { guest }), waiting: true };
     }
-    if (!guestReady) return { text: hostReady ? `${host} IS READY: PRESS PUNCH TO FIGHT` : `${host} PICKS THE ARENA: PUNCH WHEN READY` };
-    return { text: hostReady ? 'GET READY!' : `WAITING FOR ${host} TO PICK THE ARENA`, waiting: true };
+    if (!guestReady) return { text: hostReady ? tr('{host} IS READY: PRESS PUNCH TO FIGHT', { host }) : tr('{host} PICKS THE ARENA: PUNCH WHEN READY', { host }) };
+    return { text: hostReady ? tr('GET READY!') : tr('WAITING FOR {host} TO PICK THE ARENA', { host }), waiting: true };
   }
 
   /** A network game: YOU over the local player's portrait, READY over those of the players who have pressed PUNCH. */
   private renderNetBadges(me: number): void {
     const badge = (s: string, color: number) => new Text(FontSize.BIG, 60, 10, s).setHAlign(HAlign.CENTER).setColor(color)
       .setShadow(GLYPH_SHADOW_RIGHT | GLYPH_SHADOW_BOTTOM).setShadowColor(MENU_SHADOW);
-    this.netBadges ??= { you: badge('YOU', MENU_LIGHT_GREEN), ready: badge('READY', MENU_BRIGHT_GREEN) };
+    this.netBadges ??= { you: badge(tr('YOU'), MENU_LIGHT_GREEN), ready: badge(tr('READY'), MENU_BRIGHT_GREEN) };
     for (let i = 0; i < 2; i++) {
       const x = i === 0 ? 0 : 320 - 60;
       // (above the portraits: the status bar is at the bottom of the screen)

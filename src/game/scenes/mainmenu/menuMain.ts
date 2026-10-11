@@ -11,6 +11,7 @@ import { menuHelpCreate } from './menuHelp';
 import { menuModesCreate } from './menuModes';
 import { menuMultiplayerCreate } from './menuMultiplayer';
 import { menuOptionsCreate } from './menuOptions';
+import { tr } from '../../../i18n/i18n';
 
 /**
  * The reference's `if(ctrl_type == KEYBOARD) _setup_keyboard(gs, player, player); else if(GAMEPAD) _setup_joystick(...)`.
@@ -81,13 +82,13 @@ function mainmenuMechlab(s: MainMenuScene): void {
  */
 export function menuMainCreate(s: MainMenuScene): Menu {
   const menu = new Menu();
-  menu.attach(new Button('ONE PLAYER GAME', null, false, false, () => mainmenu1v1(s)));
-  menu.attach(new Button('MULTIPLAYER', null, false, false, (b) => parentMenu(b).setSubmenu(menuMultiplayerCreate(s))));
-  menu.attach(new Button('TOURNAMENT PLAY', null, false, false, () => mainmenuMechlab(s)));
-  menu.attach(new Button('MORE MODES', null, false, false, (b) => parentMenu(b).setSubmenu(menuModesCreate(s))));
-  menu.attach(new Button('EXTRAS', null, false, false, (b) => parentMenu(b).setSubmenu(menuExtrasCreate(s))));
-  menu.attach(new Button('OPTIONS', null, false, false, (b) => parentMenu(b).setSubmenu(menuOptionsCreate(s))));
-  menu.attach(new Button('HELP', null, false, false, (b) => parentMenu(b).setSubmenu(menuHelpCreate(s))));
-  menu.attach(new Button('QUIT', null, false, false, () => mainmenuQuit(s)));
+  menu.attach(new Button(tr('ONE PLAYER GAME'), null, false, false, () => mainmenu1v1(s)));
+  menu.attach(new Button(tr('MULTIPLAYER'), null, false, false, (b) => parentMenu(b).setSubmenu(menuMultiplayerCreate(s))));
+  menu.attach(new Button(tr('TOURNAMENT PLAY'), null, false, false, () => mainmenuMechlab(s)));
+  menu.attach(new Button(tr('MORE MODES'), null, false, false, (b) => parentMenu(b).setSubmenu(menuModesCreate(s))));
+  menu.attach(new Button(tr('EXTRAS'), null, false, false, (b) => parentMenu(b).setSubmenu(menuExtrasCreate(s))));
+  menu.attach(new Button(tr('OPTIONS'), null, false, false, (b) => parentMenu(b).setSubmenu(menuOptionsCreate(s))));
+  menu.attach(new Button(tr('HELP'), null, false, false, (b) => parentMenu(b).setSubmenu(menuHelpCreate(s))));
+  menu.attach(new Button(tr('QUIT'), null, false, false, () => mainmenuQuit(s)));
   return menu;
 }

@@ -17,6 +17,7 @@ import { FontSize, HAlign } from '../gui/text';
 import { Page, PC } from '../gui/page';
 import { playMenuSound } from '../gui/widgets';
 import { ensureWorkshopRobot, harIdOf, setWorkshopSpec, workshopSpecs } from './registry';
+import { tr, trn, trKey } from '../../i18n/i18n';
 
 /** Palette entries the picture's three color ramps use while the page is open (free in the menu's palette). */
 function previewIndex(i: number): number {
@@ -29,8 +30,8 @@ const SUGGESTED = ['PROTOTYPE', 'VANGUARD', 'TITAN', 'RAZOR', 'SENTINEL', 'WARDE
 type Row = 'name' | 'body' | 'head' | 'moves' | 'size' | 'weight' | 'c1' | 'c2' | 'c3' | 'train' | 'fight' | 'file';
 const ROWS: Row[] = ['name', 'body', 'head', 'moves', 'size', 'weight', 'c1', 'c2', 'c3', 'train', 'fight', 'file'];
 const LABELS: Record<Row, string> = {
-  name: 'NAME', body: 'FRAME', head: 'HEAD', moves: 'MOVES', size: 'SIZE', weight: 'WEIGHT', c1: 'COLOR 1', c2: 'COLOR 2',
-  c3: 'COLOR 3', train: 'TRY IN TRAINING', fight: 'FIGHT THE COMPUTER', file: 'SAVE FILE',
+  name: trKey('NAME'), body: trKey('FRAME'), head: trKey('HEAD'), moves: trKey('MOVES'), size: trKey('SIZE'), weight: trKey('WEIGHT'), c1: trKey('COLOR 1'), c2: trKey('COLOR 2'),
+  c3: trKey('COLOR 3'), train: trKey('TRY IN TRAINING'), fight: trKey('FIGHT THE COMPUTER'), file: trKey('SAVE FILE'),
 };
 
 export interface WorkshopHost {
@@ -149,9 +150,9 @@ export class WorkshopPage extends Page {
   private activate(): void {
     const row = ROWS[this.row];
     if (row === 'train' || row === 'fight') {
-      this.status = 'BUILDING...';
+      this.status = tr('BUILDING...');
       if (!ensureWorkshopRobot(this.slot)) {
-        this.status = 'THE ROBOT COULD NOT BE BUILT';
+        this.status = tr('THE ROBOT COULD NOT BE BUILT');
         return;
       }
       playMenuSound(20);
@@ -166,8 +167,8 @@ export class WorkshopPage extends Page {
   private exportSpec(spec: WorkshopSpec): void {
     const name = `${spec.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.omfbot`;
     saveFile(name, new TextEncoder().encode(JSON.stringify(spec, null, 2)), 'application/json').then(
-      (where) => (this.status = where === name ? `SAVED ${name.toUpperCase()}` : 'SAVED'),
-      () => (this.status = 'THE FILE COULD NOT BE SAVED'),
+      (where) => (this.status = where === name ? tr('SAVED {name}', { name: name.toUpperCase() }) : tr('SAVED')),
+      () => (this.status = tr('THE FILE COULD NOT BE SAVED')),
     );
     playMenuSound(20);
   }
@@ -186,8 +187,8 @@ export class WorkshopPage extends Page {
         // not a robot file
       }
     }
-    this.status = n ? `LOADED ${n} ROBOT${n === 1 ? '' : 'S'}` : files.length ? 'NO ROBOT COULD BE LOADED (OR NO FREE SLOT)' : '';
-    if (n) toast(`${n} robot${n === 1 ? '' : 's'} added to the workshop.`);
+    this.status = n ? trn(n, 'LOADED {n} ROBOT', 'LOADED {n} ROBOTS') : files.length ? tr('NO ROBOT COULD BE LOADED (OR NO FREE SLOT)') : '';
+    if (n) toast(trn(n, '{n} robot added to the workshop.', '{n} robots added to the workshop.'));
   }
 
   override action(action: number, _source: CtrlType): number {
@@ -217,11 +218,11 @@ export class WorkshopPage extends Page {
         if (!workshopSpecs()[this.sel]) return true;
         if (!this.confirmDelete) {
           this.confirmDelete = true;
-          this.status = 'PRESS DELETE AGAIN TO DELETE THIS ROBOT';
+          this.status = tr('PRESS DELETE AGAIN TO DELETE THIS ROBOT');
         } else {
           setWorkshopSpec(this.sel, null);
           this.confirmDelete = false;
-          this.status = 'DELETED';
+          this.status = tr('DELETED');
           playMenuSound(20);
         }
         return true;
@@ -247,7 +248,7 @@ export class WorkshopPage extends Page {
       if (!m) return false;
       s.name = (s.name + m[1]).slice(0, 10);
     }
-    setWorkshopSpec(this.slot, { ...s, colors: [...s.colors] as [number, number, number], name: cleanName(s.name || 'ROBOT') });
+    setWorkshopSpec(this.slot, { ...s, colors: [...s.colors] as [number, number, number], name: cleanName(s.name || tr('ROBOT')) });
     return true;
   }
 
@@ -288,8 +289,8 @@ export class WorkshopPage extends Page {
   }
 
   private renderList(): void {
-    this.drawFrame('WORKSHOP');
-    this.drawText('st', this.status || 'BUILD YOUR OWN ROBOTS FROM THE NEW ROBOTS\' PARTS', 160, 25, FontSize.SMALL,
+    this.drawFrame(tr('WORKSHOP'));
+    this.drawText('st', this.status || tr('BUILD YOUR OWN ROBOTS FROM THE NEW ROBOTS\' PARTS'), 160, 25, FontSize.SMALL,
       this.confirmDelete ? PC.red : PC.dim, HAlign.CENTER);
     const specs = workshopSpecs();
     for (let i = 0; i < WORKSHOP_SLOTS; i++) {
@@ -300,27 +301,27 @@ export class WorkshopPage extends Page {
       this.drawText(`n${i}`, `${i + 1}`, 30, y, FontSize.SMALL, PC.dim);
       if (s) {
         this.drawText(`s${i}`, s.name, 44, y, FontSize.BIG, sel ? PC.white : PC.grey);
-        const desc = `${PART_NAMES[s.body]} FRAME, ${PART_NAMES[s.moves]} MOVES`;
+        const desc = tr('{frame} FRAME, {moves} MOVES', { frame: PART_NAMES[s.body], moves: PART_NAMES[s.moves] });
         this.drawText(`d${i}`, desc, 292, y + 1, FontSize.SMALL, sel ? PC.gold : PC.dim, HAlign.RIGHT);
       } else {
-        this.drawText(`s${i}`, 'EMPTY: ENTER BUILDS A NEW ROBOT', 44, y + 1, FontSize.SMALL, sel ? PC.grey : PC.dark);
+        this.drawText(`s${i}`, tr('EMPTY: ENTER BUILDS A NEW ROBOT'), 44, y + 1, FontSize.SMALL, sel ? PC.grey : PC.dark);
       }
     }
-    this.drawText('h1', 'ENTER BUILD / EDIT   E SAVE FILE   I LOAD FILES', 160, 172, FontSize.SMALL, PC.dim, HAlign.CENTER);
-    this.drawText('h2', 'DEL DELETE   ESC BACK', 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    this.drawText('h1', tr('ENTER BUILD / EDIT   E SAVE FILE   I LOAD FILES'), 160, 172, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    this.drawText('h2', tr('DEL DELETE   ESC BACK'), 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
   }
 
   private renderEditor(): void {
     const s = this.spec;
-    this.drawFrame(`WORKSHOP ${this.slot + 1}`);
+    this.drawFrame(tr('WORKSHOP {n}', { n: this.slot + 1 }));
     const value = (r: Row): string => {
       switch (r) {
         case 'name': return s.name || '_';
         case 'body': return PART_NAMES[s.body];
         case 'head': return PART_NAMES[s.head];
         case 'moves': return PART_NAMES[s.moves];
-        case 'size': return SIZE_NAMES[s.size];
-        case 'weight': return WEIGHT_NAMES[s.weight];
+        case 'size': return tr(SIZE_NAMES[s.size]);
+        case 'weight': return tr(WEIGHT_NAMES[s.weight]);
         default: return '';
       }
     };
@@ -329,7 +330,7 @@ export class WorkshopPage extends Page {
       const sel = i === this.row;
       if (sel) this.box(14, y - 2, 164, 11, PC.select);
       const action = r === 'train' || r === 'fight' || r === 'file';
-      this.drawText(`l${i}`, LABELS[r], 20, y, FontSize.SMALL, action ? (sel ? PC.gold : PC.orange) : sel ? PC.white : PC.grey);
+      this.drawText(`l${i}`, tr(LABELS[r]), 20, y, FontSize.SMALL, action ? (sel ? PC.gold : PC.orange) : sel ? PC.white : PC.grey);
       if (r === 'c1' || r === 'c2' || r === 'c3') {
         // A swatch of the ramp (as the robot shows it).
         const ramp = r === 'c1' ? 2 : r === 'c2' ? 1 : 0;
@@ -347,8 +348,8 @@ export class WorkshopPage extends Page {
     video.drawSize(p, 246 - (w >> 1), 176 - h, w, h);
     // Its special moves, top left of the picture.
     const r = workshopRobot(s, harIdOf(this.slot));
-    Object.values(r.specialNames).forEach((n, i) => this.drawText(`sp${i}`, n, 186, 32 + i * 8, FontSize.SMALL, PC.cyan));
-    const hint = ROWS[this.row] === 'name' ? 'TYPE A NAME, OR < > FOR ONE   ESC LIST' : '< > CHANGE   ENTER CHOOSE   ESC LIST';
+    Object.values(r.specialNames).forEach((n, i) => this.drawText(`sp${i}`, tr(n), 186, 32 + i * 8, FontSize.SMALL, PC.cyan));
+    const hint = ROWS[this.row] === 'name' ? tr('TYPE A NAME, OR < > FOR ONE   ESC LIST') : tr('< > CHANGE   ENTER CHOOSE   ESC LIST');
     this.drawText('h', this.status || hint, 160, 186, FontSize.SMALL, this.status ? PC.gold : PC.dim, HAlign.CENTER);
   }
 }

@@ -53,6 +53,7 @@ import { recordFight } from '../records/records';
 import { formatMs } from '../modes/run';
 import { AiController } from '../../controller/ai';
 import { leaveNetGame } from '../../net/netplay';
+import { tr } from '../../i18n/i18n';
 
 const HAR1_START_POS = 110;
 const HAR2_START_POS = 210;
@@ -667,8 +668,8 @@ export class ArenaScene extends Scene implements ArenaLike {
       this.trnHealth[i] = h.health;
     }
     const d = this.trnLastHit[1];
-    const mode = DUMMY_MODE_NAMES[this.trainingDummy()] ?? '';
-    this.trnText?.set(`DUMMY: ${mode}    LAST HIT: ${d}    COMBO: ${this.trnCombo[1]}`);
+    const mode = tr(DUMMY_MODE_NAMES[this.trainingDummy()] ?? '');
+    this.trnText?.set(tr('DUMMY: {mode}    LAST HIT: {hit}    COMBO: {combo}', { mode, hit: d, combo: this.trnCombo[1] }));
     this.lab?.tick(objs);
   }
 
@@ -1106,12 +1107,12 @@ export class ArenaScene extends Scene implements ArenaLike {
       case 'KeyI':
         s.markIn = tick;
         if (s.markOut >= 0 && s.markOut <= tick) s.markOut = -1;
-        this.replayHud?.flash('CLIP START');
+        this.replayHud?.flash(tr('CLIP START'));
         return true;
       case 'KeyO':
         s.markOut = tick;
         if (s.markIn >= tick) s.markIn = -1;
-        this.replayHud?.flash('CLIP END');
+        this.replayHud?.flash(tr('CLIP END'));
         return true;
       case 'KeyC':
         s.markIn = s.markOut = -1;
@@ -1123,7 +1124,7 @@ export class ArenaScene extends Scene implements ArenaLike {
         app.exportReplay('gif');
         return true;
       case 'KeyK':
-        void s.keep().then((kept) => this.replayHud?.flash(kept ? 'KEPT' : 'NOT KEPT'));
+        void s.keep().then((kept) => this.replayHud?.flash(kept ? tr('KEPT') : tr('NOT KEPT')));
         return true;
     }
     return false;
@@ -1257,7 +1258,7 @@ export class ArenaScene extends Scene implements ArenaLike {
     if (run && this.runText) {
       const of = run.total ? `/${run.total}` : '';
       const time = run.kind === 'timeattack' ? `   ${formatMs(run.ms + this.runMs)}` : '';
-      const wins = run.kind === 'survival' ? `WINS ${run.wins}` : run.kind === 'exhibition' ? 'TEST FIGHT' : `FIGHT ${run.fight}${of}`;
+      const wins = run.kind === 'survival' ? tr('WINS {wins}', { wins: run.wins }) : run.kind === 'exhibition' ? tr('TEST FIGHT') : tr('FIGHT {fight}{of}', { fight: run.fight, of });
       this.runText.set(`${run.label}   ${wins}${time}`);
       this.runText.draw(0, 34);
     }
@@ -1300,11 +1301,11 @@ export class ArenaScene extends Scene implements ArenaLike {
     // The pilots as they started the fight (tournament screens may have dropped player 2's by now).
     const player = (i: number) => {
       const p = rec.rec.pilots[i].info;
-      return { name: p.name.trim() || `PLAYER ${i + 1}`, harId: p.harId, pilotId: p.pilotId };
+      return { name: p.name.trim() || tr('PLAYER {n}', { n: i + 1 }), harId: p.harId, pilotId: p.pilotId };
     };
     const meta: ReplayMeta = {
       created: Date.now(),
-      mode: gs.modeLabel ?? (gs.isTournament() ? 'TOURNAMENT' : gs.isSingleplayer() ? 'ONE PLAYER' : 'TWO PLAYER'),
+      mode: gs.modeLabel ?? (gs.isTournament() ? tr('TOURNAMENT') : gs.isSingleplayer() ? tr('ONE PLAYER') : tr('TWO PLAYER')),
       players: [player(0), player(1)],
       arena: this.id - SceneId.ARENA0,
       winner: this.over ? this.winner : -1,

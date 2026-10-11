@@ -6,7 +6,9 @@ import { provideFile } from '../resources/files';
 import { EXTRAS_FILE, EXTRAS_NUMBERS } from '../mods/extras';
 import { readModPackage, type ModPackage } from '../mods/package';
 import { registerModPackage } from '../mods/registry';
-import { loadLanguage } from '../resources/resources';
+import { loadLanguage, loadOriginalTexts } from '../resources/resources';
+import { setOriginalTextsLoader, useLanguage } from '../i18n/i18n';
+import { isLangCode } from '../i18n/languages';
 import { PILOT_INFO, SceneId } from '../game/constants';
 import { GameState } from '../game/gameState';
 import { setPilotColors } from '../game/pilotColors';
@@ -124,8 +126,18 @@ export function loadGameData(): void {
     provideFile(f, new Uint8Array(fs.readFileSync(path.join(GAMEDATA_DIR, f))));
   }
   loadLanguage();
+  // GAME_LANG=<code>: the tests run in that language (with TEXT_AUDIT, what does not fit its place in it).
+  const code = process.env.GAME_LANG;
+  if (code && isLangCode(code)) {
+    const json = (p: string) => (fs.existsSync(path.join(LANG_DIR, p)) ? JSON.parse(fs.readFileSync(path.join(LANG_DIR, p), 'utf8')) : null);
+    setOriginalTextsLoader(loadOriginalTexts);
+    useLanguage(code, { ui: json(`ui/${code}.json`) ?? {}, original: json(`${code}.json`), trn: json(`trn/${code}.json`) ?? undefined });
+  }
   loaded = true;
 }
+
+/** The language files (public/lang). */
+const LANG_DIR = path.resolve(__dirname, '../../public/lang');
 
 /** Minimal localStorage shim for settings persistence in Node. */
 export function installBrowserShims(): void {

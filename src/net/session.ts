@@ -12,6 +12,7 @@ import type { CtrlEvent } from '../controller/controller';
 import { ACT_STOP, CtrlType, isArenaScene, MS_PER_OMF_TICK_SLOWEST, SceneId, STATIC_TICKS } from '../game/constants';
 import type { NetLink } from './link';
 import { parseMessage, type NetMessage, type NetRules } from './protocol';
+import { tr } from '../i18n/i18n';
 
 /** The screens both games play in step: the robot select screen, the VS screen and the fights. */
 export function isSyncedScene(id: SceneId): boolean {
@@ -190,7 +191,7 @@ export class NetSession {
     const remote = this.remote.get(this.phase)?.steps.get(this.step);
     if (this.step >= this.delay && !remote) {
       // (the engine waits for them: a step without them would play out differently in the two games)
-      this.end({ kind: 'desync', message: 'The game got out of step with the other one: the network game ended.' });
+      this.end({ kind: 'desync', message: tr('The game got out of step with the other one: the network game ended.') });
       return;
     }
     const mine = this.localFrames.get(this.step) ?? [ACT_STOP];
@@ -272,7 +273,7 @@ export class NetSession {
       case 'bye':
         this.peerBye = m.reason;
         if (m.reason === 'desync') this.desync();
-        else this.end({ kind: 'peerLeft', message: `${this.opponent} left the game.` });
+        else this.end({ kind: 'peerLeft', message: tr('{opponent} left the game.', { opponent: this.opponent }) });
         return;
     }
   }
@@ -286,13 +287,13 @@ export class NetSession {
   }
 
   private desync(): void {
-    this.end({ kind: 'desync', message: `The fight got out of sync with ${this.opponent}'s game: the network game ended.` });
+    this.end({ kind: 'desync', message: tr('The fight got out of sync with {opponent}\'s game: the network game ended.', { opponent: this.opponent }) });
   }
 
   private linkClosed(_reason: string): void {
     if (this.ended) return;
-    if (this.peerBye !== null) this.end({ kind: 'peerLeft', message: `${this.opponent} left the game.` });
-    else this.end({ kind: 'lost', message: `The connection to ${this.opponent} was lost.` });
+    if (this.peerBye !== null) this.end({ kind: 'peerLeft', message: tr('{opponent} left the game.', { opponent: this.opponent }) });
+    else this.end({ kind: 'lost', message: tr('The connection to {opponent} was lost.', { opponent: this.opponent }) });
   }
 
   /** Pings now and then, and gives up on a game that stopped answering (called on a timer). */
@@ -300,7 +301,7 @@ export class NetSession {
     if (this.ended) return;
     const now = this.now();
     if (now - this.lastHeard > TIMEOUT_MS) {
-      this.end({ kind: 'timeout', message: `${this.opponent} stopped answering: the network game ended.` });
+      this.end({ kind: 'timeout', message: tr('{opponent} stopped answering: the network game ended.', { opponent: this.opponent }) });
       return;
     }
     if (now - this.lastPing >= PING_EVERY_MS) {
@@ -318,8 +319,8 @@ export class NetSession {
   leave(byPeer = false): void {
     if (this.ended) return;
     this.send({ t: 'bye', reason: 'left' });
-    if (byPeer) this.end({ kind: 'peerLeft', message: `${this.opponent} left the game.` });
-    else this.end({ kind: 'left', message: 'You left the network game.' });
+    if (byPeer) this.end({ kind: 'peerLeft', message: tr('{opponent} left the game.', { opponent: this.opponent }) });
+    else this.end({ kind: 'left', message: tr('You left the network game.') });
   }
 
   private end(end: NetEnd): void {

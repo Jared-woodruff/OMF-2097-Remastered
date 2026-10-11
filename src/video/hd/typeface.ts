@@ -4,6 +4,7 @@
 // the HD text shader samples (hd/shaders.ts), so letters are sharp at any size while every text keeps its layout.
 // The atlas is built in a worker (typefaceWorker.ts), or here when workers cannot draw text.
 import type { BitmapFont } from '../../formats/misc';
+import { CP437_HIGH } from '../../i18n/cp437';
 
 /** Atlas texels per native pixel, and the native pixels around each cell (text halo, the reach of descenders). */
 export const GLYPH_TEXELS = 12;
@@ -84,8 +85,6 @@ export function inkColumns(glyph: Uint8Array, size: number): [number, number] | 
  * The game's texts are in DOS code page 437 (the German texts' umlauts and ß are bytes 0x80..0xFF): its upper half,
  * and the letters of it the typeface has.
  */
-const CP437_HIGH =
-  'ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ ';
 const TYPEFACE_EXTRA = new Set('ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£áíóúñÑ¿¡ß°');
 
 /** The character of a font's glyph (code: character code - 32) in Unicode. */
@@ -149,10 +148,21 @@ function makeCanvas(w: number, h: number): { ctx: Canvas2D } | null {
   return ctx ? { ctx } : null;
 }
 
-/** Builds the atlas of both fonts' glyphs in the loaded typeface `family`, or null when it cannot be drawn. */
-export function buildGlyphAtlas(family: string, fonts: { small: BitmapFont; big: BitmapFont }): GlyphAtlas | null {
+/** A letter the fonts lack, made in their style (game/gui/glyphs.ts madeGlyphs): its surface key, character, picture. */
+export interface ExtraGlyph {
+  key: string;
+  ch: string;
+  glyph: Uint8Array;
+}
+
+/**
+ * Builds the atlas of both fonts' glyphs in the loaded typeface `family` (and of the letters made for the game's
+ * other Latin languages), or null when it cannot be drawn.
+ */
+export function buildGlyphAtlas(family: string, fonts: { small: BitmapFont; big: BitmapFont },
+  extras: { small: ExtraGlyph[]; big: ExtraGlyph[] } = { small: [], big: [] }): GlyphAtlas | null {
   const tile = (8 + 2 * GLYPH_MARGIN) * GLYPH_TEXELS;
-  const jobs: { key: string; font: 'small' | 'big'; code: number; ch: string }[] = [];
+  const jobs: { key: string; font: 'small' | 'big'; glyph: Uint8Array; ch: string }[] = [];
   const halftone = new Set<string>();
   for (const name of ['small', 'big'] as const) {
     const f = fonts[name];
@@ -161,8 +171,9 @@ export function buildGlyphAtlas(family: string, fonts: { small: BitmapFont; big:
       const ch = block ? '' : typefaceChar(f, code);
       if (block && !inkColumns(f.glyphs[code], f.size)) continue;
       if (block === 'half') halftone.add(`${name}/${code}`);
-      if (block || ch) jobs.push({ key: `${name}/${code}`, font: name, code, ch: ch ?? '' });
+      if (block || ch) jobs.push({ key: `${name}/${code}`, font: name, glyph: f.glyphs[code], ch: ch ?? '' });
     }
+    for (const e of extras[name]) if (inkColumns(e.glyph, f.size)) jobs.push({ key: e.key, font: name, glyph: e.glyph, ch: e.ch });
   }
   const cols = 16;
   const w = cols * tile, h = Math.ceil(jobs.length / cols) * tile;
@@ -191,7 +202,7 @@ export function buildGlyphAtlas(family: string, fonts: { small: BitmapFont; big:
     const tx = (i % cols) * tile, ty = Math.floor(i / cols) * tile;
     const m = METRICS[job.font];
     const f = fonts[job.font];
-    const glyph = f.glyphs[job.code];
+    const glyph = job.glyph;
     const ink = inkColumns(glyph, f.size)!;
     if (!job.ch) {
       // A block: the whole cell, inset.
@@ -224,7 +235,7 @@ export function buildGlyphAtlas(family: string, fonts: { small: BitmapFont; big:
       const height = (m.base - top) * GLYPH_TEXELS;
       kyUp = Math.max(0.7, Math.min(1.05, height / ascent));
       // (capitals keep the cap height: their original's top row may be a serif or accent-free)
-      if (job.ch === job.ch.toUpperCase() && !TYPEFACE_EXTRA.has(job.ch)) kyUp = 1;
+      if (job.ch === job.ch.toUpperCase() && job.ch.normalize('NFD').length === 1 && !TYPEFACE_EXTRA.has(job.ch)) kyUp = 1;
     }
     // Placement: the ink centered where the original's is, the baseline on the original's.
     const cx = tx + (GLYPH_MARGIN + (ink[0] + ink[1]) / 2) * GLYPH_TEXELS;
@@ -290,6 +301,39 @@ export function distanceField(rgba: Uint8ClampedArray | Uint8Array, w: number, h
         const d = (Math.sqrt(outer[i]) - Math.sqrt(inner[i])) / GLYPH_TEXELS;
         data[(ty + y) * w + tx + x] = Math.max(0, Math.min(255, Math.round(128 + (d * 127) / GLYPH_RANGE)));
       }
+    }
+  }
+  return data;
+}
+
+/**
+ * The signed distance field of a coverage image (one byte per texel, `texels` per native pixel): 128 on the edge,
+ * GLYPH_RANGE native pixels of distance each way over the rest of the byte range (the letters of the system's fonts,
+ * see Surface.hires).
+ */
+export function distanceFieldOf(alpha: Uint8ClampedArray | Uint8Array, w: number, h: number, texels: number): Uint8Array {
+  const n = Math.max(w, h);
+  const outer = new Float64Array(n * n), inner = new Float64Array(n * n);
+  // (the transform works on a square: what is outside the image is outside the letters)
+  outer.fill(INF);
+  inner.fill(0);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const a = alpha[y * w + x] / 255;
+      const i = y * n + x;
+      outer[i] = a >= 1 ? 0 : a <= 0 ? INF : (0.5 - a) ** 2 * (a < 0.5 ? 1 : 0);
+      inner[i] = a <= 0 ? 0 : a >= 1 ? INF : (a - 0.5) ** 2 * (a > 0.5 ? 1 : 0);
+    }
+  }
+  const scratch = edtScratch(n);
+  edt(outer, n, scratch);
+  edt(inner, n, scratch);
+  const data = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * n + x;
+      const d = (Math.sqrt(outer[i]) - Math.sqrt(inner[i])) / texels;
+      data[y * w + x] = Math.max(0, Math.min(255, Math.round(128 + (d * 127) / GLYPH_RANGE)));
     }
   }
   return data;

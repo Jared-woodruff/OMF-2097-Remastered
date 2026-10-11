@@ -276,6 +276,16 @@ rounds, power and the advanced rules), both games must be the same version with 
 checking that their fights agree. The first time you host, Windows may ask whether the game can use the
 network: allow it on private networks. LAN fights are saved as replays like any other.
 
+### In your language
+
+The game speaks **English, German, Japanese, Chinese, Korean, Hindi, Bengali, Spanish, Portuguese, French, Arabic,
+Russian, Danish and Swedish**: the original game's texts (its menus, help pages, the news reports, the pilots' trash
+talk, the endings) and everything the remaster adds. It starts in your language: your browser's on the web, Windows'
+in the app. **Options › Language** lists them all, each written in itself, and switches at once; your choice stays.
+English and German are the game's own 1994 texts, umlauts and all. The other languages are new translations, drawn in
+the original pixel font where its letters reach (Ã, Ê, Ø... are made in its style) and in your system's fonts for
+Cyrillic, Chinese, Japanese, Korean, Devanagari, Bengali and Arabic (right to left), sharp in both looks.
+
 ### Training lab
 
 <p align="center">
@@ -372,7 +382,6 @@ and every winner's card flying onto the tower (**Play the credits** on the main 
 - **Arena acoustics** (sounds echo like the stadium or the steel Danger Room) and an **impact bass** under heavy hits.
 - **Achievements** announce themselves the moment they're earned.
 - **Auto pause** when you switch to another window.
-- **The German texts as written**, umlauts and all.
 
 </details>
 

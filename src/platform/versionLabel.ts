@@ -1,5 +1,6 @@
 // The product's name and version in the bottom left corner of the main menu (HTML over the game).
 import { ensureUiFont, UI_FONT } from './uiFont';
+import { tr } from '../i18n/i18n';
 
 export const PRODUCT_NAME = 'One Must Fall 2097 Remastered';
 /** The app's version (package.json at build time). */

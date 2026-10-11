@@ -51,6 +51,29 @@ and `capture(name, w, h)` (writes a PNG to `.captures/`). See [docs/ARCHITECTURE
 - **Match the surrounding code**: naming, comment density and idioms. The layout of the code is described in
   [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+## Texts and languages
+
+The game speaks fourteen languages (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#languages)). Write every text
+the remaster shows in English, wrapped for translation:
+
+```ts
+tr('ONE PLAYER GAME')                      // a text
+tr('{name} WINS', { name })                // with values: placeholders, never glued-on English
+trn(n, '{n} WIN', '{n} WINS')              // with a number: the language's plural forms
+const MODES = [trKey('ARCADE'), ...];      // a table made at start-up: marked here, tr(MODES[i]) where shown
+```
+
+Whole sentences only (no `tr('...') + tr('...')`), and never compare a translated text in the game's logic. Then:
+
+```sh
+node tools/i18n.mjs check          # every language: what is translated, placeholders and plural forms
+node tools/i18n.mjs todo fr fr.json  # what a language still lacks, to translate into public/lang/ui/fr.json
+```
+
+A text without a translation shows in English until one is added to `public/lang/ui/<code>.json` (an object keyed by
+the English text). `?lang=<code>` in the URL tries a language out; `GAME_LANG=<code> TEXT_AUDIT=audit.jsonl npx vitest run`
+runs the tests in it and lists the texts that don't fit their place.
+
 ## What not to commit
 
 The original game's files are included on its freeware terms ([NOTICE.md](NOTICE.md)): nothing here may ever be sold

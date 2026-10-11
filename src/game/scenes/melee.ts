@@ -36,6 +36,7 @@ import { Scene } from '../scene';
 import { leaveNetGame } from '../../net/netplay';
 import type { NetSession } from '../../net/session';
 import type { NetStatus } from '../../net/statusBar';
+import { tr } from '../../i18n/i18n';
 
 const MAX_STAT = 20;
 const TEXT_GREEN = 0xa6;
@@ -264,7 +265,9 @@ export class MeleeScene extends Scene {
     // Player bio boxes and names for both players
     for (let i = 0; i < 2; i++) {
       const pilotId = i === 0 ? this.pilotIdA : this.pilotIdB;
-      this.playerBio[i] = createGreenText(156, 34, pilotBio(pilotId));
+      // (the reference's box is 34 high at y 66; centered in the panel's full height instead, a text up to seven lines long
+      // fits, the German and other languages' biographies, and a shorter one stays where it was)
+      this.playerBio[i] = createGreenText(156, 42, pilotBio(pilotId));
       this.playerName[i] = createBlackText(66, 6, pilotNameOf(pilotId));
       this.playerBio[i].setMargin({ left: 2, right: 2, top: 0, bottom: 0 });
     }
@@ -889,7 +892,7 @@ export class MeleeScene extends Scene {
     video.draw(this.bgPlayerBio, 0, 62);
 
     this.playerName[0].draw(0, 52);
-    this.playerBio[0].draw(4, 66);
+    this.playerBio[0].draw(4, 62);
     this.playerStats[0].draw(74, 4);
     this.playerStats[1].draw(74, 22);
     this.playerStats[2].draw(74, 40);
@@ -903,7 +906,7 @@ export class MeleeScene extends Scene {
       video.draw(this.bgPlayerBio, 320 - this.bgPlayerBio.w, 62);
 
       this.playerName[1].draw(320 - 66, 52);
-      this.playerBio[1].draw(320 - this.bgPlayerBio.w + 4, 66);
+      this.playerBio[1].draw(320 - this.bgPlayerBio.w + 4, 62);
       this.playerStats[0].draw(320 - 66 - this.bgPlayerStats.w, 4);
       this.playerStats[1].draw(320 - 66 - this.bgPlayerStats.w, 22);
       this.playerStats[2].draw(320 - 66 - this.bgPlayerStats.w, 40);
@@ -1003,7 +1006,7 @@ export class MeleeScene extends Scene {
   private renderNetBadges(me: number): void {
     const badge = (s: string, color: number) => new Text(FontSize.BIG, 66, 10, s).setHAlign(HAlign.CENTER).setColor(color)
       .setShadow(GLYPH_SHADOW_RIGHT | GLYPH_SHADOW_BOTTOM).setShadowColor(MENU_SHADOW);
-    this.netBadges ??= { you: badge('YOU', MENU_LIGHT_GREEN), ready: badge('READY', MENU_BRIGHT_GREEN) };
+    this.netBadges ??= { you: badge(tr('YOU'), MENU_LIGHT_GREEN), ready: badge(tr('READY'), MENU_BRIGHT_GREEN) };
     for (let i = 0; i < 2; i++) {
       const x = i === 0 ? 0 : 320 - 66;
       if (i === me) this.netBadges.you.draw(x, 3);
@@ -1014,12 +1017,12 @@ export class MeleeScene extends Scene {
   /** A network game: whose pick is still to come (net/statusBar.ts). */
   override netStatus(net: NetSession): NetStatus | null {
     const me = net.localPlayer;
-    const what = this.page === PILOT_SELECT ? 'PILOT' : 'ROBOT';
+    const what = this.page === PILOT_SELECT ? tr('PILOT') : tr('ROBOT');
     if (!this.cursor[me].done) {
-      if (this.cursor[1 - me].done) return { text: `${net.opponent} IS READY: PICK YOUR ${what}` };
-      return { text: `PICK YOUR ${what} (${me === 0 ? 'RED' : 'BLUE'} CURSOR)` };
+      if (this.cursor[1 - me].done) return { text: tr('{opponent} IS READY: PICK YOUR {what}', { opponent: net.opponent, what }) };
+      return { text: me === 0 ? tr('PICK YOUR {what} (RED CURSOR)', { what }) : tr('PICK YOUR {what} (BLUE CURSOR)', { what }) };
     }
-    return { text: `WAITING FOR ${net.opponent} TO PICK A ${what}`, waiting: true };
+    return { text: tr('WAITING FOR {opponent} TO PICK A {what}', { opponent: net.opponent, what }), waiting: true };
   }
 
   private loadPilotPortraits(): void {

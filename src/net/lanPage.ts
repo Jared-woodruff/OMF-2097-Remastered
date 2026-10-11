@@ -19,6 +19,7 @@ import type { NetLink } from './link';
 import { hostRules, netContent, startNetGame } from './netplay';
 import { cleanName, LAN_PORT, type NetContent, type NetMessage, type NetRules } from './protocol';
 import { NetSession } from './session';
+import { clip, tr } from '../i18n/i18n';
 
 type State = 'menu' | 'hosting' | 'joining' | 'starting';
 
@@ -56,11 +57,11 @@ function errorText(e: unknown): string {
 /** What a failed join says (the desktop app's errors are the system's). */
 function joinError(e: unknown, address: string): string {
   const m = e instanceof Error ? e.message : String(e);
-  if (/refused|10061|ECONNREFUSED/i.test(m)) return `NO GAME IS HOSTED AT ${address.toUpperCase()}.`;
+  if (/refused|10061|ECONNREFUSED/i.test(m)) return tr('NO GAME IS HOSTED AT {address}.', { address: address.toUpperCase() });
   if (/timed out|10060|ETIMEDOUT|unreachable|10065|10051/i.test(m)) {
-    return `${address.toUpperCase()} DID NOT ANSWER: IS IT ON THIS NETWORK, AND THE GAME ALLOWED THROUGH ITS FIREWALL?`;
+    return tr('{address} DID NOT ANSWER: IS IT ON THIS NETWORK, AND THE GAME ALLOWED THROUGH ITS FIREWALL?', { address: address.toUpperCase() });
   }
-  if (/no computer by that name|not known|11001|failed to lookup/i.test(m)) return `NO COMPUTER IS CALLED ${address.toUpperCase()}.`;
+  if (/no computer by that name|not known|11001|failed to lookup/i.test(m)) return tr('NO COMPUTER IS CALLED {address}.', { address: address.toUpperCase() });
   return errorText(e);
 }
 
@@ -112,6 +113,7 @@ export class LanPage extends Page {
       this.addresses = info.addresses;
       // (the computer's user name, until the player types one)
       if (!settings().lan.name) {
+        // (a name is sent in the letters A-Z, 0-9: protocol.ts cleanName; so is this one, untranslated)
         settings().lan.name = cleanName(info.name) || 'PLAYER';
         saveSettings();
       }
@@ -178,7 +180,7 @@ export class LanPage extends Page {
     } catch (e) {
       if (attempt !== this.attempt) return;
       this.state = 'menu';
-      this.setStatus(`THE GAME COULD NOT BE HOSTED: ${errorText(e)}`, PC.red);
+      this.setStatus(tr('THE GAME COULD NOT BE HOSTED: {error}', { error: errorText(e) }), PC.red);
     }
   }
 
@@ -193,7 +195,7 @@ export class LanPage extends Page {
       return;
     }
     this.greeting = true;
-    this.setStatus(`A PLAYER IS JOINING FROM ${link.peer.toUpperCase()}...`, PC.gold);
+    this.setStatus(tr('A PLAYER IS JOINING FROM {peer}...', { peer: link.peer.toUpperCase() }), PC.gold);
     const name = this.name;
     try {
       const rules = hostRules(this.gs);
@@ -208,7 +210,7 @@ export class LanPage extends Page {
     } catch (e) {
       link.close();
       // (the game goes on waiting for a player who can join)
-      if (attempt === this.attempt) this.setStatus(`A PLAYER COULD NOT JOIN: ${errorText(e)}`, PC.red);
+      if (attempt === this.attempt) this.setStatus(tr('A PLAYER COULD NOT JOIN: {error}', { error: errorText(e) }), PC.red);
     } finally {
       this.greeting = false;
     }
@@ -297,7 +299,7 @@ export class LanPage extends Page {
     } else if (this.row === ROW_ADDRESS) {
       const a = settings().lan.address.trim();
       if (!a) {
-        this.setStatus("TYPE THE ADDRESS OF THE HOST'S COMPUTER (ITS LAN PAGE SHOWS IT)", PC.gold);
+        this.setStatus(tr("TYPE THE ADDRESS OF THE HOST'S COMPUTER (ITS LAN PAGE SHOWS IT)"), PC.gold);
         return;
       }
       void this.join(a);
@@ -305,10 +307,10 @@ export class LanPage extends Page {
       const g = this.games[this.row - ROW_ADDRESS - 1];
       if (!g) return;
       if (g.busy) {
-        this.setStatus('THAT GAME IS ALREADY BEING PLAYED.', PC.gold);
+        this.setStatus(tr('THAT GAME IS ALREADY BEING PLAYED.'), PC.gold);
         return;
       }
-      void this.join(g.address, `${g.name.toUpperCase()}'S GAME`);
+      void this.join(g.address, tr('{name}\'S GAME', { name: g.name.toUpperCase() }));
     } else {
       return;
     }
@@ -390,12 +392,11 @@ export class LanPage extends Page {
   }
 
   override render(): void {
-    this.drawFrame('LAN GAME');
+    this.drawFrame(tr('LAN GAME'));
     if (!this.backend) {
-      this.drawWrapped('web1', 'LAN GAMES NEED THE DESKTOP APP', 60, PC.gold);
-      this.drawWrapped('web2', 'A browser cannot reach the other computers of your network by itself. Download the desktop app ' +
-        'for Windows from the GitHub page to host and join LAN games. Two players on this computer: MULTIPLAYER > LOCAL.', 82, PC.grey, 260, 60);
-      this.drawText('h', 'ESC BACK', 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
+      this.drawWrapped('web1', tr('LAN GAMES NEED THE DESKTOP APP'), 60, PC.gold);
+      this.drawWrapped('web2', tr('A browser cannot reach the other computers of your network by itself. Download the desktop app for Windows from the GitHub page to host and join LAN games. Two players on this computer: MULTIPLAYER > LOCAL.'), 82, PC.grey, 260, 60);
+      this.drawText('h', tr('ESC BACK'), 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
       return;
     }
     if (this.state === 'starting') this.renderMatch();
@@ -405,26 +406,26 @@ export class LanPage extends Page {
   }
 
   private renderHosting(): void {
-    this.drawText('hn', `${this.name}'S GAME`, 160, 34, FontSize.BIG, PAGE_TITLE, HAlign.CENTER);
-    this.drawText('hw', `WAITING FOR A PLAYER TO JOIN${this.dots()}`, 160, 50, FontSize.SMALL, PC.gold, HAlign.CENTER);
-    this.drawWrapped('hg', 'The game starts by itself as soon as someone joins.', 62, PC.white);
-    this.drawWrapped('hj', `On the other computer: MULTIPLAYER > LAN, then pick ${this.name}'S GAME from the list, or join this address:`,
+    this.drawText('hn', tr('{name}\'S GAME', { name: this.name }), 160, 34, FontSize.BIG, PAGE_TITLE, HAlign.CENTER);
+    this.drawText('hw', tr('WAITING FOR A PLAYER TO JOIN{dots}', { dots: this.dots() }), 160, 50, FontSize.SMALL, PC.gold, HAlign.CENTER);
+    this.drawWrapped('hg', tr('The game starts by itself as soon as someone joins.'), 62, PC.white);
+    this.drawWrapped('hj', tr("On the other computer: MULTIPLAYER > LAN, then pick {name}'S GAME from the list, or join this address:", { name: this.name }),
       80, PC.grey);
     const a = this.address();
     if (a) this.drawText('hv', a, 160, 100, FontSize.BIG, PC.white, HAlign.CENTER);
-    this.drawWrapped('hr', 'Your gameplay options are used (speed, rounds, power and the advanced ones).', 120, PC.grey);
+    this.drawWrapped('hr', tr('Your gameplay options are used (speed, rounds, power and the advanced ones).'), 120, PC.grey);
     if (this.status) this.drawWrapped('hs', this.status, 142, this.statusColor);
-    else this.drawWrapped('hf', 'If Windows asks, let the game use private networks.', 142, PC.dim);
-    this.drawText('h', 'ESC STOP HOSTING', 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    else this.drawWrapped('hf', tr('If Windows asks, let the game use private networks.'), 142, PC.dim);
+    this.drawText('h', tr('ESC STOP HOSTING'), 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
   }
 
   private renderJoining(): void {
-    this.drawText('jn', 'JOINING', 160, 50, FontSize.BIG, PAGE_TITLE, HAlign.CENTER);
+    this.drawText('jn', tr('JOINING'), 160, 50, FontSize.BIG, PAGE_TITLE, HAlign.CENTER);
     this.drawText('ja', this.joining.toUpperCase(), 160, 68, FontSize.BIG, PC.white, HAlign.CENTER);
-    this.drawText('jc', this.connected ? `CONNECTED: CHECKING BOTH GAMES MATCH${this.dots()}` : `CONNECTING${this.dots()}`, 160, 90,
+    this.drawText('jc', this.connected ? tr('CONNECTED: CHECKING BOTH GAMES MATCH{dots}', { dots: this.dots() }) : tr('CONNECTING{dots}', { dots: this.dots() }), 160, 90,
       FontSize.SMALL, PC.gold, HAlign.CENTER);
-    this.drawWrapped('jr', "The host's gameplay options are used.", 112, PC.grey);
-    this.drawText('h', 'ESC CANCEL', 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    this.drawWrapped('jr', tr("The host's gameplay options are used."), 112, PC.grey);
+    this.drawText('h', tr('ESC CANCEL'), 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
   }
 
   /** The game agreed: who plays whom, which side this player is, what comes next; then it starts. */
@@ -434,19 +435,17 @@ export class LanPage extends Page {
     const left = m.at - performance.now();
     const [p1, p2] = m.names;
     const me = m.localPlayer;
-    this.drawText('mf', 'MATCH FOUND!', 160, 34, FontSize.BIG, PC.gold, HAlign.CENTER);
+    this.drawText('mf', tr('MATCH FOUND!'), 160, 34, FontSize.BIG, PC.gold, HAlign.CENTER);
     // (in the colors of their cursors on the select screen)
     this.drawText('m1', p1, 150, 56, FontSize.BIG, PC.red, HAlign.RIGHT);
-    this.drawText('mv', 'VS', 160, 56, FontSize.SMALL, PC.white, HAlign.CENTER);
+    this.drawText('mv', tr('VS'), 160, 56, FontSize.SMALL, PC.white, HAlign.CENTER);
     this.drawText('m2', p2, 170, 56, FontSize.BIG, PC.blue, HAlign.LEFT);
-    this.drawText('my', me === 0 ? 'YOU' : '', 150, 68, FontSize.SMALL, PC.red, HAlign.RIGHT);
-    this.drawText('mz', me === 1 ? 'YOU' : '', 170, 68, FontSize.SMALL, PC.blue, HAlign.LEFT);
-    this.drawWrapped('ms', `You are player ${me + 1}: your cursor is the ${me === 0 ? 'red' : 'blue'} one, on the ` +
-      `${me === 0 ? 'left' : 'right'}.`, 86, PC.white);
-    this.drawWrapped('mn', `Both of you pick a pilot and a robot. Then ${p1} picks the arena, and the fight starts when you ` +
-      'have both pressed PUNCH. The bar at the bottom of the screen always says whose move it is.', 104, PC.grey, 280, 40);
-    this.drawText('mg', `STARTING${this.dots()}`, 160, 150, FontSize.SMALL, PC.gold, HAlign.CENTER);
-    this.drawText('h', 'ESC CANCEL', 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    this.drawText('my', me === 0 ? tr('YOU') : '', 150, 68, FontSize.SMALL, PC.red, HAlign.RIGHT);
+    this.drawText('mz', me === 1 ? tr('YOU') : '', 170, 68, FontSize.SMALL, PC.blue, HAlign.LEFT);
+    this.drawWrapped('ms', me === 0 ? tr('You are player 1: your cursor is the red one, on the left.') : tr('You are player 2: your cursor is the blue one, on the right.'), 86, PC.white);
+    this.drawWrapped('mn', tr('Both of you pick a pilot and a robot. Then {p1} picks the arena, and the fight starts when you have both pressed PUNCH. The bar at the bottom of the screen always says whose move it is.', { p1 }), 104, PC.grey, 280, 40);
+    this.drawText('mg', tr('STARTING{dots}', { dots: this.dots() }), 160, 150, FontSize.SMALL, PC.gold, HAlign.CENTER);
+    this.drawText('h', tr('ESC CANCEL'), 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
     if (left <= 0) this.start();
   }
 
@@ -455,11 +454,11 @@ export class LanPage extends Page {
     const typing = Math.floor(performance.now() / 500) % 2 === 0 ? '_' : ' ';
     const lan = settings().lan;
     if (this.status) this.drawWrapped('st', this.status, 22, this.statusColor);
-    else this.drawWrapped('st', 'One of you hosts a game; the other picks it from the games on your network below.', 22, PC.dim);
+    else this.drawWrapped('st', tr('One of you hosts a game; the other picks it from the games on your network below.'), 22, PC.dim);
     const rows: [string, string][] = [
-      ['YOUR NAME', lan.name + (this.row === ROW_NAME ? typing : '')],
-      ['HOST A GAME', ''],
-      ['JOIN BY ADDRESS', lan.address + (this.row === ROW_ADDRESS ? typing : '')],
+      [tr('YOUR NAME'), lan.name + (this.row === ROW_NAME ? typing : '')],
+      [tr('HOST A GAME'), ''],
+      [tr('JOIN BY ADDRESS'), lan.address + (this.row === ROW_ADDRESS ? typing : '')],
     ];
     rows.forEach(([label, value], i) => {
       const y = ROW_Y + i * ROW_H;
@@ -468,9 +467,9 @@ export class LanPage extends Page {
       this.drawText(`l${i}`, label, 22, y, FontSize.SMALL, sel ? PC.white : PC.grey);
       if (value) this.drawText(`v${i}`, value, 120, y, FontSize.SMALL, sel ? PC.gold : PC.white);
     });
-    this.drawText('gt', `GAMES ON YOUR NETWORK${this.scanning ? this.dots() : ''}`, 22, GAMES_Y - 13, FontSize.SMALL, PC.dim);
+    this.drawText('gt', tr('GAMES ON YOUR NETWORK') + (this.scanning ? this.dots() : ''), 22, GAMES_Y - 13, FontSize.SMALL, PC.dim);
     if (!this.games.length) {
-      this.drawText('g0', 'NONE FOUND YET', 30, GAMES_Y, FontSize.SMALL, PC.dark);
+      this.drawText('g0', tr('NONE FOUND YET'), 30, GAMES_Y, FontSize.SMALL, PC.dark);
     }
     for (let i = 0; i < GAMES_SHOWN; i++) {
       const g = this.games[this.gamesTop + i];
@@ -479,15 +478,16 @@ export class LanPage extends Page {
       const sel = this.row === ROW_ADDRESS + 1 + this.gamesTop + i;
       if (sel) this.box(14, y - 2, 292, 11, PC.select);
       const other = g.version !== APP_VERSION;
-      this.drawText(`gn${i}`, `${g.name.toUpperCase()}'S GAME`, 30, y, FontSize.SMALL, sel ? PC.white : PC.grey);
+      // (up to the address column)
+      this.drawText(`gn${i}`, clip(tr('{name}\'S GAME', { name: g.name.toUpperCase() }), 19), 30, y, FontSize.SMALL, sel ? PC.white : PC.grey);
       this.drawText(`ga${i}`, g.address.toUpperCase(), 150, y, FontSize.SMALL, sel ? PC.gold : PC.white);
-      this.drawText(`gv${i}`, g.busy ? 'PLAYING' : other ? `V${g.version}` : 'OPEN', 298, y, FontSize.SMALL,
+      this.drawText(`gv${i}`, g.busy ? tr('PLAYING') : other ? `V${g.version}` : tr('OPEN'), 298, y, FontSize.SMALL,
         g.busy ? PC.orange : other ? PC.red : PC.green, HAlign.RIGHT);
     }
     const a = this.address();
-    const hint = this.row === ROW_NAME ? 'TYPE YOUR NAME' : this.row === ROW_ADDRESS ? 'TYPE AN ADDRESS, ENTER JOINS'
-      : this.row === ROW_HOST ? 'ENTER HOSTS A GAME' : 'ENTER JOINS THIS GAME';
-    if (a) this.drawText('ya', `YOUR ADDRESS: ${a}`, 160, 170, FontSize.SMALL, PC.dim, HAlign.CENTER);
-    this.drawText('h', `${hint}   ESC BACK`, 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    const hint = this.row === ROW_NAME ? tr('TYPE YOUR NAME') : this.row === ROW_ADDRESS ? tr('TYPE AN ADDRESS, ENTER JOINS')
+      : this.row === ROW_HOST ? tr('ENTER HOSTS A GAME') : tr('ENTER JOINS THIS GAME');
+    if (a) this.drawText('ya', tr('YOUR ADDRESS: {a}', { a }), 160, 170, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    this.drawText('h', tr('{hint}   ESC BACK', { hint }), 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
   }
 }

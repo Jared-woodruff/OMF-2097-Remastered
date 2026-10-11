@@ -9,6 +9,7 @@ import { PROGRESSBAR_LEFT, ProgressBar, THEME_ENDURANCE } from '../gui/progressb
 import { FontSize, GLYPH_SHADOW_BOTTOM, GLYPH_SHADOW_RIGHT, HAlign, Text } from '../gui/text';
 import { menuShade } from '../gui/widgets';
 import type { ReplaySession } from './playback';
+import { tr } from '../../i18n/i18n';
 
 const TEXT = 0xe7;
 const SHADOW = 0xf8;
@@ -54,12 +55,12 @@ export class ReplayHud {
     const gs = s.gs;
     if (!s.hud) return;
     video.drawRemap(this.shade, 4, 173, 4, 1, 0);
-    const state = s.ended ? 'END' : s.paused ? 'PAUSED' : 'PLAY';
+    const state = s.ended ? tr('END') : s.paused ? tr('PAUSED') : tr('PLAY');
     const speed = s.speed === 1 ? '' : `  ${s.speed < 1 ? `1/${1 / s.speed}` : s.speed}X`;
     const clip = s.markIn >= 0 || s.markOut >= 0
-      ? `   CLIP ${s.markIn >= 0 ? formatTicks(s.markIn, gs.speed) : 'START'}-${s.markOut >= 0 ? formatTicks(s.markOut, gs.speed) : 'END'}`
+      ? '   ' + tr('CLIP {from}-{to}', { from: s.markIn >= 0 ? formatTicks(s.markIn, gs.speed) : tr('clip|START'), to: s.markOut >= 0 ? formatTicks(s.markOut, gs.speed) : tr('clip|END') })
       : '';
-    this.status.set(`REPLAY  ${state}${speed}${clip}${this.noteFrames > 0 ? `   ${this.note}` : ''}`);
+    this.status.set(`${tr('REPLAY')}  ${state}${speed}${clip}${this.noteFrames > 0 ? `   ${this.note}` : ''}`);
     this.status.draw(BAR_X, 177);
     if (this.noteFrames > 0) this.noteFrames--;
     this.time.set(`${formatTicks(Math.min(gs.tick, s.endTick), gs.speed)} / ${formatTicks(s.endTick, gs.speed)}`);
@@ -74,8 +75,8 @@ export class ReplayHud {
     // Two sets of keys, taking turns.
     this.frames++;
     this.hint.set(Math.floor(this.frames / 240) % 2 === 0
-      ? 'SPACE PAUSE  < > STEP  UP/DOWN SPEED  R RESTART'
-      : 'I O CLIP  V VIDEO  G GIF  K KEEP  H HIDE  ESC EXIT');
+      ? tr('SPACE PAUSE  < > STEP  UP/DOWN SPEED  R RESTART')
+      : tr('I O CLIP  V VIDEO  G GIF  K KEEP  H HIDE  ESC EXIT'));
     this.hint.draw(BAR_X, 191);
   }
 

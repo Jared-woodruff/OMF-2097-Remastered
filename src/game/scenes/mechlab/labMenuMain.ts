@@ -14,6 +14,7 @@ import { cFormat, DashboardType, tournamentAiDifficulty } from './common';
 import { labMenuCustomizeCreate } from './labMenuCustomize';
 import { labMenuTrainingCreate } from './labMenuTraining';
 import { sgCount } from '../../../resources/sgmanager';
+import { trKey } from '../../../i18n/i18n';
 
 /** lab_menu_main_arena(): fight the next opponent (the pilot ranked just above the player). */
 export function labMenuMainArena(_c: SpriteButton, s: MechlabScene): void {
@@ -108,16 +109,16 @@ export function labMenuMainSim(c: SpriteButton, s: MechlabScene): void {
 const H = TextDirection.HORIZONTAL;
 const DETAILS_LIST: ButtonDetails<MechlabScene>[] = [
   // CB, Text, Text direction, Halign, Valign, Margin {left, right, top, bottom}, Start Disabled (unused, see tickers)
-  { cb: labMenuMainArena, text: 'ARENA', dir: H, halign: HAlign.CENTER, valign: VAlign.TOP, margin: { left: 0, right: 0, top: 2, bottom: 0 }, disabled: false },
-  { cb: labMenuMainTrainingEnter, text: 'TRAINING COURSES', dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 22, right: 0, top: 0, bottom: 0 }, disabled: false },
-  { cb: labMenuMainBuyEnter, text: 'BUY', dir: H, halign: HAlign.CENTER, valign: VAlign.TOP, margin: { left: 0, right: 0, top: 2, bottom: 0 }, disabled: false },
-  { cb: labMenuMainSellEnter, text: 'SELL', dir: H, halign: HAlign.CENTER, valign: VAlign.TOP, margin: { left: 0, right: 0, top: 2, bottom: 0 }, disabled: false },
-  { cb: labMenuMainLoad, text: 'LOAD', dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 12, right: 0, top: 0, bottom: 0 }, disabled: false },
-  { cb: labMenuMainNew, text: 'NEW', dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 12, right: 0, top: 0, bottom: 0 }, disabled: false },
-  { cb: labMenuMainDelete, text: 'DELETE', dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 12, right: 0, top: 0, bottom: 0 }, disabled: false },
-  { cb: labMenuMainSim, text: 'SIM', dir: H, halign: HAlign.CENTER, valign: VAlign.TOP, margin: { left: 0, right: 0, top: 2, bottom: 0 }, disabled: false },
-  { cb: labMenuMainQuit, text: 'QUIT', dir: TextDirection.VERTICAL, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 1, right: 0, top: 0, bottom: 0 }, disabled: false },
-  { cb: labMenuMainTournament, text: 'NEW TOURNAMENT', dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 0, right: 0, top: 0, bottom: 0 }, disabled: false },
+  { cb: labMenuMainArena, text: trKey('ARENA'), dir: H, halign: HAlign.CENTER, valign: VAlign.TOP, margin: { left: 0, right: 0, top: 2, bottom: 0 }, disabled: false },
+  { cb: labMenuMainTrainingEnter, text: trKey('TRAINING COURSES'), dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 22, right: 0, top: 0, bottom: 0 }, disabled: false },
+  { cb: labMenuMainBuyEnter, text: trKey('BUY'), dir: H, halign: HAlign.CENTER, valign: VAlign.TOP, margin: { left: 0, right: 0, top: 2, bottom: 0 }, disabled: false },
+  { cb: labMenuMainSellEnter, text: trKey('SELL'), dir: H, halign: HAlign.CENTER, valign: VAlign.TOP, margin: { left: 0, right: 0, top: 2, bottom: 0 }, disabled: false },
+  { cb: labMenuMainLoad, text: trKey('LOAD'), dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 12, right: 0, top: 0, bottom: 0 }, disabled: false },
+  { cb: labMenuMainNew, text: trKey('NEW'), dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 12, right: 0, top: 0, bottom: 0 }, disabled: false },
+  { cb: labMenuMainDelete, text: trKey('DELETE'), dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 12, right: 0, top: 0, bottom: 0 }, disabled: false },
+  { cb: labMenuMainSim, text: trKey('SIM'), dir: H, halign: HAlign.CENTER, valign: VAlign.TOP, margin: { left: 0, right: 0, top: 2, bottom: 0 }, disabled: false },
+  { cb: labMenuMainQuit, text: trKey('vertical|QUIT'), dir: TextDirection.VERTICAL, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 1, right: 0, top: 0, bottom: 0 }, disabled: false },
+  { cb: labMenuMainTournament, text: trKey('NEW TOURNAMENT'), dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 0, right: 0, top: 0, bottom: 0 }, disabled: false },
 ];
 
 /** lab_menu_focus_arena() */

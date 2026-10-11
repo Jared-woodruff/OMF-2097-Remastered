@@ -17,7 +17,8 @@ OpenOMF project (MIT, https://github.com/omf2097/openomf); rendering and platfor
 | `src/controller/` | Controllers: keyboard, gamepad, AI (`ai.ts`), menu polling, network players (`net.ts`). |
 | `src/game/` | Game logic: `GameState`, `Scene`, `GameObject` (object+animation player), HAR/projectile/hazard/scrap objects, score, GUI, scenes. |
 | `src/game/scenes/` | One module per scene family; each calls `registerScene(SceneId.X, gs => new XScene(gs))`. `index.ts` imports them all. |
-| `src/game/gui/` | Text rendering (`text.ts`) and menu widgets (`widgets.ts`: `Menu`, `Button`, `TextSelector`, `TextSlider`, `Label`, `Filler`, `GuiFrame`), progress bars, pause menu. |
+| `src/i18n/` | Languages: the fourteen the game speaks (`languages.ts`), which one (the player's choice or the system's), the remaster's texts in it (`tr`, `trn`, `trKey` in `i18n.ts`), code page 437 (`cp437.ts`). See [Languages](#languages). |
+| `src/game/gui/` | Text rendering (`text.ts`; `glyphs.ts`: the letters it draws, `hiresText.ts`: the scripts the original fonts lack) and menu widgets (`widgets.ts`: `Menu`, `Button`, `TextSelector`, `TextSlider`, `Label`, `Filler`, `GuiFrame`), progress bars, pause menu. |
 | `src/game/scenes/mechlab/`, `src/game/tournament/` | Tournament mode: mechlab menus and dashboards, HAR economy, CHR characters (`src/formats/chr.ts`). |
 | `src/resources/sgmanager.ts`, `trnmanager.ts` | Save games (CHR files in localStorage through a small `SaveStorage` interface) and the tournament list. |
 | `src/gen/` | The remaster's own content: the new robots and arenas, generated from 3D models (see below). |
@@ -180,15 +181,16 @@ pixels in one of two ways, switchable at any time (F2, pause menu, OPTIONS › G
   menu's palette (text colors are palette entries), restoring the scene's palette afterwards. In remastered graphics
   HELP and F1 show them as one of the remaster's pages instead (`src/game/gui/helpHtml.ts`, a `Page`: the game draws the
   frame, the title and the keys like the records' or the replays'; the language file's markup, parsed into titles,
-  headings and paragraphs and code page 437 decoded, is HTML over the frame at the game's scale, in the remaster's
+  headings and paragraphs, is HTML over the frame at the game's scale, in the remaster's
   typeface, beside the topics).
 - The main menu (`src/game/scenes/mainmenu/menuMain.ts`): the original's three ways to play (its two player game is
   MULTIPLAYER's LOCAL, `menuMultiplayer.ts`, beside LAN games and ONLINE, which is still to come), then MORE MODES
   (`menuModes.ts`), EXTRAS (`menuExtras.ts`), OPTIONS (`menuOptions.ts`: GAMEPLAY, CONTROLS, GRAPHICS with
-  its CLASSIC STYLE / REMASTERED / EFFECTS submenus, SOUND, LANGUAGE), HELP and QUIT. `GameState.menuReturn` reopens
-  EXTRAS, MORE MODES or MULTIPLAYER when their screens, runs and games end.
+  its CLASSIC STYLE / REMASTERED / EFFECTS submenus, SOUND, LANGUAGE: a page of its own, `gui/languagePage.ts`), HELP
+  and QUIT. `GameState.menuReturn` reopens EXTRAS, MORE MODES or MULTIPLAYER when their screens, runs and games end.
 - Menus are audited by `src/test/menuLayout.test.ts` (entries fit their frame, help texts fit the help panel), and
-  `TEXT_AUDIT=<file> npx vitest run src/test` records texts that get cut off or drawn off screen in any scene test.
+  `TEXT_AUDIT=<file> npx vitest run src/test` records texts that get cut off or drawn off screen in any scene test
+  (`GAME_LANG=<code>` runs the tests in a language: the audit then checks its texts).
 - Training mode: `src/game/scenes/mainmenu/menuTraining.ts` (setup), `src/controller/dummy.ts` (the dummy),
   `GameState.training` (no knockouts in `har.ts`, refills and the damage readout in `arena.ts`), the input display
   (`src/game/gui/inputDisplay.ts`, fed by the arena's input poll).
@@ -196,6 +198,52 @@ pixels in one of two ways, switchable at any time (F2, pause menu, OPTIONS › G
   strings hold a button and the directions most recent first; `moveNotation` puts them in the order they are
   entered). The original data has no move names, so moves are listed by kind. Direction icons: `inputIcons.ts`.
 - Losing the window focus calls `Scene.focusLost()`; the arena opens its pause menu.
+
+## Languages
+
+The game speaks English, German, Japanese, Chinese (simplified), Korean, Hindi, Bengali, Spanish, Portuguese
+(Brazilian), French, Arabic, Russian, Danish and Swedish (`src/i18n/languages.ts`).
+
+- **Which one**: `settings.language` is `'auto'` (the default) or a language code. AUTOMATIC takes the first of the
+  system's languages the game has (`pickLanguage`): the browser's `navigator.languages` on the web; in the desktop app
+  Windows' display languages first (the shell's `os_languages` command, `sys-locale`), then WebView2's. `main.ts` sets
+  the language before anything is shown (the loading screen, the import and setup screens speak it), `?lang=<code>`
+  tries one out. Choosing one (OPTIONS > LANGUAGE, `gui/languagePage.ts`; the first start's setup) applies at once
+  (`setLanguage`, `onLanguageChange`: the main menu rebuilds itself) and is kept. Settings saved before (revision 6)
+  keep German and let the old English default follow the system.
+- **The original game's texts** (`langGet`): English and German are the game's own ENGLISH.DAT and GERMAN.DAT, decoded
+  from code page 437 when read (`cp437.ts`; so are the tournaments' and pilots' texts); the other languages are
+  `public/lang/<code>.json`, arrays of the same 1013 texts (`loadOriginalTexts`: an empty one falls back to English).
+  The original tournaments' own texts (descriptions, endings, the opponents' taunts) have English and German in their
+  files; the other languages translate them by their English in `public/lang/trn/<code>.json` (`trnText`,
+  `formats/tournament.ts` `localizedLocale`).
+- **The remaster's texts** are written in English in the code: `tr('ONE PLAYER GAME')`, `tr('{name} WINS', { name })`,
+  `trn(n, '{n} WIN', '{n} WINS')` (plural forms by `Intl.PluralRules`), `trKey('...')` in tables made before the
+  language is known (translated where shown). Each language's translations are `public/lang/ui/<code>.json`, by the
+  English text; a text without one stays English. `tools/i18n.mjs` lists the texts (`keys`), checks the translations
+  (`check`: placeholders, plural forms, missing and stale texts) and lists what a language still lacks (`todo`);
+  `src/test/i18n.test.ts` checks them too. OMF Studio stays English.
+- **Drawing every script** (`gui/glyphs.ts`, `gui/text.ts`): a text is shaped into units, a unit per letter of the
+  original fonts (laid out exactly as the original does, so English and German are unchanged) or per word of a script
+  the system's fonts draw (per character in Chinese, Japanese and Korean, which take one cell each, as the
+  translations' columns expect). The Latin letters the fonts lack (Ã, Ê, Ó, Ø, ¿...) are made in their style: the plain
+  letter, a capital pressed a little lower, under the accent the fonts draw on their own Ä and É; the small font has
+  capitals only, so its letters are capitals in every script. Other scripts (`gui/hiresText.ts`) are drawn by the
+  system's fonts (Windows' Yu Gothic, Microsoft YaHei, Malgun Gothic, Nirmala UI, Segoe UI, Bahnschrift, then other
+  systems'), fitted to the cell they stand in, as surfaces four times the game's resolution (`Surface.hires`). Lines
+  wrap at spaces and hyphens, between Chinese and Japanese characters (not before their closing punctuation), and keep
+  French spaces before ? ! : ; with their words. Arabic is laid out from the right (`visualOrder`: a simplified
+  bidirectional algorithm, Latin names and numbers in it left to right; a paragraph in Arabic is right to left).
+- **Rendering them**: the classic renderer draws a frame with such letters into an indexed framebuffer at their
+  resolution (`classicScale`, 4; the rest of the picture is the same, nearest-neighbor), the remastered one makes a
+  distance field of each one the first time it is drawn (`dynGlyphTile`, an atlas of its own, 8 texels a pixel) and
+  draws it like the remastered typeface's letters (flag 0x800 with 0x200). The typeface's atlas has the made Latin
+  letters too (`madeGlyphs`). HTML pages (help, setup, notices) leave the scripts to the browser, with the language's
+  `lang` (and right to left for Arabic help).
+- **Key names** (`keyNames.ts`, the controls page's keyboard) are what the player's keyboard prints where the browser
+  tells (`navigator.keyboard.getLayoutMap()`: Chromium, WebView2): Y and Z swap on a German keyboard, A and Q on a
+  French one. Keyboards in other scripts, and browsers that do not tell, keep the US names.
+- The headless tests have no canvas: the system fonts' words are blank boxes there, sized from their characters.
 
 ## Generated content: the new robots and arenas
 

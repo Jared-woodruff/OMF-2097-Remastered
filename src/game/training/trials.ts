@@ -15,6 +15,7 @@ import { menuShade } from '../gui/widgets';
 import { video } from '../../video/draw';
 import { COMBO_TRIALS, SPECIAL_TRIALS, type TrialCombo } from './trialData';
 import { recordTrials } from '../records/records';
+import { tr, trn } from '../../i18n/i18n';
 
 export interface Trial {
   /** A short title (the trial menu shows it next to the number). */
@@ -45,12 +46,12 @@ export function robotTrials(harId: number, af: Af): Trial[] {
     const m = af.moves.find((x) => x && x.moveString === e.moveString && x.category === e.category);
     if (!m || (known ? !known.includes(m.id) : m.damage <= 0 && !m.successorId)) continue;
     const distance = SPECIAL_TRIALS[harId]?.find(([id]) => id === m.id)?.[1] ?? 60;
-    out.push({ title: e.label !== e.kind ? e.label : `SPECIAL ${out.length + 1}`, moves: [m], combo: null, distance });
+    out.push({ title: e.label !== e.kind ? e.label : tr('SPECIAL {n}', { n: out.length + 1 }), moves: [m], combo: null, distance });
   }
   for (const c of COMBO_TRIALS[harId] ?? []) {
     const moves = c.steps.map(([id]) => afGetMove(af, id)).filter((m): m is AfMove => !!m);
     if (moves.length !== c.steps.length) continue;
-    out.push({ title: `${c.jump ? 'JUMP ' : ''}${moves.length} HITS`, moves, combo: c, distance: c.distance });
+    out.push({ title: c.jump ? trn(moves.length, 'JUMP {n} HIT', 'JUMP {n} HITS') : trn(moves.length, '{n} HIT', '{n} HITS'), moves, combo: c, distance: c.distance });
   }
   return out;
 }
@@ -210,14 +211,14 @@ export class TrialRunner {
   /** Width of a step's inputs (as drawn by drawStep). */
   private stepWidth(m: AfMove): number {
     const n = moveNotation(m.moveString);
-    const jump = m.category === CAT_JUMPING ? this.text('j', 'JUMP', COLOR_TEXT).width() + 3 : 0;
+    const jump = m.category === CAT_JUMPING ? this.text('j', tr('JUMP'), COLOR_TEXT).width() + 3 : 0;
     return jump + (n ? n.inputs.length * (ICON_SIZE + 1) : 0) + 8;
   }
 
   private drawStep(m: AfMove, x: number, y: number, color: number): void {
     const n = moveNotation(m.moveString);
     if (m.category === CAT_JUMPING) {
-      const t = this.text('j', 'JUMP', color);
+      const t = this.text('j', tr('JUMP'), color);
       t.draw(x, y + 1);
       x += t.width() + 3;
     }
@@ -233,7 +234,7 @@ export class TrialRunner {
     const trial = this.trial;
     // A shaded panel under the trial (the arena can be busy).
     video.drawRemap(this.shade, 40, y - 3, 4, 1, 0);
-    const title = `TRIAL ${this.index + 1}/${this.trials.length}   ${trial.title}${trialDone(this.harId, this.index) ? '   (DONE BEFORE)' : ''}`;
+    const title = tr('TRIAL {n}/{count}', { n: this.index + 1, count: this.trials.length }) + `   ${trial.title}` + (trialDone(this.harId, this.index) ? '   ' + tr('(DONE BEFORE)') : '');
     const tt = this.text('t', title, COLOR_TEXT);
     tt.draw(160 - Math.trunc(tt.width() / 2), y);
     // The steps in a row: done in green, the next one highlighted.
@@ -249,9 +250,9 @@ export class TrialRunner {
       x += this.stepWidth(m) + gap;
     });
     const unfit = !this.done && !this.demo && !!trial.combo?.fails.includes(this.dummyHar);
-    const status = this.demo ? 'DEMO' : this.done ? 'TRIAL COMPLETE!' : unfit
-      ? 'DOES NOT WORK ON THIS DUMMY ROBOT'
-      : trial.moves.length > 1 ? 'IN ONE COMBO   F6 DEMO   F4 RESET' : 'HIT THE DUMMY   F6 DEMO';
+    const status = this.demo ? tr('DEMO') : this.done ? tr('TRIAL COMPLETE!') : unfit
+      ? tr('DOES NOT WORK ON THIS DUMMY ROBOT')
+      : trial.moves.length > 1 ? tr('IN ONE COMBO   F6 DEMO   F4 RESET') : tr('HIT THE DUMMY   F6 DEMO');
     const st = this.text('s', status, this.done ? COLOR_DONE : unfit ? COLOR_WARN : COLOR_TODO);
     st.draw(160 - Math.trunc(st.width() / 2), y + 21);
   }

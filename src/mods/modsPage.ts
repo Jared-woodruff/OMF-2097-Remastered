@@ -18,6 +18,7 @@ import { MOD_EXTENSION, readModPackage, type ModPackage } from './package';
 import { modState } from './registry';
 import { installMod, listMods, removeMod, setModEnabled, type InstalledMod } from './store';
 import { ModError } from './types';
+import { tr, trn, clip } from '../i18n/i18n';
 
 const ROW_Y = 36;
 const ROW_H = 10;
@@ -55,7 +56,7 @@ export async function installModFiles(files: File[]): Promise<{ installed: strin
       const pkg = await installMod(new Uint8Array(await f.arrayBuffer()));
       installed.push(pkg.manifest.name);
     } catch (err) {
-      errors.push(`${f.name}: ${err instanceof ModError ? err.message : 'it could not be installed.'}`);
+      errors.push(err instanceof ModError ? `${f.name}: ${err.message}` : tr('{file}: it could not be installed.', { file: f.name }));
     }
   }
   return { installed, errors };
@@ -112,7 +113,7 @@ export class ModsPage extends Page {
     try {
       this.details.set(key, { pkg: await readModPackage(m.bytes, APP_VERSION), error: null });
     } catch (err) {
-      this.details.set(key, { pkg: null, error: err instanceof ModError ? err.message : 'It cannot be read.' });
+      this.details.set(key, { pkg: null, error: err instanceof ModError ? err.message : tr('It cannot be read.') });
     }
   }
 
@@ -146,12 +147,12 @@ export class ModsPage extends Page {
     const s = modState(m.id);
     const d = this.details.get(`${m.id}@${m.installed}`);
     const loadedNow = !!s?.loaded;
-    if (d?.error) return { text: 'IT CANNOT BE PLAYED', color: PC.red, reason: d.error };
-    if (m.enabled && s?.error && !this.changed) return { text: 'IT COULD NOT BE LOADED', color: PC.red, reason: s.error };
-    if (m.enabled && loadedNow) return { text: 'ON: PLAYING NOW', color: PC.green };
-    if (m.enabled) return { text: 'ON FROM THE NEXT START (R RESTARTS)', color: PC.gold };
-    if (loadedNow) return { text: 'OFF FROM THE NEXT START (R RESTARTS)', color: PC.gold };
-    return { text: 'OFF', color: PC.dim };
+    if (d?.error) return { text: tr('IT CANNOT BE PLAYED'), color: PC.red, reason: d.error };
+    if (m.enabled && s?.error && !this.changed) return { text: tr('IT COULD NOT BE LOADED'), color: PC.red, reason: s.error };
+    if (m.enabled && loadedNow) return { text: tr('ON: PLAYING NOW'), color: PC.green };
+    if (m.enabled) return { text: tr('ON FROM THE NEXT START (R RESTARTS)'), color: PC.gold };
+    if (loadedNow) return { text: tr('OFF FROM THE NEXT START (R RESTARTS)'), color: PC.gold };
+    return { text: tr('OFF'), color: PC.dim };
   }
 
   private async toggle(): Promise<void> {
@@ -167,7 +168,7 @@ export class ModsPage extends Page {
     }
     m.enabled = !m.enabled;
     this.changed = true;
-    this.say(`${m.name.toUpperCase()} IS ${m.enabled ? 'ON' : 'OFF'} FROM THE NEXT START`);
+    this.say(m.enabled ? tr('{name} IS ON FROM THE NEXT START', { name: m.name.toUpperCase() }) : tr('{name} IS OFF FROM THE NEXT START', { name: m.name.toUpperCase() }));
     playMenuSound(20);
   }
 
@@ -179,7 +180,7 @@ export class ModsPage extends Page {
     this.busy = false;
     if (installed.length) this.changed = true;
     if (errors.length) this.say(errors[0].toUpperCase(), true);
-    else this.say(installed.length === 1 ? `INSTALLED ${installed[0].toUpperCase()}` : `INSTALLED ${installed.length} MODS`);
+    else this.say(installed.length === 1 ? tr('INSTALLED {mod}', { mod: installed[0].toUpperCase() }) : tr('INSTALLED {n} MODS', { n: installed.length }));
     await this.reload();
   }
 
@@ -190,10 +191,10 @@ export class ModsPage extends Page {
     const bytes = m.bytes ? Promise.resolve(m.bytes) : fetchBundled(m.bundled!);
     bytes.then((data) => saveFile(name, data)).then(
       (where) => {
-        this.say(`SAVED ${name.toUpperCase()}`);
+        this.say(tr('SAVED {name}', { name: name.toUpperCase() }));
         if (where !== name) toast(`Saved ${where}`, 5000);
       },
-      () => this.say('THE FILE COULD NOT BE SAVED', true),
+      () => this.say(tr('THE FILE COULD NOT BE SAVED'), true),
     );
     playMenuSound(20);
   }
@@ -202,19 +203,19 @@ export class ModsPage extends Page {
     const m = this.chosen();
     if (!m) return;
     if (m.bundled) {
-      this.say('IT COMES WITH THE GAME: TURN IT OFF INSTEAD', true);
+      this.say(tr('IT COMES WITH THE GAME: TURN IT OFF INSTEAD'), true);
       return;
     }
     // (the second press must be on the same mod: the list may have changed in between, a mod installed)
     if (this.confirmDelete !== m.id) {
       this.confirmDelete = m.id;
-      this.say(`PRESS DELETE AGAIN TO REMOVE ${m.name.toUpperCase()}`, true);
+      this.say(tr('PRESS DELETE AGAIN TO REMOVE {name}', { name: m.name.toUpperCase() }), true);
       return;
     }
     this.confirmDelete = null;
     await removeMod(m.id);
     if (modState(m.id)?.loaded) this.changed = true;
-    this.say(`REMOVED ${m.name.toUpperCase()}`);
+    this.say(tr('REMOVED {name}', { name: m.name.toUpperCase() }));
     playMenuSound(20);
     await this.reload();
   }
@@ -263,16 +264,16 @@ export class ModsPage extends Page {
   }
 
   override render(): void {
-    this.drawFrame('MODS');
+    this.drawFrame(tr('MODS'));
     const list = this.list;
     if (!list) {
-      this.drawText('st', 'LOADING...', 160, 24, FontSize.SMALL, PC.dim, HAlign.CENTER);
+      this.drawText('st', tr('LOADING...'), 160, 24, FontSize.SMALL, PC.dim, HAlign.CENTER);
       return;
     }
     const on = list.filter((m) => m.enabled).length;
-    const head = this.busy ? 'INSTALLING...' : this.status || (list.length
-      ? `${list.length} MOD${list.length === 1 ? '' : 'S'}, ${on} ON`
-      : 'NO MODS YET: I INSTALLS A MOD FILE (OR DROP IT ON THE GAME)');
+    const head = this.busy ? tr('INSTALLING...') : this.status || (list.length
+      ? trn(list.length, '{n} MOD, {on} ON', '{n} MODS, {on} ON', { on })
+      : tr('NO MODS YET: I INSTALLS A MOD FILE (OR DROP IT ON THE GAME)'));
     this.drawText('st', head, 160, 24, FontSize.SMALL, this.statusBad || this.confirmDelete !== null ? PC.red : PC.dim, HAlign.CENTER);
 
     if (!this.bar) {
@@ -289,15 +290,15 @@ export class ModsPage extends Page {
       const y = ROW_Y + row * ROW_H;
       const sel = i === this.sel;
       if (sel) video.drawSize(this.bar, 14, y - 2, 292, ROW_H - 1);
-      this.drawText('on', m.enabled ? 'ON' : 'OFF', 18, y, FontSize.SMALL, m.enabled ? PC.green : PC.dim);
+      this.drawText('on', m.enabled ? tr('ON') : tr('OFF'), 18, y, FontSize.SMALL, m.enabled ? PC.green : PC.dim);
       const nv = `${m.name.toUpperCase()}  ${m.version}`.slice(0, 26);
       this.drawText('n', nv, 42, y, FontSize.SMALL, sel ? PAGE_ACTIVE : PAGE_NORMAL);
       // (the author in the room the name leaves; one that comes with the game says so)
-      const by = m.bundled ? 'WITH THE GAME' : m.author.toUpperCase();
-      if (by) this.drawText('a', by.slice(0, Math.max(8, LINE - 6 - nv.length)), 300, y, FontSize.SMALL, sel ? PC.white : m.bundled ? PC.gold : PC.grey, HAlign.RIGHT);
+      const by = m.bundled ? tr('WITH THE GAME') : m.author.toUpperCase();
+      if (by) this.drawText('a', clip(by, Math.max(8, LINE - 6 - nv.length)), 300, y, FontSize.SMALL, sel ? PC.white : m.bundled ? PC.gold : PC.grey, HAlign.RIGHT);
     }
     if (list.length > ROWS) {
-      this.drawText('more', `${this.top + 1}-${Math.min(list.length, this.top + ROWS)} OF ${list.length}`, 300, 24,
+      this.drawText('more', tr('{from}-{to} OF {count}', { from: this.top + 1, to: Math.min(list.length, this.top + ROWS), count: list.length }), 300, 24,
         FontSize.SMALL, PC.dim, HAlign.RIGHT);
     }
 
@@ -311,18 +312,18 @@ export class ModsPage extends Page {
       });
       if (names) {
         const lines = [
-          names.robots.length ? `ROBOTS: ${names.robots.join(', ')}` : '',
-          names.arenas.length ? `ARENAS: ${names.arenas.join(', ')}` : '',
-          names.pilots.length ? `PILOTS: ${names.pilots.join(', ')}` : '',
+          names.robots.length ? tr('ROBOTS: {robots}', { robots: names.robots.join(', ') }) : '',
+          names.arenas.length ? tr('ARENAS: {arenas}', { arenas: names.arenas.join(', ') }) : '',
+          names.pilots.length ? tr('PILOTS: {pilots}', { pilots: names.pilots.join(', ') }) : '',
         ].filter(Boolean);
         lines.forEach((l, i) => this.drawText(`c${i}`, l.length > LINE ? `${l.slice(0, LINE - 3)}...` : l, 18, 100 + i * 8, FontSize.SMALL, PC.cyan));
       }
       const st = this.state(m);
-      this.descText.set(fitted(st.reason ? st.reason.toUpperCase() : m.description || '')).setColor(st.reason ? PC.red : PC.grey);
+      this.descText.set(fitted(st.reason ? st.reason.toUpperCase() : tr(m.description || ''))).setColor(st.reason ? PC.red : PC.grey);
       this.descText.draw(18, 128);
       this.drawText('s', st.text.slice(0, LINE), 160, 158, FontSize.SMALL, st.color, HAlign.CENTER);
     }
-    this.drawText('h1', 'ENTER ON/OFF   I INSTALL   E SAVE FILE', 160, 172, FontSize.SMALL, PC.dim, HAlign.CENTER);
-    this.drawText('h2', 'DEL REMOVE   R RESTART   ESC BACK', 160, 182, FontSize.SMALL, this.changed ? PC.gold : PC.dim, HAlign.CENTER);
+    this.drawText('h1', tr('ENTER ON/OFF   I INSTALL   E SAVE FILE'), 160, 172, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    this.drawText('h2', tr('DEL REMOVE   R RESTART   ESC BACK'), 160, 182, FontSize.SMALL, this.changed ? PC.gold : PC.dim, HAlign.CENTER);
   }
 }

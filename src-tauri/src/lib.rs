@@ -77,6 +77,14 @@ fn open_window(app: &tauri::AppHandle, studio: bool) -> tauri::Result<tauri::Web
   Ok(window)
 }
 
+/// The languages the system is set to, most preferred first, as BCP 47 tags ("de-DE", "zh-Hans-CN"): on Windows the
+/// display languages of the user's settings. The game speaks the first one it has unless the player chose a language
+/// (src/i18n/i18n.ts).
+#[tauri::command]
+fn os_languages() -> Vec<String> {
+  sys_locale::get_locales().collect()
+}
+
 /// Opens OMF Studio's window (or brings it to the front). Async: on Windows, building a window from a synchronous
 /// command deadlocks (it runs on the main thread the window needs).
 #[tauri::command]
@@ -101,6 +109,7 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       save_file,
       open_studio,
+      os_languages,
       lan_info,
       lan_host,
       lan_unhost,

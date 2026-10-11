@@ -6,6 +6,7 @@ import type { TournamentFile } from '../../formats/tournament';
 import { customTournamentNames, hasFighter, loadTournament, registerTournament } from '../../resources/resources';
 import { listFiles } from '../../resources/files';
 import { EXTRA_HAR_IDS } from '../roster';
+import { tr, trKey, trn } from '../../i18n/i18n';
 
 export interface CustomTournamentSpec {
   v: 1;
@@ -23,9 +24,10 @@ export interface CustomTournamentSpec {
 
 const STORAGE_KEY = 'omf2097r.tournaments';
 export const CUSTOM_SLOTS = 6;
-export const SIZE_NAMES = ['6 OPPONENTS', '10 OPPONENTS', 'EVERYBODY'];
-export const ROBOT_NAMES = ['AS THEY WERE', 'SOME NEW', 'ALL NEW'];
-export const PRIZE_NAMES = ['HALF', 'NORMAL', 'ONE AND A HALF', 'DOUBLE'];
+/** (English: shown with tr()) */
+export const SIZE_NAMES = [trKey('6 OPPONENTS'), trKey('10 OPPONENTS'), trKey('EVERYBODY')];
+export const ROBOT_NAMES = [trKey('AS THEY WERE'), trKey('SOME NEW'), trKey('ALL NEW')];
+export const PRIZE_NAMES = [trKey('HALF'), trKey('NORMAL'), trKey('ONE AND A HALF'), trKey('DOUBLE')];
 const SIZES = [6, 10, Infinity];
 const PRIZES = [0.5, 1, 1.5, 2];
 
@@ -36,6 +38,8 @@ export function baseTournaments(): string[] {
   return listFiles('.TRN').filter((n) => !customTournamentNames().includes(n));
 }
 
+// (a tournament's name is the player's, typed in the game's letters A-Z and 0-9 like a pilot's: its defaults are not
+// translated)
 export function cleanTitle(s: string): string {
   return s.toUpperCase().replace(/[^A-Z0-9 ]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24) || 'CUSTOM TOURNAMENT';
 }
@@ -82,9 +86,12 @@ export function buildCustomTournament(spec: CustomTournamentSpec, slot: number, 
   }
   const prize = PRIZES[spec.prize];
   const baseTitle = base.locales[0]?.title ?? base.filename;
-  const robots = spec.robots === 2 ? ' ON THE NEW ROBOTS' : spec.robots === 1 ? ', SOME ON THE NEW ROBOTS' : '';
-  const description = `${spec.name}: ${enemies.filter((p) => !p.secret).length} OPPONENTS FROM THE ${baseTitle.toUpperCase()}${robots}. ` +
-    `PRIZE MONEY: ${PRIZE_NAMES[spec.prize]}.`;
+  const count = enemies.filter((p) => !p.secret).length;
+  const who = { name: spec.name, base: baseTitle.toUpperCase() };
+  const description = (spec.robots === 2 ? trn(count, '{name}: {n} OPPONENT FROM THE {base} ON THE NEW ROBOTS.', '{name}: {n} OPPONENTS FROM THE {base} ON THE NEW ROBOTS.', who)
+    : spec.robots === 1 ? trn(count, '{name}: {n} OPPONENT FROM THE {base}, SOME ON THE NEW ROBOTS.', '{name}: {n} OPPONENTS FROM THE {base}, SOME ON THE NEW ROBOTS.', who)
+    : trn(count, '{name}: {n} OPPONENT FROM THE {base}.', '{name}: {n} OPPONENTS FROM THE {base}.', who)) +
+    ' ' + tr('PRIZE MONEY: {prize}.', { prize: tr(PRIZE_NAMES[spec.prize]) });
   return {
     ...base,
     filename: fileNameOf(slot),

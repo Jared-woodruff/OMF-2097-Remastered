@@ -1,4 +1,5 @@
 // Engine-wide constants (mirroring the original game / reference engine values).
+import { trKey } from '../i18n/i18n';
 
 export const STATIC_TICKS = 10; // ms per static tick
 export const MS_PER_OMF_TICK_SLOWEST = 60;
@@ -124,8 +125,9 @@ export enum AiDifficulty {
   DEADLY,
   ULTIMATE,
 }
-export const AI_DIFFICULTY_NAMES = ['PUNCHING BAG', 'ROOKIE', 'VETERAN', 'WORLD CLASS', 'CHAMPION', 'DEADLY', 'ULTIMATE'];
-export const ROUND_TYPE_NAMES = ['ONE ROUND', 'BEST 2 OF 3', 'BEST 3 OF 5', 'BEST 4 OF 7'];
+/** (English: shown with tr()) */
+export const AI_DIFFICULTY_NAMES = [trKey('PUNCHING BAG'), trKey('ROOKIE'), trKey('VETERAN'), trKey('WORLD CLASS'), trKey('CHAMPION'), trKey('DEADLY'), trKey('ULTIMATE')];
+export const ROUND_TYPE_NAMES = [trKey('ONE ROUND'), trKey('BEST 2 OF 3'), trKey('BEST 3 OF 5'), trKey('BEST 4 OF 7')];
 
 // HAR animation ids
 export const ANIM_JUMPING = 1;

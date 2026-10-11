@@ -4,19 +4,41 @@ import { KnockDownMode } from '../game/constants';
 import type { MatchSettings } from '../game/gameState';
 import type { NetLink } from './link';
 import { cleanName, NET_PROTOCOL, parseMessage, type NetContent, type NetMessage, type NetRules } from './protocol';
+import { tr } from '../i18n/i18n';
 
 /** How long either side waits for the other's answer (ms). */
 const ANSWER_MS = 10000;
 
+/** Why a game turns another away: different versions, different robots, arenas or pilots, other files. */
+export type RejectCode = 'version' | 'robots' | 'arenas' | 'pilots' | 'files';
+
+/** A reason in the game's language (detail: the two versions). */
+export function rejectText(code: string, detail: readonly string[] = []): string {
+  const mods = tr('Turn on the same mods in both games (EXTRAS > MODS).');
+  switch (code) {
+    case 'version': return tr('The two games are different versions ({a} and {b}): update both to the same one.', { a: detail[0] ?? '?', b: detail[1] ?? '?' });
+    case 'robots': return tr('The two games have different robots. {mods}', { mods });
+    case 'arenas': return tr('The two games have different arenas. {mods}', { mods });
+    case 'pilots': return tr('The two games have different pilots. {mods}', { mods });
+    case 'files': return tr("The two games' robot or arena files differ (another version of the original game, or of a mod).");
+    default: return tr('The other game sent something unexpected.');
+  }
+}
+
 /** Why two games' content cannot play together (null: it can). */
-export function contentMismatch(host: NetContent, guest: NetContent): string | null {
+export function contentMismatchCode(host: NetContent, guest: NetContent): RejectCode | null {
   const same = (a: number[], b: number[]) => a.length === b.length && a.every((v, i) => v === b[i]);
-  const mods = 'Turn on the same mods in both games (EXTRAS > MODS).';
-  if (!same(host.robots, guest.robots)) return `The two games have different robots. ${mods}`;
-  if (!same(host.arenas, guest.arenas)) return `The two games have different arenas. ${mods}`;
-  if (!same(host.pilots, guest.pilots)) return `The two games have different pilots. ${mods}`;
-  if (host.files !== guest.files) return "The two games' robot or arena files differ (another version of the original game, or of a mod).";
+  if (!same(host.robots, guest.robots)) return 'robots';
+  if (!same(host.arenas, guest.arenas)) return 'arenas';
+  if (!same(host.pilots, guest.pilots)) return 'pilots';
+  if (host.files !== guest.files) return 'files';
   return null;
+}
+
+/** contentMismatchCode, said. */
+export function contentMismatch(host: NetContent, guest: NetContent): string | null {
+  const code = contentMismatchCode(host, guest);
+  return code ? rejectText(code) : null;
 }
 
 /** The host's match settings as the guest takes them: known fields only, each in its range. */
@@ -71,15 +93,12 @@ export interface HostOffer {
 /** The host's side: reads the guest's hello and starts the game, or turns it away. Resolves to the guest's name. */
 export async function hostHandshake(link: NetLink, offer: HostOffer): Promise<string> {
   const m = await answer(link);
-  if (m.t !== 'hello') throw new Error('The other game sent something unexpected.');
-  let reason: string | null = null;
-  if (m.proto !== NET_PROTOCOL || m.version !== offer.version) {
-    reason = `The two games are different versions (${offer.version} and ${m.version}): update both to the same one.`;
-  } else {
-    reason = contentMismatch(offer.content, m.content);
-  }
-  if (reason) {
-    link.send(JSON.stringify({ t: 'reject', reason } satisfies NetMessage));
+  if (m.t !== 'hello') throw new Error(tr('The other game sent something unexpected.'));
+  const code: RejectCode | null = m.proto !== NET_PROTOCOL || m.version !== offer.version ? 'version' : contentMismatchCode(offer.content, m.content);
+  if (code) {
+    const detail = code === 'version' ? [offer.version, m.version] : [];
+    const reason = rejectText(code, detail);
+    link.send(JSON.stringify({ t: 'reject', reason, code, detail } satisfies NetMessage));
     throw new Error(reason);
   }
   // (two players of the same name are told apart)
@@ -102,10 +121,11 @@ export async function guestHandshake(link: NetLink, name: string, version: strin
   const waiting = answer(link);
   link.send(JSON.stringify({ t: 'hello', proto: NET_PROTOCOL, version, name, content } satisfies NetMessage));
   const m = await waiting;
-  if (m.t === 'reject') throw new Error(m.reason.slice(0, 200));
-  if (m.t !== 'welcome') throw new Error('The other game sent something unexpected.');
+  // (in this game's language when the host says why with a code)
+  if (m.t === 'reject') throw new Error(m.code ? rejectText(m.code, m.detail?.map(String)) : m.reason.slice(0, 200));
+  if (m.t !== 'welcome') throw new Error(tr('The other game sent something unexpected.'));
   const match = readMatchSettings(m.rules.match);
-  if (!match) throw new Error("The other game's rules could not be read.");
+  if (!match) throw new Error(tr("The other game's rules could not be read."));
   return {
     hostName: cleanName(m.name) || 'PLAYER 1',
     name: cleanName(m.you) || cleanName(name) || 'PLAYER 2',

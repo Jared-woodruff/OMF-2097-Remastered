@@ -3,6 +3,7 @@
 import { provideFile } from '../resources/files';
 import { readZipEntries, readZipEntry, ZipError } from '../util/zip';
 import { done, openDb } from './db';
+import { tr } from '../i18n/i18n';
 
 /** Files the engine needs at runtime (same set as tools/extract-gamedata.mjs). */
 const WANTED = /\.(AF|BK|PSM|PIC|TRN)$|^(ALTPALS|CHARSMAL|GRAPHCHR|ENGLISH|GERMAN|SOUNDS)\.DAT$/i;
@@ -61,9 +62,9 @@ export async function extractGameFiles(files: File[], onProgress?: (text: string
   }
   const missing = REQUIRED.filter((r) => !found.has(r));
   if (missing.length === REQUIRED.length) {
-    throw new GameDataError('No One Must Fall 2097 files were found there. Use OMF21.EXE, a zip of the game, or its installed folder.');
+    throw new GameDataError(tr('No One Must Fall 2097 files were found there. Use OMF21.EXE, a zip of the game, or its installed folder.'));
   }
-  if (missing.length > 0) throw new GameDataError(`Some game files are missing: ${missing.join(', ')}.`);
+  if (missing.length > 0) throw new GameDataError(tr('Some game files are missing: {missing}.', { missing: missing.join(', ') }));
   return found;
 }
 

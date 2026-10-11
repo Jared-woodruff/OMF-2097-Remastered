@@ -36,6 +36,7 @@ import {
 import { labMenuDifficultyselectCreate } from './mechlab/labMenuDifficultyselect';
 import { labMenuMainCreate } from './mechlab/labMenuMain';
 import { labMenuSelectCreate } from './mechlab/labMenuSelect';
+import { tr } from '../../i18n/i18n';
 
 export { DashboardType, MECHLAB_BRIGHT_GREEN, MECHLAB_DARK_GREEN, MECHLAB_YELLOW } from './mechlab/common';
 
@@ -240,7 +241,7 @@ export class MechlabScene extends Scene {
   robotsThere(harIds: number[]): boolean {
     const missing = harIds.find((id) => !hasFighter(id));
     if (missing === undefined) return true;
-    this.setHint(`${(HAR_NAMES[missing] ?? 'ITS ROBOT').toUpperCase()} IS FROM A MOD THAT IS OFF: TURN IT ON IN EXTRAS > MODS.`);
+    this.setHint(tr('{robot} IS FROM A MOD THAT IS OFF: TURN IT ON IN EXTRAS > MODS.', { robot: (HAR_NAMES[missing] ?? tr('ITS ROBOT')).toUpperCase() }));
     return false;
   }
 

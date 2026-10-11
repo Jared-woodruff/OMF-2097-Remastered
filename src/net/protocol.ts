@@ -36,8 +36,11 @@ export type NetMessage =
   | { t: 'hello'; proto: number; version: string; name: string; content: NetContent }
   /** host -> guest: the game starts, with these rules and the session's random seed; `you` is the guest's name in it. */
   | { t: 'welcome'; name: string; you: string; rules: NetRules; seed: number }
-  /** host -> guest: the game cannot start (versions or content differ, the host is busy). */
-  | { t: 'reject'; reason: string }
+  /**
+   * host -> guest: the game cannot start (versions or content differ, the host is busy): why, in the host's language,
+   * and (newer games) a code the guest says it in its own language with (handshake.ts rejectText).
+   */
+  | { t: 'reject'; reason: string; code?: string; detail?: string[] }
   /** The inputs of a player for step `s` of the phase `p` (a screen both games play in step: sc is its scene). */
   | { t: 'in'; p: number; s: number; sc: number; a: number[] }
   /** The fight's state at step `s` of phase `p` (desync detection). */

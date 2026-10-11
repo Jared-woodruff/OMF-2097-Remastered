@@ -1,7 +1,7 @@
 // Tournament chooser: the logo and description of one tournament at a time (port of the reference gui/trnselect.c).
 // While it exists, palette colors 128..167 hold the selected tournament's colors; the previous palette is restored
 // when it is freed.
-import type { TournamentFile, TournamentLocale } from '../../formats/tournament';
+import { localizedLocale, type TournamentFile, type TournamentLocale } from '../../formats/tournament';
 import { trnlistInit } from '../../resources/trnmanager';
 import { video } from '../../video/draw';
 import { Surface } from '../../video/surface';
@@ -59,9 +59,10 @@ export class TrnSelect extends Component {
 
   private showSelected(theme: GuiTheme): void {
     const trn = this.getSelected();
-    if (!trn || !trn.locales[0]) return;
+    const locale = trn ? localizedLocale(trn) : undefined;
+    if (!trn || !locale) return;
     vga.setBasePaletteRange(trn.palette, 128, 128, 40);
-    this.loadDescription(theme, trn.locales[0]);
+    this.loadDescription(theme, locale);
     this.img = logoImage(trn);
   }
 

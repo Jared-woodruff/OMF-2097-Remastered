@@ -11,6 +11,7 @@ import { ShapeKind, type Shape, type Vec3 } from './geometry';
 import { traceShapes, ROW_H, type TracedSprite } from './raster';
 import type { Joint, Part, PlacedShape, RobotModel } from './robot';
 import { fighterOf, GEN_ROBOTS, type GenRobot } from './roster';
+import { trKey } from '../i18n/i18n';
 
 export interface WorkshopSpec {
   v: 1;
@@ -33,8 +34,9 @@ export const WORKSHOP_FIRST_ID = 15;
 export const WORKSHOP_SLOTS = 8;
 
 export const PART_NAMES = GEN_ROBOTS.map((r) => r.name);
-export const SIZE_NAMES = ['SMALL', 'NORMAL', 'BIG'];
-export const WEIGHT_NAMES = ['LIGHT', 'MEDIUM', 'HEAVY'];
+/** (English: shown with tr()) */
+export const SIZE_NAMES = [trKey('SMALL'), trKey('NORMAL'), trKey('BIG')];
+export const WEIGHT_NAMES = [trKey('LIGHT'), trKey('MEDIUM'), trKey('HEAVY')];
 const SIZES = [0.92, 1, 1.08];
 
 export function defaultSpec(): WorkshopSpec {

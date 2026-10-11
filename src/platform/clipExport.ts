@@ -11,6 +11,7 @@ import { saveFile } from './files';
 import GifWorker from './gifWorker.ts?worker';
 import { toast } from './toast';
 import { recordClip } from '../game/records/records';
+import { tr } from '../i18n/i18n';
 
 export type ClipKind = 'video' | 'gif';
 
@@ -50,7 +51,7 @@ function saved(where: Promise<string>, size: number): void {
     },
     (err) => {
       console.warn('[clip] not saved:', err);
-      toast('The clip could not be saved.', 4000);
+      toast(tr('The clip could not be saved.'), 4000);
     },
   );
 }
@@ -93,14 +94,14 @@ export class ClipExporter {
     const gs = s.gs;
     const mime = kind === 'video' ? videoType() : '';
     if (mime === null) {
-      toast('This browser cannot record video. G saves a GIF instead.', 4000);
+      toast(tr('This browser cannot record video. G saves a GIF instead.'), 4000);
       return;
     }
     let from = s.markIn >= 0 ? s.markIn : 0;
     let to = s.markOut >= 0 ? s.markOut : s.endTick;
     if (to < from) [from, to] = [to, from];
     if (to - from < 10) {
-      toast('The clip is too short.');
+      toast(tr('The clip is too short.'));
       return;
     }
     this.session = s;
@@ -149,7 +150,7 @@ export class ClipExporter {
       const gifTo = from + Math.ceil(GIF_MAX_MS / Math.max(1, gs.msPerDyntick()));
       if (gifTo < to) {
         this.to = gifTo;
-        toast('GIFs are kept to 30 seconds: saving the first 30 seconds of the clip.', 4000);
+        toast(tr('GIFs are kept to 30 seconds: saving the first 30 seconds of the clip.'), 4000);
       }
     }
     this.progress(true);
@@ -200,7 +201,7 @@ export class ClipExporter {
       if (this.recorder.state !== 'inactive') this.recorder.stop();
     }
     this.worker?.terminate();
-    toast('Clip not saved.');
+    toast(tr('Clip not saved.'));
     this.end();
   }
 
@@ -209,11 +210,11 @@ export class ClipExporter {
     const now = performance.now();
     if (!force && now - this.lastToast < 400) return;
     this.lastToast = now;
-    const what = this.kind === 'gif' ? 'GIF' : 'video';
+    const what = this.kind === 'gif' ? 'GIF' : tr('video');
     const t = Math.min(s.gs.tick, this.to);
     const at = `${formatTicks(Math.max(0, t - (s.markIn >= 0 ? s.markIn : 0)), s.gs.speed)}`;
-    const state = s.paused ? 'paused (SPACE goes on)' : 'SPACE pauses';
-    toast(`● Recording ${what} ${at}  —  ${state}, ESC cancels`, 1500);
+    const state = s.paused ? tr('paused (SPACE goes on)') : tr('SPACE pauses');
+    toast(tr('● Recording {what} {at}  —  {state}, ESC cancels', { what, at, state }), 1500);
   }
 
   private finish(): void {
@@ -231,14 +232,14 @@ export class ClipExporter {
       if (rec.state !== 'inactive') rec.stop();
     } else if (this.worker) {
       const worker = this.worker;
-      toast('Saving the GIF…', 10000);
+      toast(tr('Saving the GIF…'), 10000);
       worker.onmessage = (e: MessageEvent) => {
         const m = e.data as { type: string; data?: ArrayBuffer; message?: string };
         worker.terminate();
         if (m.type === 'done' && m.data) {
           saved(saveFile(name, new Uint8Array(m.data), 'image/gif'), m.data.byteLength);
         } else {
-          toast('The GIF could not be made.', 4000);
+          toast(tr('The GIF could not be made.'), 4000);
           console.warn('[clip] GIF failed:', m.message);
         }
       };

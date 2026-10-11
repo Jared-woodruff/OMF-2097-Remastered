@@ -22,6 +22,8 @@ tauri = { version = "2.11.6", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 if-addrs = "0.15"
+# The languages the player's system is set to (the game speaks the first one it has; src/i18n).
+sys-locale = "0.3"
 
 # Raw WebView2 event hooks in src/lib.rs (disable_browser_ui). Keep these on the same versions
 # Tauri resolves (`cargo tree -i webview2-com`), or the controller types won't match.

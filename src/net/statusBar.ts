@@ -3,6 +3,7 @@
 // select screen, the VS screen: Scene.netStatus), or whom the game waits for when the other game is late.
 import type { GameState } from '../game/gameState';
 import { ensureUiFont, UI_FONT } from '../platform/uiFont';
+import { tr } from '../i18n/i18n';
 
 /** A screen's line in a network game (Scene.netStatus). */
 export interface NetStatus {
@@ -25,7 +26,7 @@ export function netStatusOf(gs: GameState): (NetStatus & { side: 0 | 1 }) | null
   const side = net.localPlayer;
   if (net.stalledMs() > LATE_MS) {
     // (the other game is not on this screen yet: still on the one before, the victory screen say)
-    return { side, waiting: true, text: net.peerArrived() ? `WAITING FOR ${net.opponent}...` : `WAITING FOR ${net.opponent} TO GET HERE...` };
+    return { side, waiting: true, text: net.peerArrived() ? tr('WAITING FOR {opponent}...', { opponent: net.opponent }) : tr('WAITING FOR {opponent} TO GET HERE...', { opponent: net.opponent }) };
   }
   const s = net.synced && gs.thisId === gs.nextId ? gs.sc.netStatus(net) : null;
   return s ? { side, ...s } : null;
@@ -65,7 +66,7 @@ export function showNetStatus(gs: GameState): void {
     bar.style.opacity = '0';
     return;
   }
-  tag!.textContent = `YOU · P${s.side + 1}`;
+  tag!.textContent = tr('YOU · P{player}', { player: s.side + 1 });
   tag!.style.background = SIDE_COLORS[s.side];
   line!.textContent = s.text;
   line!.style.color = s.waiting ? '#ffd27a' : '#e8f1ff';

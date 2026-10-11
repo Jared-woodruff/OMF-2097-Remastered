@@ -2,6 +2,7 @@
 import { NATIVE_W } from '../video/draw';
 import { OBJECT_FACE_LEFT, OBJECT_FACE_RIGHT } from './constants';
 import { HAlign, hudText, type Text } from './gui/text';
+import { tr, trn } from '../i18n/i18n';
 
 const SLIDER_DISTANCE = 50;
 const SLIDER_HANG_TIME = 25;
@@ -189,7 +190,7 @@ export class ChrScore {
     let ret = false;
     if (this.consecutiveHits > 3) {
       ret = true;
-      let s = `${this.consecutiveHits} consecutive hits`;
+      let s = trn(this.consecutiveHits, '{n} consecutive hit', '{n} consecutive hits');
       if (this.consecutiveHitScore > 0) s += ` ${scoreFormat(this.consecutiveHitScore)}`;
       this.add(s, this.consecutiveHitScore, x, 130, 1.0);
     }
@@ -202,7 +203,7 @@ export class ChrScore {
     let ret = false;
     if (this.comboHits > 1) {
       ret = true;
-      let s = `${this.comboHits} hit combo`;
+      let s = trn(this.comboHits, '{n} hit combo', '{n} hit combo');
       if (this.comboHitScore > 0) s += ` ${scoreFormat(this.comboHitScore * 4)}`;
       this.add(s, this.comboHitScore * 4, x, 130, 1.0);
     }

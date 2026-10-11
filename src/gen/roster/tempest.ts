@@ -9,6 +9,7 @@ import * as P from '../fighter/poses';
 import { cylinder, FX, fxMat, wedge } from '../robots/parts';
 import { TEMPEST as MODEL } from '../robots/tempest';
 import type { GenRobot } from './types';
+import { trKey } from '../../i18n/i18n';
 
 const WIND = fxMat(FX.grey, false, 0.1, 0.6);
 const WIND_HI = fxMat(FX.steel, false, 0.2, 0.9);
@@ -127,5 +128,5 @@ export const TEMPEST: GenRobot = {
       P.crouch(b, { drop: 0.04 }),
     ][k],
   }),
-  specialNames: { [MOVE.SPECIAL1]: 'GALE BLAST', [MOVE.SPECIAL2]: 'CYCLONE KICK', [MOVE.AIR1]: 'SKY DIVE' },
+  specialNames: { [MOVE.SPECIAL1]: trKey('GALE BLAST'), [MOVE.SPECIAL2]: trKey('CYCLONE KICK'), [MOVE.AIR1]: trKey('SKY DIVE') },
 };

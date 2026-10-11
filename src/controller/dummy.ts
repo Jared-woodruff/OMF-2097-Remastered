@@ -7,6 +7,7 @@ import type { GameState } from '../game/gameState';
 import { harData } from '../game/objects/har';
 import type { GameObject } from '../game/object';
 import { Controller, type CtrlEvent } from './controller';
+import { trKey } from '../i18n/i18n';
 
 export const enum DummyMode {
   STAND = 0,
@@ -20,7 +21,8 @@ export const enum DummyMode {
   PLAYBACK,
 }
 
-export const DUMMY_MODE_NAMES = ['STAND', 'CROUCH', 'JUMP', 'BLOCK', 'BLOCK LOW', 'CPU', 'PLAYBACK'];
+/** (English: shown with tr()) */
+export const DUMMY_MODE_NAMES = [trKey('STAND'), trKey('CROUCH'), trKey('JUMP'), trKey('BLOCK'), trKey('BLOCK LOW'), trKey('CPU'), trKey('PLAYBACK')];
 
 /** Ticks between jumps in JUMP mode. */
 const JUMP_INTERVAL = 70;

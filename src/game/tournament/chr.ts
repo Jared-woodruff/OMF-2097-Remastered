@@ -5,7 +5,7 @@ import { chrEnemyCreate, chrParse, chrSerialize, CHR_CUTSCENE_TEXT_COUNT, type C
 import type { PicPhoto } from '../../formats/misc';
 import { Palette } from '../../formats/palette';
 import { PILOT_QUOTE_COUNT, type Pilot } from '../../formats/pilot';
-import type { TournamentFile } from '../../formats/tournament';
+import { localizedLocale, type TournamentFile } from '../../formats/tournament';
 import { loadPic } from '../../resources/resources';
 import { trnLoad } from '../../resources/trnmanager';
 import { dossifyFilename } from '../../util/path';
@@ -145,7 +145,8 @@ export function chrLoad(data: Uint8Array): ChrFile {
   const trn = chr.pilot.trnName !== '' ? trnLoad(chr.pilot.trnName) : null;
 
   if (trn) {
-    const ends = trn.locales[0]?.endTexts ?? [];
+    // (in the game's language)
+    const ends = localizedLocale(trn)?.endTexts ?? [];
     // (a robot the tournament has no ending for, a new or a mod robot: the ending most of its robots share)
     const texts = ends[chr.pilot.harId] ?? commonEnding(ends);
     for (let i = 0; i < CHR_CUTSCENE_TEXT_COUNT; i++) {

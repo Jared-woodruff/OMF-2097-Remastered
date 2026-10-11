@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { app } from '../app';
 import { audio } from '../audio/audio';
 import { setKeyState } from '../controller/input';
+import { useLanguage } from '../i18n/i18n';
 import { KeyboardController } from '../controller/keyboard';
 import { CtrlType, SceneId } from '../game/constants';
 import type { GameState } from '../game/gameState';
@@ -533,12 +534,19 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     expect(current()).toBe(root());
   });
 
-  it('LANGUAGE lists the usable languages', () => {
+  it('LANGUAGE opens the language page; a new language remakes the menus, still on LANGUAGE', () => {
+    const page = vi.spyOn(app, 'showLanguage').mockImplementation(() => undefined);
     open('OPTIONS', 'LANGUAGE');
-    expect(selectedText()).toBe('English');
-    press('ArrowDown');
-    expect(selectedText()).toBe('DONE');
-    press('Enter');
+    expect(page).toHaveBeenCalledTimes(1);
     expect(selectedText()).toBe('LANGUAGE');
+    try {
+      useLanguage('sv', { ui: { LANGUAGE: 'SPRÅK', OPTIONS: 'INSTÄLLNINGAR' }, original: null });
+      run.advance(100);
+      expect(selectedText()).toBe('SPRÅK');
+      press('Escape');
+      expect(selectedText()).toBe('INSTÄLLNINGAR');
+    } finally {
+      useLanguage('en', { ui: {}, original: null });
+    }
   });
 });

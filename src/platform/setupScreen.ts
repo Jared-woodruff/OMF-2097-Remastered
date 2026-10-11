@@ -1,6 +1,7 @@
-// The first start's setup: after loading, the loading screen's logo moves up and the player picks how the remaster
-// looks and sounds (graphics, effects, announcer, music, the keyboard layout) and whether the new robots and arenas
-// play (their mod, EXTRAS > MODS), or takes a preset. Everything stays in OPTIONS afterwards. Keyboard (arrows, ENTER),
+// The first start's setup: after loading, the loading screen's logo moves up and the player picks the language (the
+// system's to begin with: the setup speaks it at once), how the remaster looks and sounds (graphics, effects,
+// announcer, music, the keyboard layout) and whether the new robots and arenas play (their mod, EXTRAS > MODS), or
+// takes a preset. Everything stays in OPTIONS afterwards. Keyboard (arrows, ENTER),
 // mouse and gamepad.
 import { app } from '../app';
 import { audio } from '../audio/audio';
@@ -11,6 +12,8 @@ import { defaultSettings, saveSettings, settings } from '../game/settings';
 import { bundledEnabled, setBundledEnabled } from '../mods/bundled';
 import { EXTRAS_MOD_ID } from '../mods/extras';
 import { ensureUiFont, UI_FONT } from './uiFont';
+import { setLanguage, systemLanguage, tr } from '../i18n/i18n';
+import { languageInfo, LANGUAGES } from '../i18n/languages';
 
 interface Choice {
   label: string;
@@ -22,6 +25,8 @@ interface Row {
   title: string;
   hint: string;
   choices: Choice[];
+  /** Small chips (the languages: there are fifteen). */
+  compact?: boolean;
   get(): string;
   set(value: string): void;
   shown?(): boolean;
@@ -43,12 +48,22 @@ function setEffects(level: string): void {
   for (const k of EFFECTS) v[k] = level === 'full' || (level === 'light' && (k === 'bloom' || k === 'fxParticles' || k === 'fxLighting'));
 }
 
-function rows(): Row[] {
+function rows(onLanguage: () => void): Row[] {
   const s = () => settings();
   return [
     {
-      title: 'GRAPHICS', hint: 'F2 switches between them at any time.',
-      choices: [{ label: 'REMASTERED', sub: 'HD artwork, light, effects', value: 'remastered' }, { label: 'CLASSIC', sub: 'The 1994 pixels', value: 'classic' }],
+      title: tr('LANGUAGE'), hint: tr('AUTOMATIC speaks the language of your system. Change it any time in Options.'), compact: true,
+      choices: [{ label: tr('AUTOMATIC'), sub: languageInfo(systemLanguage()).native, value: 'auto' },
+        ...LANGUAGES.map((l) => ({ label: l.native, value: l.code }))],
+      get: () => s().language,
+      set: (v) => {
+        s().language = v;
+        void setLanguage(v).then(onLanguage, onLanguage);
+      },
+    },
+    {
+      title: tr('GRAPHICS'), hint: tr('F2 switches between them at any time.'),
+      choices: [{ label: tr('REMASTERED'), sub: tr('HD artwork, light, effects'), value: 'remastered' }, { label: tr('CLASSIC'), sub: tr('The 1994 pixels'), value: 'classic' }],
       get: () => s().video.graphics,
       set: (v) => {
         s().video.graphics = v === 'classic' ? 'classic' : 'remastered';
@@ -56,19 +71,19 @@ function rows(): Row[] {
       },
     },
     {
-      title: 'EFFECTS', hint: 'Glow, sparks, lighting, impacts and arena atmosphere.',
-      choices: [{ label: 'FULL', value: 'full' }, { label: 'LIGHT', value: 'light' }, { label: 'OFF', value: 'off' }],
+      title: tr('EFFECTS'), hint: tr('Glow, sparks, lighting, impacts and arena atmosphere.'),
+      choices: [{ label: tr('FULL'), value: 'full' }, { label: tr('LIGHT'), value: 'light' }, { label: tr('OFF'), value: 'off' }],
       get: effectsLevel, set: setEffects, shown: () => s().video.graphics === 'remastered',
     },
     {
-      title: 'PIXELS', hint: 'How the classic graphics are scaled up.',
-      choices: [{ label: 'SHARP', value: 'sharp' }, { label: 'SMOOTH', value: 'smooth' }, { label: 'CRT', value: 'crt' }],
+      title: tr('PIXELS'), hint: tr('How the classic graphics are scaled up.'),
+      choices: [{ label: tr('SHARP'), value: 'sharp' }, { label: tr('SMOOTH'), value: 'smooth' }, { label: tr('CRT'), value: 'crt' }],
       get: () => s().video.classicFilter, set: (v) => (s().video.classicFilter = v as 'sharp' | 'smooth' | 'crt'),
       shown: () => s().video.graphics === 'classic',
     },
     {
-      title: 'ANNOUNCER', hint: 'Calls the rounds and knockouts, and reads the news.',
-      choices: [{ label: 'MALE', value: 'male' }, { label: 'FEMALE', value: 'female' }, { label: 'ORIGINAL', value: 'off' }],
+      title: tr('ANNOUNCER'), hint: tr('Calls the rounds and knockouts, and reads the news.'),
+      choices: [{ label: tr('MALE'), value: 'male' }, { label: tr('FEMALE'), value: 'female' }, { label: tr('ORIGINAL'), value: 'off' }],
       get: () => s().sound.announcer,
       set: (v) => {
         s().sound.announcer = v as 'off' | 'male' | 'female';
@@ -77,8 +92,8 @@ function rows(): Row[] {
       },
     },
     {
-      title: 'MUSIC', hint: 'The soundtrack in high quality, or as the 1994 sound cards played it.',
-      choices: [{ label: 'ENHANCED', value: 'on' }, { label: 'ORIGINAL', value: 'off' }],
+      title: tr('MUSIC'), hint: tr('The soundtrack in high quality, or as the 1994 sound cards played it.'),
+      choices: [{ label: tr('ENHANCED'), value: 'on' }, { label: tr('ORIGINAL'), value: 'off' }],
       get: () => (s().sound.enhancedMusic ? 'on' : 'off'),
       set: (v) => {
         s().sound.enhancedMusic = v === 'on';
@@ -86,13 +101,13 @@ function rows(): Row[] {
       },
     },
     {
-      title: 'NEW ROBOTS AND ARENAS', hint: 'Glacier, Tempest, Helix and Spectre, and four arenas, made for the remaster (a mod: EXTRAS › MODS).',
-      choices: [{ label: 'OFF', value: 'off' }, { label: 'ON', value: 'on' }],
+      title: tr('NEW ROBOTS AND ARENAS'), hint: tr('Glacier, Tempest, Helix and Spectre, and four arenas, made for the remaster (a mod: EXTRAS › MODS).'),
+      choices: [{ label: tr('OFF'), value: 'off' }, { label: tr('ON'), value: 'on' }],
       get: () => (bundledEnabled(EXTRAS_MOD_ID) ? 'on' : 'off'), set: (v) => setBundledEnabled(EXTRAS_MOD_ID, v === 'on'),
     },
     {
-      title: 'KEYBOARD', hint: 'Controllers work right away. Both players can share one keyboard.',
-      choices: [{ label: 'CLASSIC', sub: 'Arrows, Enter, Shift', value: 'classic' }, { label: 'MODERN', sub: 'WASD', value: 'modern' }],
+      title: tr('KEYBOARD'), hint: tr('Controllers work right away. Both players can share one keyboard.'),
+      choices: [{ label: tr('CLASSIC'), sub: tr('Arrows, Enter, Shift'), value: 'classic' }, { label: tr('MODERN'), sub: tr('WASD'), value: 'modern' }],
       get: () => s().keys.layout, set: (v) => applyKeyLayout(v === 'modern' ? 'modern' : 'classic'),
     },
   ];
@@ -142,6 +157,8 @@ const CSS = `
 #omf-setup .chip { display: flex; flex-direction: column; align-items: center; min-width: 6.5em; padding: .55em 1.1em; border-radius: 10px;
   cursor: pointer; border: 1px solid rgba(140, 170, 255, .32); background: rgba(20, 30, 70, .55); color: #cdd9ff;
   font: 700 clamp(10px, .82vw, 14px) ${UI_FONT}; letter-spacing: .1em; transition: background .15s, color .15s, border-color .15s; }
+#omf-setup .chips.compact { max-width: min(560px, 60vw); gap: 6px; }
+#omf-setup .chips.compact .chip { min-width: 0; padding: .45em .8em; letter-spacing: .04em; text-transform: none; }
 #omf-setup .chip small { margin-top: .3em; font-weight: 500; font-size: .74em; letter-spacing: .04em; color: #8fa2cf; }
 #omf-setup .chip:hover { border-color: rgba(160, 190, 255, .7); color: #fff; }
 #omf-setup .chip.is-on { background: linear-gradient(180deg, #ffe08a, #ffb02e); border-color: #ffc23d; color: #1a1204; }
@@ -172,13 +189,12 @@ export function firstRunSetup(boot: HTMLElement): Promise<void> {
     style.textContent = CSS;
     document.head.appendChild(style);
   }
-  const all = rows();
+  let all: Row[] = [];
   const root = document.createElement('div');
   root.id = 'omf-setup';
   const panel = document.createElement('div');
   panel.className = 'panel';
   const header = document.createElement('header');
-  header.innerHTML = '<h1>WELCOME, PILOT</h1><p>Set up the remaster your way. You can change all of this later in Options.</p>';
   const list = document.createElement('div');
   list.className = 'rows';
   const footer = document.createElement('footer');
@@ -190,15 +206,29 @@ export function firstRunSetup(boot: HTMLElement): Promise<void> {
     b.textContent = label;
     return b;
   };
-  const original = button('ORIGINAL 1994 STYLE', 'btn');
-  const recommended = button('RECOMMENDED', 'btn');
-  const start = button('START ▶', 'btn start');
+  const original = button('', 'btn');
+  const recommended = button('', 'btn');
+  const start = button('', 'btn start');
   presets.append(original, recommended);
   footer.append(presets, start);
   panel.append(header, list, footer);
   const keys = document.createElement('div');
   keys.className = 'keys';
-  keys.textContent = '↑ ↓ choose · ← → change · Enter start';
+  /** The setup's texts in the language spoken now (again when the player picks another). */
+  const words = () => {
+    all = rows(() => {
+      words();
+      render();
+    });
+    header.innerHTML = `<h1></h1><p></p>`;
+    header.querySelector('h1')!.textContent = tr('WELCOME, PILOT');
+    header.querySelector('p')!.textContent = tr('Set up the remaster your way. You can change all of this later in Options.');
+    original.textContent = tr('ORIGINAL 1994 STYLE');
+    recommended.textContent = tr('RECOMMENDED');
+    start.textContent = tr('START ▶');
+    keys.textContent = tr('↑ ↓ choose · ← → change · Enter start');
+  };
+  words();
   const column = document.createElement('div');
   column.append(panel, keys);
   root.appendChild(column);
@@ -220,7 +250,7 @@ export function firstRunSetup(boot: HTMLElement): Promise<void> {
       text.querySelector('h2')!.textContent = r.title;
       text.querySelector('p')!.textContent = r.hint;
       const chips = document.createElement('div');
-      chips.className = 'chips';
+      chips.className = r.compact ? 'chips compact' : 'chips';
       const current = r.get();
       for (const c of r.choices) {
         const chip = document.createElement('button');

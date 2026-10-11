@@ -5,6 +5,7 @@ import { ACT_DOWN, ACT_ESC, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_UP, Ct
 import { video } from '../../video/draw';
 import { Surface } from '../../video/surface';
 import { FontSize, HAlign, Text, VAlign } from './text';
+import { tr } from '../../i18n/i18n';
 
 export const COLOR_LIGHT_BLUE = 0xa7; // menu help text color
 const COLOR_MENU_LINE = 252;
@@ -349,7 +350,7 @@ export class TextSlider extends Component {
   refresh(): void {
     let s = `${this.title} `;
     const pos = this.getPos();
-    if (this.hasOff && pos === 0) s += 'OFF';
+    if (this.hasOff && pos === 0) s += tr('OFF');
     else for (let i = 0; i < this.positions; i++) s += i + 1 > pos ? '|' : CURSOR_CHAR;
     this.text.set(s);
   }

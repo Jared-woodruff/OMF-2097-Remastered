@@ -14,15 +14,15 @@ import { video } from '../../video/draw';
 import type { Surface } from '../../video/surface';
 import { formatTicks } from './hud';
 import { AUTO_KEEP, deleteReplay, importReplays, listReplays, replayFileName, setReplayKept, type ReplayRecord } from './store';
+import { tr, trn, lang } from '../../i18n/i18n';
 
 const ROW_Y = 36;
 const ROW_H = 10;
 const ROWS = 9;
-const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 function when(ms: number): string {
   const d = new Date(ms);
-  return `${MONTHS[d.getMonth()]} ${String(d.getDate()).padStart(2, ' ')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `${new Intl.DateTimeFormat(lang(), { month: 'short' }).format(d).toUpperCase().replace(/\.$/, '')} ${String(d.getDate()).padStart(2, ' ')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 const har = (id: number) => HAR_NAMES[id] ?? '?';
@@ -51,7 +51,7 @@ export class ReplaysPage extends Page {
       this.list = await listReplays();
     } catch {
       this.list = [];
-      this.status = 'REPLAYS NEED BROWSER STORAGE, WHICH IS NOT AVAILABLE';
+      this.status = tr('REPLAYS NEED BROWSER STORAGE, WHICH IS NOT AVAILABLE');
     }
     if (keepId !== undefined) {
       const i = this.list.findIndex((r) => r.id === keepId);
@@ -82,9 +82,9 @@ export class ReplaysPage extends Page {
 
   private result(r: ReplayRecord): string {
     const m = r.meta;
-    if (m.winner < 0) return 'UNFINISHED';
+    if (m.winner < 0) return tr('UNFINISHED');
     const w = m.players[m.winner];
-    return `${w.name.toUpperCase()} WINS ${m.rounds[m.winner]}-${m.rounds[1 - m.winner]}`;
+    return tr('{name} WINS {won}-{lost}', { name: w.name.toUpperCase(), won: m.rounds[m.winner], lost: m.rounds[1 - m.winner] });
   }
 
   private async toggleKeep(): Promise<void> {
@@ -93,7 +93,7 @@ export class ReplaysPage extends Page {
     const kept = !r.meta.kept;
     await setReplayKept(r.id, kept);
     r.meta.kept = kept;
-    this.status = kept ? 'KEPT FOR GOOD' : `NO LONGER KEPT (THE ${AUTO_KEEP} NEWEST STAY)`;
+    this.status = kept ? tr('KEPT FOR GOOD') : tr('NO LONGER KEPT (THE {n} NEWEST STAY)', { n: AUTO_KEEP });
     playMenuSound(20);
   }
 
@@ -102,18 +102,18 @@ export class ReplaysPage extends Page {
     if (!r) return;
     // (a .REC file has no room for a survival fight's lower starting health: elsewhere it would play out differently)
     if (r.meta.startHealth !== undefined && r.meta.startHealth < 100) {
-      this.status = 'THIS FIGHT CAN ONLY BE WATCHED HERE';
-      toast('This survival fight started with less than full health, which a .REC file cannot hold: played from the file, it would go differently.', 6000);
+      this.status = tr('THIS FIGHT CAN ONLY BE WATCHED HERE');
+      toast(tr('This survival fight started with less than full health, which a .REC file cannot hold: played from the file, it would go differently.'), 6000);
       playMenuSound(20);
       return;
     }
     const name = replayFileName(r.meta, har);
     saveFile(name, r.data).then(
       (where) => {
-        this.status = `SAVED ${name.toUpperCase()}`;
+        this.status = tr('SAVED {name}', { name: name.toUpperCase() });
         if (where !== name) toast(`Saved ${where}`, 5000);
       },
-      () => (this.status = 'THE FILE COULD NOT BE SAVED'),
+      () => (this.status = tr('THE FILE COULD NOT BE SAVED')),
     );
     playMenuSound(20);
   }
@@ -124,7 +124,7 @@ export class ReplaysPage extends Page {
     this.busy = true;
     const n = await importReplays(files);
     this.busy = false;
-    this.status = n ? `LOADED ${n} FIGHT${n === 1 ? '' : 'S'}` : 'NO RECORDING COULD BE READ';
+    this.status = n ? trn(n, 'LOADED {n} FIGHT', 'LOADED {n} FIGHTS') : tr('NO RECORDING COULD BE READ');
     this.sel = 0;
     await this.reload();
   }
@@ -134,12 +134,12 @@ export class ReplaysPage extends Page {
     if (!r || r.id === undefined) return;
     if (!this.confirmDelete) {
       this.confirmDelete = true;
-      this.status = 'PRESS DELETE AGAIN TO DELETE THIS FIGHT';
+      this.status = tr('PRESS DELETE AGAIN TO DELETE THIS FIGHT');
       return;
     }
     this.confirmDelete = false;
     await deleteReplay(r.id);
-    this.status = 'DELETED';
+    this.status = tr('DELETED');
     playMenuSound(20);
     await this.reload();
   }
@@ -196,16 +196,16 @@ export class ReplaysPage extends Page {
   }
 
   override render(): void {
-    this.drawFrame('REPLAYS');
+    this.drawFrame(tr('REPLAYS'));
     const list = this.list;
     if (!list) {
-      this.drawText('st', 'LOADING...', 160, 24, FontSize.SMALL, PC.dim, HAlign.CENTER);
+      this.drawText('st', tr('LOADING...'), 160, 24, FontSize.SMALL, PC.dim, HAlign.CENTER);
       return;
     }
     const kept = list.filter((r) => r.meta.kept).length;
-    const head = this.busy ? 'LOADING FILES...' : this.status || (list.length
-      ? `${list.length} FIGHT${list.length === 1 ? '' : 'S'}${kept ? `  (${kept} KEPT)` : ''}`
-      : 'NO FIGHTS YET: EVERY FIGHT YOU PLAY IS SAVED HERE');
+    const head = this.busy ? tr('LOADING FILES...') : this.status || (list.length
+      ? trn(list.length, '{n} FIGHT', '{n} FIGHTS') + (kept ? '  ' + tr('({kept} KEPT)', { kept }) : '')
+      : tr('NO FIGHTS YET: EVERY FIGHT YOU PLAY IS SAVED HERE'));
     this.drawText('st', head, 160, 24, FontSize.SMALL, this.confirmDelete ? PC.red : PC.dim, HAlign.CENTER);
 
     // Rows.
@@ -232,7 +232,7 @@ export class ReplaysPage extends Page {
       this.drawText('r', res, 300, y, FontSize.SMALL, sel ? PC.gold : PC.dim, HAlign.RIGHT);
     }
     if (list.length > ROWS) {
-      this.drawText('more', `${this.top + 1}-${Math.min(list.length, this.top + ROWS)} OF ${list.length}`, 300, 24,
+      this.drawText('more', tr('{from}-{to} OF {count}', { from: this.top + 1, to: Math.min(list.length, this.top + ROWS), count: list.length }), 300, 24,
         FontSize.SMALL, PC.dim, HAlign.RIGHT);
     }
 
@@ -242,13 +242,13 @@ export class ReplaysPage extends Page {
       const m = r.meta;
       const [a, b] = m.players;
       this.drawText('p1', `${a.name.toUpperCase()} (${har(a.harId)})`, 150, 134, FontSize.SMALL, PC.p1, HAlign.RIGHT);
-      this.drawText('vs', 'VS', 160, 134, FontSize.SMALL, PC.dim, HAlign.CENTER);
+      this.drawText('vs', tr('VS'), 160, 134, FontSize.SMALL, PC.dim, HAlign.CENTER);
       this.drawText('p2', `${b.name.toUpperCase()} (${har(b.harId)})`, 171, 134, FontSize.SMALL, PC.p2);
-      const arena = arenaName(m.arena).toUpperCase() || `ARENA ${m.arena}`;
+      const arena = arenaName(m.arena).toUpperCase() || tr('ARENA {arena}', { arena: m.arena });
       this.drawText('d2', `${m.mode}  -  ${arena}  -  ${formatTicks(m.ticks, this.gameSpeed())}`, 160, 144, FontSize.SMALL, PC.grey, HAlign.CENTER);
       this.drawText('d3', this.result(r), 160, 154, FontSize.SMALL, m.winner < 0 ? PC.dim : PC.gold, HAlign.CENTER);
     }
-    this.drawText('h1', 'ENTER WATCH   K KEEP   E SAVE FILE   I LOAD FILES', 160, 172, FontSize.SMALL, PC.dim, HAlign.CENTER);
-    this.drawText('h2', 'DEL DELETE   ESC BACK', 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    this.drawText('h1', tr('ENTER WATCH   K KEEP   E SAVE FILE   I LOAD FILES'), 160, 172, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    this.drawText('h2', tr('DEL DELETE   ESC BACK'), 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
   }
 }

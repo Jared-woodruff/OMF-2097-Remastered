@@ -4,6 +4,7 @@
 import { showAchievement } from '../../platform/achievementBanner';
 import { HAR_NAMES } from '../constants';
 import { settings } from '../settings';
+import { tr, trKey } from '../../i18n/i18n';
 
 const STORAGE_KEY = 'omf2097r.records';
 
@@ -76,30 +77,30 @@ export interface Achievement {
 }
 
 export const ACHIEVEMENTS: Achievement[] = [
-  { id: 'first-win', title: 'FIRST VICTORY', text: 'Win a fight.' },
-  { id: 'perfect', title: 'UNTOUCHABLE', text: 'Win a round without a scratch.' },
-  { id: 'scrap', title: 'SCRAP METAL', text: 'Finish a fight with a scrap move.' },
-  { id: 'destruction', title: 'TOTAL DESTRUCTION', text: 'Finish a fight with a destruction move.' },
-  { id: 'combo3', title: 'COMBO ARTIST', text: 'Land a three hit combo.' },
-  { id: 'combo5', title: 'COMBO MASTER', text: 'Land a five hit combo.' },
-  { id: 'giant', title: 'GIANT KILLER', text: 'Beat the computer on DEADLY or ULTIMATE.' },
-  { id: 'all-robots', title: 'ALL ROUNDER', text: 'Win with each of the ten original robots.' },
-  { id: 'arcade', title: 'ARCADE CHAMPION', text: 'Clear the arcade mode.' },
-  { id: 'arcade-clean', title: 'ONE CREDIT', text: 'Clear the arcade mode without losing a fight.' },
-  { id: 'survival5', title: 'SURVIVOR', text: 'Win five fights in a row in survival.' },
-  { id: 'survival10', title: 'IRON WILL', text: 'Win ten fights in a row in survival.' },
-  { id: 'timeattack', title: 'AGAINST THE CLOCK', text: 'Finish the time attack.' },
-  { id: 'timeattack-fast', title: 'SPEED DEMON', text: 'Finish the time attack in under three minutes.' },
-  { id: 'campaign', title: 'WORLD SAVIOR', text: 'Beat Kreissack in the one player game.' },
-  { id: 'tournament', title: 'CHAMPION', text: 'Win a tournament.' },
-  { id: 'trials10', title: 'STUDENT', text: 'Complete ten combo trials.' },
-  { id: 'trials-robot', title: 'LAB GRADUATE', text: 'Complete every trial of a robot.' },
-  { id: 'clip', title: 'DIRECTOR', text: 'Save a clip of a replay.' },
-  { id: 'veteran', title: 'VETERAN', text: 'Fight a hundred fights.' },
+  { id: 'first-win', title: trKey('FIRST VICTORY'), text: trKey('Win a fight.') },
+  { id: 'perfect', title: trKey('UNTOUCHABLE'), text: trKey('Win a round without a scratch.') },
+  { id: 'scrap', title: trKey('SCRAP METAL'), text: trKey('Finish a fight with a scrap move.') },
+  { id: 'destruction', title: trKey('TOTAL DESTRUCTION'), text: trKey('Finish a fight with a destruction move.') },
+  { id: 'combo3', title: trKey('COMBO ARTIST'), text: trKey('Land a three hit combo.') },
+  { id: 'combo5', title: trKey('COMBO MASTER'), text: trKey('Land a five hit combo.') },
+  { id: 'giant', title: trKey('GIANT KILLER'), text: trKey('Beat the computer on DEADLY or ULTIMATE.') },
+  { id: 'all-robots', title: trKey('ALL ROUNDER'), text: trKey('Win with each of the ten original robots.') },
+  { id: 'arcade', title: trKey('ARCADE CHAMPION'), text: trKey('Clear the arcade mode.') },
+  { id: 'arcade-clean', title: trKey('ONE CREDIT'), text: trKey('Clear the arcade mode without losing a fight.') },
+  { id: 'survival5', title: trKey('SURVIVOR'), text: trKey('Win five fights in a row in survival.') },
+  { id: 'survival10', title: trKey('IRON WILL'), text: trKey('Win ten fights in a row in survival.') },
+  { id: 'timeattack', title: trKey('AGAINST THE CLOCK'), text: trKey('Finish the time attack.') },
+  { id: 'timeattack-fast', title: trKey('SPEED DEMON'), text: trKey('Finish the time attack in under three minutes.') },
+  { id: 'campaign', title: trKey('WORLD SAVIOR'), text: trKey('Beat Kreissack in the one player game.') },
+  { id: 'tournament', title: trKey('CHAMPION'), text: trKey('Win a tournament.') },
+  { id: 'trials10', title: trKey('STUDENT'), text: trKey('Complete ten combo trials.') },
+  { id: 'trials-robot', title: trKey('LAB GRADUATE'), text: trKey('Complete every trial of a robot.') },
+  { id: 'clip', title: trKey('DIRECTOR'), text: trKey('Save a clip of a replay.') },
+  { id: 'veteran', title: trKey('VETERAN'), text: trKey('Fight a hundred fights.') },
 ];
 
 /** Notified when an achievement is earned (the game shows a notice). */
-let onUnlock: (a: Achievement) => void = (a) => showAchievement(a.title, a.text);
+let onUnlock: (a: Achievement) => void = (a) => showAchievement(tr(a.title), tr(a.text));
 
 export function setUnlockHandler(fn: (a: Achievement) => void): void {
   onUnlock = fn;

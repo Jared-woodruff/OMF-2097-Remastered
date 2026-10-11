@@ -207,6 +207,7 @@ uniform vec4 u_srcRect;       // x, y, w, h in texture UV space
 uniform vec2 u_texSize;       // texture size in texels
 uniform vec2 u_pixelScale;    // output pixels per texel (x, y)
 uniform int u_mode;           // 0 = sharp (pixel art), 1 = smooth, 2 = CRT
+uniform float u_scanScale;    // texels per native pixel (the scanlines are the game's rows)
 out vec4 o_color;
 
 vec3 sharpBilinear(vec2 tuv) {
@@ -226,7 +227,7 @@ void main() {
   if (u_mode == 2) {
     vec2 texel = tuv * u_texSize;
     vec3 base = sharpBilinear(tuv);
-    float scan = 0.72 + 0.28 * cos((fract(texel.y) - 0.5) * 6.2831853);
+    float scan = 0.72 + 0.28 * cos((fract(texel.y / u_scanScale) - 0.5) * 6.2831853);
     float mask = 0.93 + 0.07 * cos(gl_FragCoord.x * 2.0943951);
     c = base * scan * mask * 1.15;
   } else if (u_mode == 1) {

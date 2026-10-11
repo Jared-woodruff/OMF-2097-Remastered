@@ -15,10 +15,11 @@ import {
   readTournamentSpec, ROBOT_NAMES, setCustomTournament, SIZE_NAMES, type CustomTournamentSpec,
 } from './custom';
 import { sgEnrolledIn } from '../../resources/sgmanager';
+import { tr, trn, trKey } from '../../i18n/i18n';
 
 type Row = 'name' | 'base' | 'size' | 'robots' | 'prize' | 'file';
 const ROWS: Row[] = ['name', 'base', 'size', 'robots', 'prize', 'file'];
-const LABELS: Record<Row, string> = { name: 'NAME', base: 'MADE FROM', size: 'OPPONENTS', robots: 'THEIR ROBOTS', prize: 'PRIZE MONEY', file: 'SAVE FILE' };
+const LABELS: Record<Row, string> = { name: trKey('NAME'), base: trKey('MADE FROM'), size: trKey('OPPONENTS'), robots: trKey('THEIR ROBOTS'), prize: trKey('PRIZE MONEY'), file: trKey('SAVE FILE') };
 /** The list's rows (native pixels): the first one's top, and their height (a name, and under it what it is). */
 const LIST_Y = 40;
 const LIST_ROW = 21;
@@ -59,25 +60,25 @@ export class CustomTournamentsPage extends Page {
   private open(slot: number): void {
     const s = customTournaments()[slot];
     this.slot = slot;
-    this.spec = s ? { ...s } : { ...defaultTournament(), name: `CUSTOM TOURNAMENT ${slot + 1}` };
+    this.spec = s ? { ...s } : { ...defaultTournament(), name: tr('CUSTOM TOURNAMENT {n}', { n: slot + 1 }) };
     if (!s) this.store();
     // (a saved pilot is in it: its opponents and prizes must stay as they are, only its name can change)
     this.locked = !!s && sgEnrolledIn(fileNameOf(slot));
     this.row = 0;
-    this.status = this.locked ? 'A SAVED PILOT IS IN IT: ONLY ITS NAME CAN CHANGE' : '';
+    this.status = this.locked ? tr('A SAVED PILOT IS IN IT: ONLY ITS NAME CAN CHANGE') : '';
     playMenuSound(20);
   }
 
   private store(): void {
     if (!setCustomTournament(this.slot, { ...this.spec, name: cleanTitle(this.spec.name) })) {
-      this.status = 'ITS TOURNAMENT IS NOT INSTALLED';
+      this.status = tr('ITS TOURNAMENT IS NOT INSTALLED');
     }
   }
 
   private step(d: number): void {
     const s = this.spec;
     if (this.locked && ROWS[this.row] !== 'name') {
-      this.status = 'A SAVED PILOT IS IN IT: ONLY ITS NAME CAN CHANGE';
+      this.status = tr('A SAVED PILOT IS IN IT: ONLY ITS NAME CAN CHANGE');
       return;
     }
     const wrap = (v: number, n: number) => (v + d + n) % n;
@@ -91,7 +92,7 @@ export class CustomTournamentsPage extends Page {
       case 'size': s.size = wrap(s.size, SIZE_NAMES.length); break;
       case 'robots':
         if (!newRobotsAvailable()) {
-          this.status = 'TURN ON THE NEW ROBOTS AND ARENAS FIRST (EXTRAS > MODS)';
+          this.status = tr('TURN ON THE NEW ROBOTS AND ARENAS FIRST (EXTRAS > MODS)');
           return;
         }
         s.robots = wrap(s.robots, ROBOT_NAMES.length);
@@ -106,8 +107,8 @@ export class CustomTournamentsPage extends Page {
   private exportSpec(spec: CustomTournamentSpec): void {
     const name = `${spec.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.omftrn`;
     saveFile(name, new TextEncoder().encode(JSON.stringify(spec, null, 2)), 'application/json').then(
-      () => (this.status = 'SAVED'),
-      () => (this.status = 'THE FILE COULD NOT BE SAVED'),
+      () => (this.status = tr('SAVED')),
+      () => (this.status = tr('THE FILE COULD NOT BE SAVED')),
     );
     playMenuSound(20);
   }
@@ -126,7 +127,7 @@ export class CustomTournamentsPage extends Page {
         // not a tournament file
       }
     }
-    this.status = n ? `LOADED ${n} TOURNAMENT${n === 1 ? '' : 'S'}` : files.length ? 'NOTHING COULD BE LOADED (OR NO FREE SLOT)' : '';
+    this.status = n ? trn(n, 'LOADED {n} TOURNAMENT', 'LOADED {n} TOURNAMENTS') : files.length ? tr('NOTHING COULD BE LOADED (OR NO FREE SLOT)') : '';
   }
 
   override action(action: number, _source: CtrlType): number {
@@ -154,16 +155,16 @@ export class CustomTournamentsPage extends Page {
       if (code === 'Delete' || code === 'Backspace') {
         if (!customTournaments()[this.sel]) return true;
         if (sgEnrolledIn(fileNameOf(this.sel))) {
-          this.status = 'A SAVED PILOT IS IN THIS TOURNAMENT: DELETE THE PILOT FIRST';
+          this.status = tr('A SAVED PILOT IS IN THIS TOURNAMENT: DELETE THE PILOT FIRST');
           return true;
         }
         if (!this.confirmDelete) {
           this.confirmDelete = true;
-          this.status = 'PRESS DELETE AGAIN TO DELETE THIS TOURNAMENT';
+          this.status = tr('PRESS DELETE AGAIN TO DELETE THIS TOURNAMENT');
         } else {
           setCustomTournament(this.sel, null);
           this.confirmDelete = false;
-          this.status = 'DELETED';
+          this.status = tr('DELETED');
           playMenuSound(20);
         }
         return true;
@@ -227,8 +228,8 @@ export class CustomTournamentsPage extends Page {
   }
 
   private renderList(): void {
-    this.drawFrame('TOURNAMENTS');
-    this.drawText('st', this.status || 'PLAY YOUR OWN TOURNAMENTS FROM TOURNAMENT PLAY', 160, 25, FontSize.SMALL,
+    this.drawFrame(tr('TOURNAMENTS'));
+    this.drawText('st', this.status || tr('PLAY YOUR OWN TOURNAMENTS FROM TOURNAMENT PLAY'), 160, 25, FontSize.SMALL,
       this.confirmDelete ? PC.red : PC.dim, HAlign.CENTER);
     const list = customTournaments();
     for (let i = 0; i < CUSTOM_SLOTS; i++) {
@@ -240,25 +241,25 @@ export class CustomTournamentsPage extends Page {
       if (s) {
         // (the name, and under it what it is: side by side they ran into each other)
         this.drawText(`s${i}`, s.name, 44, y, FontSize.BIG, sel ? PC.white : PC.grey);
-        this.drawText(`d${i}`, `${SIZE_NAMES[s.size]}, ${ROBOT_NAMES[s.robots]}`, 44, y + 10, FontSize.SMALL, sel ? PC.gold : PC.dim);
+        this.drawText(`d${i}`, `${tr(SIZE_NAMES[s.size])}, ${tr(ROBOT_NAMES[s.robots])}`, 44, y + 10, FontSize.SMALL, sel ? PC.gold : PC.dim);
       } else {
-        this.drawText(`s${i}`, 'EMPTY: ENTER MAKES A NEW TOURNAMENT', 44, y + 4, FontSize.SMALL, sel ? PC.grey : PC.dark);
+        this.drawText(`s${i}`, tr('EMPTY: ENTER MAKES A NEW TOURNAMENT'), 44, y + 4, FontSize.SMALL, sel ? PC.grey : PC.dark);
       }
     }
-    this.drawText('h1', 'ENTER MAKE / EDIT   E SAVE FILE   I LOAD FILES', 160, 172, FontSize.SMALL, PC.dim, HAlign.CENTER);
-    this.drawText('h2', 'DEL DELETE   ESC BACK', 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    this.drawText('h1', tr('ENTER MAKE / EDIT   E SAVE FILE   I LOAD FILES'), 160, 172, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    this.drawText('h2', tr('DEL DELETE   ESC BACK'), 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
   }
 
   private renderEditor(): void {
     const s = this.spec;
-    this.drawFrame(`TOURNAMENT ${this.slot + 1}`);
+    this.drawFrame(tr('TOURNAMENT {n}', { n: this.slot + 1 }));
     const value = (r: Row): string => {
       switch (r) {
         case 'name': return s.name || '_';
         case 'base': return baseTitle(s.base);
-        case 'size': return SIZE_NAMES[s.size];
-        case 'robots': return ROBOT_NAMES[s.robots];
-        case 'prize': return PRIZE_NAMES[s.prize];
+        case 'size': return tr(SIZE_NAMES[s.size]);
+        case 'robots': return tr(ROBOT_NAMES[s.robots]);
+        case 'prize': return tr(PRIZE_NAMES[s.prize]);
         default: return '';
       }
     };
@@ -266,11 +267,11 @@ export class CustomTournamentsPage extends Page {
       const y = 44 + i * 16;
       const sel = i === this.row;
       if (sel) this.box(14, y - 3, 292, 13, PC.select);
-      this.drawText(`l${i}`, LABELS[r], 22, y, FontSize.SMALL, r === 'file' ? (sel ? PC.gold : PC.orange) : sel ? PC.white : PC.grey);
+      this.drawText(`l${i}`, tr(LABELS[r]), 22, y, FontSize.SMALL, r === 'file' ? (sel ? PC.gold : PC.orange) : sel ? PC.white : PC.grey);
       if (r !== 'file') this.drawText(`v${i}`, r === 'name' ? value(r) : `< ${value(r)} >`, 110, y, FontSize.SMALL, sel ? PC.gold : PC.white);
     });
-    const hint = this.status || (ROWS[this.row] === 'name' ? 'TYPE A NAME (- FOR A SPACE)   ESC LIST' : '< > CHANGE   ESC LIST');
+    const hint = this.status || (ROWS[this.row] === 'name' ? tr('TYPE A NAME (- FOR A SPACE)   ESC LIST') : tr('< > CHANGE   ESC LIST'));
     this.drawText('h', hint, 160, 150, FontSize.SMALL, this.status ? PC.gold : PC.dim, HAlign.CENTER);
-    this.drawText('h2', 'JOIN IT FROM THE LIST IN TOURNAMENT PLAY', 160, 172, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    this.drawText('h2', tr('JOIN IT FROM THE LIST IN TOURNAMENT PLAY'), 160, 172, FontSize.SMALL, PC.dim, HAlign.CENTER);
   }
 }

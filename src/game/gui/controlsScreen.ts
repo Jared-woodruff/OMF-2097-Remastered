@@ -8,12 +8,13 @@ import type { Surface } from '../../video/surface';
 import { vga } from '../../video/vga';
 import { ACT_DOWN, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_UP, CtrlType } from '../constants';
 import { applyKeyLayout, applyPadSettings, autoPadSlot, detectKeyLayout } from '../controls';
-import { keyName } from '../scenes/mainmenu/keyNames';
+import { keyName, printedKey } from '../scenes/mainmenu/keyNames';
 import { saveSettings, settings, type KeyBindings } from '../settings';
 import { drawDir } from './inputIcons';
 import { Painter } from './painter';
 import { FontSize, GLYPH_SHADOW_BOTTOM, GLYPH_SHADOW_RIGHT, HAlign, Text } from './text';
 import { Menu, MenuBackgroundStyle, menuBackground, menuShade, playMenuSound } from './widgets';
+import { tr, clip } from '../../i18n/i18n';
 
 /** Palette entries the screen sets while it is open (unused by the main menu's backdrop and its shading). */
 const C = {
@@ -58,7 +59,8 @@ function keyboardKeys(): KeyCap[] {
   const row = (r: number, x0: number, list: [string, string, number?][]) => {
     let x = x0;
     for (const [code, label, w = 1] of list) {
-      keys.push({ code, label, x, row: r, w, h: 1 });
+      // (the letters and signs the player's keyboard prints, a German one's Z where the US one has Y...)
+      keys.push({ code, label: (label && !code.startsWith('Numpad') && !code.startsWith('Digit') && printedKey(code)) || label, x, row: r, w, h: 1 });
       x += w;
     }
   };
@@ -238,26 +240,26 @@ export class ControlsMenu extends Menu {
     const short = (code: string | undefined) => keyName(code).replace('PAGE UP', 'PGUP').replace('PAGE DOWN', 'PGDN')
       .replace('KEYPAD ', 'KP').replace('RIGHT ', 'R.').replace('LEFT ', 'L.');
     // (a key named "/" reads badly between the " / " separators)
-    const names = (codes: string[]) => codes.slice(0, 2).map((c) => (c === 'Slash' ? 'SLASH' : short(c))).join(' / ') || '-';
+    const names = (codes: string[]) => codes.slice(0, 2).map((c) => (c === 'Slash' ? tr('SLASH') : short(c))).join(' / ') || '-';
     const rows: [string, (b: KeyBindings) => string][] = [
-      ['JUMP', (b) => names(b.jumpUp)],
-      ['WALK', (b) => `${short(b.walkBack[0])}  ${short(b.walkRight[0])}`],
-      ['DUCK', (b) => names(b.duck)],
-      ['DIAGONALS', (b) => (b.jumpLeft.length ? [b.jumpLeft, b.jumpRight, b.duckBack, b.duckForward].map((c) => short(c[0])).join(' ')
-        : 'TWO KEYS AT ONCE')],
-      ['PUNCH', (b) => names(b.punch)],
-      ['KICK', (b) => names(b.kick)],
-      ['SPECIAL', (b) => (settings().keys.specialButton ? names(b.special ?? []) : 'OFF')],
+      [tr('JUMP'), (b) => names(b.jumpUp)],
+      [tr('WALK'), (b) => `${short(b.walkBack[0])}  ${short(b.walkRight[0])}`],
+      [tr('DUCK'), (b) => names(b.duck)],
+      [tr('DIAGONALS'), (b) => (b.jumpLeft.length ? [b.jumpLeft, b.jumpRight, b.duckBack, b.duckForward].map((c) => short(c[0])).join(' ')
+        : tr('TWO KEYS AT ONCE'))],
+      [tr('PUNCH'), (b) => names(b.punch)],
+      [tr('KICK'), (b) => names(b.kick)],
+      [tr('SPECIAL'), (b) => (settings().keys.specialButton ? names(b.special ?? []) : tr('OFF'))],
     ];
     const y0 = 104;
-    this.t('h', 'PLAYER 1', FontSize.SMALL, C.p1).draw(84, y0);
-    this.t('h', 'PLAYER 2', FontSize.SMALL, C.p2).draw(200, y0);
+    this.t('h', tr('PLAYER 1'), FontSize.SMALL, C.p1).draw(84, y0);
+    this.t('h', tr('PLAYER 2'), FontSize.SMALL, C.p2).draw(200, y0);
     rows.forEach(([label, f], i) => {
       const y = y0 + 10 + i * 8;
-      const color = label === 'PUNCH' ? C.punch : label === 'KICK' ? C.kick : label === 'SPECIAL' ? C.special : C.lightGrey;
+      const color = label === tr('PUNCH') ? C.punch : label === tr('KICK') ? C.kick : label === tr('SPECIAL') ? C.special : C.lightGrey;
       this.t('l', label, FontSize.SMALL, color).draw(22, y);
-      this.t('v', f(k.p1).slice(0, 18), FontSize.SMALL, C.white).draw(84, y);
-      this.t('v', f(k.p2).slice(0, 16), FontSize.SMALL, C.white).draw(200, y);
+      this.t('v', clip(f(k.p1), 18), FontSize.SMALL, C.white).draw(84, y);
+      this.t('v', clip(f(k.p2), 16), FontSize.SMALL, C.white).draw(200, y);
     });
   }
 
@@ -328,16 +330,16 @@ export class ControlsMenu extends Menu {
       this.drawCentered('btn', s, ox + x, Math.round(oy + y - GLYPH_MID_Y), FontSize.SMALL, color);
     const colors: Record<string, number> = { A: C.a, B: C.b, X: C.x, Y: C.y };
     for (const [btn, x, y] of PAD.face) label(btn, x, y, colors[btn]);
-    PAD.bumpers.forEach(([x, y], i) => label(i ? 'RB' : 'LB', x, y, C.lightGrey));
-    PAD.triggers.forEach(([x, y], i) => label(i ? 'RT' : 'LT', x, y, C.lightGrey));
+    PAD.bumpers.forEach(([x, y], i) => label(i ? tr('RB') : tr('LB'), x, y, C.lightGrey));
+    PAD.triggers.forEach(([x, y], i) => label(i ? tr('RT') : tr('LT'), x, y, C.lightGrey));
     const modern = getPadLayout() === 'modern';
     const rows: [string, string, number][] = [
-      ['MOVE', 'D-PAD / LEFT STICK', C.lightGrey],
-      ['PUNCH', modern ? 'X  Y  RB' : 'A  X  LB', C.punch],
-      ['KICK', modern ? 'A  B  RT' : 'B  Y  RB', C.kick],
-      ['SPECIAL', settings().keys.specialButton ? (modern ? 'LT  LB' : 'LT  RT') : 'OFF', C.special],
-      ['PAUSE', 'MENU BUTTON', C.lightGrey],
-      ['MENUS', 'A SELECT  B BACK', C.lightGrey],
+      [tr('MOVE'), tr('D-PAD / LEFT STICK'), C.lightGrey],
+      [tr('PUNCH'), modern ? tr('X  Y  RB') : tr('A  X  LB'), C.punch],
+      [tr('KICK'), modern ? tr('A  B  RT') : tr('B  Y  RB'), C.kick],
+      [tr('SPECIAL'), settings().keys.specialButton ? (modern ? tr('LT  LB') : tr('LT  RT')) : tr('OFF'), C.special],
+      [tr('PAUSE'), tr('MENU BUTTON'), C.lightGrey],
+      [tr('MENUS'), tr('A SELECT  B BACK'), C.lightGrey],
     ];
     rows.forEach(([label, value, color], i) => {
       const y = 50 + i * 16;
@@ -349,7 +351,7 @@ export class ControlsMenu extends Menu {
     const k = settings().keys;
     let y = 146;
     if (pads.length === 0) {
-      this.drawCentered('st', 'NO CONTROLLER: CONNECT ONE AND PRESS A BUTTON', 160, y, FontSize.SMALL, C.dim);
+      this.drawCentered('st', tr('NO CONTROLLER: CONNECT ONE AND PRESS A BUTTON'), 160, y, FontSize.SMALL, C.dim);
     } else {
       // (as the game hands them out: pads chosen for a player, then the free ones to the keyboard players in order)
       const chosen = [k.ctrlType1 === CtrlType.GAMEPAD ? k.gamepad1 : -1, k.ctrlType2 === CtrlType.GAMEPAD ? k.gamepad2 : -1];
@@ -357,8 +359,8 @@ export class ControlsMenu extends Menu {
       pads.slice(0, 2).forEach((pad, i) => {
         const auto = [0, 1].find((pl) => autoPadSlot(pl) >= 0 && free[autoPadSlot(pl)] === pad);
         const assigned = chosen[0] === pad ? 1 : chosen[1] === pad ? 2 : auto !== undefined ? auto + 1 : 0;
-        const who = assigned ? `PLAYER ${assigned}` : 'MENUS ONLY';
-        const name = padName(pad).toUpperCase().slice(0, 30) || `CONTROLLER ${i + 1}`;
+        const who = assigned ? tr('PLAYER {assigned}', { assigned }) : tr('MENUS ONLY');
+        const name = padName(pad).toUpperCase().slice(0, 30) || tr('CONTROLLER {n}', { n: i + 1 });
         this.drawCentered('st', `${name}: ${who}`, 160, y + i * 8, FontSize.SMALL, assigned === 2 ? C.p2 : C.p1);
       });
     }
@@ -369,9 +371,9 @@ export class ControlsMenu extends Menu {
   override render(): void {
     video.drawRemap(this.shade, 8, 5, 4, 1, 0);
     video.draw(this.grid, 8, 5);
-    this.drawCentered('title', 'CONTROLS', 160, 9, FontSize.BIG, TEXT_TITLE);
+    this.drawCentered('title', tr('CONTROLS'), 160, 9, FontSize.BIG, TEXT_TITLE);
     // Tabs.
-    const tabs = ['KEYBOARD', 'CONTROLLER'];
+    const tabs = [tr('KEYBOARD'), tr('CONTROLLER')];
     tabs.forEach((name, i) => {
       const x = i === 0 ? 108 : 212;
       this.drawCentered('tab', name, x, 22, FontSize.BIG, i === this.page ? TEXT_ACTIVE : TEXT_NORMAL);
@@ -382,10 +384,10 @@ export class ControlsMenu extends Menu {
     else this.renderControllerPage();
     // Layout choice and hints.
     const choice = this.page === 0
-      ? `LAYOUT: ${detectKeyLayout() === 'custom' ? 'CUSTOM' : detectKeyLayout() === 'modern' ? 'MODERN (WASD)' : 'CLASSIC'}`
-      : `BUTTONS: ${getPadLayout() === 'modern' ? 'MODERN (X PUNCH, A KICK)' : 'CLASSIC (A PUNCH, B KICK)'}`;
+      ? tr('LAYOUT: {layout}', { layout: detectKeyLayout() === 'custom' ? tr('CUSTOM') : detectKeyLayout() === 'modern' ? tr('MODERN (WASD)') : tr('CLASSIC') })
+      : tr('BUTTONS: {layout}', { layout: getPadLayout() === 'modern' ? tr('MODERN (X PUNCH, A KICK)') : tr('CLASSIC (A PUNCH, B KICK)') });
     this.drawCentered('choice', choice, 160, 170, FontSize.BIG, TEXT_ACTIVE);
-    this.drawCentered('hint', 'ENTER/A CHANGE   LEFT/RIGHT PAGE   ESC/B BACK', 160, 184, FontSize.SMALL, C.dim);
+    this.drawCentered('hint', tr('ENTER/A CHANGE   LEFT/RIGHT PAGE   ESC/B BACK'), 160, 184, FontSize.SMALL, C.dim);
   }
 
   /** Switches the layout shown on the current page. */

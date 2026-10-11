@@ -16,6 +16,7 @@ import { getGenerated } from '../resources/generated';
 import { harFileName } from '../resources/resources';
 import type { NetContent, NetRules } from './protocol';
 import type { NetEnd, NetSession } from './session';
+import { tr } from '../i18n/i18n';
 
 /** The input delay of LAN games (ms): room for a frame's timing on both computers and the network's few milliseconds. */
 export const LAN_DELAY_MS = 40;
@@ -129,7 +130,7 @@ export function startNetGame(gs: GameState, session: NetSession, opts: NetGameOp
   gs.training = false;
   gs.modeRun = null;
   gs.credits = null;
-  gs.modeLabel = 'LAN';
+  gs.modeLabel = tr('LAN');
   const device = opts.device ?? localDevice(gs);
   for (let i = 0; i < 2; i++) {
     const p = gs.getPlayer(i);

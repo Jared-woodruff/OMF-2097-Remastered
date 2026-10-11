@@ -1,5 +1,6 @@
 // Persistent user settings (localStorage; also works inside the desktop shell).
 import { CtrlType, KnockDownMode } from './constants';
+import { isLangCode } from '../i18n/languages';
 
 export interface KeyBindings {
   jumpUp: string[];
@@ -142,7 +143,7 @@ export interface Settings {
     /** The dummy's recording (see controller/dummy.ts DummyTape), kept between sessions. */
     tape: { frames: number[][]; facing: number } | null;
   };
-  /** Language file of the original game (ENGLISH.DAT or GERMAN.DAT). */
+  /** The language the game speaks: 'auto' (the system's, see i18n/i18n.ts) or a language code (i18n/languages.ts). */
   language: string;
   /** The first start's setup (platform/setupScreen.ts) was done (settings saved before it get it once too). */
   setupDone: boolean;
@@ -155,9 +156,11 @@ export interface Settings {
  * saved before could only hold the old default (on), so they were off. 3: the remastered typeface became the default
  * font; the smooth letters saved before were the old default. 4: the announcer became a choice of voice; the on / off
  * saved before becomes the male voice / off. 5: the new robots and arenas became a mod that comes with the game
- * (mods/extras.ts): a player who had either on finds the mod on (mods/bundled.ts migrateNewContent).
+ * (mods/extras.ts): a player who had either on finds the mod on (mods/bundled.ts migrateNewContent). 6: the language
+ * became a language code or 'auto' (it was the original's language file): German stays German, the English that was
+ * everyone's default becomes the system's language.
  */
-const REVISION = 5;
+const REVISION = 6;
 
 export function defaultSettings(): Settings {
   return {
@@ -237,7 +240,7 @@ export function defaultSettings(): Settings {
       har: 0, pilot: 0, opponent: 5, arena: 0, dummy: 0, inputDisplay: true, frameData: true, hitboxes: false, reversal: 'off',
       trialsDone: [], tape: null,
     },
-    language: 'ENGLISH.DAT',
+    language: 'auto',
     setupDone: false,
     revision: REVISION,
   };
@@ -274,6 +277,8 @@ export function loadSettings(): Settings {
       if (!((saved?.revision ?? 0) >= 3) && current.video.hdFont === 'smooth') current.video.hdFont = 'type';
       const announcer: unknown = current.sound.announcer;
       if (announcer !== 'off' && announcer !== 'male' && announcer !== 'female') current.sound.announcer = announcer === false ? 'off' : 'male';
+      if (!((saved?.revision ?? 0) >= 6)) current.language = current.language === 'GERMAN.DAT' ? 'de' : 'auto';
+      if (current.language !== 'auto' && !isLangCode(current.language)) current.language = 'auto';
       current.revision = REVISION;
     }
   } catch {

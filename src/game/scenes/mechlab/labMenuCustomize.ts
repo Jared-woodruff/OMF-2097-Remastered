@@ -18,6 +18,7 @@ import {
   MAX_LEG_SPEED, MAX_STUN_RES, STUN_RES_MULTIPLIER, upgradeCost,
 } from './harEconomy';
 import { labMenuTradeCreate } from './labMenuTrade';
+import { tr, trKey } from '../../../i18n/i18n';
 
 // Module-level labels of the current customize menu (reference static globals)
 let headerLabel: Label | null = null;
@@ -34,32 +35,33 @@ interface UpgradeKit {
   /** hint string ids (selling, buying) and the %s argument (null: hint used as is) */
   sellHint: number;
   buyHint: number;
-  hintArg: string | null;
+  /** The language text of the limb its hints name (622: ARM, 623: LEG), or null. */
+  hintArg: number | null;
 }
 
 const ARM_POWER_KIT: UpgradeKit = {
   get: (p) => p.armPower, set: (p, v) => (p.armPower = v), multiplier: ARM_LEG_MULTIPLIER, max: MAX_ARM_POWER,
-  title: 'ARM POWER:', sellHint: 553, buyHint: 554, hintArg: 'arm',
+  title: trKey('ARM POWER:'), sellHint: 553, buyHint: 554, hintArg: 622,
 };
 const LEG_POWER_KIT: UpgradeKit = {
   get: (p) => p.legPower, set: (p, v) => (p.legPower = v), multiplier: ARM_LEG_MULTIPLIER, max: MAX_LEG_POWER,
-  title: 'LEG POWER:', sellHint: 555, buyHint: 556, hintArg: 'leg',
+  title: trKey('LEG POWER:'), sellHint: 555, buyHint: 556, hintArg: 623,
 };
 const ARM_SPEED_KIT: UpgradeKit = {
   get: (p) => p.armSpeed, set: (p, v) => (p.armSpeed = v), multiplier: ARM_LEG_MULTIPLIER, max: MAX_ARM_SPEED,
-  title: 'ARM SPEED:', sellHint: 557, buyHint: 558, hintArg: 'arm',
+  title: trKey('ARM SPEED:'), sellHint: 557, buyHint: 558, hintArg: 622,
 };
 const LEG_SPEED_KIT: UpgradeKit = {
   get: (p) => p.legSpeed, set: (p, v) => (p.legSpeed = v), multiplier: ARM_LEG_MULTIPLIER, max: MAX_LEG_SPEED,
-  title: 'LEG SPEED:', sellHint: 559, buyHint: 560, hintArg: 'leg',
+  title: trKey('LEG SPEED:'), sellHint: 559, buyHint: 560, hintArg: 623,
 };
 const ARMOR_KIT: UpgradeKit = {
   get: (p) => p.armor, set: (p, v) => (p.armor = v), multiplier: ARMOR_MULTIPLIER, max: MAX_ARMOR,
-  title: 'ARMOR PLATE:', sellHint: 561, buyHint: 562, hintArg: null,
+  title: trKey('ARMOR PLATE:'), sellHint: 561, buyHint: 562, hintArg: null,
 };
 const STUN_RES_KIT: UpgradeKit = {
   get: (p) => p.stunResistance, set: (p, v) => (p.stunResistance = v), multiplier: STUN_RES_MULTIPLIER, max: MAX_STUN_RES,
-  title: 'STUN RES.:', sellHint: 563, buyHint: 564, hintArg: null,
+  title: trKey('STUN RES.:'), sellHint: 563, buyHint: 564, hintArg: null,
 };
 
 function playerPilot(s: MechlabScene): Pilot {
@@ -131,24 +133,24 @@ function focusKit(_c: SpriteButton, focused: boolean, s: MechlabScene, kit: Upgr
   const pilot = playerPilot(s);
   const level = kit.get(pilot);
   if (s.getSelling()) {
-    headerLabel?.setText(`${kit.title}\n\nSALES PRICE:`);
+    headerLabel?.setText(tr('{title}\n\nSALES PRICE:', { title: tr(kit.title) }));
     const price = upgradeCost(pilot.harId, level, kit.multiplier);
     if (price < 1) {
-      detailsLabel?.setText('Unavailable\n\nUnavailable');
+      detailsLabel?.setText(tr('Unavailable\n\nUnavailable'));
     } else {
       const priceStr = scoreFormat(Math.trunc(price * 0.85));
-      detailsLabel?.setText(cFormat(200, 'Level %d\n\n$ %sK', level, priceStr));
+      detailsLabel?.setText(cFormat(200, tr('Level %d\n\n$ %sK'), level, priceStr));
     }
-    s.setHint(kit.hintArg !== null ? cFormat(200, langGet(kit.sellHint), kit.hintArg) : langGet(kit.sellHint));
+    s.setHint(kit.hintArg !== null ? cFormat(200, langGet(kit.sellHint), langGet(kit.hintArg)) : langGet(kit.sellHint));
   } else {
-    headerLabel?.setText(`${kit.title}\n\nUPGRADE COST:`);
+    headerLabel?.setText(tr('{title}\n\nUPGRADE COST:', { title: tr(kit.title) }));
     const price = upgradeCost(pilot.harId, level + 1, kit.multiplier);
     if (level >= kit.max[pilot.harId]) {
-      detailsLabel?.setText('Unavailable\n\nUnavailable');
+      detailsLabel?.setText(tr('Unavailable\n\nUnavailable'));
     } else {
-      detailsLabel?.setText(cFormat(200, 'Level %d\n\n$ %sK', level + 1, scoreFormat(price)));
+      detailsLabel?.setText(cFormat(200, tr('Level %d\n\n$ %sK'), level + 1, scoreFormat(price)));
     }
-    s.setHint(kit.hintArg !== null ? cFormat(200, langGet(kit.buyHint), kit.hintArg) : langGet(kit.buyHint));
+    s.setHint(kit.hintArg !== null ? cFormat(200, langGet(kit.buyHint), langGet(kit.hintArg)) : langGet(kit.buyHint));
   }
 }
 
@@ -229,14 +231,14 @@ const DETAILS_LIST: ButtonDetails<MechlabScene>[] = [
   { cb: labMenuCustomizeColorMain, text: null, dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: NO_MARGIN, disabled: false }, // Blue
   { cb: labMenuCustomizeColorThird, text: null, dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: NO_MARGIN, disabled: false }, // Yellow
   { cb: labMenuCustomizeColorSecondary, text: null, dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: NO_MARGIN, disabled: false }, // Red
-  { cb: labMenuCustomizeArmPower, text: 'ARM POWER', dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 1, right: 0, top: 0, bottom: 0 }, disabled: false },
-  { cb: labMenuCustomizeLegPower, text: 'LEG POWER', dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 1, right: 0, top: 0, bottom: 0 }, disabled: false },
-  { cb: labMenuCustomizeArmSpeed, text: 'ARM SPEED', dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 1, right: 0, top: 0, bottom: 0 }, disabled: false },
-  { cb: labMenuCustomizeLegSpeed, text: 'LEG SPEED', dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 1, right: 0, top: 0, bottom: 0 }, disabled: false },
-  { cb: labMenuCustomizeArmor, text: 'ARMOR', dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 1, right: 0, top: 0, bottom: 0 }, disabled: false },
-  { cb: labMenuCustomizeStunResistance, text: 'STUN RES.', dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: NO_MARGIN, disabled: false },
-  { cb: labMenuCustomizeTrade, text: 'TRADE ROBOT', dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: NO_MARGIN, disabled: false },
-  { cb: labMenuCustomizeDone, text: 'DONE', dir: TextDirection.VERTICAL, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 1, right: 0, top: 0, bottom: 0 }, disabled: false },
+  { cb: labMenuCustomizeArmPower, text: trKey('ARM POWER'), dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 1, right: 0, top: 0, bottom: 0 }, disabled: false },
+  { cb: labMenuCustomizeLegPower, text: trKey('LEG POWER'), dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 1, right: 0, top: 0, bottom: 0 }, disabled: false },
+  { cb: labMenuCustomizeArmSpeed, text: trKey('ARM SPEED'), dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 1, right: 0, top: 0, bottom: 0 }, disabled: false },
+  { cb: labMenuCustomizeLegSpeed, text: trKey('LEG SPEED'), dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 1, right: 0, top: 0, bottom: 0 }, disabled: false },
+  { cb: labMenuCustomizeArmor, text: trKey('ARMOR'), dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 1, right: 0, top: 0, bottom: 0 }, disabled: false },
+  { cb: labMenuCustomizeStunResistance, text: trKey('STUN RES.'), dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: NO_MARGIN, disabled: false },
+  { cb: labMenuCustomizeTrade, text: trKey('TRADE ROBOT'), dir: H, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: NO_MARGIN, disabled: false },
+  { cb: labMenuCustomizeDone, text: trKey('vertical|DONE'), dir: TextDirection.VERTICAL, halign: HAlign.CENTER, valign: VAlign.MIDDLE, margin: { left: 1, right: 0, top: 0, bottom: 0 }, disabled: false },
 ];
 
 const TICKERS: (((c: SpriteButton, s: MechlabScene) => void) | null)[] = [

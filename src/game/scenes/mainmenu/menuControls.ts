@@ -7,26 +7,25 @@ import { settings } from '../../settings';
 import type { MainMenuScene } from '../mainmenu';
 import { menuDone, parentMenu, settingsChanged } from './common';
 import { menuInputCreate } from './menuInput';
+import { tr } from '../../../i18n/i18n';
 
 export function menuControlsCreate(s: MainMenuScene): Menu {
   const menu = new Menu();
-  menu.attach(Label.title('CONTROLS'));
-  menu.attach(new Button('PLAYER 1 INPUT', 'Choose the control for player 1: keyboard or joystick.', false, false,
+  menu.attach(Label.title(tr('CONTROLS')));
+  menu.attach(new Button(tr('PLAYER 1 INPUT'), tr('Choose the control for player 1: keyboard or joystick.'), false, false,
     (b) => parentMenu(b).setSubmenu(menuInputCreate(s, 1))));
-  menu.attach(new Button('PLAYER 2 INPUT', 'Choose the control for player 2: keyboard or joystick.', false, false,
+  menu.attach(new Button(tr('PLAYER 2 INPUT'), tr('Choose the control for player 2: keyboard or joystick.'), false, false,
     (b) => parentMenu(b).setSubmenu(menuInputCreate(s, 2))));
-  menu.attach(new Button('KEYS AND BUTTONS',
-    'See the keys and controller buttons of both players, and switch between the classic and a modern keyboard layout (WASD) or the controller button layouts.',
+  menu.attach(new Button(tr('KEYS AND BUTTONS'),
+    tr('See the keys and controller buttons of both players, and switch between the classic and a modern keyboard layout (WASD) or the controller button layouts.'),
     false, false, () => app.showControls()));
-  menu.attach(new TextSelector('SPECIAL BUTTON', 'Special moves in one press: the special button with no direction, forward, ' +
-    'back, down or up does the first to fifth special of the robot (the move list shows them). The original inputs still work.',
-  () => (settings().keys.specialButton ? 1 : 0), (pos) => (settings().keys.specialButton = pos === 1), ['OFF', 'ON'], settingsChanged));
-  menu.attach(new TextSelector('RUMBLE', 'Gamepad vibration when robots are hit, blocked, thrown or slammed into walls.',
-    () => (settings().keys.rumble ? 1 : 0), (pos) => (settings().keys.rumble = pos === 1), ['OFF', 'ON'], settingsChanged));
+  menu.attach(new TextSelector(tr('SPECIAL BUTTON'), tr('Special moves in one press: the special button with no direction, forward, back, down or up does the first to fifth special of the robot (the move list shows them). The original inputs still work.'),
+  () => (settings().keys.specialButton ? 1 : 0), (pos) => (settings().keys.specialButton = pos === 1), [tr('OFF'), tr('ON')], settingsChanged));
+  menu.attach(new TextSelector(tr('RUMBLE'), tr('Gamepad vibration when robots are hit, blocked, thrown or slammed into walls.'),
+    () => (settings().keys.rumble ? 1 : 0), (pos) => (settings().keys.rumble = pos === 1), [tr('OFF'), tr('ON')], settingsChanged));
   const touchModes = ['auto', 'on', 'off'] as const;
-  menu.attach(new TextSelector('TOUCH PAD', 'On-screen stick and buttons for phones and tablets: AUTO shows them once the ' +
-    'screen is touched.', () => touchModes.indexOf(settings().keys.touch), (pos) => (settings().keys.touch = touchModes[pos]),
-  ['AUTO', 'ON', 'OFF'], settingsChanged));
-  menu.attach(new Button('DONE', 'Go back to the options.', false, false, menuDone));
+  menu.attach(new TextSelector(tr('TOUCH PAD'), tr('On-screen stick and buttons for phones and tablets: AUTO shows them once the screen is touched.'), () => touchModes.indexOf(settings().keys.touch), (pos) => (settings().keys.touch = touchModes[pos]),
+  [tr('AUTO'), tr('ON'), tr('OFF')], settingsChanged));
+  menu.attach(new Button(tr('DONE'), tr('Go back to the options.'), false, false, menuDone));
   return menu;
 }
