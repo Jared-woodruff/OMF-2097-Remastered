@@ -17,9 +17,10 @@ const HINT = 0xbe;
 const MARK = 0xb7;
 
 const BAR_X = 8, BAR_Y = 186, BAR_W = 304, BAR_H = 4;
+const SHADE_X = 4, SHADE_W = 312;
 
-function text(font = FontSize.SMALL, color = TEXT): Text {
-  return new Text(font, BAR_W, 7, '').setColor(color).setShadowColor(SHADOW).setShadow(GLYPH_SHADOW_RIGHT | GLYPH_SHADOW_BOTTOM).setWordWrap(false);
+function text(font = FontSize.SMALL, color = TEXT, w = BAR_W): Text {
+  return new Text(font, w, 7, '').setColor(color).setShadowColor(SHADOW).setShadow(GLYPH_SHADOW_RIGHT | GLYPH_SHADOW_BOTTOM).setWordWrap(false);
 }
 
 /** Game ticks as minutes and seconds at the game speed's tick length. */
@@ -30,11 +31,12 @@ export function formatTicks(ticks: number, speed: number): string {
 }
 
 export class ReplayHud {
-  private shade = menuShade(312, 26);
+  private shade = menuShade(SHADE_W, 26);
   private bar = new ProgressBar(THEME_ENDURANCE, PROGRESSBAR_LEFT, 0);
   private status = text();
   private time = text().setHAlign(HAlign.RIGHT);
-  private hint = text(FontSize.SMALL, HINT).setHAlign(HAlign.CENTER);
+  /** (as wide as the shade: the keys' words are longer in some languages) */
+  private hint = text(FontSize.SMALL, HINT, SHADE_W).setHAlign(HAlign.CENTER);
   private marks = text(FontSize.SMALL, MARK);
   /** A short message (e.g. "KEPT") and the frames left to show it. */
   private note = '';
@@ -54,7 +56,7 @@ export class ReplayHud {
     const s = this.s;
     const gs = s.gs;
     if (!s.hud) return;
-    video.drawRemap(this.shade, 4, 173, 4, 1, 0);
+    video.drawRemap(this.shade, SHADE_X, 173, 4, 1, 0);
     const state = s.ended ? tr('END') : s.paused ? tr('PAUSED') : tr('PLAY');
     const speed = s.speed === 1 ? '' : `  ${s.speed < 1 ? `1/${1 / s.speed}` : s.speed}X`;
     const clip = s.markIn >= 0 || s.markOut >= 0
@@ -77,7 +79,7 @@ export class ReplayHud {
     this.hint.set(Math.floor(this.frames / 240) % 2 === 0
       ? tr('SPACE PAUSE  < > STEP  UP/DOWN SPEED  R RESTART')
       : tr('I O CLIP  V VIDEO  G GIF  K KEEP  H HIDE  ESC EXIT'));
-    this.hint.draw(BAR_X, 191);
+    this.hint.draw(SHADE_X, 191);
   }
 
   /** A click on the timeline jumps there. */
