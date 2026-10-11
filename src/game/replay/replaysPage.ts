@@ -227,8 +227,8 @@ export class ReplaysPage extends Page {
       const color = sel ? PAGE_ACTIVE : PAGE_NORMAL;
       if (m.kept) this.drawText('k', '*', 17, y, FontSize.SMALL, PC.gold);
       this.drawText('d', when(m.created), 24, y, FontSize.SMALL, sel ? PC.white : PC.grey);
-      this.drawText('h', `${har(m.players[0].harId)} VS ${har(m.players[1].harId)}`, 104, y, FontSize.SMALL, color);
-      const res = m.winner < 0 ? '--' : `P${m.winner + 1} ${m.rounds[m.winner]}-${m.rounds[1 - m.winner]}`;
+      this.drawText('h', tr('{a} VS {b}', { a: har(m.players[0].harId), b: har(m.players[1].harId) }), 104, y, FontSize.SMALL, color);
+      const res = m.winner < 0 ? '--' : tr('P{n} {won}-{lost}', { n: m.winner + 1, won: m.rounds[m.winner], lost: m.rounds[1 - m.winner] });
       this.drawText('r', res, 300, y, FontSize.SMALL, sel ? PC.gold : PC.dim, HAlign.RIGHT);
     }
     if (list.length > ROWS) {
@@ -245,7 +245,8 @@ export class ReplaysPage extends Page {
       this.drawText('vs', tr('VS'), 160, 134, FontSize.SMALL, PC.dim, HAlign.CENTER);
       this.drawText('p2', `${b.name.toUpperCase()} (${har(b.harId)})`, 171, 134, FontSize.SMALL, PC.p2);
       const arena = arenaName(m.arena).toUpperCase() || tr('ARENA {arena}', { arena: m.arena });
-      this.drawText('d2', `${m.mode}  -  ${arena}  -  ${formatTicks(m.ticks, this.gameSpeed())}`, 160, 144, FontSize.SMALL, PC.grey, HAlign.CENTER);
+      // (the mode is kept in English and shown in the language of the moment; an older replay kept it as it was shown)
+      this.drawText('d2', `${tr(m.mode)}  -  ${arena}  -  ${formatTicks(m.ticks, this.gameSpeed())}`, 160, 144, FontSize.SMALL, PC.grey, HAlign.CENTER);
       this.drawText('d3', this.result(r), 160, 154, FontSize.SMALL, m.winner < 0 ? PC.dim : PC.gold, HAlign.CENTER);
     }
     this.drawText('h1', tr('ENTER WATCH   K KEEP   E SAVE FILE   I LOAD FILES'), 160, 172, FontSize.SMALL, PC.dim, HAlign.CENTER);

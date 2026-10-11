@@ -47,13 +47,22 @@ export abstract class Page extends Menu {
   /** Called when the page is closed. */
   onClose(): void {}
 
+  /**
+   * Called every frame while the page is open, and now and then while the window is hidden (no frame is drawn then): a
+   * page that waits for a moment does it here, not in render() (the LAN page starts the match it found).
+   */
+  update(): void {}
+
   /** ESC / B: return true when the page handled it (e.g. cancelled a question); otherwise the page closes. */
   back(): boolean {
     return false;
   }
 
-  /** Raw keys for the page's shortcuts (letters, DELETE...): return true when used. */
-  key(_code: string): boolean {
+  /**
+   * Raw keys for the page's shortcuts (letters, DELETE...): return true when used. `e` is the key press, for what it
+   * types on the player's keyboard (names: keyNames.ts typedChar).
+   */
+  key(_code: string, _e?: KeyboardEvent): boolean {
     return false;
   }
 

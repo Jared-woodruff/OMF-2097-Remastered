@@ -59,6 +59,7 @@ export class ModeRun {
 
   constructor(readonly kind: RunKind, readonly difficulty = settings().gameplay.difficulty) {}
 
+  /** The run's name in English (shown with tr(); a replay keeps it so). */
   get label(): string {
     return RUN_NAMES[this.kind];
   }

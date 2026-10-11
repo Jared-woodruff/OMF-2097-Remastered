@@ -1,15 +1,17 @@
 // A small button in the main menu's bottom left corner, over the version label, that plays the remaster's credits (HTML
 // over the game, in the menus' look: the navy grid in its blue frame, green letters; gold on a blue bar when pointed at).
 import { ensureUiFont, UI_FONT } from './uiFont';
-import { tr } from '../i18n/i18n';
+import { onLanguageChange, tr } from '../i18n/i18n';
 
 let button: HTMLButtonElement | null = null;
 let shown = false;
 let onPlay: () => void = () => {};
 
+// (it stays in the corner in every language; its arrow is at the start of the line: the right one in Arabic)
 const CSS = `
 #omf-credits-btn { position: fixed; left: max(14px, 1.3vw); bottom: calc(max(10px, 1.3vh) + clamp(9px, .68vw, 13px) * 1.35 + max(7px, .8vh));
-  z-index: 5; display: flex; align-items: center; gap: .75em; margin: 0; padding: .66em 1.1em .62em .95em; border: 0; cursor: pointer;
+  z-index: 5; display: flex; align-items: center; gap: .75em; margin: 0; padding-block: .66em .62em;
+  padding-inline: .95em 1.1em; border: 0; cursor: pointer;
   font: 700 clamp(10px, .74vw, 14px) ${UI_FONT}; letter-spacing: .16em; text-transform: uppercase; white-space: nowrap;
   color: #00ff00; text-shadow: .1em .1em 0 #005800; background-color: rgba(0, 0, 12, .82);
   background-image: linear-gradient(90deg, #000059 1px, transparent 1px), linear-gradient(180deg, #000059 1px, transparent 1px);
@@ -26,6 +28,13 @@ export function setCreditsButtonAction(action: () => void): void {
   onPlay = action;
 }
 
+/** The button's words, in the game's language (again when it changes). */
+function words(b: HTMLButtonElement): void {
+  b.innerHTML = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 0.5 L9.5 5 L1 9.5 Z"/></svg>';
+  b.append(tr('Play the credits'));
+  b.title = tr("The remaster's credits, fought out to Hadal Static's Twenty Ninety-Seven (Remix)");
+}
+
 /** Shows or hides the button (called every frame: the page is only touched when that changes). */
 export function showCreditsButton(visible: boolean): void {
   if (visible === shown || typeof document === 'undefined' || !document.body) return;
@@ -40,8 +49,9 @@ export function showCreditsButton(visible: boolean): void {
     button.type = 'button';
     // (never focused: the game's keys stay the game's, and ENTER cannot press it again)
     button.tabIndex = -1;
-    button.innerHTML = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 0.5 L9.5 5 L1 9.5 Z"/></svg>Play the credits';
-    button.title = tr("The remaster's credits, fought out to Hadal Static's Twenty Ninety-Seven (Remix)");
+    words(button);
+    const b = button;
+    onLanguageChange(() => words(b));
     button.addEventListener('mousedown', (e) => e.preventDefault());
     button.addEventListener('click', () => {
       if (shown) onPlay();

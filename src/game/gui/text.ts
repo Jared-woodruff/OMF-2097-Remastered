@@ -120,6 +120,8 @@ export class Text {
   layoutW = 0;
   layoutH = 0;
   rows = 0;
+  /** Room added between the lines (scripts whose marks reach past the cell, where the box has it). */
+  private lead = 0;
   private dirty = true;
 
   constructor(font: FontSize = FontSize.SMALL, w = 0xffff, h = 0xffff, str = '') {
@@ -217,6 +219,7 @@ export class Text {
     this.layoutH = r.h;
     this.rows = r.rows;
     this.rowRanges = r.ranges;
+    this.lead = r.lead;
   }
 
   width(): number {
@@ -260,7 +263,7 @@ export class Text {
     return ranges.map(([s, e], i) => {
       const t = new Text(this.font, this.w, 0xffff, this.str.slice(s, e)).setColor(this.color).setShadowColor(this.shadowColor)
         .setShadow(this.shadow).setHAlign(this.halign).setWordWrap(false).setLetterSpacing(this.letterSpacing)
-        .setMargin({ ...this.margin, top: i === 0 ? this.margin.top : 0, bottom: i === ranges.length - 1 ? this.margin.bottom : this.lineSpacing });
+        .setMargin({ ...this.margin, top: i === 0 ? this.margin.top : 0, bottom: i === ranges.length - 1 ? this.margin.bottom : this.lineSpacing + full.lead });
       t.docX = this.docX;
       t.rtl = rtl;
       return t;
@@ -281,10 +284,29 @@ export class Text {
 }
 
 /**
+ * What a text audit (development: ?textaudit) is told of: a word split over two lines ('split'), a word of the system's
+ * fonts wider than its box ('wide'), or lines left out because the box is full ('clipped').
+ */
+export interface TextAuditHit {
+  kind: 'split' | 'wide' | 'clipped';
+  text: string;
+  /** The box the text is laid out in (native pixels, without its margins). */
+  box: [number, number];
+}
+
+let audit: ((hit: TextAuditHit) => void) | null = null;
+
+/** Tells `f` of every text laid out that does not fit its box (null: stops). */
+export function setTextAudit(f: ((hit: TextAuditHit) => void) | null): void {
+  audit = f;
+}
+
+/**
  * Where the line starting at unit `start` ends (the unit after it). As the original: the line takes units while they
  * fit, and ends after its last space or hyphen (or before its last Chinese / Japanese character) when the next does not.
+ * It may also end at a soft hyphen when the hyphen drawn there (`hyphenW` wide) fits.
  */
-function findNextLineEnd(units: TextUnit[], start: number, letterSpacing: number, maxWidth: number, wordWrap: boolean): number {
+function findNextLineEnd(units: TextUnit[], start: number, letterSpacing: number, maxWidth: number, wordWrap: boolean, hyphenW: number): number {
   const len = units.length;
   if (len === 0) return 0;
   let cutOff = start;
@@ -301,6 +323,10 @@ function findNextLineEnd(units: TextUnit[], start: number, letterSpacing: number
       cutOff = i + 1;
       foundCut = true;
     }
+    if (u.kind === UnitKind.SOFT_HYPHEN && i > start && pos + letterSpacing + hyphenW <= maxWidth) {
+      cutOff = i + 1;
+      foundCut = true;
+    }
     if (!u.glyph) continue;
     pos += letterSpacing + u.w;
     // (a word of the system's fonts wider than the box gets a line of its own)
@@ -309,10 +335,51 @@ function findNextLineEnd(units: TextUnit[], start: number, letterSpacing: number
   return len;
 }
 
+/** Blank columns at the right of the fonts' glyphs (the spacing their cells hold), by glyph. */
+const blankRight = new WeakMap<Surface, number>();
+
+/** How far a unit's ink ends before its advance: the fonts' glyphs' blank columns (0 for the system fonts' words). */
+function trailingBlank(u: TextUnit): number {
+  const p = u.pieces[u.pieces.length - 1];
+  if (!u.glyph || u.hires || !p) return 0;
+  const g = p.surf;
+  let n = blankRight.get(g);
+  if (n === undefined) {
+    n = 0;
+    for (let x = g.w - 1; x >= 0; x--) {
+      let ink = false;
+      for (let y = 0; y < g.h && !ink; y++) ink = g.data[y * g.w + x] !== g.transparent;
+      if (ink) break;
+      n++;
+    }
+    blankRight.set(g, n);
+  }
+  return u.w - (p.dx + p.w) + Math.min(n, p.w);
+}
+
+/**
+ * Whether a text of one line that is wider than its box fits once its last letter's blank columns (the letter
+ * spacing the fonts' cells hold) are left out: such a text stays on one line, its ink inside the box.
+ */
+function fitsOneLine(units: TextUnit[], letterSpacing: number, maxWidth: number): boolean {
+  if (units.some((u) => u.kind === UnitKind.NEWLINE)) return false;
+  // (the row the layout would make: a last space is left out, as in computeLayout)
+  const end = units.length && units[units.length - 1].kind === UnitKind.SPACE ? units.length - 1 : units.length;
+  let w = 0;
+  let last: TextUnit | null = null;
+  for (let i = 0; i < end; i++) {
+    if (!units[i].glyph) continue;
+    w += units[i].w;
+    last = units[i];
+  }
+  w += Math.max(0, end - 1) * letterSpacing;
+  return !!last && w > maxWidth && w - trailingBlank(last) <= maxWidth;
+}
+
 function computeLayout(
   s: string, font: Font, bboxW: number, bboxH: number, valign: VAlign, halign: HAlign, margin: TextMargin,
   lineSpacing: number, letterSpacing: number, wordWrap: boolean, direction: TextDirection = TextDirection.HORIZONTAL, rtl = false,
-): { items: LayoutItem[]; w: number; h: number; rows: number; ranges: [number, number][] } {
+): { items: LayoutItem[]; w: number; h: number; rows: number; ranges: [number, number][]; lead: number } {
   // Vertical text swaps the axes: rows run down the box and "vertical" alignment applies along x (the fonts are
   // square, so glyph widths and heights are interchangeable in the row metrics).
   const isH = direction === TextDirection.HORIZONTAL;
@@ -320,37 +387,71 @@ function computeLayout(
   const boxH = (bboxH - margin.top - margin.bottom) & 0xffff;
   const maxWidth = isH ? boxW : boxH;
   const maxHeight = isH ? boxH : boxW;
-  const units = shapeText(s, font);
-  const rows: { start: number; end: number; w: number; h: number }[] = [];
+  const units = shapeText(s, font, !isH);
+  // (a text one line long that its last letter's blank columns make too wide stays one line)
+  const oneLine = isH && fitsOneLine(units, letterSpacing, maxWidth);
+  const rows: { start: number; end: number; w: number; h: number; hyphen: boolean }[] = [];
   let start = 0;
   let line = 0;
   let rowHeights = 0;
   let maxRowWidth = 0;
   while (start < units.length) {
-    const next = findNextLineEnd(units, start, letterSpacing, maxWidth, wordWrap);
+    const next = oneLine ? units.length : findNextLineEnd(units, start, letterSpacing, maxWidth, wordWrap, font.w);
     if (next === start) break;
     let end = next;
     const last = units[next - 1].kind;
     if (last === UnitKind.NEWLINE || last === UnitKind.SPACE) end--;
+    // (a line that ends at a soft hyphen shows a hyphen)
+    const hyphen = end > start && units[end - 1].kind === UnitKind.SOFT_HYPHEN;
     let w = 0;
     for (let i = start; i < end; i++) if (units[i].glyph) w += units[i].w;
     w += (end - start - 1) * letterSpacing;
     if (end - start <= 0) w = 0;
+    if (hyphen) w += font.w;
     const total = rowHeights + line * lineSpacing;
     if (total > maxHeight) break;
-    rows.push({ start, end, w, h: font.h });
+    if (audit) {
+      const word = (u: TextUnit | undefined) => !!u && u.kind === UnitKind.CHAR && u.glyph;
+      if (next < units.length && word(units[next - 1]) && word(units[next]) && !units[next].breakBefore) audit({ kind: 'split', text: s, box: [maxWidth, maxHeight] });
+      if (w > maxWidth && !oneLine) audit({ kind: 'wide', text: s, box: [maxWidth, maxHeight] });
+    }
+    rows.push({ start, end, w, h: font.h, hyphen });
     rowHeights += font.h;
     maxRowWidth = Math.max(maxRowWidth, w);
     start = next;
     line++;
   }
+  if (audit && units.slice(start).some((u) => u.glyph && u.kind !== UnitKind.SPACE)) audit({ kind: 'clipped', text: s, box: [maxWidth, maxHeight] });
+  // Scripts whose marks reach above and below the cell (Devanagari, Bengali, Arabic) get room between their lines,
+  // as much as the box has to spare.
+  let lead = 0;
+  if (isH && rows.length > 1) {
+    let want = 0;
+    let below = 0;
+    rows.forEach((row, k) => {
+      let up = 0, down = 0;
+      for (let i = row.start; i < row.end; i++) {
+        if (!units[i].hires) continue;
+        for (const p of units[i].pieces) {
+          up = Math.max(up, -p.dy);
+          down = Math.max(down, p.dy + p.h - font.h);
+        }
+      }
+      if (k > 0) want = Math.max(want, Math.ceil(below + up));
+      below = down;
+    });
+    const spare = maxHeight >= 0x1000 ? want : Math.floor((maxHeight - rowHeights - (rows.length - 1) * lineSpacing) / (rows.length - 1));
+    lead = Math.max(0, Math.min(want, spare));
+  }
   // Right-to-left text starts at the right of its box (when it has one).
   const align = rtl && halign === HAlign.LEFT && maxWidth < 0x1000 ? HAlign.RIGHT : halign;
-  const blockH = rowHeights + Math.max(0, line - 1) * lineSpacing;
+  const blockH = rowHeights + Math.max(0, line - 1) * (lineSpacing + lead);
   const items: LayoutItem[] = [];
   let y = valign === VAlign.TOP ? 0 : valign === VAlign.MIDDLE ? (maxHeight - blockH) >> 1 : maxHeight - blockH;
   for (const row of rows) {
     let x = align === HAlign.LEFT ? 0 : align === HAlign.CENTER ? (maxWidth - row.w) >> 1 : maxWidth - row.w;
+    // (the one line its blank columns make too wide starts at the box's edge: its ink ends inside the box)
+    if (oneLine) x = Math.max(0, x);
     for (const u of visualOrder(units.slice(row.start, row.end), rtl)) {
       if (!u.glyph) continue;
       for (const p of u.pieces) {
@@ -358,13 +459,17 @@ function computeLayout(
       }
       x += letterSpacing + u.w;
     }
+    if (row.hyphen) {
+      const g = font.glyphs['-'.charCodeAt(0) - 32];
+      items.push({ glyph: g, x: margin.left + (isH ? x : y), y: margin.top + (isH ? y : x), w: g.w, h: g.h });
+    }
     // (reference quirk: vertical rows advance by the row length, not its thickness)
-    y += lineSpacing + (isH ? row.h : row.w);
+    y += lineSpacing + lead + (isH ? row.h : row.w);
   }
   const at = (u: number) => (u < units.length ? units[u].start : s.length);
   return {
     items, w: maxRowWidth + margin.left + margin.right, h: blockH + margin.top + margin.bottom, rows: rows.length,
-    ranges: rows.map((r) => [at(r.start), r.end > r.start ? units[r.end - 1].end : at(r.start)] as [number, number]),
+    ranges: rows.map((r) => [at(r.start), r.end > r.start ? units[r.end - 1].end : at(r.start)] as [number, number]), lead,
   };
 }
 

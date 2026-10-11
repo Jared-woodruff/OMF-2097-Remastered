@@ -2,6 +2,7 @@
 // the game's own formats and builds them into mod packages (src/mods) that the game loads. It needs the original
 // game's files like the game does (the palettes, the moves and colors every robot shares): from the server (the
 // desktop app, the dev server) or the ones the game imported in this browser.
+import { blockBrowserMenu } from '../platform/desktop';
 import { loadStoredGameFiles } from '../platform/gameData';
 import { APP_VERSION } from '../platform/versionLabel';
 import { preloadAll } from '../resources/files';
@@ -11,6 +12,7 @@ import { h } from './dom';
 import { hero } from './ui';
 
 async function main(): Promise<void> {
+  blockBrowserMenu();
   const root = document.getElementById('studio')!;
   const bar = document.querySelector<HTMLElement>('#loading .load-bar i');
   const label = document.querySelector<HTMLElement>('#loading .load-text');

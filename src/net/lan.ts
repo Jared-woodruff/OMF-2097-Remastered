@@ -16,6 +16,12 @@ export interface LanGame {
   busy: boolean;
 }
 
+export interface LanInfo {
+  name: string;
+  addresses: string[];
+  os?: string;
+}
+
 export interface LanHosting {
   /** The port the game waits on. */
   port: number;
@@ -26,11 +32,14 @@ export interface LanHosting {
 export interface LanBackend {
   /** Where the games are: the network (the desktop app), or the development server. */
   readonly kind: 'network' | 'dev';
-  /** This computer's user name and network addresses. */
-  info(): Promise<{ name: string; addresses: string[] }>;
+  /**
+   * This computer's user name and network addresses (the one to tell a friend first), and its system ('windows',
+   * 'macos', 'linux': what it may ask before the game can use the network; none for the development server).
+   */
+  info(): Promise<LanInfo>;
   /** Hosts a game: each guest that connects is handed over (the host's game refuses a second one itself). */
   host(name: string, version: string, onGuest: (link: NetLink) => void): Promise<LanHosting>;
-  /** Looks for games (about a second). */
+  /** Looks for games (about a second). Fails when the search could not go out at all (no network, not allowed). */
   scan(): Promise<LanGame[]>;
   /** Joins the game at an address ("192.168.1.20", with ":port" when it is not the game's). */
   join(address: string): Promise<NetLink>;
@@ -143,7 +152,7 @@ class DesktopLan implements LanBackend {
     return link;
   }
 
-  async info(): Promise<{ name: string; addresses: string[] }> {
+  async info(): Promise<LanInfo> {
     return this.api.core.invoke('lan_info');
   }
 
@@ -247,7 +256,7 @@ class DevLan implements LanBackend {
     }
   }
 
-  async info(): Promise<{ name: string; addresses: string[] }> {
+  async info(): Promise<LanInfo> {
     return { name: '', addresses: ['dev server'] };
   }
 

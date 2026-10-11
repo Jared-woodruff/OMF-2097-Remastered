@@ -16,6 +16,7 @@ import {
 import type { GameState } from './gameState';
 import { SOUND_CHANNEL_COUNT, defaultSoundOpts, type SoundOpts } from '../audio/soundOpts';
 import { clamp } from '../util/random';
+import { detCos, detSin } from '../util/detMath';
 import { harFaceEnemy, harSetAni, harWalkTo, type Har } from './objects/har';
 
 export const enum AnimPhase {
@@ -251,7 +252,10 @@ export class GameObject {
   }
 
   distance(b: GameObject): number {
-    return Math.hypot(this.posX - b.posX, this.posY - b.posY);
+    // (not Math.hypot: engines compute it each their own way, and a fight must play out the same on all of them, see
+    // util/detMath.ts; a square root is exact to the last bit everywhere)
+    const dx = this.posX - b.posX, dy = this.posY - b.posY;
+    return Math.sqrt(dx * dx + dy * dy);
   }
 
   // ---- animation control ----------------------------------------------------
@@ -569,14 +573,15 @@ export class GameObject {
 
     if (state.enteredFrame && this.applyEnteredFrame(frame, script, enemy, rstate)) return;
     if (frame.has(Tag.AS)) {
+      // (the Fire Pit's orbs: their sine and cosine the same on every engine, see util/detMath.ts)
       const base = (this.orbVal & 7) + 8;
       const d1 = Math.abs(this.orbVal * 4) + gs.tick;
       const d2 = Math.abs(this.orbVal * 2) + gs.tick;
-      let t = Math.sin(base * (d1 * 0.003574533) + this.orbVal * 3.0) * 65.0 + 160.0;
-      let t2 = Math.cos(base * (d2 * 0.004974533) + this.orbVal * 4.0) * 65.0;
+      let t = detSin(base * (d1 * 0.003574533) + this.orbVal * 3.0) * 65.0 + 160.0;
+      let t2 = detCos(base * (d2 * 0.004974533) + this.orbVal * 4.0) * 65.0;
       this.posX = t + t2;
-      t = Math.cos(base * (d2 * 0.005874533) + this.orbVal * 6.0) * 30.0 + 60.0;
-      t2 = Math.sin(base * (d1 * 0.004174533) + this.orbVal * 3.0) * 30.0;
+      t = detCos(base * (d2 * 0.005874533) + this.orbVal * 6.0) * 30.0 + 60.0;
+      t2 = detSin(base * (d1 * 0.004174533) + this.orbVal * 3.0) * 30.0;
       this.posY = t + t2;
       this.velX = 0;
       this.velY = 0;
@@ -615,8 +620,8 @@ export class GameObject {
       if (frame.has(Tag.MY)) my = this.startY + frame.get(Tag.MY);
       if (frame.has(Tag.MA)) {
         const ma = frame.get(Tag.MA);
-        vx = Math.fround(Math.cos(ma));
-        vy = Math.fround(Math.sin(ma));
+        vx = Math.fround(detCos(ma));
+        vy = Math.fround(detSin(ma));
       }
       const ms = frame.has(Tag.MS) ? 1 : 0;
       const mg = frame.has(Tag.MG) ? frame.get(Tag.MG) : 0;

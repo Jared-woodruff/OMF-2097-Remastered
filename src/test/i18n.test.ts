@@ -7,8 +7,10 @@ import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ACT_DOWN, ACT_PUNCH, CtrlType } from '../game/constants';
 import { LanguagePage } from '../game/gui/languagePage';
-import { keyName, loadKeyboardLayout } from '../game/scenes/mainmenu/keyNames';
-import { lang, loadLanguageData, setLanguageFetcher, setOriginalTextsLoader, tr, trn, useLanguage } from '../i18n/i18n';
+import { TextInput } from '../game/gui/textinput';
+import { keyName, loadKeyboardLayout, typedChar } from '../game/scenes/mainmenu/keyNames';
+import { createScoreboard, sdScoreLoad, sdScoreSave } from '../game/scores';
+import { lang, loadLanguageData, originalTexts, setLanguageFetcher, setOriginalTextsLoader, tr, trn, useLanguage } from '../i18n/i18n';
 import { LANGUAGES, pickLanguage, type LangCode } from '../i18n/languages';
 import { cp437ToUnicode, unicodeToCp437 } from '../i18n/cp437';
 import { defaultSettings, loadSettings, settings } from '../game/settings';
@@ -63,6 +65,38 @@ describe('the language setting', () => {
     const fresh = await import('../i18n/i18n');
     expect(fresh.resolveLanguage('de', ['ja-JP', 'en'])).toBe('de');
     expect(fresh.systemLanguage()).toBe('ja');
+  });
+
+  it('speaks the last language chosen, even when an earlier one loads slower (the setup screen\'s arrows)', async () => {
+    vi.resetModules();
+    const fresh = await import('../i18n/i18n');
+    // (German's files come slowly, French's at once)
+    fresh.setLanguageFetcher(async (p) => {
+      await new Promise((r) => setTimeout(r, p.includes('/de') ? 40 : 1));
+      return p.startsWith('lang/ui/') ? { LANGUAGE: p } : null;
+    });
+    const spoken: string[] = [];
+    fresh.onLanguageChange((code) => spoken.push(code));
+    await Promise.all([fresh.setLanguage('de'), fresh.setLanguage('fr')]);
+    expect(fresh.lang()).toBe('fr');
+    expect(fresh.tr('LANGUAGE')).toBe('lang/ui/fr.json');
+    // (German was never spoken on the way)
+    expect(spoken).toEqual(['fr']);
+  });
+
+  it('turns the page right to left for Arabic, and back', async () => {
+    vi.resetModules();
+    const fresh = await import('../i18n/i18n');
+    const root = { lang: '', dir: '' };
+    vi.stubGlobal('document', { documentElement: root });
+    try {
+      fresh.useLanguage('ar', { ui: {}, original: null });
+      expect(root).toEqual({ lang: 'ar', dir: 'rtl' });
+      fresh.useLanguage('ja', { ui: {}, original: null });
+      expect(root).toEqual({ lang: 'ja', dir: 'ltr' });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('is what the LANGUAGE page chooses: spoken at once and kept', async () => {
@@ -122,6 +156,35 @@ describe.skipIf(!hasGameData)('the original texts in every language', () => {
     // (the German file, in Unicode: its umlauts were code page 437 bytes)
     expect([...Array(1013).keys()].some((i) => /[äöüÄÖÜß]/.test(langGet(i)))).toBe(true);
     expect([...Array(1013).keys()].some((i) => /[\x80-\x9f]/.test(langGet(i)))).toBe(false);
+    loadOriginalTexts('en', null);
+  });
+
+  it('German: the game\'s own file, with the fixes of public/lang/de.json over it', async () => {
+    const en = english();
+    loadOriginalTexts('de', null);
+    const file = Array.from({ length: 1013 }, (_, i) => langGet(i));
+    const json = read('de.json') as Record<string, string>;
+    // (as the game loads it: its fixes by index, the rest left to the file)
+    setLanguageFetcher(async (p) => (fs.existsSync(path.join(LANG_DIR, p.replace(/^lang\//, ''))) ? read(p.replace(/^lang\//, '')) : null));
+    const { original } = await loadLanguageData('de');
+    expect(original).toEqual(originalTexts(json));
+    loadOriginalTexts('de', original);
+    const printf = (s: string) => s.match(/%(?:l?[idux]|s|%)/g) ?? [];
+    const tags = (s: string) => s.match(/\{[A-Z][^}]*\}/g) ?? [];
+    expect(Object.keys(json).length).toBeGreaterThan(5);
+    for (const [k, fix] of Object.entries(json)) {
+      const i = Number(k);
+      expect(langGet(i), `#${i}`).toBe(fix);
+      // A fix changes the file's text, into German, and keeps what the game fills in (the names, %s) and its markup.
+      expect(fix, `#${i}`).not.toBe(file[i]);
+      expect(fix, `#${i}`).not.toBe(en[i]);
+      expect(printf(fix), `#${i}`).toEqual(printf(file[i]));
+      expect(tags(fix), `#${i}`).toEqual(tags(file[i]));
+      for (const m of en[i].match(/~[1-5]/g) ?? []) expect(fix, `#${i} ${m}`).toContain(m);
+    }
+    // The robot select screen's title was English; the other texts are the file's.
+    expect(langGet(186)).toBe('WÄHLE DEINEN ROBOTER');
+    expect(langGet(56)).toBe(file[56]);
     loadOriginalTexts('en', null);
   });
 
@@ -265,6 +328,66 @@ describe('the names of the keys', () => {
     expect(['KeyZ', 'Semicolon'].map(keyName)).toEqual(['Z', ';']);
     await withLayout({ KeyQ: 'й', Semicolon: 'ж' });
     expect(['KeyQ', 'Semicolon'].map(keyName)).toEqual(['Q', ';']);
+  });
+});
+
+describe('typing a name', () => {
+  const press = (key: string, more: Partial<KeyboardEvent> = {}) => ({ key, ctrlKey: false, altKey: false, metaKey: false, ...more });
+  const capitals = (c: string) => /^[A-Z0-9]$/.test(c);
+
+  it('types what the player\'s keyboard types: a French one\'s A, a German one\'s Y and Z', () => {
+    expect(typedChar('KeyQ', press('a'), capitals)).toBe('A');
+    expect(typedChar('KeyZ', press('y'), capitals)).toBe('Y');
+    expect(typedChar('KeyY', press('Z'), capitals)).toBe('Z');
+    expect(typedChar('Digit1', press('1'), capitals)).toBe('1');
+    // (a letter the name cannot hold: without its accent, or nothing)
+    expect(typedChar('Digit2', press('é'), capitals)).toBe('E');
+    expect(typedChar('Minus', press('ß'), capitals)).toBeNull();
+    // (a name in code page 437 holds ä and é, in the case they were typed)
+    const cp437 = (c: string) => /^[a-zA-Zäéñ]$/.test(c);
+    expect(typedChar('Quote', press('ä'), cp437, false)).toBe('ä');
+    expect(typedChar('KeyA', press('a'), cp437, false)).toBe('a');
+  });
+
+  it('types the US letters on a keyboard of another script', () => {
+    expect(typedChar('KeyA', press('ф'), capitals)).toBe('A');
+    expect(typedChar('KeyT', press('ف'), capitals)).toBe('T');
+    // (the Arabic keyboard's B types two letters, لا; the Hindi one's A a vowel sign)
+    expect(typedChar('KeyB', press('لا'), capitals)).toBe('B');
+    expect(typedChar('KeyA', press('ो'), capitals)).toBe('A');
+    expect(typedChar('Digit1', press('١'), capitals)).toBe('1');
+    // (and without the key press, or with one an input method keeps)
+    expect(typedChar('KeyQ', undefined, capitals)).toBe('Q');
+    expect(typedChar('KeyK', press('Process'), capitals)).toBe('K');
+    expect(typedChar('Minus', undefined, (c) => c === '-')).toBe('-');
+  });
+
+  it('types nothing for signs the name does not take, dead keys and shortcuts; AltGr\'s letters are typed', () => {
+    expect(typedChar('Digit1', press('&'), capitals)).toBeNull();
+    expect(typedChar('BracketLeft', press('Dead'), capitals)).toBeNull();
+    expect(typedChar('ShiftLeft', press('Shift'), capitals)).toBeNull();
+    expect(typedChar('KeyS', press('s', { ctrlKey: true }), capitals)).toBeNull();
+    const altGr = press('ą', { ctrlKey: true, altKey: true, getModifierState: (k: string) => k === 'AltGraph' });
+    expect(typedChar('KeyA', altGr, capitals)).toBe('A');
+  });
+
+  it.skipIf(!hasGameData)('in a pilot\'s or a high score\'s name: the letters of code page 437, the US ones on other keyboards', () => {
+    loadGameData();
+    const input = new TextInput(16, null, '');
+    const type = (code: string, key: string) => input.keyEvent(code, press(key) as KeyboardEvent);
+    type('KeyM', 'M');
+    type('BracketLeft', 'ü');
+    // (a Russian keyboard's л is on the US K)
+    type('KeyK', 'л');
+    type('KeyR', 'r');
+    type('Digit2', '@');
+    expect(input.buf).toBe('MüKr');
+    // (saved in code page 437, as the original game's files are)
+    const board = createScoreboard();
+    board.entries[0][0] = { score: 1, pilotId: 0, harId: 0, name: 'MÜLLER' };
+    const data = sdScoreSave(board);
+    expect(data[4 + 1]).toBe(0x9a);
+    expect(sdScoreLoad(data).entries[0][0].name).toBe('MÜLLER');
   });
 });
 

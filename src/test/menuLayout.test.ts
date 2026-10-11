@@ -1,6 +1,6 @@
-// Layout audit of the menus: every entry fits its frame without overlapping the next one, and help texts fit their
-// box (the text engine silently drops lines that do not fit).
-import { describe, expect, it } from 'vitest';
+// Layout audit of the menus, in every language: every entry fits its frame without overlapping the next one, and help
+// texts fit their box (the text engine silently drops lines that do not fit).
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SceneId } from '../game/constants';
 import { ArenaPauseMenu, pauseFrame, type PauseHost } from '../game/gui/pauseMenu';
 import { moveListMenu } from '../game/gui/moveList';
@@ -21,7 +21,9 @@ import { menuMultiplayerCreate } from '../game/scenes/mainmenu/menuMultiplayer';
 import { menuOptionsCreate } from '../game/scenes/mainmenu/menuOptions';
 import { menuSoundCreate } from '../game/scenes/mainmenu/menuSound';
 import { menuTrainingCreate } from '../game/scenes/mainmenu/menuTraining';
-import { createGame, hasGameData } from './harness';
+import { createGame, hasGameData, useLanguageFiles } from './harness';
+import { LANGUAGES } from '../i18n/languages';
+import { tr } from '../i18n/i18n';
 
 interface Frame {
   x: number;
@@ -66,10 +68,12 @@ function audit(name: string, menu: Menu, frame: Frame, theme: GuiTheme): string[
     const texts = variants(c);
     const label = texts[0].replace(/\n/g, ' ');
     const probe = new Text(t.font, 0xffff, 0xffff);
+    const framed = new Text(t.font, frame.w, 0xffff);
     let height = 0;
     for (const s of texts) {
       probe.set(s);
-      if (probe.width() > frame.w) issues.push(`${name}: "${s.replace(/\n/g, ' ')}" is ${probe.width()} px wide (frame ${frame.w})`);
+      // (too wide: it takes more lines in the frame than it has; a last letter's blank column may stick out)
+      if (framed.set(s).height() > probe.height()) issues.push(`${name}: "${s.replace(/\n/g, ' ')}" is ${probe.width()} px wide (frame ${frame.w})`);
       height = Math.max(height, probe.height());
     }
     // Entries are drawn centered in their slot: where the text really is.
@@ -86,7 +90,13 @@ function audit(name: string, menu: Menu, frame: Frame, theme: GuiTheme): string[
   return issues;
 }
 
-describe.skipIf(!hasGameData)('menu layout', () => {
+describe.skipIf(!hasGameData).each(LANGUAGES.map((l) => l.code))('menu layout (%s)', (code) => {
+  beforeAll(() => {
+    createGame(SceneId.MENU);
+    useLanguageFiles(code);
+  });
+  afterAll(() => useLanguageFiles('en'));
+
   it('main menu and all its submenus fit their frames', () => {
     const gs = createGame(SceneId.MENU);
     const s = gs.sc as MainMenuScene;
@@ -122,7 +132,7 @@ describe.skipIf(!hasGameData)('menu layout', () => {
       const host: PauseHost = { quitFight() {}, menuVisible: false, training, trainingDummy: () => 0, robot: () => null };
       const pm = new ArenaPauseMenu(gs, host) as unknown as { menu: Menu };
       issues.push(...audit(training ? 'PAUSE (training)' : 'PAUSE', pm.menu, pauseFrame(training), theme));
-      expect(pm.menu.items.some((c) => c instanceof Button && c.text.str === 'MOVE LIST')).toBe(true);
+      expect(pm.menu.items.some((c) => c instanceof Button && c.text.str === tr('MOVE LIST'))).toBe(true);
     }
     // The move list page of every robot fits the frame too.
     for (let har = 0; har < 11; har++) {

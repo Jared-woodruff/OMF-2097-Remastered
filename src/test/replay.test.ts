@@ -9,8 +9,11 @@ import { ACT_DOWN, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_STOP, ACT_UP, H
 import type { GameState } from '../game/gameState';
 import { harData } from '../game/objects/har';
 import { ReplaySession } from '../game/replay/playback';
-import { metaFromRec, pruneIds, setReplaySink, type ReplayMeta } from '../game/replay/store';
+import { ReplaysPage } from '../game/replay/replaysPage';
+import { metaFromRec, pruneIds, setReplaySink, type ReplayMeta, type ReplayRecord } from '../game/replay/store';
+import { Page } from '../game/gui/page';
 import type { ArenaScene } from '../game/scenes/arena';
+import { useLanguage } from '../i18n/i18n';
 import { globalRandom } from '../util/random';
 import { createGame, hasGameData, HeadlessRunner } from './harness';
 
@@ -174,6 +177,39 @@ describe.skipIf(!hasGameData)('replays', () => {
     expect(fight.meta.mode).toBe('TWO PLAYER');
     const replay = playBack(fight.meta, fight.data);
     expectSameFight(fight.trace, replay.trace);
+  });
+
+  it('lists the fights in the language of the moment (their mode kept in English; older ones as they were shown)', () => {
+    createGame(SceneId.MENU);
+    const page = new ReplaysPage(() => false, () => 1);
+    const record = (id: number, mode: string): ReplayRecord => ({
+      id, data: new Uint8Array(0), meta: {
+        created: 0, mode, players: [{ name: 'Crystal', harId: 0, pilotId: 0 }, { name: 'Steffan', harId: 5, pilotId: 1 }], arena: 0, winner: 1,
+        rounds: [1, 2], ticks: 600, kept: false,
+      },
+    });
+    (page as unknown as { list: ReplayRecord[] }).list = [record(1, 'SURVIVAL'), record(2, 'TURNIER')];
+    const shown: string[] = [];
+    const proto = Page.prototype as unknown as { drawText: (...a: unknown[]) => void };
+    const draw = proto.drawText;
+    proto.drawText = function (this: unknown, ...a: unknown[]) {
+      shown.push(String(a[1]));
+      return draw.apply(this, a);
+    };
+    try {
+      useLanguage('de', { ui: { SURVIVAL: 'ÜBERLEBEN', '{a} VS {b}': '{a} GEGEN {b}', 'P{n} {won}-{lost}': 'S{n} {won}-{lost}' }, original: null });
+      page.render();
+      expect(shown).toEqual(expect.arrayContaining(['JAGUAR GEGEN KATANA', 'S2 2-1']));
+      expect(shown.find((s) => s.startsWith('ÜBERLEBEN  -  '))).toBeDefined();
+      // (a fight of an earlier version kept the mode as it was shown then)
+      (page as unknown as { sel: number }).sel = 1;
+      page.render();
+      expect(shown.find((s) => s.startsWith('TURNIER  -  '))).toBeDefined();
+    } finally {
+      proto.drawText = draw;
+      useLanguage('en', { ui: {}, original: null });
+    }
+    expect(metaFromRec(recCreate()).mode).toBe('IMPORTED');
   });
 
   it('jumps to a moment and steps one tick', () => {

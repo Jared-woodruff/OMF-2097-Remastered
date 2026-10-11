@@ -141,7 +141,7 @@ const CSS = `
 #omf-setup.is-out { opacity: 0; transition: opacity .35s ease; }
 #omf-setup .panel { width: min(1000px, 94vw); max-height: 70vh; display: flex; flex-direction: column; border-radius: 16px;
   background: linear-gradient(180deg, rgba(12, 18, 44, .82), rgba(5, 8, 22, .88)); border: 1px solid rgba(120, 160, 255, .3);
-  box-shadow: 0 30px 90px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .06); backdrop-filter: blur(10px); overflow: hidden; }
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .06); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); overflow: hidden; }
 #omf-setup header { padding: clamp(14px, 2.4vh, 26px) clamp(20px, 3vw, 40px) clamp(8px, 1.4vh, 14px); }
 #omf-setup h1 { margin: 0; font-weight: 900; font-size: clamp(18px, 1.7vw, 28px); letter-spacing: .12em;
   background: linear-gradient(180deg, #fff 0%, #dfe6f5 46%, #fff 52%, #7c8aa8 58%, #e9eef8 100%);
@@ -149,8 +149,8 @@ const CSS = `
 #omf-setup header p { margin: .5em 0 0; font-weight: 500; font-size: clamp(11px, .9vw, 15px); color: #a9b9e2; letter-spacing: .03em; }
 #omf-setup .rows { overflow-y: auto; padding: 0 clamp(10px, 1.6vw, 22px); }
 #omf-setup .row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 18px; margin: 2px 0;
-  padding: clamp(7px, 1.15vh, 12px) clamp(10px, 1.4vw, 18px); border-radius: 10px; border-left: 3px solid transparent; }
-#omf-setup .row.is-focus { background: rgba(90, 130, 255, .12); border-left-color: #4fd2ff; }
+  padding: clamp(7px, 1.15vh, 12px) clamp(10px, 1.4vw, 18px); border-radius: 10px; border-inline-start: 3px solid transparent; }
+#omf-setup .row.is-focus { background: rgba(90, 130, 255, .12); border-inline-start-color: #4fd2ff; }
 #omf-setup .row h2 { margin: 0; font-weight: 800; font-size: clamp(11px, .92vw, 15px); letter-spacing: .16em; color: #eef2ff; }
 #omf-setup .row p { margin: .3em 0 0; font-weight: 500; font-size: clamp(10px, .76vw, 13px); color: #8fa2cf; letter-spacing: .02em; }
 #omf-setup .chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
@@ -337,8 +337,10 @@ export function firstRunSetup(boot: HTMLElement): Promise<void> {
       if (a === 'up') focus = focus >= n ? n - 1 : Math.max(0, focus - 1);
       else if (a === 'down') focus = focus >= n ? focus : focus + 1 >= n ? n + 2 : focus + 1;
       else if (a === 'left' || a === 'right') {
-        if (focus < n) step(focus, a === 'left' ? -1 : 1);
-        else focus = Math.max(n, Math.min(n + 2, focus + (a === 'left' ? -1 : 1)));
+        // (a language read from the right lays the choices and buttons out from the right: the arrows go as they look)
+        const d = (a === 'left' ? -1 : 1) * (document.documentElement.dir === 'rtl' ? -1 : 1);
+        if (focus < n) step(focus, d);
+        else focus = Math.max(n, Math.min(n + 2, focus + d));
       } else if (a === 'ok') {
         if (focus === n) preset('original');
         else if (focus === n + 1) preset('recommended');

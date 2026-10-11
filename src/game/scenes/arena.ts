@@ -53,7 +53,7 @@ import { recordFight } from '../records/records';
 import { formatMs } from '../modes/run';
 import { AiController } from '../../controller/ai';
 import { leaveNetGame } from '../../net/netplay';
-import { tr } from '../../i18n/i18n';
+import { tr, trKey } from '../../i18n/i18n';
 
 const HAR1_START_POS = 110;
 const HAR2_START_POS = 210;
@@ -1163,6 +1163,12 @@ export class ArenaScene extends Scene implements ArenaLike {
     }
     // A replay's controls are polled by the static tick (they keep their pace at any playback speed).
     if (gs.replay) return;
+    this.menuInput();
+  }
+
+  /** The menu keys: ESC opens and closes the pause menu, the others move in it (the credits' fights: their own keys). */
+  private menuInput(): void {
+    const gs = this.gs;
     const menuEv: CtrlEvent[] = [];
     // In a running fight the pads' buttons belong to the players; the Menu button pauses (and resumes). The credits'
     // fights are the computer's: their buttons skip ahead and go back.
@@ -1192,6 +1198,16 @@ export class ArenaScene extends Scene implements ArenaLike {
         this.pauseMenu.action(e.action);
       }
     }
+  }
+
+  /** A network game: the local robot stands still while the pause menu is open, and until the key that closed it is up. */
+  override netLocalHeld(): boolean {
+    return this.menuVisible || this.pauseMenu.closing;
+  }
+
+  /** A network game waiting for the other game: the pause menu still opens, and its LEAVE GAME leaves the game. */
+  override netStalledInput(): void {
+    this.menuInput();
   }
 
   /** A player's robot and its name, for the move list of the pause menu. */
@@ -1259,7 +1275,7 @@ export class ArenaScene extends Scene implements ArenaLike {
       const of = run.total ? `/${run.total}` : '';
       const time = run.kind === 'timeattack' ? `   ${formatMs(run.ms + this.runMs)}` : '';
       const wins = run.kind === 'survival' ? tr('WINS {wins}', { wins: run.wins }) : run.kind === 'exhibition' ? tr('TEST FIGHT') : tr('FIGHT {fight}{of}', { fight: run.fight, of });
-      this.runText.set(`${run.label}   ${wins}${time}`);
+      this.runText.set(`${tr(run.label)}   ${wins}${time}`);
       this.runText.draw(0, 34);
     }
     // (below the frame meter when it shows)
@@ -1305,7 +1321,8 @@ export class ArenaScene extends Scene implements ArenaLike {
     };
     const meta: ReplayMeta = {
       created: Date.now(),
-      mode: gs.modeLabel ?? (gs.isTournament() ? tr('TOURNAMENT') : gs.isSingleplayer() ? tr('ONE PLAYER') : tr('TWO PLAYER')),
+      // (in English: the list shows it in the language of the moment)
+      mode: gs.modeLabel ?? (gs.isTournament() ? trKey('TOURNAMENT') : gs.isSingleplayer() ? trKey('ONE PLAYER') : trKey('TWO PLAYER')),
       players: [player(0), player(1)],
       arena: this.id - SceneId.ARENA0,
       winner: this.over ? this.winner : -1,

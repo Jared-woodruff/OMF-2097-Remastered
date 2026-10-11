@@ -2,6 +2,7 @@
 // edited in place: its name (type it), the tournament it is made from, how many opponents, their robots and the prize
 // money. They are played from TOURNAMENT PLAY like the others. E / SAVE FILE shares one as a .omftrn file, I loads them.
 import type { PointerKind } from '../../controller/mouse';
+import { localizedLocale } from '../../formats/tournament';
 import { pickFiles, saveFile } from '../../platform/files';
 import { loadTournament } from '../../resources/resources';
 import { video } from '../../video/draw';
@@ -10,9 +11,10 @@ import { ACT_DOWN, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_UP, type CtrlTy
 import { FontSize, HAlign } from '../gui/text';
 import { Page, PC } from '../gui/page';
 import { playMenuSound } from '../gui/widgets';
+import { typedChar, type TypedKey } from '../scenes/mainmenu/keyNames';
 import {
-  baseTournaments, cleanTitle, CUSTOM_SLOTS, customTournaments, defaultTournament, fileNameOf, newRobotsAvailable, PRIZE_NAMES,
-  readTournamentSpec, ROBOT_NAMES, setCustomTournament, SIZE_NAMES, type CustomTournamentSpec,
+  baseTournaments, cleanTitle, CUSTOM_SLOTS, customTournaments, defaultTitle, defaultTournament, fileNameOf, newRobotsAvailable,
+  PRIZE_NAMES, readTournamentSpec, ROBOT_NAMES, setCustomTournament, SIZE_NAMES, type CustomTournamentSpec,
 } from './custom';
 import { sgEnrolledIn } from '../../resources/sgmanager';
 import { tr, trn, trKey } from '../../i18n/i18n';
@@ -24,9 +26,10 @@ const LABELS: Record<Row, string> = { name: trKey('NAME'), base: trKey('MADE FRO
 const LIST_Y = 40;
 const LIST_ROW = 21;
 
+/** A tournament's title in the game's language. */
 function baseTitle(file: string): string {
   try {
-    return (loadTournament(file).locales[0]?.title ?? file).toUpperCase();
+    return (localizedLocale(loadTournament(file))?.title || file).toUpperCase();
   } catch {
     return file;
   }
@@ -60,7 +63,7 @@ export class CustomTournamentsPage extends Page {
   private open(slot: number): void {
     const s = customTournaments()[slot];
     this.slot = slot;
-    this.spec = s ? { ...s } : { ...defaultTournament(), name: tr('CUSTOM TOURNAMENT {n}', { n: slot + 1 }) };
+    this.spec = s ? { ...s } : { ...defaultTournament(), name: defaultTitle(slot) };
     if (!s) this.store();
     // (a saved pilot is in it: its opponents and prizes must stay as they are, only its name can change)
     this.locked = !!s && sgEnrolledIn(fileNameOf(slot));
@@ -150,7 +153,7 @@ export class CustomTournamentsPage extends Page {
     return 1;
   }
 
-  override key(code: string): boolean {
+  override key(code: string, e?: TypedKey): boolean {
     if (this.slot < 0) {
       if (code === 'Delete' || code === 'Backspace') {
         if (!customTournaments()[this.sel]) return true;
@@ -182,12 +185,13 @@ export class CustomTournamentsPage extends Page {
     }
     if (ROWS[this.row] !== 'name') return false;
     const s = this.spec;
-    if (code === 'Backspace') s.name = s.name.slice(0, -1);
-    else if (code === 'Minus') s.name = `${s.name} `.slice(0, 24);
-    else {
-      const m = /^Key([A-Z])$/.exec(code) ?? /^Digit([0-9])$/.exec(code);
-      if (!m) return false;
-      s.name = (s.name + m[1]).slice(0, 24);
+    if (code === 'Backspace') {
+      s.name = s.name.slice(0, -1);
+    } else {
+      // (what the player's keyboard types: a name holds A-Z, 0-9 and spaces, - types a space)
+      const ch = typedChar(code, e, (c) => /^[A-Z0-9-]$/.test(c));
+      if (!ch) return false;
+      s.name = (ch === '-' ? `${s.name} ` : s.name + ch).slice(0, 24);
     }
     this.store();
     return true;

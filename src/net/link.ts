@@ -14,11 +14,19 @@ export interface NetLink {
 }
 
 /**
+ * What a link keeps while nobody listens (messages, their letters). A game sends a few messages before the other one
+ * listens (its first inputs, a ping a second); far more is a game flooding this one, and the link is closed.
+ */
+const MAX_QUEUED = 1000;
+const MAX_QUEUED_TEXT = 1 << 20;
+
+/**
  * The common part of a link: messages and a close that arrive before the handlers are set are kept for them (the
  * lobby hands the link over to the game, and a message must not fall between the two).
  */
 export abstract class QueuedLink implements NetLink {
   private queue: string[] = [];
+  private queuedText = 0;
   private closedWith: string | null = null;
   private onMessage: ((text: string) => void) | null = null;
   private onClose: ((reason: string) => void) | null = null;
@@ -33,7 +41,11 @@ export abstract class QueuedLink implements NetLink {
     this.onMessage = onMessage;
     this.onClose = onClose;
     // (a handler may detach itself on the way: the rest waits for the next one)
-    while (this.queue.length && this.onMessage) this.onMessage(this.queue.shift()!);
+    while (this.queue.length && this.onMessage) {
+      const text = this.queue.shift()!;
+      this.queuedText -= text.length;
+      this.onMessage(text);
+    }
     if (this.closedWith !== null && !this.queue.length) this.onClose?.(this.closedWith);
   }
 
@@ -45,8 +57,19 @@ export abstract class QueuedLink implements NetLink {
   /** A message came in. */
   deliver(text: string): void {
     if (this.closedWith !== null) return;
-    if (this.onMessage) this.onMessage(text);
-    else this.queue.push(text);
+    if (this.onMessage) {
+      this.onMessage(text);
+      return;
+    }
+    this.queue.push(text);
+    this.queuedText += text.length;
+    if (this.queue.length > MAX_QUEUED || this.queuedText > MAX_QUEUED_TEXT) {
+      // (what came is let go, and the next handlers hear that the link closed)
+      this.queue = [];
+      this.queuedText = 0;
+      this.close();
+      this.closedWith = 'the other game sent too much';
+    }
   }
 
   /** The other end closed (or the connection broke). */

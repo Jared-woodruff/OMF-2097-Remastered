@@ -82,6 +82,47 @@ export function printedKey(code: string): string | null {
   return up.length === 1 ? up : c;
 }
 
+/** What a key types on a US keyboard: its letter, digit or sign (KeyA → A, Digit1 and Numpad1 → 1, Minus → -), or null. */
+export function usKeyChar(code: string): string | null {
+  const m = /^Key([A-Z])$/.exec(code) ?? /^(?:Digit|Numpad)(\d)$/.exec(code);
+  if (m) return m[1];
+  const sign = NAMES[code];
+  return sign?.length === 1 ? sign : null;
+}
+
+/** The parts of a key press a name field reads (a KeyboardEvent). */
+export type TypedKey = Pick<KeyboardEvent, 'key'> & Partial<Pick<KeyboardEvent, 'ctrlKey' | 'altKey' | 'metaKey' | 'getModifierState'>>;
+
+/** Letters of another script than the Latin one (Cyrillic, Arabic, Devanagari...: their marks and digits too). */
+const LETTERS = /^[\p{L}\p{M}\p{N}]+$/u;
+const LATIN_OR_COMMON = /[\p{Script=Latin}\p{Script=Common}\p{Script=Inherited}]/u;
+
+/**
+ * The character a key press types into a name, by the player's keyboard (a French one types A where a US one types
+ * Q): the key's character (`e.key`, in capitals unless `upper` is false) when the field takes it (`takes`: the names
+ * hold the original fonts' letters, code page 437, or fewer), else that letter without its accent (É → E). A keyboard
+ * of another script (Russian, Arabic, Hindi...) types the key's US letter instead, so that Latin names can be typed
+ * on any keyboard; so does a key press without its event (`e` undefined) or one an input method keeps. Null: nothing
+ * to type (a sign or a letter the field does not take, a dead key, Ctrl or Alt with a key; AltGr's letters are typed).
+ */
+export function typedChar(code: string, e: TypedKey | undefined, takes: (ch: string) => boolean, upper = true): string | null {
+  if (e && (e.ctrlKey || e.altKey || e.metaKey) && !e.getModifierState?.('AltGraph')) return null;
+  const key = e?.key === 'Process' || e?.key === 'Unidentified' ? undefined : e?.key;
+  if (key !== undefined) {
+    if ([...key].length === 1) {
+      const ch = upper ? key.toUpperCase() : key;
+      if (takes(ch)) return ch;
+      const plain = ch.normalize('NFD').replace(/\p{M}+/gu, '');
+      if (plain !== ch && [...plain].length === 1 && takes(plain)) return plain;
+    }
+    // (a key's name, Shift or Dead, a sign, a Latin letter: nothing; another script's letters, لا on an Arabic
+    // keyboard's B too: the US letter)
+    if (!LETTERS.test(key) || LATIN_OR_COMMON.test(key)) return null;
+  }
+  const us = usKeyChar(code);
+  return us !== null && takes(us) ? us : null;
+}
+
 /** Upper case display name of a KeyboardEvent.code ('KeyA' → 'A', 'Numpad8' → 'KEYPAD 8', 'ShiftRight' → 'RIGHT SHIFT'). */
 export function keyName(code: string | undefined): string {
   if (!code) return '';

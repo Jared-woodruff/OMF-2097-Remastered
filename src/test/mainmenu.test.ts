@@ -7,6 +7,7 @@ import { KeyboardController } from '../controller/keyboard';
 import { CtrlType, SceneId } from '../game/constants';
 import type { GameState } from '../game/gameState';
 import { Button, Menu, TextSelector, TextSlider } from '../game/gui/widgets';
+import type { Text } from '../game/gui/text';
 import { MainMenuScene } from '../game/scenes/mainmenu';
 import { activeMenu } from '../game/scenes/mainmenu/common';
 import { HelpMenu } from '../game/scenes/mainmenu/menuHelp';
@@ -41,6 +42,8 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
   const current = () => activeMenu(root());
   const selectedText = () => {
     const c = current().current();
+    // (a key's row: its action and its key, as the reference's "%-19s%12s")
+    if (c instanceof Button && 'key' in c) return c.text.str.padEnd(19) + (c.key as Text).str.padStart(12);
     if (c instanceof Button) return c.text.str;
     if (c instanceof TextSelector || c instanceof TextSlider) {
       c.refresh();

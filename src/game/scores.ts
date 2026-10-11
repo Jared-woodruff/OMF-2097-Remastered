@@ -1,5 +1,6 @@
 // High score table: 4 pages (one per round type) of 20 entries, persisted in the original SCORES.DAT layout
 // (port of the reference scores resource + sd_score format). The browser build keeps the file in localStorage.
+import { cp437ToUnicode, unicodeToCp437 } from '../i18n/cp437';
 import { BinaryReader, BinaryWriter, cstr } from '../util/reader';
 
 export const SCORE_PAGES = 4;
@@ -14,7 +15,7 @@ export interface ScoreEntry {
   score: number;
   pilotId: number;
   harId: number;
-  /** Up to 15 characters (char[16] with terminator). */
+  /** Up to 15 characters (char[16] with terminator, in code page 437 like the game's other files). */
   name: string;
 }
 
@@ -56,7 +57,7 @@ export function sdScoreLoad(data: Uint8Array): Scoreboard {
     for (let j = 0; j < SCORE_ENTRIES; j++) {
       const e = sb.entries[i][j];
       e.score = r.u32();
-      e.name = cstr(r.bytes(16));
+      e.name = cp437ToUnicode(cstr(r.bytes(16)));
       const id = r.u32();
       e.harId = id & 0x3f;
       e.pilotId = (id >>> 6) & 0x3f;
@@ -71,7 +72,7 @@ export function sdScoreSave(sb: Scoreboard): Uint8Array {
     for (let j = 0; j < SCORE_ENTRIES; j++) {
       const e = sb.entries[i][j];
       w.u32(e.score);
-      w.fixedStr(e.name, 16);
+      w.fixedStr(unicodeToCp437(e.name), 16);
       w.u32((e.harId & 0x3f) | ((e.pilotId & 0x3f) << 6));
     }
   }

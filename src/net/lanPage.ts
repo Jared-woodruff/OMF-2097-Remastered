@@ -9,6 +9,7 @@ import type { GameState } from '../game/gameState';
 import { Page, PAGE_TITLE, PC } from '../game/gui/page';
 import { FontSize, HAlign, Text, VAlign } from '../game/gui/text';
 import { playMenuSound } from '../game/gui/widgets';
+import { typedChar, type TypedKey } from '../game/scenes/mainmenu/keyNames';
 import { saveSettings, settings } from '../game/settings';
 import { APP_VERSION } from '../platform/versionLabel';
 import { video } from '../video/draw';
@@ -19,7 +20,7 @@ import type { NetLink } from './link';
 import { hostRules, netContent, startNetGame } from './netplay';
 import { cleanName, LAN_PORT, type NetContent, type NetMessage, type NetRules } from './protocol';
 import { NetSession } from './session';
-import { clip, tr } from '../i18n/i18n';
+import { clip, langInfo, tr } from '../i18n/i18n';
 
 type State = 'menu' | 'hosting' | 'joining' | 'starting';
 
@@ -52,6 +53,28 @@ const MATCH_MS = 2200;
 
 function errorText(e: unknown): string {
   return (e instanceof Error ? e.message : String(e)).toUpperCase();
+}
+
+/**
+ * What the computer's system may ask before the game can use the network, or what to open for it (the desktop app's
+ * system: LanBackend.info; '' when it is not known).
+ */
+export function networkHint(os: string): string {
+  switch (os) {
+    case 'windows': return tr('If Windows asks, let the game use private networks.');
+    // (macOS asks for the local network once, from macOS 15 on; turned down, the game finds nothing; its firewall, when on,
+    // asks for the incoming connections)
+    case 'macos': return tr('If your Mac asks, allow the game to use the local network and incoming connections.');
+    case 'linux': return tr('If a firewall is on, open port {port} (TCP and UDP) for the game.', { port: LAN_PORT });
+    default: return '';
+  }
+}
+
+/** The found games in a steady order (the answers come in any order): by name, then by address. */
+function byName(a: LanGame, b: LanGame): number {
+  const x = a.name.toUpperCase(), y = b.name.toUpperCase();
+  if (x !== y) return x < y ? -1 : 1;
+  return a.address < b.address ? -1 : a.address > b.address ? 1 : 0;
 }
 
 /** What a failed join says (the desktop app's errors are the system's). */
@@ -88,6 +111,10 @@ export class LanPage extends Page {
   private isOpen = false;
   private scanning = false;
   private lastScan = -Infinity;
+  /** The last search could not go out (no network, or the system did not let the game use it). */
+  private scanFailed = false;
+  /** This computer's system ('windows', 'macos', 'linux'; '' when not known). */
+  private os = '';
   private content: NetContent | null = null;
   private dot: Surface | null = null;
   private wrapped = new Map<string, Text>();
@@ -96,8 +123,10 @@ export class LanPage extends Page {
     super();
   }
 
+  /** The player's name in the game (PLAYER when they have emptied it). */
   private get name(): string {
-    return settings().lan.name;
+    // (a name is sent in the letters A-Z, 0-9: protocol.ts cleanName; so is this one, untranslated)
+    return cleanName(settings().lan.name) || 'PLAYER';
   }
 
   override onOpen(): void {
@@ -105,20 +134,22 @@ export class LanPage extends Page {
     this.state = 'menu';
     this.row = ROW_HOST;
     this.games = [];
+    this.scanFailed = false;
     this.lastScan = -Infinity;
     this.setStatus('');
     const b = this.backend;
     if (!b) return;
+    // (the computer's user name, until the player types one; PLAYER when it has none)
+    const nameDefault = (name: string) => {
+      if (settings().lan.name) return;
+      settings().lan.name = cleanName(name) || 'PLAYER';
+      saveSettings();
+    };
     void b.info().then((info) => {
       this.addresses = info.addresses;
-      // (the computer's user name, until the player types one)
-      if (!settings().lan.name) {
-        // (a name is sent in the letters A-Z, 0-9: protocol.ts cleanName; so is this one, untranslated)
-        settings().lan.name = cleanName(info.name) || 'PLAYER';
-        saveSettings();
-      }
-    }).catch(() => undefined);
-    if (!settings().lan.name) settings().lan.name = 'PLAYER';
+      this.os = info.os ?? '';
+      nameDefault(info.name);
+    }).catch(() => nameDefault(''));
   }
 
   override onClose(): void {
@@ -262,8 +293,19 @@ export class LanPage extends Page {
     if (!m) return;
     this.match = null;
     this.state = 'menu';
-    startNetGame(this.gs, new NetSession({ link: m.link, localPlayer: m.localPlayer, names: m.names, rules: m.rules, seed: m.seed }));
+    const session = new NetSession({ link: m.link, localPlayer: m.localPlayer, names: m.names, rules: m.rules, seed: m.seed });
+    // (the other player called it off meanwhile: their goodbye was waiting in the link. The page stays, saying so)
+    if (session.ended) {
+      this.setStatus(session.ended.message.toUpperCase(), PC.red);
+      return;
+    }
+    startNetGame(this.gs, session);
     this.finished = true;
+  }
+
+  /** Now and then, drawn or not (a hidden window draws nothing): the match found starts when its moment comes. */
+  override update(): void {
+    if (this.state === 'starting' && this.match && performance.now() >= this.match.at) this.start();
   }
 
   private scan(): void {
@@ -271,10 +313,21 @@ export class LanPage extends Page {
     if (!b || this.scanning || !this.isOpen || this.state !== 'menu' || performance.now() - this.lastScan < SCAN_EVERY_MS) return;
     this.scanning = true;
     void b.scan().then((games) => {
-      this.games = games;
-      this.gamesTop = Math.max(0, Math.min(this.gamesTop, games.length - GAMES_SHOWN));
-      this.row = Math.min(this.row, ROW_ADDRESS + games.length);
-    }).catch(() => undefined).finally(() => {
+      // (in a steady order, and the highlighted game stays highlighted where it goes: ENTER joins the game it shows)
+      const picked = this.games[this.row - ROW_ADDRESS - 1]?.address;
+      this.games = [...games].sort(byName);
+      const at = picked === undefined ? -1 : this.games.findIndex((g) => g.address === picked);
+      if (at >= 0) this.row = ROW_ADDRESS + 1 + at;
+      this.row = Math.min(this.row, ROW_ADDRESS + this.games.length);
+      this.gamesTop = Math.max(0, Math.min(this.gamesTop, this.games.length - GAMES_SHOWN));
+      const g = this.row - ROW_ADDRESS - 1;
+      if (g >= 0) this.gamesTop = Math.max(Math.min(this.gamesTop, g), g - GAMES_SHOWN + 1);
+      this.scanFailed = false;
+    }).catch(() => {
+      this.games = [];
+      this.row = Math.min(this.row, ROW_ADDRESS);
+      this.scanFailed = true;
+    }).finally(() => {
       this.scanning = false;
       this.lastScan = performance.now();
     });
@@ -325,20 +378,21 @@ export class LanPage extends Page {
     return 1;
   }
 
-  override key(code: string): boolean {
+  override key(code: string, e?: TypedKey): boolean {
     if (!this.backend || this.state !== 'menu') return false;
     const lan = settings().lan;
-    const letter = /^Key([A-Z])$/.exec(code)?.[1] ?? /^(?:Digit|Numpad)([0-9])$/.exec(code)?.[1] ?? null;
     if (this.row === ROW_NAME) {
+      // (what the player's keyboard types: a French one types A where a US one types Q)
+      const ch = typedChar(code, e, (c) => /^[A-Z0-9-]$/.test(c));
       if (code === 'Backspace') lan.name = lan.name.slice(0, -1);
-      else if (code === 'Minus') lan.name = cleanName(`${lan.name}-`);
-      else if (letter) lan.name = cleanName(lan.name + letter);
+      else if (ch) lan.name = cleanName(lan.name + ch);
       else return false;
     } else if (this.row === ROW_ADDRESS) {
-      const mark = code === 'Period' || code === 'NumpadDecimal' ? '.' : code === 'Semicolon' ? ':' : code === 'Minus' ? '-' : null;
+      // (the keypad's decimal key types a dot whatever its label; the US semicolon key a colon)
+      const ch = code === 'NumpadDecimal' ? '.' : typedChar(code, e, (c) => /^[A-Z0-9.:-]$/.test(c)) ?? (code === 'Semicolon' ? ':' : null);
       if (code === 'Backspace') lan.address = lan.address.slice(0, -1);
       else if (code === 'Delete') lan.address = '';
-      else if (letter || mark) lan.address = (lan.address + (letter ?? mark)).slice(0, ADDRESS_MAX);
+      else if (ch) lan.address = (lan.address + ch).slice(0, ADDRESS_MAX);
       else return false;
     } else {
       return false;
@@ -380,6 +434,15 @@ export class LanPage extends Page {
     t.draw(160 - w / 2, y);
   }
 
+  /**
+   * A text in one of the page's columns (x: where it starts, or ends with RIGHT), mirrored when the game speaks a
+   * right-to-left language: in Arabic the labels are at the right, what they name to their left.
+   */
+  private drawCol(key: string, str: string, x: number, y: number, color: number, align = HAlign.LEFT): void {
+    if (langInfo().rtl !== true) return this.drawText(key, str, x, y, FontSize.SMALL, color, align);
+    this.drawText(key, str, 320 - x, y, FontSize.SMALL, color, align === HAlign.LEFT ? HAlign.RIGHT : align === HAlign.RIGHT ? HAlign.LEFT : align);
+  }
+
   /** A few dots, coming and going (something is under way). */
   private dots(): string {
     return '.'.repeat(1 + (Math.floor(performance.now() / 400) % 3));
@@ -395,7 +458,7 @@ export class LanPage extends Page {
     this.drawFrame(tr('LAN GAME'));
     if (!this.backend) {
       this.drawWrapped('web1', tr('LAN GAMES NEED THE DESKTOP APP'), 60, PC.gold);
-      this.drawWrapped('web2', tr('A browser cannot reach the other computers of your network by itself. Download the desktop app for Windows from the GitHub page to host and join LAN games. Two players on this computer: MULTIPLAYER > LOCAL.'), 82, PC.grey, 260, 60);
+      this.drawWrapped('web2', tr('A browser cannot reach the other computers of your network by itself. Download the desktop app from the GitHub page to host and join LAN games. Two players on this computer: MULTIPLAYER > LOCAL.'), 82, PC.grey, 260, 60);
       this.drawText('h', tr('ESC BACK'), 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
       return;
     }
@@ -415,7 +478,7 @@ export class LanPage extends Page {
     if (a) this.drawText('hv', a, 160, 100, FontSize.BIG, PC.white, HAlign.CENTER);
     this.drawWrapped('hr', tr('Your gameplay options are used (speed, rounds, power and the advanced ones).'), 120, PC.grey);
     if (this.status) this.drawWrapped('hs', this.status, 142, this.statusColor);
-    else this.drawWrapped('hf', tr('If Windows asks, let the game use private networks.'), 142, PC.dim);
+    else this.drawWrapped('hf', networkHint(this.os), 142, PC.dim);
     this.drawText('h', tr('ESC STOP HOSTING'), 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
   }
 
@@ -428,11 +491,10 @@ export class LanPage extends Page {
     this.drawText('h', tr('ESC CANCEL'), 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
   }
 
-  /** The game agreed: who plays whom, which side this player is, what comes next; then it starts. */
+  /** The game agreed: who plays whom, which side this player is, what comes next (it starts in update()). */
   private renderMatch(): void {
     const m = this.match;
     if (!m) return;
-    const left = m.at - performance.now();
     const [p1, p2] = m.names;
     const me = m.localPlayer;
     this.drawText('mf', tr('MATCH FOUND!'), 160, 34, FontSize.BIG, PC.gold, HAlign.CENTER);
@@ -446,7 +508,6 @@ export class LanPage extends Page {
     this.drawWrapped('mn', tr('Both of you pick a pilot and a robot. Then {p1} picks the arena, and the fight starts when you have both pressed PUNCH. The bar at the bottom of the screen always says whose move it is.', { p1 }), 104, PC.grey, 280, 40);
     this.drawText('mg', tr('STARTING{dots}', { dots: this.dots() }), 160, 150, FontSize.SMALL, PC.gold, HAlign.CENTER);
     this.drawText('h', tr('ESC CANCEL'), 160, 182, FontSize.SMALL, PC.dim, HAlign.CENTER);
-    if (left <= 0) this.start();
   }
 
   private renderMenu(): void {
@@ -464,12 +525,16 @@ export class LanPage extends Page {
       const y = ROW_Y + i * ROW_H;
       const sel = i === this.row;
       if (sel) this.box(14, y - 3, 292, 13, PC.select);
-      this.drawText(`l${i}`, label, 22, y, FontSize.SMALL, sel ? PC.white : PC.grey);
-      if (value) this.drawText(`v${i}`, value, 120, y, FontSize.SMALL, sel ? PC.gold : PC.white);
+      this.drawCol(`l${i}`, label, 22, y, sel ? PC.white : PC.grey);
+      if (value) this.drawCol(`v${i}`, value, 120, y, sel ? PC.gold : PC.white);
     });
-    this.drawText('gt', tr('GAMES ON YOUR NETWORK') + (this.scanning ? this.dots() : ''), 22, GAMES_Y - 13, FontSize.SMALL, PC.dim);
-    if (!this.games.length) {
-      this.drawText('g0', tr('NONE FOUND YET'), 30, GAMES_Y, FontSize.SMALL, PC.dark);
+    this.drawCol('gt', tr('GAMES ON YOUR NETWORK') + (this.scanning ? this.dots() : ''), 22, GAMES_Y - 13, PC.dim);
+    if (!this.games.length && this.scanFailed) {
+      // (not "none found": the search did not go out. What the system may want, under it)
+      this.drawWrapped('gf', tr('THE NETWORK COULD NOT BE SEARCHED.'), GAMES_Y, PC.red, 280, 16);
+      this.drawWrapped('gh', networkHint(this.os), GAMES_Y + 16, PC.dim, 280, 34);
+    } else if (!this.games.length) {
+      this.drawCol('g0', tr('NONE FOUND YET'), 30, GAMES_Y, PC.dark);
     }
     for (let i = 0; i < GAMES_SHOWN; i++) {
       const g = this.games[this.gamesTop + i];
@@ -479,9 +544,9 @@ export class LanPage extends Page {
       if (sel) this.box(14, y - 2, 292, 11, PC.select);
       const other = g.version !== APP_VERSION;
       // (up to the address column)
-      this.drawText(`gn${i}`, clip(tr('{name}\'S GAME', { name: g.name.toUpperCase() }), 19), 30, y, FontSize.SMALL, sel ? PC.white : PC.grey);
-      this.drawText(`ga${i}`, g.address.toUpperCase(), 150, y, FontSize.SMALL, sel ? PC.gold : PC.white);
-      this.drawText(`gv${i}`, g.busy ? tr('PLAYING') : other ? `V${g.version}` : tr('OPEN'), 298, y, FontSize.SMALL,
+      this.drawCol(`gn${i}`, clip(tr('{name}\'S GAME', { name: g.name.toUpperCase() }), 19), 30, y, sel ? PC.white : PC.grey);
+      this.drawCol(`ga${i}`, g.address.toUpperCase(), 150, y, sel ? PC.gold : PC.white);
+      this.drawCol(`gv${i}`, g.busy ? tr('PLAYING') : other ? `V${g.version}` : tr('OPEN'), 298, y,
         g.busy ? PC.orange : other ? PC.red : PC.green, HAlign.RIGHT);
     }
     const a = this.address();

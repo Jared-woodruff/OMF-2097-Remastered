@@ -113,7 +113,8 @@ export class ArenaPauseMenu {
       m.attach(new TextSlider(tr('SPEED'), tr('Change the speed of the game when in the arena. Press left or right to change.'), 10, false,
         () => s.gameplay.speed, (v) => (s.gameplay.speed = v), (v) => gs.setSpeed(v + 5)));
     }
-    m.attach(new TextSelector(tr('GRAPHICS'), tr('Switch between the original pixel graphics and the remastered HD renderer (F2).'),
+    // (a label of its own: CLASSIC and REMASTERED agree with it, which the GRAPHICS menu's title may not in every language)
+    m.attach(new TextSelector(tr('pause|GRAPHICS'), tr('Switch between the original pixel graphics and the remastered HD renderer (F2).'),
       () => (s.video.graphics === 'classic' ? 0 : 1), (v) => (s.video.graphics = v === 0 ? 'classic' : 'remastered'),
       [tr('CLASSIC'), tr('REMASTERED')], (v) => app.setGraphicsMode(v === 0 ? 'classic' : 'remastered')));
     const quitLabel = host.training ? tr('EXIT TRAINING') : gs.net ? tr('LEAVE GAME') : gs.isTournament() && !gs.matchSettings.sim ? tr('FORFEIT') : tr('QUIT');
@@ -132,6 +133,11 @@ export class ArenaPauseMenu {
   open(): void {
     this.resuming = false;
     this.menu.select(this.returnButton);
+  }
+
+  /** Closed, and the key or button that closed it not let go yet (a network game's robot waits for it too). */
+  get closing(): boolean {
+    return this.resuming;
   }
 
   /** TRAINING LAB: the dummy and the lab's views. */

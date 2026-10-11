@@ -1,9 +1,17 @@
 // Custom tournaments: made from an installed tournament, with fewer opponents (the champion always among them), the
 // new robots and more prize money; listed with the other tournaments once registered.
-import { beforeEach, describe, expect, it } from 'vitest';
-import { SceneId } from '../game/constants';
+import fs from 'node:fs';
+import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { ACT_PUNCH, CtrlType, SceneId } from '../game/constants';
 import { EXTRA_HAR_IDS } from '../game/roster';
-import { buildCustomTournament, customTournaments, fileNameOf, readTournamentSpec, resetCustomTournaments, setCustomTournament } from '../game/tournament/custom';
+import {
+  buildCustomTournament, customTournaments, defaultTitle, fileNameOf, readTournamentSpec, registerCustomTournaments, resetCustomTournaments,
+  setCustomTournament,
+} from '../game/tournament/custom';
+import { localizedLocale } from '../formats/tournament';
+import { tr, useLanguage, type LanguageData } from '../i18n/i18n';
+import type { LangCode } from '../i18n/languages';
 import { loadTournament } from '../resources/resources';
 import { trnlistInit, trnLoad } from '../resources/trnmanager';
 import { createGame, hasGameData, loadExtras } from './harness';
@@ -12,6 +20,16 @@ import { Page } from '../game/gui/page';
 import { FontSize, HAlign } from '../game/gui/text';
 
 beforeEach(() => resetCustomTournaments());
+afterEach(() => useLanguage('en', { ui: {}, original: null }));
+
+/** A language's remaster and tournament texts (public/lang). */
+function files(code: LangCode): LanguageData {
+  const json = (p: string) => {
+    const file = path.resolve(__dirname, '../../public/lang', p);
+    return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : undefined;
+  };
+  return { ui: json(`ui/${code}.json`) ?? {}, original: null, trn: json(`trn/${code}.json`) };
+}
 
 describe('custom tournament files', () => {
   it('reads descriptions carefully', () => {
@@ -19,6 +37,16 @@ describe('custom tournament files', () => {
     const s = readTournamentSpec({ name: 'grand prix!', base: 'war.trn', size: 7, robots: 2, prize: 3 })!;
     expect(s).toMatchObject({ name: 'GRAND PRIX', base: 'WAR.TRN', size: 0, robots: 2, prize: 3 });
     expect(readTournamentSpec({ base: '../x.trn' })!.base).not.toContain('..');
+  });
+
+  it('names a new tournament in the game\'s language when a name can hold its letters, else in English', () => {
+    useLanguage('de', files('de'));
+    expect(defaultTitle(0)).toBe('EIGENES TURNIER 1');
+    useLanguage('ru', files('ru'));
+    expect(defaultTitle(2)).toBe('CUSTOM TOURNAMENT 3');
+    // (a letter the name cannot hold would be lost: Ó)
+    useLanguage('pt', { ui: { 'CUSTOM TOURNAMENT {n}': 'TORNEIO PRÓPRIO {n}' }, original: null });
+    expect(defaultTitle(0)).toBe('CUSTOM TOURNAMENT 1');
   });
 });
 
@@ -51,6 +79,60 @@ describe.skipIf(!hasGameData)('custom tournaments', () => {
     expect(trnLoad(fileNameOf(2))?.locales[0].title).toBe('LOCAL LEAGUE');
     setCustomTournament(2, null);
     expect(trnlistInit().map((t) => t.filename)).not.toContain(fileNameOf(2));
+  });
+
+  it('shows its description where it puts it, under the logo, in every language', () => {
+    createGame(SceneId.MENU);
+    const base = loadTournament('NORTH_AM.TRN');
+    const en = base.locales[0];
+    for (const code of ['en', 'de', 'fr', 'ar'] as const) {
+      useLanguage(code, files(code));
+      const t = buildCustomTournament({ v: 1, name: 'TEST CUP', base: 'NORTH_AM.TRN', size: 0, robots: 0, prize: 1 }, 0, base);
+      // (as the tournament chooser shows it: trnSelect.ts)
+      const loc = localizedLocale(t)!;
+      expect([loc.descWidth, loc.descCenter, loc.descVmove, loc.descColor], code).toEqual([300, 160, en.descVmove, en.descColor]);
+      expect(loc.strippedDescription, code).toBe(t.locales[0].description);
+      // The installed tournament is laid out by its own markup in each language (German: the file's German text).
+      const own = localizedLocale(base)!;
+      const want = code === 'de' ? base.locales[1] : en;
+      expect([own.descWidth, own.descCenter, own.descVmove], code).toEqual([want.descWidth, want.descCenter, want.descVmove]);
+      expect(own.strippedDescription, code).not.toMatch(/\{/);
+    }
+  });
+
+  it('writes the descriptions in the language of the moment (built again when it changes)', () => {
+    createGame(SceneId.MENU);
+    registerCustomTournaments();
+    setCustomTournament(1, { v: 1, name: 'LOCAL LEAGUE', base: 'NORTH_AM.TRN', size: 1, robots: 0, prize: 3 });
+    const description = () => trnLoad(fileNameOf(1))!.locales[0].description;
+    const english = description();
+    expect(english).toContain('PRIZE MONEY: DOUBLE.');
+    expect(english).toContain(loadTournament('NORTH_AM.TRN').locales[0].title.toUpperCase());
+    useLanguage('de', files('de'));
+    expect(description()).toContain(tr('PRIZE MONEY: {prize}.', { prize: tr('DOUBLE') }));
+    // (the tournament it is made from named as it is in German: the file's German title)
+    expect(description()).toContain(loadTournament('NORTH_AM.TRN').locales[1].title.toUpperCase());
+    useLanguage('en', { ui: {}, original: null });
+    expect(description()).toBe(english);
+    setCustomTournament(1, null);
+  });
+
+  it('takes a name from what the player\'s keyboard types', () => {
+    createGame(SceneId.MENU);
+    const page = new CustomTournamentsPage();
+    // (a new one in the first slot, named CUSTOM TOURNAMENT 1)
+    page.action(ACT_PUNCH, CtrlType.KEYBOARD);
+    expect(customTournaments()[0]?.name).toBe('CUSTOM TOURNAMENT 1');
+    for (let i = 0; i < 24; i++) page.key('Backspace');
+    const type = (code: string, key: string) => page.key(code, { key } as KeyboardEvent);
+    // A French keyboard's A, M and Q; a German one's - (a space); a Russian one's а on the US F.
+    type('KeyQ', 'a');
+    type('Semicolon', 'm');
+    type('KeyA', 'q');
+    type('Slash', '-');
+    type('KeyF', 'а');
+    expect(customTournaments()[0]?.name).toBe('AMQ F');
+    setCustomTournament(0, null);
   });
 });
 

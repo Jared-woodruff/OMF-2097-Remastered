@@ -56,6 +56,11 @@ async function filesFromDrop(dt: DataTransfer): Promise<File[]> {
   return out;
 }
 
+/** A text in the game's language with its {placeholders} made into elements (the translation places them). */
+function withParts(text: string, parts: Record<string, () => HTMLElement>): (string | HTMLElement)[] {
+  return text.split(/(\{\w+\})/).map((s) => parts[s.slice(1, -1)]?.() ?? s);
+}
+
 /** Shows the import screen; resolves with the game files once the player supplied them (they are stored too). */
 export function showImportScreen(): Promise<Map<string, Uint8Array>> {
   const style = document.createElement('style');
@@ -63,22 +68,30 @@ export function showImportScreen(): Promise<Map<string, Uint8Array>> {
   document.head.appendChild(style);
   const root = document.createElement('div');
   root.id = 'omf-import';
+  // (the game's name is its logo: in English)
   root.innerHTML = `
     <div class="panel">
-      <h1>ONE MUST FALL</h1>
+      <h1 lang="en">ONE MUST FALL</h1>
       <div class="year">2097</div>
-      <div class="sub">REMASTERED</div>
-      <p>This web version plays the original game's data, which it does not include. <i>One Must Fall 2097</i> has been
-        freeware since 1999: give it the installer <code>OMF21.EXE</code> of the freeware release, a zip of the game, or
-        the folder of an installed copy.</p>
+      <div class="sub" lang="en">REMASTERED</div>
+      <p class="about"></p>
       <div class="drop" tabindex="-1">
-        <strong>Drop OMF21.EXE, a zip or the game folder here</strong>
-        <button type="button" data-pick="file">Choose a file…</button>
-        <button type="button" class="alt" data-pick="folder">Choose a folder…</button>
+        <strong></strong>
+        <button type="button" data-pick="file"></button>
+        <button type="button" class="alt" data-pick="folder"></button>
       </div>
       <div class="status" role="status" aria-live="polite"></div>
-      <p class="fine">Nothing is uploaded: the files are unpacked in your browser and kept there for your next visit.</p>
+      <p class="fine"></p>
     </div>`;
+  // The words, in the game's language: the game's name and the installer's stay as they are.
+  const el = (tag: string, text: string) => Object.assign(document.createElement(tag), { textContent: text });
+  const parts = { game: () => el('i', 'One Must Fall 2097'), file: () => el('code', 'OMF21.EXE') };
+  const about = tr("This web version plays the original game's data, which it does not include. {game} has been freeware since 1999: give it the installer {file} of the freeware release, a zip of the game, or the folder of an installed copy.");
+  root.querySelector('.about')!.append(...withParts(about, parts));
+  root.querySelector('.drop strong')!.append(...withParts(tr('Drop {file}, a zip or the game folder here'), parts));
+  root.querySelector('[data-pick="file"]')!.textContent = tr('Choose a file…');
+  root.querySelector('[data-pick="folder"]')!.textContent = tr('Choose a folder…');
+  root.querySelector('.fine')!.textContent = tr('Nothing is uploaded: the files are unpacked in your browser and kept there for your next visit.');
   document.body.appendChild(root);
   const drop = root.querySelector('.drop') as HTMLElement;
   const status = root.querySelector('.status') as HTMLElement;

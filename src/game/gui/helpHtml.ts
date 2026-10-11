@@ -109,14 +109,14 @@ const CSS = `
 .omfh-toc::-webkit-scrollbar { display: none; }
 .omfh-topic { display: grid; grid-template-columns: calc(12 * var(--ux)) 1fr; align-items: baseline; width: 100%;
   box-sizing: border-box; padding: calc(1.2 * var(--uy)) calc(2.5 * var(--ux)); border: 0; border-radius: calc(1.5 * var(--ux));
-  background: none; cursor: pointer; text-align: left; color: #aab2bd; text-transform: uppercase; letter-spacing: .1em;
+  background: none; cursor: pointer; text-align: start; color: #aab2bd; text-transform: uppercase; letter-spacing: .1em;
   font: 700 max(11px, calc(3.6 * var(--uy))) / 1.25 ${UI_FONT}; text-shadow: calc(.45 * var(--ux)) calc(.45 * var(--uy)) 0 #050608; }
 .omfh-topic b { font-weight: 700; color: #7c8694; }
 .omfh-topic:hover { color: #f2f4f7; }
 .omfh-topic.is-on { color: #ffc840; background: rgba(28, 60, 120, .88); }
 .omfh-topic.is-on b { color: #ffc840; }
 .omfh-page { position: absolute; left: calc(124 * var(--ux)); right: calc(6 * var(--ux)); top: calc(22 * var(--uy));
-  bottom: calc(18 * var(--uy)); overflow-y: auto; padding-right: calc(5 * var(--ux)); scroll-behavior: smooth;
+  bottom: calc(18 * var(--uy)); overflow-y: auto; padding-inline-end: calc(5 * var(--ux)); scroll-behavior: smooth;
   scrollbar-width: thin; scrollbar-color: #0000f3 #000059; }
 .omfh-page::-webkit-scrollbar { width: calc(1.2 * var(--ux)); }
 .omfh-page::-webkit-scrollbar-track { background: #000059; }

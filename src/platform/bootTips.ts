@@ -1,6 +1,6 @@
 // The loading screen's tips (they change every few seconds and stop with the loading screen), and its other words, in
-// the game's language.
-import { tr, trKey } from '../i18n/i18n';
+// the game's language (the first start's setup, over the loading screen, can change it).
+import { onLanguageChange, tr, trKey } from '../i18n/i18n';
 
 const TIPS = [
   trKey('Press F2 at any time to switch between the original pixels and the remastered graphics.'),
@@ -17,20 +17,25 @@ const TIPS = [
   trKey('Kreissack waits at the end of arcade mode. Bring your best robot.'),
 ];
 
-/** Starts the tips on the loading screen (and puts its words in the game's language). */
+/** Starts the tips on the loading screen (and puts its words in the game's language, again when it changes). */
 export function startBootTips(boot: HTMLElement): void {
   const label = boot.querySelector<HTMLElement>('.tip b');
-  if (label) label.textContent = tr('TIP');
   const foot = boot.querySelector<HTMLElement>('.foot span');
-  if (foot) foot.textContent = tr('An unofficial fan remaster · free, always');
   const el = boot.querySelector<HTMLElement>('.tip');
   const text = el?.querySelector<HTMLElement>('.tip-text');
-  if (!el || !text) return;
   let i = Math.floor(Math.random() * TIPS.length);
-  text.textContent = tr(TIPS[i]);
+  const words = () => {
+    if (label) label.textContent = tr('TIP');
+    if (foot) foot.textContent = tr('An unofficial fan remaster · free, always');
+    if (text) text.textContent = tr(TIPS[i]);
+  };
+  words();
+  const stopWords = onLanguageChange(words);
+  if (!el || !text) return;
   const timer = window.setInterval(() => {
     if (boot.style.display === 'none' || !boot.isConnected) {
       window.clearInterval(timer);
+      stopWords();
       return;
     }
     el.classList.add('is-out');

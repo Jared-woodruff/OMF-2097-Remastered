@@ -25,10 +25,10 @@ import { fonts, langGet, loadOriginalTexts, soundBank } from './resources/resour
 import { setLanguage, setOriginalTextsLoader, tr, trKey, trn } from './i18n/i18n';
 import { madeGlyphs } from './game/gui/glyphs';
 import { startBootTips } from './platform/bootTips';
-import { FontSize, getFont } from './game/gui/text';
+import { FontSize, getFont, setTextAudit, type TextAuditHit } from './game/gui/text';
 import { GLRenderer } from './video/gl/renderer';
 import { drawList } from './video/draw';
-import { framed, isDesktop, isFullscreen, quitApp, setFullscreen, toggleFullscreen } from './platform/desktop';
+import { blockBrowserMenu, framed, isDesktop, isFullscreen, quitApp, setFullscreen, toggleFullscreen } from './platform/desktop';
 import { onKey } from './controller/input';
 import { HdAssets, hdAssets } from './video/hd/assets';
 import { arenaGeometry } from './video/hd/geometry';
@@ -166,6 +166,7 @@ async function main(): Promise<void> {
   window.addEventListener('resize', resize);
   watchPixelRatio();
   autoHideCursor();
+  blockBrowserMenu();
   // The language: the player's choice, else their system's (the loading screen and the import screen speak it too);
   // ?lang=<code> tries one out without saving it.
   loadSettings();
@@ -209,6 +210,12 @@ async function main(): Promise<void> {
   // (the mods' HD pictures: in the remastered look, with HD artwork on)
   const modArt = new ModArtwork(hdAssets, () => renderer.options.mode === 'remastered' && hdAssets.enabled);
   const params = new URLSearchParams(location.search);
+  // Development: ?textaudit collects the texts that do not fit their boxes (window.__omfTextAudit, by kind, box, text).
+  if (import.meta.env.DEV && params.has('textaudit')) {
+    const hits = new Map<string, TextAuditHit>();
+    (window as unknown as { __omfTextAudit: unknown }).__omfTextAudit = hits;
+    setTextAudit((h) => hits.set(`${h.kind}|${h.box.join('x')}|${h.text}`, h));
+  }
   if (params.has('viewer')) {
     startViewer(renderer);
     return;
@@ -336,6 +343,8 @@ async function main(): Promise<void> {
     }
   };
   gs.onSceneChange = () => {
+    // (a network game goes on under the help: the new screen's palette is the one the help gives back when it closes)
+    help.sceneChanged();
     renderer.resetAtlas();
     hdAssets.preload(artworkFor());
     modArt.sceneChanged();
@@ -467,8 +476,12 @@ async function main(): Promise<void> {
       const menuCorner = gs.thisId === SceneId.MENU && gs.nextId === SceneId.MENU && !engine.waiting && !help.isOpen() &&
         !htmlHelpOpen() && !gs.credits;
       showVersionLabel(menuCorner);
-      // (a network game: what to do on its screens, or whom it waits for)
-      showNetStatus(gs);
+      // (a network game: what to do on its screens, or whom it waits for; above a screen's own things at its bottom)
+      showNetStatus(gs, (y) => {
+        const vp = renderer.viewport();
+        const r = canvas.getBoundingClientRect();
+        return r.top + ((vp.y + y * vp.sy) / canvas.height) * r.height;
+      });
       showCreditsButton(menuCorner && gs.sc instanceof MainMenuScene && gs.sc.atMainPage());
       fxDirector.update(gs, engine.ticks + engine.alpha, renderer.options.mode === 'remastered');
       renderer.fx = fxDirector.frame;
@@ -690,9 +703,12 @@ async function main(): Promise<void> {
   // MULTIPLAYER > LAN: hosting and joining network games (net/lanPage.ts).
   app.showLan = () => help.open(new LanPage(gs));
   // A network game goes on while the window is hidden (the browser stops drawing it, and the other player would wait),
-  // and the other player hears when this one closes the game.
+  // and the other player hears when this one closes the game. So does what leads to one: the LAN page starts the match
+  // it found, and closes (help.update: frames are drawn no more).
   window.setInterval(() => {
-    if (document.hidden && gs.net) engine.idle(performance.now());
+    if (!document.hidden) return;
+    help.update();
+    if (gs.net) engine.idle(performance.now());
   }, 15);
   window.addEventListener('pagehide', () => gs.net?.leave());
   registerCustomTournaments();
@@ -727,7 +743,8 @@ async function main(): Promise<void> {
   window.addEventListener('keyup', (e) => {
     if (e.code === 'PrintScreen') screenshot();
   });
-  // Global hotkeys: F2 swaps classic/remastered graphics, F11 / Alt+Enter toggle fullscreen.
+  // Global hotkeys: F2 swaps classic/remastered graphics, F11 / Alt+Enter (on a Mac also Ctrl+Cmd+F) toggle fullscreen.
+  const mac = /Mac/.test(navigator.platform);
   onKey((code, e) => {
     if (code === 'F12' && isDesktop) {
       if (!e.repeat) screenshot();
@@ -739,7 +756,7 @@ async function main(): Promise<void> {
       return;
     }
     if (help.isOpen()) {
-      if (!e.repeat) help.key(code);
+      if (!e.repeat) help.key(code, e);
       return;
     }
     if (code === 'F2') {
@@ -750,7 +767,7 @@ async function main(): Promise<void> {
       if (!e.repeat) audio.nextSong();
       return;
     }
-    if (code === 'F11' || ((code === 'Enter' || code === 'NumpadEnter') && e.altKey)) {
+    if (code === 'F11' || ((code === 'Enter' || code === 'NumpadEnter') && e.altKey) || (mac && code === 'KeyF' && e.metaKey && e.ctrlKey)) {
       if (!e.repeat) app.toggleFullscreen();
       return;
     }

@@ -397,11 +397,13 @@ export function loadLanguage(file = 'ENGLISH.DAT'): void {
 
 /**
  * The original game's texts in a language (i18n/i18n.ts): English and German are the game's own files, the other
- * languages their translations (public/lang/<code>.json); what a translation leaves empty stays English.
+ * languages their translations (public/lang/<code>.json); what a translation leaves empty stays English. German's
+ * `translated` are fixes to its file, by index (a few of its texts are English, or wrong).
  */
-export function loadOriginalTexts(code: string, translated: string[] | null): void {
+export function loadOriginalTexts(code: string, translated: Readonly<Record<number, string | undefined>> | null): void {
   const english = readLanguageFile('ENGLISH.DAT');
-  const own = code === 'de' && hasFile('GERMAN.DAT') ? readLanguageFile('GERMAN.DAT') : translated;
+  const german = code === 'de' && hasFile('GERMAN.DAT') ? readLanguageFile('GERMAN.DAT') : null;
+  const own = german ? german.map((t, id) => translated?.[id] || t) : translated;
   if (!own) {
     useLanguageTexts(english);
     return;

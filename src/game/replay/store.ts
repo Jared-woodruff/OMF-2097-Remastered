@@ -2,6 +2,7 @@
 // (IndexedDB, also in the desktop app). The newest fights are kept automatically; the player can keep any fight for
 // good, delete it, or exchange recordings as .REC files.
 import { recLastTick, recParse, type RecFile } from '../../formats/rec';
+import { trKey } from '../../i18n/i18n';
 import { done, openDb, result } from '../../platform/db';
 
 export interface ReplayPlayer {
@@ -13,7 +14,10 @@ export interface ReplayPlayer {
 export interface ReplayMeta {
   /** When the fight was played (ms since 1970). */
   created: number;
-  /** Game mode shown in the list (ONE PLAYER, TWO PLAYER, TOURNAMENT, ...). */
+  /**
+   * Game mode shown in the list (ONE PLAYER, TWO PLAYER, TOURNAMENT, ...): in English, translated where shown (older
+   * replays have it as it was shown then).
+   */
   mode: string;
   players: [ReplayPlayer, ReplayPlayer];
   arena: number;
@@ -54,7 +58,7 @@ export function metaFromRec(rec: RecFile, created = Date.now()): ReplayMeta {
     pilotId: rec.pilots[i].info.pilotId,
   });
   return {
-    created, mode: rec.gameMode === 1 ? 'TOURNAMENT' : 'IMPORTED', players: [p(0), p(1)], arena: rec.arenaId,
+    created, mode: rec.gameMode === 1 ? trKey('TOURNAMENT') : trKey('IMPORTED'), players: [p(0), p(1)], arena: rec.arenaId,
     winner: -1, rounds: [0, 0], ticks: recLastTick(rec), kept: true,
   };
 }

@@ -3,8 +3,9 @@
 //
 // Two kinds of text are translated:
 // - The original game's texts (its language file, 1013 of them: menus, help, the news, the pilots' words...). English
-//   and German are the game's own files (ENGLISH.DAT, GERMAN.DAT); the other languages are public/lang/<code>.json,
-//   arrays of the same 1013 texts (an empty one falls back to English).
+//   and German are the game's own files (ENGLISH.DAT, GERMAN.DAT; public/lang/de.json fixes a few of the German ones,
+//   { "<index>": "text" }); the other languages are public/lang/<code>.json, arrays of the same 1013 texts (an empty
+//   one falls back to English).
 // - The remaster's own texts, written in English in the code as tr('ONE PLAYER GAME'), tr('{name} WINS', { name }).
 //   public/lang/ui/<code>.json has each language's translations by their English text (tools/i18n.mjs lists them and
 //   checks the files); a text without a translation stays English.
@@ -66,10 +67,11 @@ export function trn(n: number, one: string, other: string, params?: Params): str
 
 /**
  * A text of the original tournaments (a description, an ending page, a pilot's words) in the game's language: the
- * file's own German in German, else its translation (public/lang/trn/<code>.json, by the English), else the English.
+ * file's own German in German where it has one (WORLD.TRN's German repeats the English, its pilots have no German
+ * words), else its translation (public/lang/trn/<code>.json, by the English), else the English.
  */
 export function trnText(english: string, german?: string): string {
-  if (current === 'de' && german) return german;
+  if (current === 'de' && german && german !== english) return german;
   return trnCatalogue[english] ?? english;
 }
 
@@ -141,12 +143,30 @@ export function setLanguageFetcher(f: Fetcher): void {
   fetchJson = f;
 }
 
-/** A language's files: its remaster texts, the original game's texts (null: the game's own file), its tournaments'. */
+/**
+ * A language's files: its remaster texts, the original game's texts (null: the game's own file; German: the fixes to
+ * its own file, by index, '' where its text stands), its tournaments'.
+ */
 export interface LanguageData {
   ui: Catalogue;
   original: string[] | null;
-  /** The original tournaments' texts (descriptions, endings, the pilots' words) by their English. */
+  /**
+   * The original tournaments' texts (descriptions, endings, the pilots' words) by their English (German: those its
+   * .TRN files leave English).
+   */
   trn?: Record<string, string>;
+}
+
+/**
+ * The original texts of a language file (public/lang/<code>.json): an array of all of them, or an object of some by
+ * their index (German's fixes); null when it is neither.
+ */
+export function originalTexts(json: unknown): string[] | null {
+  if (Array.isArray(json)) return json.map((s) => (typeof s === 'string' ? s : ''));
+  if (!json || typeof json !== 'object') return null;
+  const out: string[] = [];
+  for (const [k, v] of Object.entries(json)) if (/^\d+$/.test(k) && typeof v === 'string') out[Number(k)] = v;
+  return Array.from(out, (s) => s ?? '');
 }
 
 const loaded = new Map<LangCode, LanguageData>();
@@ -157,13 +177,15 @@ export async function loadLanguageData(code: LangCode): Promise<LanguageData> {
   if (have) return have;
   const data: LanguageData = { ui: {}, original: null };
   if (code !== 'en') {
+    // (German has the game's own texts and tournaments: its files only fix a few texts and translate the tournament
+    // texts the .TRN files leave English)
     const [ui, original, trn] = await Promise.all([
       fetchJson(`lang/ui/${code}.json`).catch(() => null),
-      code === 'de' ? null : fetchJson(`lang/${code}.json`).catch(() => null),
-      code === 'de' ? null : fetchJson(`lang/trn/${code}.json`).catch(() => null),
+      fetchJson(`lang/${code}.json`).catch(() => null),
+      fetchJson(`lang/trn/${code}.json`).catch(() => null),
     ]);
     if (ui && typeof ui === 'object' && !Array.isArray(ui)) data.ui = ui as Catalogue;
-    if (Array.isArray(original)) data.original = original.map((s) => (typeof s === 'string' ? s : ''));
+    data.original = originalTexts(original);
     if (trn && typeof trn === 'object' && !Array.isArray(trn)) data.trn = trn as Record<string, string>;
   }
   loaded.set(code, data);
@@ -179,21 +201,34 @@ export function setOriginalTextsLoader(f: (code: LangCode, original: string[] | 
   f(current, loaded.get(current)?.original ?? null);
 }
 
+/** Counts the languages asked for (setLanguage, useLanguage): a load that ends after a later choice is not spoken. */
+let requests = 0;
+
 /** Speaks a language from now on (its files loaded), and tells the listeners. */
 export function useLanguage(code: LangCode, data: LanguageData): void {
+  requests++;
   current = code;
   catalogue = data.ui;
   trnCatalogue = data.trn ?? {};
   plurals = typeof Intl !== 'undefined' && Intl.PluralRules ? new Intl.PluralRules(code) : null;
   applyOriginal(code, data.original);
-  // (the page's own texts: its language picks the right letter forms, Japanese or Chinese)
-  if (typeof document !== 'undefined') document.documentElement.lang = code;
+  // (the page's own texts: its language picks the right letter forms, Japanese or Chinese, and their direction: Arabic
+  // reads from the right; what must not turn around says dir="ltr" itself)
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = code;
+    document.documentElement.dir = languageInfo(code).rtl ? 'rtl' : 'ltr';
+  }
   for (const cb of [...listeners]) cb(code);
 }
 
-/** Speaks the language a setting means ('auto' or a code), once its files are loaded. */
+/**
+ * Speaks the language a setting means ('auto' or a code), once its files are loaded; resolves to that language. Only
+ * the last choice is spoken: one still loading when another comes (the setup screen's arrows) is dropped.
+ */
 export async function setLanguage(setting: string): Promise<LangCode> {
+  const request = ++requests;
   const code = resolveLanguage(setting, await systemLanguages());
-  useLanguage(code, await loadLanguageData(code));
+  const data = await loadLanguageData(code);
+  if (request === requests) useLanguage(code, data);
   return code;
 }

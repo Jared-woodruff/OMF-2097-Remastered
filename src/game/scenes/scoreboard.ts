@@ -42,6 +42,12 @@ function pilotName(id: number): string {
   return PILOT_NAMES[id] ?? modPilot(id)?.info.name.toUpperCase() ?? '(null)';
 }
 
+/**
+ * The columns of the scores' header (x and width, native pixels): the rows' "%-18.16s%-9s%-9s%11s" in the small font.
+ * Each title is a text of its own: translated, they are not 6 px a letter, and right to left they would swap places.
+ */
+const HEADER_COLUMNS: [number, number][] = [[0, 108], [108, 54], [162, 54], [216, 66]];
+
 /** printf("%-18.16s%-9s%-9s%11s", ...) */
 export function scoreRow(name: string, har: string, pilot: string, score: string): string {
   return padRight(name.slice(0, 16), 18) + padRight(har, 9) + padRight(pilot, 9) + padLeft(score, 11);
@@ -56,7 +62,8 @@ export class ScoreboardScene extends Scene {
   ti: TextInput | null = null;
   frame: GuiFrame | null = null;
   title: Text;
-  subtitle: Text;
+  /** The column titles: player name, robot, pilot, score. */
+  subtitle: Text[];
   scores: Text[] = [];
   /** The same event object is only handled once (defensive: several dispatchers may forward it). */
   private lastKeyEvent: KeyboardEvent | null = null;
@@ -114,7 +121,12 @@ export class ScoreboardScene extends Scene {
 
     this.title = new Text(FontSize.BIG, 320, 6).setColor(TEXT_PRIMARY_COLOR).setHAlign(HAlign.CENTER);
     this.setTitle();
-    this.subtitle = new Text(FontSize.SMALL, 290, 6).setColor(TEXT_PRIMARY_COLOR);
+    this.subtitle = HEADER_COLUMNS.map(([, w], k) => {
+      const t = new Text(FontSize.SMALL, w, 6).setColor(TEXT_PRIMARY_COLOR).setHAlign(k === 3 ? HAlign.RIGHT : HAlign.LEFT);
+      // (left to right, as the rows under them)
+      t.rtl = false;
+      return t;
+    });
     this.setSubtitle();
     for (let i = 0; i < SCORE_COUNT; i++) this.scores.push(new Text(FontSize.SMALL, 290, 6).setColor(TEXT_PRIMARY_COLOR));
     this.setScores();
@@ -125,7 +137,7 @@ export class ScoreboardScene extends Scene {
   }
 
   private setSubtitle(): void {
-    this.subtitle.set(scoreRow(tr('PLAYER NAME'), tr('ROBOT'), tr('PILOT'), tr('SCORE')));
+    [tr('PLAYER NAME'), tr('ROBOT'), tr('PILOT'), tr('SCORE')].forEach((s, k) => this.subtitle[k].set(s));
   }
 
   private setScores(): void {
@@ -235,7 +247,7 @@ export class ScoreboardScene extends Scene {
 
   override renderOverlay(): void {
     this.title.draw(0, 5);
-    this.subtitle.draw(20, 20);
+    HEADER_COLUMNS.forEach(([x], k) => this.subtitle[k].draw(20 + x, 20));
     for (let i = 0; i < SCORE_COUNT; i++) this.scores[i].draw(20, 30 + i * 8);
     if (this.hasPendingData) this.frame?.render();
   }
