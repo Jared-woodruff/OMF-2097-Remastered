@@ -302,8 +302,8 @@ export class MeleeScene extends Scene {
     if (player2.selectable) {
       const s1 = gs.getPlayer(0).score;
       const s2 = gs.getPlayer(1).score;
-      this.wins[0] = createBlackText(160 - 8, 6, `Wins: ${s1.wins}`).setHAlign(HAlign.LEFT);
-      this.wins[1] = createBlackText(160 - 8, 6, `Wins: ${s2.wins}`).setHAlign(HAlign.RIGHT);
+      this.wins[0] = createBlackText(160 - 8, 6, tr('WINS: {wins}', { wins: s1.wins })).setHAlign(HAlign.LEFT);
+      this.wins[1] = createBlackText(160 - 8, 6, tr('WINS: {wins}', { wins: s2.wins })).setHAlign(HAlign.RIGHT);
 
       this.bigPortrait2 = new GameObject(gs, 320, 0);
       this.bigPortrait2.setAnimation(pilotBigPortraits);

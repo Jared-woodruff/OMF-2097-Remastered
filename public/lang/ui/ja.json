@@ -595,7 +595,9 @@
  "Raise or lower the volume of all sound effects. Press left or right to change.": "すべての効果音の音量を調整します。左右で変更します。",
  "Raise or lower the volume of all sound effects. Press right or left to change.": "すべての効果音の音量を調整します。左右で変更します。",
  "Raise or lower the volume of music. Press right or left to change.": "音楽の音量を調整します。左右で変更します。",
+ "Rank\n{rank}": "ランク\n{rank}",
  "Reading the game files…": "ゲームファイルを読み込み中…",
+ "Ready!": "準備完了！",
  "Remove all songs from your music library (your files stay where they are).": "ミュージックライブラリからすべての曲を削除します（ファイル自体はそのまま残ります）。",
  "Replays of your fights are kept: watch them in slow motion and save clips as MP4 or GIF.": "試合のリプレイは保存されます。スローモーションで観たり、クリップをMP4やGIFで保存したりできます。",
  "Rest now. We train again tomorrow.": "今は休みなさい。明日また鍛えよう。",
@@ -654,6 +656,8 @@
  "SURVIVAL BEST": "サバイバル最高",
  "SURVIVOR": "サバイバー",
  "Save a clip of a replay.": "リプレイのクリップを保存する。",
+ "Saved {file}": "{file}を保存しました",
+ "Saved {file} ({size})": "{file}を保存しました（{size}）",
  "Saving the GIF…": "GIFを保存中…",
  "Scaling of the classic graphics: SHARP keeps crisp pixels, SMOOTH blends them and CRT emulates an old monitor with scanlines.": "クラシック画面の拡大方法です。シャープはくっきりしたドットのまま、スムーズはドットをなめらかに補間し、CRTは走査線のある昔のモニターを再現します。",
  "Screenshot saved": "スクリーンショットを保存しました",
@@ -780,7 +784,9 @@
  "UNFINISHED": "未決着",
  "UNTOUCHABLE": "アンタッチャブル",
  "UP": "↑",
+ "UP/DOWN TOPIC   < > SCROLL   ESC BACK": "↑/↓ 項目   < > スクロール   ESC 戻る",
  "Unavailable\n\nUnavailable": "利用不可\n\n利用不可",
+ "Unpacking {file}…": "{file}を展開中…",
  "Use joystick 1.": "ジョイスティック1を使います。",
  "Use joystick 2.": "ジョイスティック2を使います。",
  "Use joystick {n}.": "ジョイスティック{n}を使います。",
@@ -922,6 +928,9 @@
  },
  "{n} robots added to the workshop.": {
   "other": "{n}体のロボットを工房に追加しました。"
+ },
+ "{n} songs added to your music ({total} in total). OPTIONS > SOUND > MY MUSIC chooses where they play.": {
+  "other": "マイミュージックに{n}曲を追加しました（合計{total}曲）。流す場面はオプション > サウンド > マイミュージックで選べます。"
  },
  "{n} songs in your music library.": {
   "other": "ミュージックライブラリに{n}曲あります。"

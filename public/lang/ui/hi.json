@@ -599,7 +599,9 @@
  "Raise or lower the volume of all sound effects. Press left or right to change.": "सभी साउंड इफ़ेक्ट की आवाज़ बढ़ाएँ या घटाएँ। बदलने के लिए बायाँ या दायाँ दबाएँ।",
  "Raise or lower the volume of all sound effects. Press right or left to change.": "सभी साउंड इफ़ेक्ट की आवाज़ बढ़ाएँ या घटाएँ। बदलने के लिए दायाँ या बायाँ दबाएँ।",
  "Raise or lower the volume of music. Press right or left to change.": "संगीत की आवाज़ बढ़ाएँ या घटाएँ। बदलने के लिए दायाँ या बायाँ दबाएँ।",
+ "Rank\n{rank}": "रैंक\n{rank}",
  "Reading the game files…": "गेम फ़ाइलें पढ़ी जा रही हैं…",
+ "Ready!": "तैयार!",
  "Remove all songs from your music library (your files stay where they are).": "अपनी म्यूज़िक लाइब्रेरी से सारे गाने हटाएँ (आपकी फ़ाइलें अपनी जगह बनी रहेंगी)।",
  "Replays of your fights are kept: watch them in slow motion and save clips as MP4 or GIF.": "आपकी लड़ाइयों के रीप्ले सहेजे जाते हैं: उन्हें स्लो मोशन में देखें और MP4 या GIF क्लिप सेव करें।",
  "Rest now. We train again tomorrow.": "अब आराम करो। कल फिर अभ्यास करेंगे।",
@@ -658,6 +660,8 @@
  "SURVIVAL BEST": "सर्वाइवल बेस्ट",
  "SURVIVOR": "सर्वाइवर",
  "Save a clip of a replay.": "किसी रीप्ले की क्लिप सेव करें।",
+ "Saved {file}": "सेव किया: {file}",
+ "Saved {file} ({size})": "सेव किया: {file} ({size})",
  "Saving the GIF…": "GIF सेव हो रही है…",
  "Scaling of the classic graphics: SHARP keeps crisp pixels, SMOOTH blends them and CRT emulates an old monitor with scanlines.": "क्लासिक ग्राफ़िक्स की स्केलिंग: शार्प पिक्सल को तीखा रखता है, स्मूद उन्हें मिला देता है और CRT स्कैनलाइन वाले पुराने मॉनिटर की नकल करता है।",
  "Screenshot saved": "स्क्रीनशॉट सेव हुआ",
@@ -784,7 +788,9 @@
  "UNFINISHED": "अधूरी",
  "UNTOUCHABLE": "बेदाग",
  "UP": "ऊपर",
+ "UP/DOWN TOPIC   < > SCROLL   ESC BACK": "ऊपर/नीचे विषय   < > स्क्रॉल   ESC वापस",
  "Unavailable\n\nUnavailable": "उपलब्ध नहीं\n\nउपलब्ध नहीं",
+ "Unpacking {file}…": "{file} अनपैक की जा रही है…",
  "Use joystick 1.": "जॉयस्टिक 1 इस्तेमाल करें।",
  "Use joystick 2.": "जॉयस्टिक 2 इस्तेमाल करें।",
  "Use joystick {n}.": "जॉयस्टिक {n} इस्तेमाल करें।",
@@ -939,6 +945,10 @@
  "{n} robots added to the workshop.": {
   "one": "{n} रोबोट वर्कशॉप में जुड़ा।",
   "other": "{n} रोबोट वर्कशॉप में जुड़े।"
+ },
+ "{n} songs added to your music ({total} in total). OPTIONS > SOUND > MY MUSIC chooses where they play.": {
+  "one": "आपके संगीत में {n} गाना जोड़ा गया (कुल {total})। ये कहाँ बजेंगे, यह विकल्प > साउंड > मेरा संगीत में चुनें।",
+  "other": "आपके संगीत में {n} गाने जोड़े गए (कुल {total})। ये कहाँ बजेंगे, यह विकल्प > साउंड > मेरा संगीत में चुनें।"
  },
  "{n} songs in your music library.": {
   "one": "आपकी म्यूज़िक लाइब्रेरी में {n} गाना है।",

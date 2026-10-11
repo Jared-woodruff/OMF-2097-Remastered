@@ -607,7 +607,9 @@
  "Raise or lower the volume of all sound effects. Press left or right to change.": "Громкость звуковых эффектов. Меняется кнопками влево и вправо.",
  "Raise or lower the volume of all sound effects. Press right or left to change.": "Громкость звуковых эффектов. Меняется кнопками вправо и влево.",
  "Raise or lower the volume of music. Press right or left to change.": "Громкость музыки. Меняется кнопками вправо и влево.",
+ "Rank\n{rank}": "Ранг\n{rank}",
  "Reading the game files…": "Чтение файлов игры…",
+ "Ready!": "Готово!",
  "Remove all songs from your music library (your files stay where they are).": "Удалить все песни из музыкальной библиотеки (сами файлы останутся на месте).",
  "Replays of your fights are kept: watch them in slow motion and save clips as MP4 or GIF.": "Повторы ваших боёв сохраняются: смотрите их в замедлении и сохраняйте клипы в MP4 или GIF.",
  "Rest now. We train again tomorrow.": "А теперь отдыхай. Завтра снова тренировка.",
@@ -666,6 +668,8 @@
  "SURVIVAL BEST": "ВЫЖИВАНИЕ: РЕКОРД",
  "SURVIVOR": "НА ПЛАВУ",
  "Save a clip of a replay.": "Сохраните клип из повтора.",
+ "Saved {file}": "Сохранено: {file}",
+ "Saved {file} ({size})": "Сохранено: {file} ({size})",
  "Saving the GIF…": "Сохранение GIF…",
  "Scaling of the classic graphics: SHARP keeps crisp pixels, SMOOTH blends them and CRT emulates an old monitor with scanlines.": "Масштабирование классической графики: ЧЁТКИЙ сохраняет резкие пиксели, СГЛАЖЕННЫЙ смешивает их, а CRT имитирует старый монитор со строками развёртки.",
  "Screenshot saved": "Скриншот сохранён",
@@ -792,7 +796,9 @@
  "UNFINISHED": "НЕ ЗАВЕРШЁН",
  "UNTOUCHABLE": "НЕУЯЗВИМОСТЬ",
  "UP": "ВВЕРХ",
+ "UP/DOWN TOPIC   < > SCROLL   ESC BACK": "ВВЕРХ/ВНИЗ ТЕМА   < > ПРОКРУТКА   ESC НАЗАД",
  "Unavailable\n\nUnavailable": "Недоступно\n\nНедоступно",
+ "Unpacking {file}…": "Распаковка {file}…",
  "Use joystick 1.": "Использовать джойстик 1.",
  "Use joystick 2.": "Использовать джойстик 2.",
  "Use joystick {n}.": "Использовать джойстик {n}.",
@@ -973,6 +979,12 @@
   "few": "{n} робота добавлено в мастерскую.",
   "many": "{n} роботов добавлено в мастерскую.",
   "other": "{n} робота добавлено в мастерскую."
+ },
+ "{n} songs added to your music ({total} in total). OPTIONS > SOUND > MY MUSIC chooses where they play.": {
+  "one": "{n} песня добавлена в вашу музыку (всего {total}). Где её играть, выберите в НАСТРОЙКИ > ЗВУК > МОЯ МУЗЫКА.",
+  "few": "{n} песни добавлены в вашу музыку (всего {total}). Где их играть, выберите в НАСТРОЙКИ > ЗВУК > МОЯ МУЗЫКА.",
+  "many": "{n} песен добавлено в вашу музыку (всего {total}). Где их играть, выберите в НАСТРОЙКИ > ЗВУК > МОЯ МУЗЫКА.",
+  "other": "{n} песни добавлено в вашу музыку (всего {total}). Где их играть, выберите в НАСТРОЙКИ > ЗВУК > МОЯ МУЗЫКА."
  },
  "{n} songs in your music library.": {
   "one": "{n} песня в вашей библиотеке.",

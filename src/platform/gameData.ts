@@ -56,7 +56,7 @@ export async function extractGameFiles(files: File[], onProgress?: (text: string
     if (WANTED.test(name)) {
       found.set(name, new Uint8Array(await f.arrayBuffer()));
     } else if (/\.(EXE|ZIP)$/.test(name) && f.size > 100_000) {
-      onProgress?.(`Unpacking ${f.name}…`);
+      onProgress?.(tr('Unpacking {file}…', { file: f.name }));
       for (const [k, v] of await extractArchive(new Uint8Array(await f.arrayBuffer()))) found.set(k, v);
     }
   }

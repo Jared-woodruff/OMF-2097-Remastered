@@ -599,7 +599,9 @@
  "Raise or lower the volume of all sound effects. Press left or right to change.": "Sube o baja el volumen de todos los efectos de sonido. Presiona izquierda o derecha para cambiarlo.",
  "Raise or lower the volume of all sound effects. Press right or left to change.": "Sube o baja el volumen de todos los efectos de sonido. Presiona derecha o izquierda para cambiarlo.",
  "Raise or lower the volume of music. Press right or left to change.": "Sube o baja el volumen de la música. Presiona derecha o izquierda para cambiarlo.",
+ "Rank\n{rank}": "Puesto\n{rank}",
  "Reading the game files…": "Leyendo los archivos del juego…",
+ "Ready!": "¡Listo!",
  "Remove all songs from your music library (your files stay where they are).": "Quita todas las canciones de tu biblioteca de música (tus archivos se quedan donde están).",
  "Replays of your fights are kept: watch them in slow motion and save clips as MP4 or GIF.": "Las repeticiones de tus peleas se guardan: míralas a cámara lenta y guarda clips en MP4 o GIF.",
  "Rest now. We train again tomorrow.": "Ahora descansa. Mañana volvemos a entrenar.",
@@ -658,6 +660,8 @@
  "SURVIVAL BEST": "SUPERVIVENCIA: MEJOR",
  "SURVIVOR": "SUPERVIVIENTE",
  "Save a clip of a replay.": "Guarda un clip de una repetición.",
+ "Saved {file}": "Guardado: {file}",
+ "Saved {file} ({size})": "Guardado: {file} ({size})",
  "Saving the GIF…": "Guardando el GIF…",
  "Scaling of the classic graphics: SHARP keeps crisp pixels, SMOOTH blends them and CRT emulates an old monitor with scanlines.": "Escalado de los gráficos clásicos: NÍTIDO mantiene los píxeles definidos, SUAVE los difumina y CRT imita un monitor antiguo con líneas de barrido.",
  "Screenshot saved": "Captura guardada",
@@ -784,7 +788,9 @@
  "UNFINISHED": "SIN TERMINAR",
  "UNTOUCHABLE": "INTOCABLE",
  "UP": "ARRIBA",
+ "UP/DOWN TOPIC   < > SCROLL   ESC BACK": "ARRIBA/ABAJO TEMA   < > DESPLAZAR   ESC VOLVER",
  "Unavailable\n\nUnavailable": "No disponible\n\nNo disponible",
+ "Unpacking {file}…": "Descomprimiendo {file}…",
  "Use joystick 1.": "Usa el joystick 1.",
  "Use joystick 2.": "Usa el joystick 2.",
  "Use joystick {n}.": "Usa el joystick {n}.",
@@ -939,6 +945,10 @@
  "{n} robots added to the workshop.": {
   "one": "{n} robot añadido al taller.",
   "other": "{n} robots añadidos al taller."
+ },
+ "{n} songs added to your music ({total} in total). OPTIONS > SOUND > MY MUSIC chooses where they play.": {
+  "one": "{n} canción añadida a tu música ({total} en total). En OPCIONES > SONIDO > MI MÚSICA eliges dónde suena.",
+  "other": "{n} canciones añadidas a tu música ({total} en total). En OPCIONES > SONIDO > MI MÚSICA eliges dónde suenan."
  },
  "{n} songs in your music library.": {
   "one": "{n} canción en tu biblioteca de música.",

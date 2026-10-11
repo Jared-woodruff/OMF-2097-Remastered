@@ -13,7 +13,7 @@ import { settings } from '../settings';
 import { PC, Page } from './page';
 import { FontSize, HAlign } from './text';
 import { playMenuSound } from './widgets';
-import { tr, lang, langInfo } from '../../i18n/i18n';
+import { tr, trKey, lang, langInfo } from '../../i18n/i18n';
 
 export interface HelpBlock {
   kind: 'title' | 'heading' | 'text';
@@ -93,7 +93,7 @@ export function htmlHelpWanted(): boolean {
 }
 
 /** The page's keys, drawn by the game under the text like the other pages' (records: "< > PAGE   ESC BACK"). */
-const KEYS = 'UP/DOWN TOPIC   < > SCROLL   ESC BACK';
+const KEYS = trKey('UP/DOWN TOPIC   < > SCROLL   ESC BACK');
 
 // Sizes are in the game's pixels (--ux across, --uy down: 320 x 200 on the screen, see place()), colors are the pages'
 // palette (page.ts PC: white, grey, dim, gold, the lists' selection bar, the letters' shadow).
@@ -307,7 +307,7 @@ export class HtmlHelpMenu extends Page {
       return;
     }
     this.drawFrame(tr('HELP'));
-    this.drawText('keys', KEYS, 160, 184, FontSize.SMALL, PC.dim, HAlign.CENTER);
+    this.drawText('keys', tr(KEYS), 160, 184, FontSize.SMALL, PC.dim, HAlign.CENTER);
   }
 
   override tick(): void {

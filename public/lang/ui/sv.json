@@ -599,7 +599,9 @@
  "Raise or lower the volume of all sound effects. Press left or right to change.": "Höj eller sänk volymen på alla ljudeffekter. Tryck vänster eller höger för att ändra.",
  "Raise or lower the volume of all sound effects. Press right or left to change.": "Höj eller sänk volymen på alla ljudeffekter. Tryck höger eller vänster för att ändra.",
  "Raise or lower the volume of music. Press right or left to change.": "Höj eller sänk musikvolymen. Tryck höger eller vänster för att ändra.",
+ "Rank\n{rank}": "Rang\n{rank}",
  "Reading the game files…": "Läser spelfilerna…",
+ "Ready!": "Klart!",
  "Remove all songs from your music library (your files stay where they are).": "Ta bort alla låtar från ditt musikbibliotek (dina filer ligger kvar där de är).",
  "Replays of your fights are kept: watch them in slow motion and save clips as MP4 or GIF.": "Repriser av dina matcher sparas: se dem i slowmotion och spara klipp som MP4 eller GIF.",
  "Rest now. We train again tomorrow.": "Vila nu. Vi tränar igen i morgon.",
@@ -658,6 +660,8 @@
  "SURVIVAL BEST": "BÄSTA ÖVERLEVNAD",
  "SURVIVOR": "ÖVERLEVARE",
  "Save a clip of a replay.": "Spara ett klipp från en repris.",
+ "Saved {file}": "Sparat: {file}",
+ "Saved {file} ({size})": "Sparat: {file} ({size})",
  "Saving the GIF…": "Sparar GIF:en…",
  "Scaling of the classic graphics: SHARP keeps crisp pixels, SMOOTH blends them and CRT emulates an old monitor with scanlines.": "Skalning av den klassiska grafiken: SKARP behåller skarpa pixlar, MJUK blandar dem och CRT efterliknar en gammal skärm med bildlinjer.",
  "Screenshot saved": "Skärmbild sparad",
@@ -784,7 +788,9 @@
  "UNFINISHED": "OAVSLUTAD",
  "UNTOUCHABLE": "OBERÖRBAR",
  "UP": "UPP",
+ "UP/DOWN TOPIC   < > SCROLL   ESC BACK": "UPP/NER ÄMNE   < > RULLA   ESC TILLBAKA",
  "Unavailable\n\nUnavailable": "Ej tillgänglig\n\nEj tillgänglig",
+ "Unpacking {file}…": "Packar upp {file}…",
  "Use joystick 1.": "Använd joystick 1.",
  "Use joystick 2.": "Använd joystick 2.",
  "Use joystick {n}.": "Använd joystick {n}.",
@@ -939,6 +945,10 @@
  "{n} robots added to the workshop.": {
   "one": "{n} robot har lagts till i verkstaden.",
   "other": "{n} robotar har lagts till i verkstaden."
+ },
+ "{n} songs added to your music ({total} in total). OPTIONS > SOUND > MY MUSIC chooses where they play.": {
+  "one": "{n} låt tillagd i din musik ({total} totalt). Välj var den spelas under INSTÄLLNINGAR > LJUD > MIN MUSIK.",
+  "other": "{n} låtar tillagda i din musik ({total} totalt). Välj var de spelas under INSTÄLLNINGAR > LJUD > MIN MUSIK."
  },
  "{n} songs in your music library.": {
   "one": "{n} låt i ditt musikbibliotek.",

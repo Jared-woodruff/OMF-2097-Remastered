@@ -46,7 +46,7 @@ function megabytes(n: number): string {
 function saved(where: Promise<string>, size: number): void {
   where.then(
     (path) => {
-      toast(`Saved ${path} (${megabytes(size)})`, 6000);
+      toast(tr('Saved {file} ({size})', { file: path, size: megabytes(size) }), 6000);
       recordClip();
     },
     (err) => {

@@ -615,7 +615,9 @@
  "Raise or lower the volume of all sound effects. Press left or right to change.": "ارفع مستوى صوت المؤثرات الصوتية أو اخفضه. اضغط يمينا أو يسارا للتغيير.",
  "Raise or lower the volume of all sound effects. Press right or left to change.": "ارفع مستوى صوت المؤثرات الصوتية أو اخفضه. اضغط يمينا أو يسارا للتغيير.",
  "Raise or lower the volume of music. Press right or left to change.": "ارفع مستوى صوت الموسيقى أو اخفضه. اضغط يمينا أو يسارا للتغيير.",
+ "Rank\n{rank}": "المركز\n{rank}",
  "Reading the game files…": "جار قراءة ملفات اللعبة…",
+ "Ready!": "جاهز!",
  "Remove all songs from your music library (your files stay where they are).": "إزالة كل الأغاني من مكتبة موسيقاك (تبقى ملفاتك في مكانها).",
  "Replays of your fights are kept: watch them in slow motion and save clips as MP4 or GIF.": "تحفظ إعادات نزالاتك: شاهدها بالحركة البطيئة واحفظ مقاطع منها بصيغة MP4 أو GIF.",
  "Rest now. We train again tomorrow.": "استرح الآن. نتدرب مجددا غدا.",
@@ -674,6 +676,8 @@
  "SURVIVAL BEST": "أفضل بقاء",
  "SURVIVOR": "الناجي",
  "Save a clip of a replay.": "احفظ مقطعا من إعادة عرض.",
+ "Saved {file}": "تم حفظ {file}",
+ "Saved {file} ({size})": "تم حفظ {file} ({size})",
  "Saving the GIF…": "جار حفظ GIF…",
  "Scaling of the classic graphics: SHARP keeps crisp pixels, SMOOTH blends them and CRT emulates an old monitor with scanlines.": "تكبير الرسوميات الكلاسيكية: \"حاد\" يبقي البكسلات واضحة، و\"ناعم\" يمزجها، وCRT يحاكي شاشة قديمة بخطوط المسح.",
  "Screenshot saved": "تم حفظ لقطة الشاشة",
@@ -800,7 +804,9 @@
  "UNFINISHED": "غير مكتمل",
  "UNTOUCHABLE": "منيع",
  "UP": "أعلى",
+ "UP/DOWN TOPIC   < > SCROLL   ESC BACK": "أعلى/أسفل الموضوع   < > تمرير   ESC رجوع",
  "Unavailable\n\nUnavailable": "غير متاح\n\nغير متاح",
+ "Unpacking {file}…": "جار فك ضغط {file}…",
  "Use joystick 1.": "استخدام عصا التحكم 1.",
  "Use joystick 2.": "استخدام عصا التحكم 2.",
  "Use joystick {n}.": "استخدام عصا التحكم {n}.",
@@ -1007,6 +1013,9 @@
   "few": "أضيفت {n} روبوتات إلى الورشة.",
   "many": "أضيف {n} روبوتا إلى الورشة.",
   "other": "أضيف {n} روبوت إلى الورشة."
+ },
+ "{n} songs added to your music ({total} in total). OPTIONS > SOUND > MY MUSIC chooses where they play.": {
+  "other": "عدد الأغاني المضافة إلى موسيقاك: {n} (المجموع {total}). اختر مكان تشغيلها من الخيارات > الصوت > موسيقاي."
  },
  "{n} songs in your music library.": {
   "zero": "لا أغاني في مكتبة موسيقاك.",

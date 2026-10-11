@@ -595,7 +595,9 @@
  "Raise or lower the volume of all sound effects. Press left or right to change.": "모든 효과음의 볼륨을 높이거나 낮춥니다. 왼쪽이나 오른쪽을 눌러 바꾸세요.",
  "Raise or lower the volume of all sound effects. Press right or left to change.": "모든 효과음의 볼륨을 높이거나 낮춥니다. 오른쪽이나 왼쪽을 눌러 바꾸세요.",
  "Raise or lower the volume of music. Press right or left to change.": "음악 볼륨을 높이거나 낮춥니다. 오른쪽이나 왼쪽을 눌러 바꾸세요.",
+ "Rank\n{rank}": "순위\n{rank}",
  "Reading the game files…": "게임 파일을 읽는 중…",
+ "Ready!": "준비 완료!",
  "Remove all songs from your music library (your files stay where they are).": "음악 라이브러리에서 모든 곡을 제거합니다 (파일은 원래 위치에 그대로 남습니다).",
  "Replays of your fights are kept: watch them in slow motion and save clips as MP4 or GIF.": "경기 리플레이가 저장됩니다: 슬로 모션으로 보고 클립을 MP4나 GIF로 저장하세요.",
  "Rest now. We train again tomorrow.": "이제 쉬게. 내일 다시 훈련하세.",
@@ -654,6 +656,8 @@
  "SURVIVAL BEST": "서바이벌 최고 기록",
  "SURVIVOR": "생존자",
  "Save a clip of a replay.": "리플레이 클립을 저장하세요.",
+ "Saved {file}": "{file} 저장됨",
+ "Saved {file} ({size})": "{file} 저장됨 ({size})",
  "Saving the GIF…": "GIF 저장 중…",
  "Scaling of the classic graphics: SHARP keeps crisp pixels, SMOOTH blends them and CRT emulates an old monitor with scanlines.": "클래식 그래픽의 확대 방식: 선명은 또렷한 픽셀을 유지하고, 부드럽게는 픽셀을 섞으며, CRT는 주사선이 보이는 옛 모니터를 흉내 냅니다.",
  "Screenshot saved": "스크린샷 저장됨",
@@ -780,7 +784,9 @@
  "UNFINISHED": "미완료",
  "UNTOUCHABLE": "언터처블",
  "UP": "위",
+ "UP/DOWN TOPIC   < > SCROLL   ESC BACK": "위/아래 항목   < > 스크롤   ESC 뒤로",
  "Unavailable\n\nUnavailable": "이용 불가\n\n이용 불가",
+ "Unpacking {file}…": "{file} 압축 해제 중…",
  "Use joystick 1.": "조이스틱 1을 사용합니다.",
  "Use joystick 2.": "조이스틱 2를 사용합니다.",
  "Use joystick {n}.": "조이스틱 {n}번을 사용합니다.",
@@ -922,6 +928,9 @@
  },
  "{n} robots added to the workshop.": {
   "other": "워크숍에 로봇 {n}대를 추가했습니다."
+ },
+ "{n} songs added to your music ({total} in total). OPTIONS > SOUND > MY MUSIC chooses where they play.": {
+  "other": "내 음악에 노래 {n}곡을 추가했습니다 (총 {total}곡). 재생할 곳은 옵션 > 사운드 > 내 음악에서 고를 수 있습니다."
  },
  "{n} songs in your music library.": {
   "other": "음악 라이브러리에 {n}곡이 있습니다."

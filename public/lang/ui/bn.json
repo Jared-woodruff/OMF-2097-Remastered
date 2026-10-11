@@ -599,7 +599,9 @@
  "Raise or lower the volume of all sound effects. Press left or right to change.": "সব সাউন্ড ইফেক্টের ভলিউম বাড়ান বা কমান। বদলাতে বাঁয়ে বা ডানে চাপুন।",
  "Raise or lower the volume of all sound effects. Press right or left to change.": "সব সাউন্ড ইফেক্টের ভলিউম বাড়ান বা কমান। বদলাতে ডানে বা বাঁয়ে চাপুন।",
  "Raise or lower the volume of music. Press right or left to change.": "সংগীতের ভলিউম বাড়ান বা কমান। বদলাতে ডানে বা বাঁয়ে চাপুন।",
+ "Rank\n{rank}": "স্থান\n{rank}",
  "Reading the game files…": "খেলার ফাইল পড়া হচ্ছে…",
+ "Ready!": "প্রস্তুত!",
  "Remove all songs from your music library (your files stay where they are).": "সংগ্রহ থেকে সব গান সরান (আপনার ফাইল যেখানে আছে সেখানেই থাকবে)।",
  "Replays of your fights are kept: watch them in slow motion and save clips as MP4 or GIF.": "আপনার লড়াইয়ের রিপ্লে রাখা থাকে: স্লো মোশনে দেখুন আর MP4 বা GIF হিসেবে ক্লিপ সেভ করুন।",
  "Rest now. We train again tomorrow.": "এখন বিশ্রাম নাও। কাল আবার অনুশীলন।",
@@ -658,6 +660,8 @@
  "SURVIVAL BEST": "সারভাইভাল সেরা",
  "SURVIVOR": "সারভাইভার",
  "Save a clip of a replay.": "একটি রিপ্লের ক্লিপ সেভ করুন।",
+ "Saved {file}": "সেভ হয়েছে: {file}",
+ "Saved {file} ({size})": "সেভ হয়েছে: {file} ({size})",
  "Saving the GIF…": "GIF সেভ হচ্ছে…",
  "Scaling of the classic graphics: SHARP keeps crisp pixels, SMOOTH blends them and CRT emulates an old monitor with scanlines.": "ক্লাসিক গ্রাফিক্সের স্কেলিং: তীক্ষ্ণ রাখে ঝকঝকে পিক্সেল, মসৃণ সেগুলো মিশিয়ে দেয়, আর CRT স্ক্যানলাইনসহ পুরোনো মনিটরের মতো দেখায়।",
  "Screenshot saved": "স্ক্রিনশট সেভ হয়েছে",
@@ -784,7 +788,9 @@
  "UNFINISHED": "অসমাপ্ত",
  "UNTOUCHABLE": "অধরা",
  "UP": "উপর",
+ "UP/DOWN TOPIC   < > SCROLL   ESC BACK": "উপর/নিচ বিষয়   < > স্ক্রল   ESC ফেরা",
  "Unavailable\n\nUnavailable": "অনুপলব্ধ\n\nঅনুপলব্ধ",
+ "Unpacking {file}…": "{file} আনপ্যাক করা হচ্ছে…",
  "Use joystick 1.": "জয়স্টিক 1 ব্যবহার করুন।",
  "Use joystick 2.": "জয়স্টিক 2 ব্যবহার করুন।",
  "Use joystick {n}.": "জয়স্টিক {n} ব্যবহার করুন।",
@@ -939,6 +945,10 @@
  "{n} robots added to the workshop.": {
   "one": "ওয়ার্কশপে {n}টি রোবট যোগ হয়েছে।",
   "other": "ওয়ার্কশপে {n}টি রোবট যোগ হয়েছে।"
+ },
+ "{n} songs added to your music ({total} in total). OPTIONS > SOUND > MY MUSIC chooses where they play.": {
+  "one": "আমার গান-এ {n}টি গান যোগ হয়েছে (মোট {total}টি)। কোথায় বাজবে তা অপশন > শব্দ > আমার গান থেকে বেছে নিন।",
+  "other": "আমার গান-এ {n}টি গান যোগ হয়েছে (মোট {total}টি)। কোথায় বাজবে তা অপশন > শব্দ > আমার গান থেকে বেছে নিন।"
  },
  "{n} songs in your music library.": {
   "one": "আপনার সংগ্রহে {n}টি গান।",

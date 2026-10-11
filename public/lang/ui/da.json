@@ -599,7 +599,9 @@
  "Raise or lower the volume of all sound effects. Press left or right to change.": "Skru op eller ned for alle lydeffekter. Tryk venstre eller højre for at ændre.",
  "Raise or lower the volume of all sound effects. Press right or left to change.": "Skru op eller ned for alle lydeffekter. Tryk højre eller venstre for at ændre.",
  "Raise or lower the volume of music. Press right or left to change.": "Skru op eller ned for musikken. Tryk højre eller venstre for at ændre.",
+ "Rank\n{rank}": "Rang\n{rank}",
  "Reading the game files…": "Læser spilfilerne…",
+ "Ready!": "Klar!",
  "Remove all songs from your music library (your files stay where they are).": "Fjern alle sange fra dit musikbibliotek (dine filer bliver, hvor de er).",
  "Replays of your fights are kept: watch them in slow motion and save clips as MP4 or GIF.": "Dine kampe gemmes som replays: se dem i slowmotion, og gem klip som MP4 eller GIF.",
  "Rest now. We train again tomorrow.": "Hvil dig nu. Vi træner igen i morgen.",
@@ -658,6 +660,8 @@
  "SURVIVAL BEST": "REKORD I OVERLEVELSE",
  "SURVIVOR": "OVERLEVER",
  "Save a clip of a replay.": "Gem et klip af et replay.",
+ "Saved {file}": "Gemt: {file}",
+ "Saved {file} ({size})": "Gemt: {file} ({size})",
  "Saving the GIF…": "Gemmer GIF'en…",
  "Scaling of the classic graphics: SHARP keeps crisp pixels, SMOOTH blends them and CRT emulates an old monitor with scanlines.": "Skalering af den klassiske grafik: SKARP bevarer skarpe pixels, BLØD blander dem, og CRT efterligner en gammel skærm med scanlinjer.",
  "Screenshot saved": "Skærmbillede gemt",
@@ -784,7 +788,9 @@
  "UNFINISHED": "UAFSLUTTET",
  "UNTOUCHABLE": "UROERLIG",
  "UP": "OP",
+ "UP/DOWN TOPIC   < > SCROLL   ESC BACK": "OP/NED EMNE   < > RUL   ESC TILBAGE",
  "Unavailable\n\nUnavailable": "Utilgængelig\n\nUtilgængelig",
+ "Unpacking {file}…": "Pakker {file} ud…",
  "Use joystick 1.": "Brug joystick 1.",
  "Use joystick 2.": "Brug joystick 2.",
  "Use joystick {n}.": "Brug joystick {n}.",
@@ -939,6 +945,10 @@
  "{n} robots added to the workshop.": {
   "one": "{n} robot føjet til værkstedet.",
   "other": "{n} robotter føjet til værkstedet."
+ },
+ "{n} songs added to your music ({total} in total). OPTIONS > SOUND > MY MUSIC chooses where they play.": {
+  "one": "{n} sang føjet til din musik ({total} i alt). Vælg hvor den spiller under OPSÆTNING > LYD > MIN MUSIK.",
+  "other": "{n} sange føjet til din musik ({total} i alt). Vælg hvor de spiller under OPSÆTNING > LYD > MIN MUSIK."
  },
  "{n} songs in your music library.": {
   "one": "{n} sang i dit musikbibliotek.",

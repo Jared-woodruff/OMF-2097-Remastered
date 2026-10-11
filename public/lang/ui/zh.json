@@ -595,7 +595,9 @@
  "Raise or lower the volume of all sound effects. Press left or right to change.": "调高或调低所有音效的音量。按左右键更改。",
  "Raise or lower the volume of all sound effects. Press right or left to change.": "调高或调低所有音效的音量。按左右键更改。",
  "Raise or lower the volume of music. Press right or left to change.": "调高或调低音乐的音量。按左右键更改。",
+ "Rank\n{rank}": "排名\n{rank}",
  "Reading the game files…": "正在读取游戏文件...",
+ "Ready!": "准备就绪！",
  "Remove all songs from your music library (your files stay where they are).": "从音乐库中移除所有歌曲（你的文件仍保留在原处）。",
  "Replays of your fights are kept: watch them in slow motion and save clips as MP4 or GIF.": "你的战斗回放都会保留：可以慢动作观看，还能把片段保存为MP4或GIF。",
  "Rest now. We train again tomorrow.": "现在好好休息。我们明天接着练。",
@@ -654,6 +656,8 @@
  "SURVIVAL BEST": "生存最佳",
  "SURVIVOR": "幸存者",
  "Save a clip of a replay.": "保存一段回放片段。",
+ "Saved {file}": "已保存{file}",
+ "Saved {file} ({size})": "已保存{file}（{size}）",
  "Saving the GIF…": "正在保存GIF...",
  "Scaling of the classic graphics: SHARP keeps crisp pixels, SMOOTH blends them and CRT emulates an old monitor with scanlines.": "经典画面的缩放方式：「锐利」保留清晰像素，「平滑」柔化像素，CRT则模拟带扫描线的老式显示器。",
  "Screenshot saved": "截图已保存",
@@ -780,7 +784,9 @@
  "UNFINISHED": "未完成",
  "UNTOUCHABLE": "毫发无伤",
  "UP": "上",
+ "UP/DOWN TOPIC   < > SCROLL   ESC BACK": "上/下 主题   < > 滚动   ESC 返回",
  "Unavailable\n\nUnavailable": "不可用\n\n不可用",
+ "Unpacking {file}…": "正在解压{file}...",
  "Use joystick 1.": "使用摇杆1。",
  "Use joystick 2.": "使用摇杆2。",
  "Use joystick {n}.": "使用摇杆{n}。",
@@ -922,6 +928,9 @@
  },
  "{n} robots added to the workshop.": {
   "other": "已将{n}台机器人加入工坊。"
+ },
+ "{n} songs added to your music ({total} in total). OPTIONS > SOUND > MY MUSIC chooses where they play.": {
+  "other": "已将{n}首歌曲加入我的音乐（共{total}首）。可在 选项 > 音效 > 我的音乐 中选择播放场合。"
  },
  "{n} songs in your music library.": {
   "other": "你的音乐库中有{n}首歌曲。"

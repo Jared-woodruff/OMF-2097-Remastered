@@ -785,7 +785,8 @@ async function main(): Promise<void> {
     }
     void addTracks(files).then(async (n) => {
       await audio.reloadMyMusic();
-      toast(`${n} song${n === 1 ? '' : 's'} added to your music (${audio.myMusicCount} in total). OPTIONS > SOUND > MY MUSIC chooses where they play.`, 5000);
+      toast(trn(n, '{n} song added to your music ({total} in total). OPTIONS > SOUND > MY MUSIC chooses where they play.',
+        '{n} songs added to your music ({total} in total). OPTIONS > SOUND > MY MUSIC chooses where they play.', { total: audio.myMusicCount }), 5000);
     }).catch(() => toast(tr('The songs could not be saved in this browser.')));
   });
 

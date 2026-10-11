@@ -200,7 +200,7 @@ function labDashSimUpdatePortraits(dw: DashboardWidgets): void {
   for (let i = start, j = 0; j < 5 && i <= totalCharacters; i++) {
     if (i < 1) continue;
     if (i === dw.simRank) dw.photoHighlight!.setPosHints(6 + j * 60, -1);
-    dw.ranks[j].setText(`Rank\n${i}`);
+    dw.ranks[j].setText(tr('Rank\n{rank}', { rank: i }));
     if (i === pilot.rank) {
       dw.photo[j].setFromSprite(pilot.photo);
       j++;

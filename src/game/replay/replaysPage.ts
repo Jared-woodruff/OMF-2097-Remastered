@@ -111,7 +111,7 @@ export class ReplaysPage extends Page {
     saveFile(name, r.data).then(
       (where) => {
         this.status = tr('SAVED {name}', { name: name.toUpperCase() });
-        if (where !== name) toast(`Saved ${where}`, 5000);
+        if (where !== name) toast(tr('Saved {file}', { file: where }), 5000);
       },
       () => (this.status = tr('THE FILE COULD NOT BE SAVED')),
     );

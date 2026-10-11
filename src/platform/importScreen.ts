@@ -104,7 +104,7 @@ export function showImportScreen(): Promise<Map<string, Uint8Array>> {
         } catch {
           // Private browsing can refuse storage: play anyway, the files are just not kept.
         }
-        setStatus('Ready!');
+        setStatus(tr('Ready!'));
         root.remove();
         style.remove();
         resolve(found);
