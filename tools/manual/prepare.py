@@ -135,7 +135,7 @@ def main():
         'shot-desert': 'desert_0100', 'shot-knockout': 'desert_0197', 'shot-powerplant': 'powerplant_0150',
         'shot-firepit': 'firepit_0120', 'shot-danger': 'danger_0160', 'shot-stadium': 'stadium_0120',
         'shot-icecave': 'icecave_0150',
-        'shot-classic': 'wipe_c_0120', 'shot-remastered': 'wipe_0120', 'shot-menu': 'menulive_0120', 'shot-select': 'select_0120',
+        'shot-classic': 'wipe_c_0120', 'shot-remastered': 'wipe_0120', 'shot-menu': 'menulive_0100', 'shot-select': 'select_0120',
         'shot-vs': 'selectvs_0060', 'shot-training': 'training_0120', 'shot-replay': 'replayplay_0003',
         'shot-workshop': 'workshop_0027', 'shot-menus': 'menus_0200',
         # (the fought credits, from .captures/stills2: the scratchpad's rec/stills2.mjs)

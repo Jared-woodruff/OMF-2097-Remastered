@@ -105,7 +105,7 @@ raw(`<section class="page cover">
   <div class="remastered">REMASTERED</div>
   <div class="burst" style="right:.25in; top:4.35in"><span>100%<b>FREE!</b>Never pay for this game</span></div>
   <div class="title">GAME MANUAL</div>
-  <div class="sub">FOR WINDOWS AND THE WEB</div>
+  <div class="sub">FOR WINDOWS, MACOS, LINUX AND THE WEB</div>
   <div class="fine">One Must Fall 2097 &copy; 1994 Diversions Entertainment &middot; Freeware since 1999 &middot; Unofficial fan remaster</div>
 </section>`);
 

@@ -124,7 +124,7 @@ add('docs/media/hero.jpg', `
   <div class="hero-shade"></div>
   <img class="hero-logo" src="public/brand/logo.webp">
   <div class="panel hero-menu">
-    <div>THE 1994 ROBOT</div><div>FIGHTING CLASSIC</div><div class="sel">REBUILT IN HD</div><div>FOR WINDOWS AND THE WEB</div>
+    <div>THE 1994 ROBOT</div><div>FIGHTING CLASSIC</div><div class="sel">REBUILT IN HD</div><div>FOR WINDOWS, MACOS,</div><div>LINUX AND THE WEB</div>
   </div>
   <div class="hero-foot">ONE MUST FALL 2097 REMASTERED <b>·</b> FREEWARE, NEVER SOLD</div>
   <div class="hero-tech">TYPESCRIPT <b>·</b> WEBGL2 <b>·</b> WEB AUDIO <b>·</b> TAURI</div>
@@ -138,7 +138,7 @@ add('docs/media/social-preview.jpg', `
   <img class="hero-logo" src="public/brand/logo.webp">
   <div class="panel hero-menu">
     <div>THE 1994 ROBOT</div><div>FIGHTING CLASSIC</div><div class="sel">REBUILT IN HD</div><div class="gold">MODS AND OMF STUDIO</div>
-    <div>FREE · WINDOWS AND WEB</div>
+    <div>FREE · PC, MAC, LINUX, WEB</div>
   </div>
 </div>`);
 
