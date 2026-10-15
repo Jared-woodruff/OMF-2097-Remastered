@@ -131,9 +131,16 @@ export function firePitLive(run: FireIceRun, difficulty: number, storyFight: boo
   };
 }
 
-/** The Fire Pit of a recorded fight: its stage (REC header) and its flags (the replay's Fire Pit record, if any). */
+/**
+ * The Fire Pit of a recorded fight: its stage (REC header) and its flags (the replay's Fire Pit record). A recording
+ * without the record (the original game's, or the remaster's from before Fire and Ice) cannot tell: Fire's fight is
+ * played as on ULTIMATE, the way down open over the grille, so one that went on to Ice plays as it was (on the other
+ * levels only a Fire & Ice move after the destruction, which did nothing there, would play otherwise); Ice's is closed,
+ * a fight before them as the remaster played it then.
+ */
 export function firePitRecorded(stage: number, flags: number | null): FirePit {
   const s = stage === SecretStage.FIRE || stage === SecretStage.ICE ? stage : SecretStage.NONE;
+  if (flags === null && s === SecretStage.FIRE) return { stage: s, wayDown: true, solidFloor: false, noGlobes: true };
   if (flags === null) return { stage: s, wayDown: false, solidFloor: s !== SecretStage.NONE, noGlobes: s !== SecretStage.NONE };
   return { stage: s, wayDown: (flags & PIT_WAY_DOWN) !== 0, solidFloor: (flags & PIT_SOLID_FLOOR) !== 0, noGlobes: (flags & PIT_NO_GLOBES) !== 0 };
 }

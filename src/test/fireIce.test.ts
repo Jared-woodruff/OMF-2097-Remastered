@@ -1,19 +1,20 @@
 // Fire and Ice (game/fireIce.ts) and the finisher keys (controller/finisher.ts): one-player fights in the Fire Pit played
 // through the destruction and the Fire & Ice move into Fire's and Ice's fights, the floor and the globes after them, the
 // stages' look and score, their replays; and every original robot's destruction from one key.
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Controller } from '../controller/controller';
-import { setKeyState } from '../controller/input';
+import { PadButton, setKeyState } from '../controller/input';
+import { GamepadController } from '../controller/keyboard';
 import { moveActions } from '../controller/dummy';
 import { Palette, color6to8 } from '../formats/palette';
-import { recFirePitFlags, recParse, recSerialize } from '../formats/rec';
+import { recFirePitFlags, recParse, recSerialize, REC_LOOKUP10_FIRE_PIT, REC_LOOKUP_EXTENDED } from '../formats/rec';
 import {
   ACT_DOWN, ACT_KICK, ACT_PUNCH, ACT_STOP, ACT_UP, AiDifficulty, CtrlType, EFFECT_DARK_TINT, HarId, HarState, OBJECT_FACE_RIGHT,
   PilotId, SceneId,
 } from '../game/constants';
 import {
-  firePitLive, FIRE_PIT, newFireIceRun, paletteColorize, PIT_NO_GLOBES, PIT_SOLID_FLOOR, pilotDrawFlags,
-  PILOT_DRAW_TRANSLUCENT, SecretStage, secretPilot,
+  firePitLive, firePitRecorded, FIRE_PIT, newFireIceRun, paletteColorize, PIT_NO_GLOBES, PIT_SOLID_FLOOR, PIT_WAY_DOWN,
+  pilotDrawFlags, PILOT_DRAW_TRANSLUCENT, SecretStage, secretPilot,
 } from '../game/fireIce';
 import type { GameState } from '../game/gameState';
 import { ARENA_STATE_FIGHTING, harData } from '../game/objects/har';
@@ -31,6 +32,7 @@ const KEYS = ['ArrowRight', 'ArrowLeft', 'Enter', 'ShiftRight', 'Comma', 'Period
 const saved = { difficulty: 0, finisherKeys: false, saveReplays: true };
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   for (const k of KEYS) setKeyState(k, false);
   settings().gameplay.difficulty = saved.difficulty;
   settings().keys.finisherKeys = saved.finisherKeys;
@@ -117,6 +119,14 @@ describe('Fire and Ice rules', () => {
     run.stage = SecretStage.NONE;
     run.fireBeaten = true;
     expect(firePitLive(run, AiDifficulty.ULTIMATE, true)).toEqual({ stage: 0, wayDown: false, solidFloor: true, noGlobes: true });
+  });
+
+  it("plays a recording without its Fire Pit record (the original's) with Fire's way down open, as on ULTIMATE", () => {
+    expect(firePitRecorded(SecretStage.FIRE, null)).toEqual({ stage: 1, wayDown: true, solidFloor: false, noGlobes: true });
+    expect(firePitRecorded(SecretStage.ICE, null)).toEqual({ stage: 2, wayDown: false, solidFloor: true, noGlobes: true });
+    expect(firePitRecorded(SecretStage.NONE, null)).toEqual({ stage: 0, wayDown: false, solidFloor: false, noGlobes: false });
+    // (the record says, where there is one)
+    expect(firePitRecorded(SecretStage.FIRE, PIT_SOLID_FLOOR | PIT_NO_GLOBES)).toEqual({ stage: 1, wayDown: false, solidFloor: true, noGlobes: true });
   });
 
   it('tints with the original palette effect: each color toward the tint by its brightest channel', () => {
@@ -298,12 +308,48 @@ describe.skipIf(!hasGameData)('Fire and Ice', () => {
     const run2 = new HeadlessRunner(gs2);
     for (let t = 0; t < 5000 && !gs2.sc.isArena(); t += 20) run2.advance(20);
     expect(arena(gs2).firePit).toEqual({ stage: 1, wayDown: false, solidFloor: true, noGlobes: true });
+    expect(harData(gs2.findObject(gs2.getPlayer(0).harObjId)!).afData.moves[28]?.moveString, 'no way down').toBe('!');
     expect(gs2.getPlayer(1).pilot.name).toBe('FIRE');
     expect(Array.from(gs2.getPlayer(1).pilot.palette.colors.subarray(3, 48 * 3)))
       .toEqual(Array.from(loadBk('ARENA3.BK').palettes[1].colors.subarray(49 * 3, 96 * 3)));
     for (let t = 0; t < 200000 && !session.ended; t += 100) run2.advance(100);
     expect(session.ended).toBe(true);
     expect(arena(gs2).winner).toBe(0);
+  });
+
+  it("plays an ULTIMATE Fire fight recorded without its Fire Pit record (as the original's) with the way down open", () => {
+    let rec: { meta: ReplayMeta; data: Uint8Array } | null = null;
+    setReplaySink(async (meta, data) => {
+      rec = { meta, data };
+    });
+    const gs = storyGame(AiDifficulty.ULTIMATE);
+    settings().gameplay.saveReplays = true;
+    gs.swapScene(SceneId.ARENA0 + FIRE_PIT);
+    const run = new HeadlessRunner(gs);
+    knockOut(gs, run);
+    press(run, 'Semicolon');
+    untilNextScene(gs, run);
+    rec = null;
+    idleOpponent(gs);
+    knockOut(gs, run);
+    untilNextScene(gs, run);
+    expect(rec).not.toBeNull();
+    const parsed = recParse(rec!.data);
+    expect(recFirePitFlags(parsed)).toBe(PIT_WAY_DOWN | PIT_NO_GLOBES);
+    // Without the record, as the original game (and the remaster before Fire and Ice) records a fight.
+    parsed.moves = parsed.moves.filter((m) => !(m.lookupId === REC_LOOKUP_EXTENDED && m.extra[0] === REC_LOOKUP10_FIRE_PIT));
+    expect(recFirePitFlags(parsed)).toBeNull();
+    globalRandom.setSeed(5);
+    const gs2 = createGame(SceneId.MENU);
+    const session = new ReplaySession(gs2, { meta: rec!.meta, data: recSerialize(parsed) }, () => {});
+    session.start();
+    const run2 = new HeadlessRunner(gs2);
+    for (let t = 0; t < 5000 && !gs2.sc.isArena(); t += 20) run2.advance(20);
+    expect(arena(gs2).firePit).toEqual({ stage: 1, wayDown: true, solidFloor: false, noGlobes: true });
+    // The player's Fire & Ice move is there (Jaguar's: up, neutral, down + kick), as in a fight that went on to Ice.
+    const me = harData(gs2.findObject(gs2.getPlayer(0).harObjId)!);
+    expect(me.wayDown).toBe(true);
+    expect(me.afData.moves[28]?.moveString).toBe('K258');
   });
 });
 
@@ -347,6 +393,40 @@ describe.skipIf(!hasGameData)('finisher keys', () => {
     press(run2, 'Period');
     for (let t = 0; t < 4000; t += 100) run2.advance(100);
     expect(gs2.fightStats.finish).toBe(0);
+  });
+
+  it('a tap of the special button in a hit pause still counts: on the keyboard and on a gamepad', () => {
+    for (const device of ['keyboard', 'gamepad']) {
+      const gs = storyGame(AiDifficulty.ROOKIE, HarId.JAGUAR);
+      gs.swapScene(SceneId.ARENA0);
+      const run = new HeadlessRunner(gs);
+      knockOut(gs, run);
+      const me = () => harData(gs.findObject(gs.getPlayer(0).harObjId)!);
+      for (let t = 0; t < 20000 && me().state !== HarState.VICTORY; t += 50) run.advance(50);
+      expect(me().state).toBe(HarState.VICTORY);
+      const pad = { index: 0, connected: true, id: 'Xbox', axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false })) };
+      if (device === 'gamepad') {
+        vi.stubGlobal('navigator', { getGamepads: () => [pad] });
+        const c = new GamepadController(gs, 0);
+        c.harObjId = gs.getPlayer(0).harObjId;
+        gs.getPlayer(0).setCtrl(c);
+      }
+      const hold = (down: boolean) => {
+        if (device === 'gamepad') pad.buttons[PadButton.LT].pressed = down;
+        else setKeyState('Slash', down);
+      };
+      // Down and up while the game stands still (no input poll), then it goes on.
+      gs.hitPauseTicks = 1000;
+      hold(true);
+      run.advance(60);
+      hold(false);
+      run.advance(60);
+      expect(gs.hitPauseTicks, 'still in the pause').toBeGreaterThan(0);
+      gs.hitPauseTicks = 0;
+      for (let t = 0; t < 10000 && me().state !== HarState.SCRAP; t += 50) run.advance(50);
+      expect(me().state, device).toBe(HarState.SCRAP);
+      vi.unstubAllGlobals();
+    }
   });
 
   it('lists the Fire & Ice move where it can be done, and only there', () => {
