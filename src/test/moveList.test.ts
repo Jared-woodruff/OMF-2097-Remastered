@@ -46,12 +46,13 @@ describe.skipIf(!hasGameData)('robot move lists', () => {
   it('lists throws, specials, air moves and finishers of each robot', () => {
     loadGameData();
     const jaguar = harMoveList(loadAf(0)).map((e) => `${e.label} ${e.inputs.join('')}${e.button}`);
-    expect(jaguar).toEqual(['THROW 6P', 'SPECIAL 1236P', 'SPECIAL 36P', 'SPECIAL 14P', 'AIR 36P', 'SCRAP 2258P', 'DESTRUCT 258K']);
+    // (the Fire & Ice move too: the robot's own moves list it; in a fight, only where it can be done)
+    expect(jaguar).toEqual(['THROW 6P', 'SPECIAL 1236P', 'SPECIAL 36P', 'SPECIAL 14P', 'AIR 36P', 'SCRAP 2258P', 'DESTRUCT 258K', 'FIRE & ICE 852K']);
     for (let har = 0; har < 11; har++) {
       const list = harMoveList(loadAf(har));
       expect(list.filter((e) => e.label === 'SPECIAL').length, `robot ${har}`).toBeGreaterThan(1);
       expect(list.some((e) => e.label === 'SCRAP'), `robot ${har}`).toBe(true);
-      expect(list.length, `robot ${har}`).toBeLessThanOrEqual(10);
+      expect(list.length, `robot ${har}`).toBeLessThanOrEqual(11);
     }
   });
 });

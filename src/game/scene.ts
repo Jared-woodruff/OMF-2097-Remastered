@@ -73,6 +73,7 @@ export class Scene {
       obj.setRepeat(repeat);
       obj.animationState.spawn = (p, sid, x, y, vx, vy, mp) => this.spawnObject(p, sid, x, y, vx, vy, mp);
       obj.animationState.destroy = (_p, did) => this.gs.delAnimation(did);
+      this.startupObject(id, obj);
       const prio = this.prioOverride(id);
       this.gs.addObject(obj, prio !== -1 ? prio : RENDER_LAYER_BOTTOM, false, false);
     }
@@ -104,6 +105,12 @@ export class Scene {
   }
   prioOverride(_id: number): number {
     return -1;
+  }
+  /** A scene animation `startup` created (its object made, before it is added). */
+  startupObject(_id: number, _obj: GameObject): void {}
+  /** The remastered ambience (fx/arenas.ts look) of this arena when it is not its usual one (null: the usual). */
+  fxLook(): number | null {
+    return null;
   }
   free(): void {}
   staticTick(_paused: boolean): void {}

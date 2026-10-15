@@ -12,11 +12,12 @@ import { SPECIAL_SLOTS } from '../../controller/special';
 import { FontSize, GLYPH_SHADOW_BOTTOM, GLYPH_SHADOW_RIGHT, Text } from './text';
 import { Component, Label, Menu, playMenuSound } from './widgets';
 import { tr, trKey } from '../../i18n/i18n';
+import { POS_DESTROYED, POS_FIRE_PIT, POS_WAY_DOWN } from '../fireIce';
 
 export interface MoveListEntry {
   /** What is shown: the move's name, or its kind. */
   label: string;
-  /** Kind of move (THROW, SPECIAL, AIR, SCRAP, DESTRUCT). */
+  /** Kind of move (THROW, SPECIAL, AIR, SCRAP, DESTRUCT, FIRE & ICE). */
   kind: string;
   /** Directions in the order they are entered ('5' = back to neutral). */
   inputs: string[];
@@ -33,6 +34,9 @@ const KINDS: [number[], string][] = [
   [[CAT_SCRAP], trKey('SCRAP')],
   [[CAT_DESTRUCTION], trKey('DESTRUCT')],
 ];
+
+/** The Fire & Ice move's kind (and label). */
+const FIRE_ICE = trKey('FIRE & ICE');
 
 /** Plain attacks (a button, possibly with one direction): only listed when they are throws. */
 const BASIC = /^[PK][1-46]?$/;
@@ -67,6 +71,14 @@ export function harMoveList(af: Af): MoveListEntry[] {
       out.push({ label: name ?? kind, kind, ...n, category: m.category, moveString: m.moveString });
     }
   }
+  // The Fire & Ice move, after the destruction (fireIce.ts): in a fight, only where it can be done (it is left out of the
+  // robot's moves elsewhere).
+  const fireIce = POS_FIRE_PIT | POS_WAY_DOWN | POS_DESTROYED;
+  for (const m of af.moves) {
+    if (!m || (m.posConstraintsFull & fireIce) !== fireIce) continue;
+    const n = moveNotation(m.moveString);
+    if (n) out.push({ label: names[m.id] ?? FIRE_ICE, kind: FIRE_ICE, ...n, category: m.category, moveString: m.moveString });
+  }
   return out;
 }
 
@@ -79,7 +91,7 @@ const COLOR_SHADOW = 0xd1;
 const COLOR_PUNCH = 0xf2;
 const COLOR_KICK = 0xe7;
 const COLOR_SPECIAL = 0xa6;
-const KIND_COLORS: Record<string, number> = { THROW: 0xc7, SPECIAL: 0xe6, AIR: 0xe4, SCRAP: 0xf2, DESTRUCT: 0xf0 };
+const KIND_COLORS: Record<string, number> = { THROW: 0xc7, SPECIAL: 0xe6, AIR: 0xe4, SCRAP: 0xf2, DESTRUCT: 0xf0, 'FIRE & ICE': 0xf6 };
 
 /** The list itself (one selectable component: left/right switch robots, punch/kick/esc go back). */
 class MoveListView extends Component {

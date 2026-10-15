@@ -23,6 +23,8 @@ export const REC_LOOKUP_ACTION = 2;
 export const REC_LOOKUP_EXTENDED = 10;
 export const REC_LOOKUP10_SETRANDOM = 4;
 export const REC_LOOKUP10_ASSERT = 0x41; // 'A'
+/** The remaster's: the Fire Pit's floor in this fight (fireIce.ts PIT_* flags in its second byte). */
+export const REC_LOOKUP10_FIRE_PIT = 0x46; // 'F'
 
 export const REC_CONTROLLER_KEYBOARD1 = 1;
 export const REC_CONTROLLER_KEYBOARD2 = 2;
@@ -53,7 +55,8 @@ export interface RecFile {
   pilots: [RecPilot, RecPilot];
   /** Scores at the start of the match. */
   scores: [number, number];
-  unknownA: number;
+  /** The one-player game's secret fight (the original's [0x847e3]): 0 none, 1 Fire's, 2 Ice's (fireIce.ts). */
+  secretStage: number;
   arenaPalette: number;
   gameMode: number;
   throwRange: number;
@@ -103,7 +106,7 @@ export function recExtraLen(key: number): number {
 export function recCreate(): RecFile {
   const pilot = (): RecPilot => ({ info: new Pilot(), unknownA: 0, unknownB: 0 });
   return {
-    pilots: [pilot(), pilot()], scores: [0, 0], unknownA: 0, arenaPalette: 0, gameMode: REC_GAMEMODE_ARCADE,
+    pilots: [pilot(), pilot()], scores: [0, 0], secretStage: 0, arenaPalette: 0, gameMode: REC_GAMEMODE_ARCADE,
     throwRange: 100, hitPause: 4, blockDamage: 0, vitality: 100, jumpHeight: 100,
     p1Controller: REC_CONTROLLER_KEYBOARD1, p2Controller: REC_CONTROLLER_KEYBOARD2, p2ControllerStatic: REC_CONTROLLER_KEYBOARD2,
     knockDown: 0, rehitMode: 0, defThrows: 0, arenaId: 0, power: [5, 5], hazards: 1, roundType: 0, unknownL: 0, hyperMode: 0,
@@ -130,7 +133,7 @@ export function recParse(data: Uint8Array): RecFile {
     if (r.u8()) info.photo = Sprite.load(r);
   }
   rec.scores = [r.u32(), r.u32()];
-  rec.unknownA = r.i8();
+  rec.secretStage = r.i8();
   rec.arenaPalette = r.i8();
   rec.gameMode = r.i8();
   rec.throwRange = r.i16();
@@ -176,7 +179,7 @@ export function recSerialize(rec: RecFile): Uint8Array {
   }
   w.u32(rec.scores[0] >>> 0);
   w.u32(rec.scores[1] >>> 0);
-  w.i8(rec.unknownA);
+  w.i8(rec.secretStage);
   w.i8(rec.arenaPalette);
   w.i8(rec.gameMode);
   w.i16(rec.throwRange);
@@ -235,6 +238,20 @@ export function recSeedMove(seed: number): RecMove {
 }
 
 /** The seed of a SETRANDOM record, or null. */
+/** The Fire Pit's record (written at the start like the seed): the PIT_* flags of fireIce.ts. */
+export function recFirePitMove(flags: number): RecMove {
+  const m = recMove(1, REC_LOOKUP_EXTENDED, 0);
+  m.extra[0] = REC_LOOKUP10_FIRE_PIT;
+  m.extra[1] = flags & 0xff;
+  return m;
+}
+
+/** The Fire Pit's flags of a recording (null: it has no such record, e.g. one from the original game). */
+export function recFirePitFlags(rec: RecFile): number | null {
+  for (const m of rec.moves) if (m.lookupId === REC_LOOKUP_EXTENDED && m.extra[0] === REC_LOOKUP10_FIRE_PIT) return m.extra[1];
+  return null;
+}
+
 export function recSeedOf(m: RecMove): number | null {
   if (m.lookupId !== REC_LOOKUP_EXTENDED || m.extra[0] !== REC_LOOKUP10_SETRANDOM) return null;
   return new DataView(m.extra.buffer, m.extra.byteOffset).getUint32(4, true);

@@ -22,7 +22,7 @@ const ROW_CELLS = 31;
  * A key's row as the reference's "%-19s%12s": the action from the row's left, its key at the right end (right to left,
  * the other way round). Two texts: translated, the actions are not a letter's width a letter.
  */
-class KeyRow extends Button {
+export class KeyRow extends Button {
   readonly key = new Text(FontSize.BIG, 0xffff, 0xffff);
 
   setRow(action: string, key: string): void {

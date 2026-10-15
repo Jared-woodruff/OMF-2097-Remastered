@@ -357,7 +357,14 @@ only plays the originals, and the mod proves the modding system with content as 
   `?devlan`), the tests'
   loopback with latency (`src/test/netplay.test.ts` plays whole games on two engines at different frame rates).
 - **Special button** (`controller/special.ts`): the keyboard and gamepad controllers send the chosen special's whole
-  input in one tick.
+  input in one tick. `moveActions` sends a move that ends on the neutral position with its button after it (a robot
+  reads STOP + button as no direction at all, a replay reads it back as the neutral position).
+- **Finisher keys** (`controller/finisher.ts`, off by default): once the fight is won, a key asks for the scrap, the
+  destruction or the Fire & Ice move, and the controller enters the robot's next finishing move whenever the robot can
+  take it (the scrap on the victory pose's `jf` frames, the destruction on the scrap's `jf2` frames, any finishing move
+  a frame's `jn` names: multi-part scraps, the Fire & Ice move after the destruction). The keys are latched by
+  `input.keyPresses` (a press during the knockout's freeze, when no tick polls, still counts). Like the special button,
+  it only sends ordinary inputs: network games and replays see the same as from the original motions.
 - **Modes and records** (`game/modes/run.ts`): a run set on `GameState.modeRun` picks the opponents (on the robot
   select screen), shows its line in the fight and decides what follows each fight (`arena.ts`); records and
   achievements are in `game/records/`.
@@ -421,6 +428,44 @@ only plays the originals, and the mod proves the modding system with content as 
   development URLs with parameters (`?scene`, `?fight`...) skip it. Screenshots: PRINT SCREEN (key release; F12 in the desktop app) renders a frame and saves the
   canvas as a PNG through `platform/files.ts`.
 - **Touch controls** (`platform/touch.ts`): DOM controls read by player 1's keyboard controller like a gamepad.
+
+## Fire and Ice
+
+The one-player game's two secret opponents (`game/fireIce.ts`), reverse engineered from the original program
+(`MASTER.DAT`, a PMODE/W LE executable; the addresses are its code object's, loaded at 0x10000) and the Fire & Ice FAQ
+(Robyrt, 2001):
+
+- **The way down** (`[0x847b4]`, set at 0x314b3): the Fire Pit (arena 3), the one-player game against the computer,
+  CHAMPION or harder; from Fire's stage only on ULTIMATE, never from Ice's; not once Fire was beaten (`[0x847bc]`, set
+  when a secret opponent loses, cleared at a new game). A robot's condition mask (0x112aa) holds the bits its moves'
+  position constraints ask for: 8 << arena, 0x2000 the way down open, 0x4000 the opponent destroyed (the pilot record's
+  byte 0x9b). The Fire & Ice moves need all three (0x6040); `har.ts` checks those bits (`harConditions`) and still
+  leaves the move out (`'!'`) where the way is shut.
+- **The tags**: `b1` sets the flag that sends the game down after the match (`[0x84980]`), `b2` the one that shows the
+  broken floor (BK animation 12); both only where the way is open, and not while a recording plays back. `ax` (fall
+  through the floor) is parsed but used nowhere: the moves' own frames do the fall. After a match with `b1`, the stage
+  goes up (0x32f4b) and the next fight is set up at once, against the beaten pilot's record rewritten (0x31033):
+  - FIRE: Katana, power 24, agility 26, endurance 30, offense and defense 130, move preferences (throws 50, specials 20,
+    jumps 10, high -5, low 10, middle 10; jumping -20, forward 100, back 10), the third enhancement; score x5.
+  - ICE: Shadow, power and agility 30, endurance 33, offense and defense 170 (throws 50, specials 50, jumps 20, high 2,
+    low 20, middle 20; jumping 0, forward 10, back 100), the third enhancement, draw flags 0x400 (the `bt` mode, the
+    word at 0xf4); score x10 on top of Fire's.
+  Their colors are not loaded from the record (0x31334): the stage palette's player 2 entries (48-95, ARENA3.BK
+  palette 1 flames, 2 ice). The player's robot is colorized toward (63,35,0) by 16/64 (Fire) or (0,20,63) by 19/64
+  (Ice), with the palette effect at 0x5ec68 (mode 1).
+- **The arena** (0x1b0ee): the stage is the arena variant: its BK palette, remap tables and the animations' extra
+  string of that index (0x29428). On a secret stage the original draws animation 5's sprites into the background: the
+  hole in the ceiling, the floor over the grille (except on Fire's stage on ULTIMATE: the blue grille is the way on),
+  Ice's frost; it turns the globes off (animation 0's probability) and, on Ice's stage, animation 5's shimmer on. Here
+  the sprites are scenery objects (the background keeps its fingerprint, so its HD painting and depth are found), the
+  shimmer runs with `GameObject.spritelessPaletteFx` (its frames have no sprite), and a beaten Fire leaves the pit with
+  its solid floor and no globes.
+- **After**: losing to Fire or Ice costs nothing (0x4bedd): the game goes on from the fight that led down, whose news
+  (`FireIceResume`) and next arena follow. The REC header's byte after the scores is the stage (`RecFile.secretStage`);
+  the remaster's records add the Fire Pit's floor in an extended record ('F', `recFirePitFlags`), so a recording plays
+  back with the same globes and floor.
+- **Scores**: the original's one-player multipliers (0x30c6b) are 20, 40, 60, 80, 100, 150 and 200 percent, so DEADLY
+  and ULTIMATE count 1.5 and 2 times (the FAQ's 400,000 for a destruction on ULTIMATE, 2 million on Fire's stage).
 
 ## Mods and OMF Studio
 

@@ -2,8 +2,9 @@ import { ACT_DOWN, ACT_ESC, ACT_KICK, ACT_LEFT, ACT_NONE, ACT_PUNCH, ACT_RIGHT, 
 import type { GameState } from '../game/gameState';
 import type { KeyBindings } from '../game/settings';
 import { Controller, type CtrlEvent } from './controller';
-import { anyDown, connectedPads, isDown, readPad, rumble } from './input';
+import { anyDown, connectedPads, isDown, keyPresses, readPad, rumble, type PadState } from './input';
 import { specialButtonActions } from './special';
+import { FinisherKeys } from './finisher';
 import { touchPad } from '../platform/touch';
 import { settings } from '../game/settings';
 
@@ -11,13 +12,53 @@ import { settings } from '../game/settings';
  * The special button went down: the special move's whole input follows the tick's action, one event per input, so the
  * robot takes them in this tick (see controller/special.ts).
  */
-function pushSpecial(ctrl: Controller, pressed: boolean, wasPressed: boolean, action: number, ev: CtrlEvent[]): void {
-  if (!pressed || wasPressed) return;
+function pushSpecial(ctrl: Controller, pressed: boolean, action: number, ev: CtrlEvent[]): void {
+  if (!pressed) return;
   const actions = specialButtonActions(ctrl.gs, ctrl.harObjId, action);
-  if (!actions) return;
+  if (actions) pushActions(ctrl, actions, ev);
+}
+
+/** A move's whole input, one event per input, so the robot takes them in this tick. */
+function pushActions(ctrl: Controller, actions: number[], ev: CtrlEvent[]): void {
   for (const a of actions) {
     ctrl.current |= a;
     ev.push({ type: 'action', action: a, source: ctrl.type });
+  }
+}
+
+/**
+ * The special button and the finisher keys (controller/finisher.ts; `keys` and `special`: pressed since the last poll):
+ * once the fight is won, with FINISHER KEYS on, the special button does the next finishing move instead of a special.
+ */
+function pushButtons(ctrl: Controller, finishers: FinisherKeys, keys: readonly [boolean, boolean, boolean], special: boolean,
+  action: number, ev: CtrlEvent[]): void {
+  const on = settings().keys.finisherKeys;
+  const finishing = on && FinisherKeys.finishing(ctrl.gs, ctrl.harObjId);
+  if (!finishing) pushSpecial(ctrl, special, action, ev);
+  if (on) pushActions(ctrl, finishers.poll(ctrl.gs, ctrl.harObjId, keys, finishing && special), ev);
+}
+
+/**
+ * A pad's (or the touch controls') special button going down between two polls: a hit's pause runs no poll for a few
+ * ticks, so a tap in it would be lost. The static ticks (100 Hz) catch it; a press while the game is paused (its menu,
+ * the help) does not count.
+ */
+class SpecialLatch {
+  private held = false;
+  private latched = false;
+
+  /** The button's state now: each static tick, and each poll before take (so a press a poll saw is not taken again). */
+  sample(down: boolean, paused: boolean): void {
+    if (down && !this.held && !paused) this.latched = true;
+    if (paused) this.latched = false;
+    this.held = down;
+  }
+
+  /** The button went down since the last poll (and resets). */
+  take(): boolean {
+    const l = this.latched;
+    this.latched = false;
+    return l;
   }
 }
 
@@ -55,6 +96,10 @@ export class KeyboardController extends Controller {
   padSlot = -1;
   reservedPads: () => number[] = () => [];
   private specialHeld = false;
+  private padSpecial = new SpecialLatch();
+  private finishers = new FinisherKeys();
+  /** The special and finisher keys' press counts at the last poll (keyPresses). */
+  private keyCounts = new Map<string, number>();
 
   constructor(gs: GameState, public keys: KeyBindings) {
     super(gs);
@@ -68,6 +113,40 @@ export class KeyboardController extends Controller {
     return false;
   }
 
+  /** A key of a binding went down since the last poll (even if it is up again: see keyPresses). */
+  private pressed(sel: (k: KeyBindings) => string[] | undefined): boolean {
+    let any = false;
+    for (const k of [this.keys, ...this.extra]) {
+      for (const code of sel(k) ?? []) {
+        const n = keyPresses(code);
+        const seen = this.keyCounts.get(code);
+        if (seen !== undefined && n > seen) any = true;
+        this.keyCounts.set(code, n);
+      }
+    }
+    return any;
+  }
+
+  /** The pad's and the touch controls' buttons this player reads, merged (null: neither). */
+  private padState(): PadState | null {
+    const padIndex = this.pad();
+    const pad = padIndex >= 0 ? readPad(padIndex) : null;
+    // Player 1 also plays with the touch controls.
+    const touch = this.keys === settings().keys.p1 ? touchPad() : null;
+    return touch ? {
+      ...(pad ?? {}),
+      up: touch.up || !!pad?.up, down: touch.down || !!pad?.down, left: touch.left || !!pad?.left, right: touch.right || !!pad?.right,
+      punch: touch.punch || !!pad?.punch, kick: touch.kick || !!pad?.kick, special: touch.special || !!pad?.special,
+    } as PadState : pad;
+  }
+
+  protected override onTick(): number {
+    this.padSpecial.sample(!!this.padState()?.special, this.gs.paused);
+    // (a key pressed while the game is paused does not count once it goes on)
+    if (this.gs.paused) for (const code of this.keyCounts.keys()) this.keyCounts.set(code, keyPresses(code));
+    return 0;
+  }
+
   /** The gamepad this player reads besides the keyboard, or -1. */
   pad(): number {
     if (this.padSlot < 0) return -1;
@@ -77,14 +156,7 @@ export class KeyboardController extends Controller {
 
   override poll(ev: CtrlEvent[]): number {
     this.current = 0;
-    const padIndex = this.pad();
-    const pad = padIndex >= 0 ? readPad(padIndex) : null;
-    // Player 1 also plays with the touch controls.
-    const touch = this.keys === settings().keys.p1 ? touchPad() : null;
-    const p = touch ? {
-      up: touch.up || !!pad?.up, down: touch.down || !!pad?.down, left: touch.left || !!pad?.left, right: touch.right || !!pad?.right,
-      punch: touch.punch || !!pad?.punch, kick: touch.kick || !!pad?.kick, special: touch.special || !!pad?.special,
-    } : pad;
+    const p = this.padState();
     const pu = !!p?.up, pd = !!p?.down, pl = !!p?.left, pr = !!p?.right;
     const action = resolveAction(
       this.held((k) => k.jumpLeft) || (pu && pl), this.held((k) => k.duckBack) || (pd && pl),
@@ -94,7 +166,11 @@ export class KeyboardController extends Controller {
     );
     this.cmd(action === 0 ? ACT_STOP : action, ev);
     const special = this.held((k) => k.special ?? []) || !!p?.special;
-    pushSpecial(this, special, this.specialHeld, action, ev);
+    // (pressed now, or since the last poll: a tap in a hit's pause)
+    this.padSpecial.sample(!!p?.special, this.gs.paused);
+    const specialPressed = (special && !this.specialHeld) || this.pressed((k) => k.special) || this.padSpecial.take();
+    const finisherKeys = [this.pressed((k) => k.scrap), this.pressed((k) => k.destruction), this.pressed((k) => k.fireIce)] as const;
+    pushButtons(this, this.finishers, finisherKeys, specialPressed, action, ev);
     this.specialHeld = special;
     this.last = this.current;
     return 0;
@@ -109,6 +185,8 @@ export class KeyboardController extends Controller {
 
 export class GamepadController extends Controller {
   private specialHeld = false;
+  private padSpecial = new SpecialLatch();
+  private finishers = new FinisherKeys();
 
   constructor(gs: GameState, public padIndex: number) {
     super(gs);
@@ -126,9 +204,17 @@ export class GamepadController extends Controller {
     }
     this.cmd(action === 0 ? ACT_STOP : action, ev);
     const special = !!p?.special;
-    pushSpecial(this, special, this.specialHeld, action, ev);
+    // (a gamepad's buttons are all taken: its special button does the finishing moves)
+    this.padSpecial.sample(special, this.gs.paused);
+    const specialPressed = (special && !this.specialHeld) || this.padSpecial.take();
+    pushButtons(this, this.finishers, [false, false, false], specialPressed, action, ev);
     this.specialHeld = special;
     this.last = this.current;
+    return 0;
+  }
+
+  protected override onTick(): number {
+    this.padSpecial.sample(!!readPad(this.padIndex)?.special, this.gs.paused);
     return 0;
   }
 

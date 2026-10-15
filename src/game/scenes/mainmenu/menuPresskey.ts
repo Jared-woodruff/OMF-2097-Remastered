@@ -9,8 +9,11 @@ import { tr, trKey } from '../../../i18n/i18n';
 export const KEY_ACTIONS: readonly (keyof KeyBindings)[] = [
   'jumpUp', 'jumpRight', 'walkRight', 'duckForward', 'duck', 'duckBack', 'walkBack', 'jumpLeft', 'punch', 'kick', 'special',
 ];
+/** Every binding slot: the custom keyboard menu's, then the finisher keys' (their own menu, menuFinisherKeys.ts). */
+export const BINDING_ACTIONS: readonly (keyof KeyBindings)[] = [...KEY_ACTIONS, 'scrap', 'destruction', 'fireIce'];
 const ACTION_NAMES = [trKey('jump up'), trKey('jump right'), trKey('walk right'), trKey('duck forward'), trKey('duck'), trKey('duck back'),
-  trKey('walk back'), trKey('jump left'), trKey('punch'), trKey('kick'), trKey('special')];
+  trKey('walk back'), trKey('jump left'), trKey('punch'), trKey('kick'), trKey('special'), trKey('scrap'), trKey('destruction'),
+  trKey('fire & ice')];
 
 const COLOR_WARNING = 0xf6;
 const WAIT_TICKS = 20;
@@ -29,8 +32,8 @@ export function playerKeys(player: number): KeyBindings {
 export function isKeyBound(code: string): string | null {
   for (const player of [1, 2]) {
     const keys = playerKeys(player);
-    for (let i = 0; i < KEY_ACTIONS.length; i++) {
-      if ((keys[KEY_ACTIONS[i]] ?? []).includes(code)) return tr('{key} bound to P{player} {action}.', { key: keyName(code), player, action: tr(ACTION_NAMES[i]) });
+    for (let i = 0; i < BINDING_ACTIONS.length; i++) {
+      if ((keys[BINDING_ACTIONS[i]] ?? []).includes(code)) return tr('{key} bound to P{player} {action}.', { key: keyName(code), player, action: tr(ACTION_NAMES[i]) });
     }
   }
   return null;
@@ -43,7 +46,7 @@ export class PresskeyMenu extends Menu {
 
   /**
    * @param player 1 or 2
-   * @param slotIndex index into KEY_ACTIONS
+   * @param slotIndex index into BINDING_ACTIONS
    * @param onKey called with the key that ended the capture (the new binding, or Escape when cancelled)
    */
   constructor(readonly player: number, readonly slotIndex: number, private onKey: (code: string) => void) {
@@ -84,7 +87,7 @@ export class PresskeyMenu extends Menu {
       return true;
     }
     const keys = playerKeys(this.player);
-    const slot = KEY_ACTIONS[this.slotIndex];
+    const slot = BINDING_ACTIONS[this.slotIndex];
     const bound = isKeyBound(code);
     if (bound !== null && !(keys[slot] ?? []).includes(code)) {
       this.text[2].setText(bound);

@@ -76,7 +76,8 @@ export class ReplaySession {
     rec.pilots.forEach((rp, i) => {
       const p = gs.players[i];
       const pilot = rp.info.clone();
-      setPilotColors(pilot, pilot.color1, pilot.color2, pilot.color3);
+      // (Fire's and Ice's colors are their stage's, recorded as they were: not their pilot colors)
+      if (!(i === 1 && rec.secretStage > 0)) setPilotColors(pilot, pilot.color1, pilot.color2, pilot.color3);
       p.pilot = pilot;
       p.chr = null;
       const ai = recWasAi(i === 0 ? rec.p1Controller : rec.p2Controller);

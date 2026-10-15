@@ -47,6 +47,10 @@ export function moveActions(moveString: string, direction: number): number[] {
   const button = moveString[0] === 'K' ? ACT_KICK : ACT_PUNCH;
   const dirs = [...moveString.slice(1)].reverse().map((c) => dirAction(c, direction));
   if (!dirs.length) return [button];
+  // A move that ends on the neutral position takes its button on its own, after it: a robot reads the button with the
+  // neutral position (STOP + button) as no direction at all, where a replay reads it back as the neutral position, so
+  // the move would start a tick later live than in its replay.
+  if (dirs[dirs.length - 1] === ACT_STOP) return [...dirs, button];
   dirs[dirs.length - 1] |= button;
   return dirs;
 }

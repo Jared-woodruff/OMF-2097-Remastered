@@ -139,6 +139,11 @@ export class GameObject {
   castShadow = false;
   /** Drawn as part of the screen overlay (round tokens, portraits, announcements): no world effects on it. */
   hudLayer = false;
+  /**
+   * The palette effects of frames without a sprite run too (the original runs them; here only animations that are
+   * nothing else, like the frozen Fire Pit's shimmer: many of the game's screens fade in this way on their own).
+   */
+  spritelessPaletteFx = false;
   oShadowCorrection = 0;
   spriteState = new SpriteState();
   animationState = new AnimationState();
@@ -774,6 +779,8 @@ export class GameObject {
       rstate.duration = frame.tickLen;
       if (frame.has(Tag.R)) rstate.flipmode ^= FLIP_HORIZONTAL;
       if (frame.has(Tag.F)) rstate.flipmode ^= FLIP_VERTICAL;
+    } else if (this.spritelessPaletteFx) {
+      rstate.duration = frame.tickLen;
     }
     return false;
   }

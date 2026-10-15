@@ -124,6 +124,7 @@ one-page quick start on page 2.
 | **Punch** | Enter | Left Ctrl or F |
 | **Kick** | Right Shift | Left Shift or G |
 | **Special** (one press) | / or numpad − | H |
+| **Scrap, destruction, Fire & Ice** (one press, once turned on) | , &nbsp; . &nbsp; ; | R &nbsp; T &nbsp; Y |
 
 <kbd>Esc</kbd> pause &nbsp;·&nbsp; <kbd>F1</kbd> help &nbsp;·&nbsp; <kbd>F2</kbd> classic or remastered &nbsp;·&nbsp;
 <kbd>F11</kbd> fullscreen &nbsp;·&nbsp; <kbd>Print Screen</kbd> screenshot &nbsp;·&nbsp; on a Mac, hold <kbd>Fn</kbd>
@@ -139,6 +140,10 @@ for the F keys
   blocks, throws, wall slams and knockouts.
 - **One-button specials** (on from the start, **Options › Controls › Special button**): the special button alone, or
   with forward, back, down or up, fires one of the robot's special moves, and its air special in a jump. The original
+  motions work as always.
+- **Finisher keys** (off from the start, **Options › Controls › Finisher keys**): once a fight is won, one key does
+  the robot's scrap, another its destruction (the scrap first), a third its Fire & Ice move (in the Fire Pit, the
+  scrap and the destruction first). The special button does the next finishing move, on a gamepad too. The original
   motions work as always.
 - **Your own keys**: a modern keyboard layout (WASD for player 1), and any key rebound in **Options › Controls**.
   **Keys and buttons** (also in the pause menu) shows every action on the keyboard and the controller.
@@ -206,6 +211,9 @@ Everything from the original is here, playing its own data files:
 - **11 robots**, every move, special and throw, and **10 pilots plus Major Kreissack**, each fighting their own way.
 - **5 arenas and their hazards**: the Danger Room's spikes, the Power Plant's electrified fences, the Fire Pit's
   fireballs and the Desert's strafing jets.
+- **Fire and Ice**, the one-player game's two secret opponents, as the 1994 program hides them: on Champion or harder,
+  a destruction in the Fire Pit and then the robot's *Fire & Ice* move send it through the floor to fight Fire, an
+  enhanced Katana in the burning pit below, and on Ultimate on to Ice, a translucent Shadow in the frozen one.
 - **Every mode**: one and two players, the demo, the full **tournament** career with the mech lab, upgrades, training
   and the newsroom, the scoreboard, the intro and every ending.
 - **The original music and sounds**, through a port of the game's own music driver.

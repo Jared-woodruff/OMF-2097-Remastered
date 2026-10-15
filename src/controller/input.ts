@@ -3,6 +3,8 @@
 const down = new Set<string>();
 /** Keys pressed since the last `consumePressed` (for edge-triggered UI actions). */
 const pressedQueue: string[] = [];
+/** How many times each key went down (a press between two game ticks still counts: see keyPresses). */
+const presses = new Map<string, number>();
 let listeners: ((code: string, e: KeyboardEvent) => void)[] = [];
 
 /** Keys the game uses; the browser default action is suppressed for these. */
@@ -26,6 +28,7 @@ export function initInput(target: Window = window): void {
     const hotkey = e.altKey && (e.code === 'Enter' || e.code === 'NumpadEnter');
     if (!e.repeat && !hotkey) {
       down.add(e.code);
+      presses.set(e.code, (presses.get(e.code) ?? 0) + 1);
       pressedQueue.push(e.code);
       // Nobody may be consuming edge-triggered presses (e.g. during fights): keep only recent ones.
       if (pressedQueue.length > 64) pressedQueue.splice(0, pressedQueue.length - 64);
@@ -52,6 +55,14 @@ export function isDown(code: string): boolean {
   return down.has(code);
 }
 
+/**
+ * How many times a key went down so far. Comparing it between two polls catches a press made while the game did not
+ * tick (a knockout's freeze), which the held state misses.
+ */
+export function keyPresses(code: string): number {
+  return presses.get(code) ?? 0;
+}
+
 export function anyDown(codes: readonly string[]): boolean {
   for (const c of codes) if (down.has(c)) return true;
   return false;
@@ -66,7 +77,10 @@ export function consumePressed(): string[] {
 /** Simulate key state (used by automated tests / debug hooks). */
 export function setKeyState(code: string, pressed: boolean): void {
   if (pressed) {
-    if (!down.has(code)) pressedQueue.push(code);
+    if (!down.has(code)) {
+      pressedQueue.push(code);
+      presses.set(code, (presses.get(code) ?? 0) + 1);
+    }
     down.add(code);
   } else {
     down.delete(code);

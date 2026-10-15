@@ -72,7 +72,7 @@ const ROBOTS = [
   ['chronos', 'Technical', 'Sleek and tall, with smooth limbs, round gold joints and a red triangle on its chest. Chronos bends the rules of space: it teleports across the arena, phases through solid matter and freezes its enemies in stasis.'],
   ['nova', 'The final machine', 'Major Kreissack\'s own super-robot: bulky angular armor, a gold horn crest across its head and shoulders, and fists that launch grenades and missiles. Nova waits at the end of the road. It is not on the select screen, but pilots have been known to find it anyway.'],
 ];
-const KIND = { THROW: 'Throw', SPECIAL: 'Special', AIR: 'In the air', SCRAP: 'Scrap finisher', DESTRUCT: 'Destruction' };
+const KIND = { THROW: 'Throw', SPECIAL: 'Special', AIR: 'In the air', SCRAP: 'Scrap finisher', DESTRUCT: 'Destruction', 'FIRE & ICE': 'Fire &amp; Ice' };
 
 function robotBlock(i) {
   const [id, cls, text] = ROBOTS[i];
@@ -275,6 +275,7 @@ page('Controls', `
     <tr><td><b>Punch</b></td><td>${key('ENTER')}</td><td>${key('L-CTRL')}${key('F')}</td><td>${key('J')}</td></tr>
     <tr><td><b>Kick</b></td><td>${key('R-SHIFT')}</td><td>${key('L-SHIFT')}${key('G')}</td><td>${key('K')}</td></tr>
     <tr><td><b>Special</b></td><td>${key('/')}</td><td>${key('H')}</td><td>${key('L')}</td></tr>
+    <tr><td><b>Finishers</b></td><td>${key(',')}${key('.')}${key(';')}</td><td>${key('R')}${key('T')}${key('Y')}</td><td>${key('U')}${key('I')}${key('O')}</td></tr>
   </table>
   <p class="small">The numeric keypad works too for player 1 (${key('8')} jump, ${key('2')} duck, ${key('0')} punch,
   ${key('.')} kick). In the modern layout, player 2 uses the arrow keys with ${key(',')} punch, ${key('.')} kick and ${key('/')} special.</p>
@@ -291,6 +292,11 @@ page('Controls', `
     <p>New to fighting games? Use the special button (<b>Options &rsaquo; Controls &rsaquo; Special button</b>, on from the start):
     the special key (or pad button) fires a special move of your robot, a different one for each direction you hold. The
     motions still work too.</p>
+  </div>
+  <div class="tip" data-label="FINISHER KEYS">
+    <p>Turn them on in <b>Options &rsaquo; Controls &rsaquo; Finisher keys</b>: once you have won a fight, one key does your
+    robot's scrap, the next its destruction (the scrap first) and the third its Fire &amp; Ice move. The special button
+    does the next finishing move, on a gamepad too. The motions still work.</p>
   </div>
 `);
 page('Controls', `
@@ -361,6 +367,11 @@ page('Fighting basics', `
     <p>Win the deciding round and your opponent's robot stands helpless for a moment. Enter the robot's <b>scrap</b> move
     to rip it apart, or its <b>destruction</b> move for something even more final. The command lists in this manual show
     both. The announcer will notice.</p>
+    <h2>Fire and Ice</h2>
+    <p>Something lives under the Fire Pit. On Champion or harder, follow a destruction there with your robot's
+    <b>Fire &amp; Ice</b> move, and it breaks through the floor: the next fight is against <b>Fire</b>, in the burning
+    pit below. On Ultimate the floor there is a grille too, and the same against Fire leads to <b>Ice</b>. They score
+    5 and 50 times as much, and losing to them costs you nothing. Every robot but Nova has the move.</p>
     <h2>Pilots and robots</h2>
     <p>The same robot fights differently in different hands. A pilot's <b>power</b> makes hits stronger, <b>agility</b>
     makes the robot faster, and <b>endurance</b> makes it harder to stun.</p>
