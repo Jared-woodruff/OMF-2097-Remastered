@@ -31,6 +31,8 @@ import {
   projectileMarkHit, projectileSetInvincible, projectileSetWallBounce, projectileStopOnGround,
 } from './projectile';
 import { scrapCreate } from './scrap';
+import { POS_ARENA_BITS, POS_DESTROYED, POS_WAY_DOWN } from '../fireIce';
+import { arenaBase } from '../roster';
 
 export type HarHook = (event: HarEvent) => void;
 
@@ -93,6 +95,8 @@ export interface Har {
   hooks: HarHook[];
   disabledAnimations: Map<number, number>;
   trailCache: Map<number, Animation>;
+  /** The way down to Fire and Ice is open for this robot in this fight: its Fire & Ice move can be done (fireIce.ts). */
+  wayDown: boolean;
 }
 
 export function harData(obj: GameObject): Har {
@@ -107,6 +111,8 @@ export function isHar(obj: GameObject | null): boolean {
 export interface ArenaLike {
   arenaGetState(): number;
   arenaIsOver(): number;
+  /** A robot's frame has the Fire & Ice tags: `b1` opens the way down, `b2` breaks the Fire Pit's floor. */
+  arenaFireIceTag?(obj: GameObject, b1: boolean, b2: boolean): void;
 }
 export const ARENA_STATE_STARTING = 0;
 export const ARENA_STATE_FIGHTING = 1;
@@ -1189,6 +1195,7 @@ function harTick(obj: GameObject): void {
       }
     }
   }
+  if (obj.frameIsSet(Tag.B1) || obj.frameIsSet(Tag.B2)) arenaOf(gs)?.arenaFireIceTag?.(obj, obj.frameIsSet(Tag.B1), obj.frameIsSet(Tag.B2));
   if (obj.frameIsSet(Tag.PTR) || obj.frameIsSet(Tag.PTD) || obj.frameIsSet(Tag.PTP)) {
     h.pPalRef = obj.frameGet(Tag.PD);
     h.pHarSwitch = obj.frameIsSet(Tag.PE) ? 1 : 0;
@@ -1262,6 +1269,8 @@ function isMoveChainAllowed(obj: GameObject, move: AfMove): boolean {
   const allowedInIdle = !(move.posConstraints & 0x2);
   if (h.disabledAnimations.has(move.id)) return false;
   if (h.isWallhugging !== 1 && move.posConstraints & 0x1) return false;
+  const need = move.posConstraintsFull & (POS_ARENA_BITS | POS_WAY_DOWN | POS_DESTROYED);
+  if (need && (need & harConditions(obj)) !== need) return false;
   let allowed = false;
   if (obj.frameIsSet(Tag.JN) && move.id === obj.frameGet(Tag.JN)) {
     allowed = true;
@@ -1297,6 +1306,22 @@ function isMoveChainAllowed(obj: GameObject, move: AfMove): boolean {
   const isOver = arena ? arena.arenaIsOver() !== -1 : false;
   if (move.category === CAT_SCRAP && !isOver) allowed = false;
   return allowed;
+}
+
+/**
+ * The conditions a move's position constraint can ask for, as the original's robot condition mask holds them
+ * (MASTER.DAT 0x112aa): the arena the fight is in (8 << arena), the way down to Fire and Ice open, the opponent
+ * destroyed. (Its always-set bits and the wall's are checked as before.)
+ */
+function harConditions(obj: GameObject): number {
+  const h = harData(obj);
+  const fs = obj.gs.fightStats;
+  const arena = arenaBase(fs.arena);
+  let mask = arena >= 0 && arena <= 4 ? 8 << arena : 0;
+  if (h.wayDown) mask |= POS_WAY_DOWN;
+  // (FINISH_DESTRUCTION: the winner's destruction landed)
+  if (fs.finish === 2 && fs.winner === h.playerId) mask |= POS_DESTROYED;
+  return mask;
 }
 
 function matchMovePrefix(obj: GameObject, prefix: string, inputs: string[]): AfMove | null {
@@ -1583,7 +1608,8 @@ export function harFinished(obj: GameObject): void {
 // ---------------------------------------------------------------------------
 // Creation
 
-export function harCreate(obj: GameObject, afData: Af, dir: number, harId: number, pilotId: number, playerId: number): void {
+/** `wayDown`: the robot's Fire & Ice move can be done in this fight (fireIce.ts; else it is left out, as before). */
+export function harCreate(obj: GameObject, afData: Af, dir: number, harId: number, pilotId: number, playerId: number, wayDown = false): void {
   const gs = obj.gs;
   const gp = gs.getPlayer(playerId);
   const pilot = gp.pilot;
@@ -1667,6 +1693,7 @@ export function harCreate(obj: GameObject, afData: Af, dir: number, harId: numbe
     hooks: [],
     disabledAnimations: new Map(),
     trailCache: new Map(),
+    wayDown,
   };
   obj.userdata = local;
   obj.group = GROUP_HAR;
@@ -1714,7 +1741,8 @@ export function harCreate(obj: GameObject, afData: Af, dir: number, harId: numbe
       }
     }
     if (move.ani.animationString === 'A1') move.moveString = '!';
-    if (move.posConstraints & POS_IN_ARENA3) move.moveString = '!';
+    // The Fire & Ice moves: only where the way down to Fire and Ice is open (fireIce.ts).
+    if (move.posConstraints & POS_IN_ARENA3 && !wayDown) move.moveString = '!';
   }
 }
 

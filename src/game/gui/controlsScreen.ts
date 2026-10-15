@@ -93,6 +93,8 @@ const ACTIONS: [keyof KeyBindings, string][] = [
   ['jumpUp', '8'], ['jumpRight', '9'], ['walkRight', '6'], ['duckForward', '3'], ['duck', '2'], ['duckBack', '1'],
   ['walkBack', '4'], ['jumpLeft', '7'], ['punch', 'P'], ['kick', 'K'], ['special', 'S'],
 ];
+/** The finisher keys (shown when they are on): F. */
+const FINISHER_ACTIONS: [keyof KeyBindings, string][] = [['scrap', 'F'], ['destruction', 'F'], ['fireIce', 'F']];
 
 const KB_UNIT = 12;
 const KB_X = 22;
@@ -190,12 +192,12 @@ export class ControlsMenu extends Menu {
 
   private buildKeyboard(): void {
     const k = settings().keys;
-    const sig = JSON.stringify([k.p1, k.p2]);
+    const sig = JSON.stringify([k.p1, k.p2, k.finisherKeys]);
     if (this.keyboard && sig === this.keyboardLayoutKey) return;
     this.keyboardLayoutKey = sig;
     this.keyboardUses.clear();
     [k.p1, k.p2].forEach((b, player) => {
-      for (const [act, icon] of ACTIONS) {
+      for (const [act, icon] of k.finisherKeys ? [...ACTIONS, ...FINISHER_ACTIONS] : ACTIONS) {
         for (const code of b[act] ?? []) if (!this.keyboardUses.has(code)) this.keyboardUses.set(code, { player, icon });
       }
     });
@@ -228,8 +230,8 @@ export class ControlsMenu extends Menu {
       const cx = KB_X + cap.x * KB_UNIT + f.cx, y = Math.round(KB_Y + cap.row * KB_UNIT + f.cy - GLYPH_MID_Y);
       const use = this.keyboardUses.get(cap.code);
       // (the arrows are part of the keyboard's image)
-      if (use && (use.icon === 'P' || use.icon === 'K' || use.icon === 'S')) {
-        const color = use.icon === 'P' ? C.punch : use.icon === 'K' ? C.kick : C.special;
+      if (use && (use.icon === 'P' || use.icon === 'K' || use.icon === 'S' || use.icon === 'F')) {
+        const color = use.icon === 'P' ? C.punch : use.icon === 'K' ? C.kick : use.icon === 'S' ? C.special : C.b;
         this.drawCentered('kb', use.icon, cx, y, FontSize.SMALL, color);
       } else if (!use && cap.label) {
         this.drawCentered('kbl', cap.label, cx, y, FontSize.SMALL, C.dim, false);
@@ -251,12 +253,16 @@ export class ControlsMenu extends Menu {
       [tr('KICK'), (b) => names(b.kick)],
       [tr('SPECIAL'), (b) => (settings().keys.specialButton ? names(b.special ?? []) : tr('OFF'))],
     ];
+    // (the finisher keys when they are on: scrap, destruction, Fire & Ice; the rows a little closer)
+    if (k.finisherKeys) rows.push([tr('FINISHERS'), (b) => [b.scrap, b.destruction, b.fireIce].map((c) => short(c?.[0])).join(' ')]);
+    const step = rows.length > 7 ? 7 : 8;
     const y0 = 104;
     this.t('h', tr('PLAYER 1'), FontSize.SMALL, C.p1).draw(84, y0);
     this.t('h', tr('PLAYER 2'), FontSize.SMALL, C.p2).draw(200, y0);
     rows.forEach(([label, f], i) => {
-      const y = y0 + 10 + i * 8;
-      const color = label === tr('PUNCH') ? C.punch : label === tr('KICK') ? C.kick : label === tr('SPECIAL') ? C.special : C.lightGrey;
+      const y = y0 + 10 + i * step;
+      const color = label === tr('PUNCH') ? C.punch : label === tr('KICK') ? C.kick : label === tr('SPECIAL') ? C.special
+        : label === tr('FINISHERS') ? C.b : C.lightGrey;
       this.t('l', label, FontSize.SMALL, color).draw(22, y);
       this.t('v', clip(f(k.p1), 18), FontSize.SMALL, C.white).draw(84, y);
       this.t('v', clip(f(k.p2), 16), FontSize.SMALL, C.white).draw(200, y);

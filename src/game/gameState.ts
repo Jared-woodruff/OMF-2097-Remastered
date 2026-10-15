@@ -27,6 +27,7 @@ import type { ReplaySession } from './replay/playback';
 import type { NetSession } from '../net/session';
 import { HarScreencaps } from './harScreencap';
 import { helpOverlayHeld } from './gui/helpOverlay';
+import { newFireIceRun, type FireIceRun } from './fireIce';
 
 export interface MatchSettings {
   throwRange: number;
@@ -203,6 +204,12 @@ export class GameState {
   credits: import('./credits/creditsRun').CreditsHooks | null = null;
   /** OMF Studio's test of a mod (?modtest): the one-player game shows everything whatever the settings. */
   modTest = false;
+  /** The one-player game's Fire and Ice: the secret fight under way, Fire beaten (see fireIce.ts). */
+  fireIce: FireIceRun = newFireIceRun();
+  /** Counts the scenes opened (a scene opened again, e.g. the Fire Pit for Fire's fight, is a new one). */
+  sceneSerial = 0;
+  /** The scene opens again (restartScene). */
+  private sceneRestart = false;
   sc!: Scene;
   objects: RenderObj[] = [];
   players: [GamePlayer, GamePlayer];
@@ -412,6 +419,16 @@ export class GameState {
     }
   }
 
+  /** Opens this scene again, as a new one (Fire's fight in the Fire Pit after a fight in the Fire Pit). */
+  restartScene(): void {
+    if (this.nextWaitTicks <= 0) {
+      this.nextWaitTicks = FRAME_WAIT_TICKS;
+      this.nextNextId = SceneId.MENU;
+      this.nextId = this.thisId;
+      this.sceneRestart = true;
+    }
+  }
+
   private createScene(id: SceneId): void {
     const f = sceneFactories.get(id);
     if (!f) throw new Error(`Scene ${SceneId[id]} is not implemented`);
@@ -433,6 +450,8 @@ export class GameState {
     });
     this.thisId = id;
     this.nextId = id;
+    this.sceneRestart = false;
+    this.sceneSerial++;
     // (a click meant for the screen that is going)
     this.menuCtrl.queued = ACT_NONE;
     try {
@@ -498,7 +517,7 @@ export class GameState {
     if (this.thisWaitTicks > 0) this.thisWaitTicks--;
     if (this.nextWaitTicks > 0) this.nextWaitTicks--;
     const crossfadeOut = settings().video.crossfade && !this.sc.isArena();
-    if (this.thisId !== this.nextId && (this.nextWaitTicks <= 1 || !crossfadeOut)) {
+    if ((this.thisId !== this.nextId || this.sceneRestart) && (this.nextWaitTicks <= 1 || !crossfadeOut)) {
       if (this.nextId === SceneId.NONE) {
         if (this.run) {
           this.run = false;

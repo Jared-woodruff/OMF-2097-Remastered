@@ -4,8 +4,9 @@
 import { packAction } from '../../controller/rec';
 import {
   REC_CONTROLLER_AI, REC_CONTROLLER_JOYSTICK1, REC_CONTROLLER_JOYSTICK2, REC_CONTROLLER_KEYBOARD1, REC_CONTROLLER_KEYBOARD2,
-  REC_GAMEMODE_ARCADE, REC_GAMEMODE_TOURNAMENT, REC_LOOKUP_ACTION, recCreate, recFinish, recMove, recSeedMove, type RecFile,
+  REC_GAMEMODE_ARCADE, REC_GAMEMODE_TOURNAMENT, REC_LOOKUP_ACTION, recCreate, recFinish, recFirePitMove, recMove, recSeedMove, type RecFile,
 } from '../../formats/rec';
+import { firePitFlags, type FirePit } from '../fireIce';
 import { CtrlType } from '../constants';
 import type { GameState } from '../gameState';
 
@@ -28,7 +29,8 @@ export class Recorder {
   /** Players whose every input is written: the computer, which does not send an input on every tick. */
   private readonly exact: [boolean, boolean];
 
-  constructor(gs: GameState, arenaId: number, arenaPalette: number) {
+  /** `pit`: the Fire Pit's stage and floor (fireIce.ts), recorded so the fight plays back the same. */
+  constructor(gs: GameState, arenaId: number, arenaPalette: number, pit: FirePit | null = null) {
     const rec = recCreate();
     for (let i = 0; i < 2; i++) {
       const p = gs.getPlayer(i);
@@ -56,6 +58,11 @@ export class Recorder {
     rec.roundType = m.rounds;
     rec.hyperMode = m.fightMode;
     rec.moves.push(recSeedMove(gs.rand.seed));
+    if (pit) {
+      rec.secretStage = pit.stage;
+      const flags = firePitFlags(pit);
+      if (flags) rec.moves.push(recFirePitMove(flags));
+    }
     this.rec = rec;
     this.exact = [c0 === CtrlType.AI, c1 === CtrlType.AI];
   }

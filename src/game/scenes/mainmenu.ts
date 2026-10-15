@@ -1,4 +1,5 @@
 // Main menu scene (port of the reference scenes/mainmenu.c). The menus themselves are in ./mainmenu/.
+import { newFireIceRun } from '../fireIce';
 import type { CtrlEvent } from '../../controller/controller';
 import { isDown, onKey } from '../../controller/input';
 import { KeyboardController } from '../../controller/keyboard';
@@ -88,6 +89,8 @@ export class MainMenuScene extends Scene {
       player.score.resetWins();
     }
     gs.arena = randomArena();
+    // (a new game: no secret fight under way, Fire not beaten)
+    gs.fireIce = newFireIceRun();
     gs.reconfigureControllers();
     gs.playMusic('MENU.PSM');
 

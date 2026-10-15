@@ -15,7 +15,20 @@ export interface KeyBindings {
   kick: string[];
   /** The one-button special (OPTIONS > CONTROLS > SPECIAL BUTTON; not in the original game). */
   special: string[];
+  /** The finisher keys (OPTIONS > CONTROLS > FINISHER KEYS; not in the original game): see controller/finisher.ts. */
+  scrap: string[];
+  destruction: string[];
+  fireIce: string[];
 }
+
+/** The finisher keys of each keyboard layout (controls.ts), also for settings saved before they existed. */
+export const FINISHER_KEYS = {
+  classic: { p1: { scrap: ['Comma'], destruction: ['Period'], fireIce: ['Semicolon'] }, p2: { scrap: ['KeyR'], destruction: ['KeyT'], fireIce: ['KeyY'] } },
+  modern: {
+    p1: { scrap: ['KeyU', 'KeyR'], destruction: ['KeyI', 'KeyT'], fireIce: ['KeyO', 'KeyY'] },
+    p2: { scrap: ['Semicolon', 'Numpad4'], destruction: ['Quote', 'Numpad5'], fireIce: ['BracketRight', 'Numpad6'] },
+  },
+};
 
 /** The special button of the modern keyboard layout (controls.ts), for settings saved before it existed. */
 export const MODERN_SPECIAL_KEYS = { p1: ['KeyL', 'KeyH'], p2: ['Slash', 'Numpad3'] };
@@ -110,6 +123,11 @@ export interface Settings {
     padLayout: 'modern' | 'classic';
     /** The special button does special moves in one press (see controller/special.ts). */
     specialButton: boolean;
+    /**
+     * The finisher keys do the robot's scrap, destruction or Fire & Ice move in one press once a fight is won, and the
+     * special button the next of them (see controller/finisher.ts). Off: the original inputs only.
+     */
+    finisherKeys: boolean;
     /** Touch controls (platform/touch.ts): shown on touch screens once touched, always, or never. */
     touch: 'auto' | 'on' | 'off';
     p1: KeyBindings;
@@ -204,6 +222,7 @@ export function defaultSettings(): Settings {
       layout: 'classic',
       padLayout: 'modern',
       specialButton: true,
+      finisherKeys: false,
       touch: 'auto',
       // KeyboardEvent.code values. Player 1: arrows / numpad, Enter + Right Shift (like the reference defaults).
       p1: {
@@ -218,6 +237,7 @@ export function defaultSettings(): Settings {
         punch: ['Enter', 'NumpadEnter', 'Numpad0'],
         kick: ['ShiftRight', 'NumpadDecimal', 'NumpadAdd'],
         special: ['Slash', 'NumpadSubtract'],
+        ...copyKeys(FINISHER_KEYS.classic.p1),
       },
       // Player 2: QWE/AD/ZXC block, Left Ctrl + Left Shift.
       p2: {
@@ -232,6 +252,7 @@ export function defaultSettings(): Settings {
         punch: ['ControlLeft', 'KeyF'],
         kick: ['ShiftLeft', 'KeyG'],
         special: ['KeyH'],
+        ...copyKeys(FINISHER_KEYS.classic.p2),
       },
     },
     tournament: { lastName: '' },
@@ -247,6 +268,26 @@ export function defaultSettings(): Settings {
 }
 
 const STORAGE_KEY = 'omf2097r.settings';
+
+function copyKeys<T extends Record<string, string[]>>(k: T): T {
+  return Object.fromEntries(Object.entries(k).map(([a, codes]) => [a, [...codes]])) as T;
+}
+
+/** Gives both players the finisher keys of a layout, leaving out keys that already do something else. */
+export function fillFinisherKeys(keys: Settings['keys'], layout: 'classic' | 'modern'): void {
+  const finisher = new Set<string>(['scrap', 'destruction', 'fireIce']);
+  const used = new Set<string>();
+  for (const k of [keys.p1, keys.p2]) {
+    for (const [action, codes] of Object.entries(k)) if (!finisher.has(action)) for (const c of codes) used.add(c);
+  }
+  const fill = (k: KeyBindings, d: (typeof FINISHER_KEYS)['classic']['p1']) => {
+    k.scrap = d.scrap.filter((c) => !used.has(c));
+    k.destruction = d.destruction.filter((c) => !used.has(c));
+    k.fireIce = d.fireIce.filter((c) => !used.has(c));
+  };
+  fill(keys.p1, FINISHER_KEYS[layout].p1);
+  fill(keys.p2, FINISHER_KEYS[layout].p2);
+}
 
 function merge<T>(base: T, over: unknown): T {
   if (typeof base !== 'object' || base === null || Array.isArray(base)) {
@@ -274,6 +315,8 @@ export function loadSettings(): Settings {
         current.keys.p1.special = [...MODERN_SPECIAL_KEYS.p1];
         current.keys.p2.special = [...MODERN_SPECIAL_KEYS.p2];
       }
+      // Saved before the finisher keys: the layout's own (keys rebound by the player keep theirs: what clashes stays free).
+      if (saved?.keys && !saved.keys.p1?.scrap) fillFinisherKeys(current.keys, saved.keys.layout === 'modern' ? 'modern' : 'classic');
       if (!((saved?.revision ?? 0) >= 3) && current.video.hdFont === 'smooth') current.video.hdFont = 'type';
       const announcer: unknown = current.sound.announcer;
       if (announcer !== 'off' && announcer !== 'male' && announcer !== 'female') current.sound.announcer = announcer === false ? 'off' : 'male';

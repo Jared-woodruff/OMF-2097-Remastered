@@ -2,8 +2,9 @@ import { ACT_DOWN, ACT_ESC, ACT_KICK, ACT_LEFT, ACT_NONE, ACT_PUNCH, ACT_RIGHT, 
 import type { GameState } from '../game/gameState';
 import type { KeyBindings } from '../game/settings';
 import { Controller, type CtrlEvent } from './controller';
-import { anyDown, connectedPads, isDown, readPad, rumble } from './input';
+import { anyDown, connectedPads, isDown, keyPresses, readPad, rumble } from './input';
 import { specialButtonActions } from './special';
+import { FinisherKeys } from './finisher';
 import { touchPad } from '../platform/touch';
 import { settings } from '../game/settings';
 
@@ -14,11 +15,27 @@ import { settings } from '../game/settings';
 function pushSpecial(ctrl: Controller, pressed: boolean, wasPressed: boolean, action: number, ev: CtrlEvent[]): void {
   if (!pressed || wasPressed) return;
   const actions = specialButtonActions(ctrl.gs, ctrl.harObjId, action);
-  if (!actions) return;
+  if (actions) pushActions(ctrl, actions, ev);
+}
+
+/** A move's whole input, one event per input, so the robot takes them in this tick. */
+function pushActions(ctrl: Controller, actions: number[], ev: CtrlEvent[]): void {
   for (const a of actions) {
     ctrl.current |= a;
     ev.push({ type: 'action', action: a, source: ctrl.type });
   }
+}
+
+/**
+ * The special button and the finisher keys (controller/finisher.ts; `keys`: pressed since the last poll): once the fight
+ * is won, with FINISHER KEYS on, the special button does the next finishing move instead of a special.
+ */
+function pushButtons(ctrl: Controller, finishers: FinisherKeys, keys: readonly [boolean, boolean, boolean], special: boolean,
+  wasSpecial: boolean, action: number, ev: CtrlEvent[]): void {
+  const on = settings().keys.finisherKeys;
+  const finishing = on && FinisherKeys.finishing(ctrl.gs, ctrl.harObjId);
+  if (!finishing) pushSpecial(ctrl, special, wasSpecial, action, ev);
+  if (on) pushActions(ctrl, finishers.poll(ctrl.gs, ctrl.harObjId, keys, finishing && special && !wasSpecial), ev);
 }
 
 /** Converts a set of pressed directions/buttons to an action exactly like the reference keyboard poll. */
@@ -55,6 +72,9 @@ export class KeyboardController extends Controller {
   padSlot = -1;
   reservedPads: () => number[] = () => [];
   private specialHeld = false;
+  private finishers = new FinisherKeys();
+  /** The finisher keys' press counts at the last poll (keyPresses). */
+  private finisherPresses = new Map<string, number>();
 
   constructor(gs: GameState, public keys: KeyBindings) {
     super(gs);
@@ -66,6 +86,20 @@ export class KeyboardController extends Controller {
     if (anyDown(sel(this.keys))) return true;
     for (const e of this.extra) if (anyDown(sel(e))) return true;
     return false;
+  }
+
+  /** A key of a binding went down since the last poll (even if it is up again: see keyPresses). */
+  private pressed(sel: (k: KeyBindings) => string[] | undefined): boolean {
+    let any = false;
+    for (const k of [this.keys, ...this.extra]) {
+      for (const code of sel(k) ?? []) {
+        const n = keyPresses(code);
+        const seen = this.finisherPresses.get(code);
+        if (seen !== undefined && n > seen) any = true;
+        this.finisherPresses.set(code, n);
+      }
+    }
+    return any;
   }
 
   /** The gamepad this player reads besides the keyboard, or -1. */
@@ -94,7 +128,8 @@ export class KeyboardController extends Controller {
     );
     this.cmd(action === 0 ? ACT_STOP : action, ev);
     const special = this.held((k) => k.special ?? []) || !!p?.special;
-    pushSpecial(this, special, this.specialHeld, action, ev);
+    const finisherKeys = [this.pressed((k) => k.scrap), this.pressed((k) => k.destruction), this.pressed((k) => k.fireIce)] as const;
+    pushButtons(this, this.finishers, finisherKeys, special, this.specialHeld, action, ev);
     this.specialHeld = special;
     this.last = this.current;
     return 0;
@@ -109,6 +144,7 @@ export class KeyboardController extends Controller {
 
 export class GamepadController extends Controller {
   private specialHeld = false;
+  private finishers = new FinisherKeys();
 
   constructor(gs: GameState, public padIndex: number) {
     super(gs);
@@ -126,7 +162,8 @@ export class GamepadController extends Controller {
     }
     this.cmd(action === 0 ? ACT_STOP : action, ev);
     const special = !!p?.special;
-    pushSpecial(this, special, this.specialHeld, action, ev);
+    // (a gamepad's buttons are all taken: its special button does the finishing moves)
+    pushButtons(this, this.finishers, [false, false, false], special, this.specialHeld, action, ev);
     this.specialHeld = special;
     this.last = this.current;
     return 0;

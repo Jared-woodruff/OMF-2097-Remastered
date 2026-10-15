@@ -67,6 +67,8 @@ export class FxDirector {
   /** Effect time in ticks. */
   private t = 0;
   private sceneId = -1;
+  /** The scene the effects are set up for (GameState.sceneSerial: an arena opened again starts afresh). */
+  private sceneSerial = -1;
   private cfg: ArenaFx | null = null;
   private flash = 0;
   private chroma = 0;
@@ -111,10 +113,11 @@ export class FxDirector {
       f.active = false;
       return;
     }
-    if (gs.thisId !== this.sceneId) {
+    if (gs.thisId !== this.sceneId || gs.sceneSerial !== this.sceneSerial) {
       this.reset();
       this.sceneId = gs.thisId;
-      this.cfg = arenaFx(arenaLook(arena));
+      this.sceneSerial = gs.sceneSerial;
+      this.cfg = arenaFx(gs.sc.fxLook() ?? arenaLook(arena));
     }
     const cfg = this.cfg!;
     if (gs.paused) dt = 0;
@@ -210,6 +213,7 @@ export class FxDirector {
     this.flash = this.chroma = this.desat = this.shake = 0;
     this.zoom = null;
     this.sceneId = -1;
+    this.sceneSerial = -1;
     this.cfg = null;
     this.frame.particleCount = 0;
     this.frame.lights.length = 0;

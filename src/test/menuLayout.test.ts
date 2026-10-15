@@ -10,6 +10,7 @@ import { Button, Component, Label, mainMenuTheme, Menu, TextSelector, TextSlider
 import type { MainMenuScene } from '../game/scenes/mainmenu';
 import { menuAdvancedCreate } from '../game/scenes/mainmenu/menuAdvanced';
 import { menuControlsCreate } from '../game/scenes/mainmenu/menuControls';
+import { menuFinisherKeysCreate } from '../game/scenes/mainmenu/menuFinisherKeys';
 import { menuExtrasCreate } from '../game/scenes/mainmenu/menuExtras';
 import { menuGameplayCreate } from '../game/scenes/mainmenu/menuGameplay';
 import { menuClassicStyleCreate, menuEffectsCreate, menuGraphicsCreate, menuRemasteredCreate } from '../game/scenes/mainmenu/menuGraphics';
@@ -111,6 +112,7 @@ describe.skipIf(!hasGameData).each(LANGUAGES.map((l) => l.code))('menu layout (%
       ['GAMEPLAY', menuGameplayCreate(s), MAIN_FRAME],
       ['ADVANCED', menuAdvancedCreate(s), MAIN_FRAME],
       ['CONTROLS', menuControlsCreate(s), MAIN_FRAME],
+      ['FINISHER KEYS', menuFinisherKeysCreate(s), KEYBOARD_FRAME],
       ['INPUT 1', menuInputCreate(s, 1), MAIN_FRAME],
       ['INPUT 2', menuInputCreate(s, 2), MAIN_FRAME],
       ['KEYBOARD', menuKeyboardCreate(s, 1), KEYBOARD_FRAME],

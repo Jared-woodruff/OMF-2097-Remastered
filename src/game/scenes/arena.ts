@@ -5,10 +5,12 @@ import { afGetMove, bkGetInfo, harName, langGet } from '../../resources/resource
 import { Tag } from '../../script/tags';
 import { globalRandom } from '../../util/random';
 import { paletteDarken, vga } from '../../video/vga';
+import { Palette } from '../../formats/palette';
 import { defaultSoundOpts } from '../../audio/soundOpts';
 import { Surface } from '../../video/surface';
 import {
   ACT_DOWN, ACT_ESC, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_UP, ANIM_DAMAGE, ANIM_DEFEAT, ANIM_SCRAP_METAL, ANIM_VICTORY, ARENA_FLOOR, ARENA_LEFT_WALL, ARENA_RIGHT_WALL, CtrlType,
+  EFFECT_DARK_TINT,
   GROUP_ANNOUNCEMENT, GROUP_HAZARD, GROUP_PROJECTILE, GROUP_SCRAP, HarEventType, HarId, HarState, LAYER_HAR, LAYER_HAZARD,
   LAYER_SCRAP, MAX_ARENAS, OBJECT_FACE_LEFT, OBJECT_FACE_RIGHT, PilotId, RENDER_LAYER_BOTTOM, RENDER_LAYER_MIDDLE, RENDER_LAYER_TOP, SceneId,
 } from '../constants';
@@ -54,6 +56,13 @@ import { formatMs } from '../modes/run';
 import { AiController } from '../../controller/ai';
 import { leaveNetGame } from '../../net/netplay';
 import { tr, trKey } from '../../i18n/i18n';
+import {
+  FIRE_PIT, firePitLive, firePitRecorded, firePitUsable, ICE_LOOK, PILOT_DRAW_TRANSLUCENT, pilotDrawFlags, POS_FIRE_PIT, SecretStage,
+  secretPersonality, secretPilot, stageScoreFactor, tintForStage, type FirePit,
+} from '../fireIce';
+import { recFirePitFlags } from '../../formats/rec';
+import { createAiController } from '../../controller/ai';
+import { HarScreencaps } from '../harScreencap';
 
 const HAR1_START_POS = 110;
 const HAR2_START_POS = 210;
@@ -117,6 +126,14 @@ export class ArenaScene extends Scene implements ArenaLike {
   private recorder: Recorder | null = null;
   /** Watching a replay: its controls. */
   private replayHud: ReplayHud | null = null;
+  /** The Fire Pit's way down to Fire and Ice in this fight (fireIce.ts; null: another arena). */
+  firePit: FirePit | null = null;
+  /** A one-player fight of the story (not a tournament, run, replay...): the Fire & Ice rules apply. */
+  private storyFight = false;
+  /** Player 1's Fire & Ice move opened the way down (`b1`): Fire's (or Ice's) fight comes next. */
+  private fireIceTriggered = false;
+  /** The Fire & Ice move broke the Fire Pit's floor (`b2`): its hole shows. */
+  private floorBroken = false;
 
   constructor(gs: GameState, id: SceneId) {
     super(gs, id);
@@ -134,11 +151,27 @@ export class ArenaScene extends Scene implements ArenaLike {
     const track = arenaMusic(gs.fightStats.arena) ?? music[bk.fileId];
     if (track && !gs.credits) gs.playMusic(track);
     this.rounds = [1, 3, 5, 7][gs.matchSettings.rounds] ?? 1;
+    this.storyFight = !gs.replay && gs.isSingleplayer() && !gs.isTournament() && !gs.isDemoplay() && !gs.modeRun && !gs.training &&
+      !gs.credits && !gs.modTest && !gs.isNetplay() && gs.getPlayer(0).ctrl.type !== CtrlType.AI;
+    const pit = this.firePit = this.setupFirePit();
     let palIndex = 0;
     // A replay uses the recorded palette (the desert's time of day in tournaments).
     if (gs.replay) palIndex = gs.replay.rec.arenaPalette;
     else if (bk.fileId === 128 && gs.isTournament()) palIndex = globalRandom.int(bk.palettes.length);
-    if (palIndex > 0 && palIndex < bk.palettes.length) vga.setBasePaletteRange(bk.palettes[palIndex], 0x60, 0x60, 0x40);
+    else if (pit) palIndex = pit.stage;
+    if (pit && pit.stage !== SecretStage.NONE) {
+      // Fire's flames or Ice's frozen Fire Pit: the stage's palette (but the robots' and the menu's colors), remap tables
+      // and animations (the original's arena variant, MASTER.DAT 0x28699 and 0x29428).
+      vga.setBasePaletteRange(bk.palettes[pit.stage], 0x60, 0x60, 250 - 0x60);
+      vga.setRemaps(bk.remaps[pit.stage]);
+      for (const info of bk.infos.values()) {
+        const variant = info.ani.extraStrings[pit.stage];
+        if (variant && variant.length > 2) info.ani.animationString = variant;
+      }
+    } else if (palIndex > 0 && palIndex < bk.palettes.length) {
+      vga.setBasePaletteRange(bk.palettes[palIndex], 0x60, 0x60, 0x40);
+    }
+    if (pit) this.firePitScenery(pit);
 
     const pos = [HAR1_START_POS, HAR2_START_POS];
     const dir = [OBJECT_FACE_RIGHT, OBJECT_FACE_LEFT];
@@ -149,10 +182,18 @@ export class ArenaScene extends Scene implements ArenaLike {
         this.tournament = true;
       }
       paletteLoadPlayerColors(player.pilot.palette, i);
+      if (i === 0 && pit && pit.stage !== SecretStage.NONE) {
+        // The player's robot in Fire's flames or Ice's cold (the original's palette effect at 0x317ee).
+        const lit = new Palette(vga.base.colors);
+        tintForStage(lit, pit.stage);
+        vga.setBasePaletteRange(lit, 1, 1, 47);
+      }
       const af = this.loadHar(i);
       const obj = new GameObject(gs, pos[i], ARENA_FLOOR);
-      harCreate(obj, af, dir[i], player.pilot.harId, player.pilot.pilotId, i);
+      harCreate(obj, af, dir[i], player.pilot.harId, player.pilot.pilotId, i, i === 0 && !!pit?.wayDown);
       if (bk.fileId === 8) obj.addAnimationEffects(0x4 /* EFFECT_POSITIONAL_LIGHTING */);
+      // Ice: drawn translucent, like the shadows Shadow throws (her pilot record's draw flags hold the `bt` mode).
+      if (pilotDrawFlags(player.pilot) & PILOT_DRAW_TRANSLUCENT) obj.addAnimationEffects(EFFECT_DARK_TINT);
       gs.addObject(obj, RENDER_LAYER_MIDDLE, false, false);
       player.harObjId = obj.id;
       player.ctrl.harObjId = obj.id;
@@ -220,6 +261,8 @@ export class ArenaScene extends Scene implements ArenaLike {
     p1.score.setTournamentMode(this.tournament);
     p0.score.reset(gs.isTournament());
     p1.score.reset(true);
+    p0.score.stageMultiplier = stageScoreFactor(pit?.stage ?? SecretStage.NONE);
+    p1.score.stageMultiplier = 1;
     if (gs.isSingleplayer()) {
       p0.score.resetWins();
       p1.score.resetWins();
@@ -254,7 +297,7 @@ export class ArenaScene extends Scene implements ArenaLike {
     // Last, like the reference (arena_create records the random seed when the fight is ready).
     if (gs.replay) this.replayHud = new ReplayHud(gs.replay);
     // (OMF Studio's test fights are not the player's: no replay, no records)
-    else if (!this.training && !gs.isDemoplay() && !gs.modTest && settings().gameplay.saveReplays) this.recorder = new Recorder(gs, id - SceneId.ARENA0, palIndex);
+    else if (!this.training && !gs.isDemoplay() && !gs.modTest && settings().gameplay.saveReplays) this.recorder = new Recorder(gs, id - SceneId.ARENA0, palIndex, pit);
   }
 
   // ---- ArenaLike ---------------------------------------------------------------
@@ -270,9 +313,115 @@ export class ArenaScene extends Scene implements ArenaLike {
 
   override startup(id: number): [boolean, boolean] {
     if (this.bk.fileId === 64 && id >= 1 && id <= 4) return [true, true];
+    // (the frozen Fire Pit's shimmer: the original turns animation 5 on for Ice's stage)
+    if (this.firePit?.stage === SecretStage.ICE && id === 5) return [true, true];
     // (a mod arena's own looping animations)
     if (modArena(this.id - SceneId.ARENA0)?.info.loops.includes(id)) return [true, true];
     return [false, false];
+  }
+
+  override startupObject(id: number, obj: GameObject): void {
+    // (the shimmer is palette effects on frames with no sprite)
+    if (id === 5 && this.firePit?.stage === SecretStage.ICE) obj.spritelessPaletteFx = true;
+  }
+
+  override fxLook(): number | null {
+    return this.firePit?.stage === SecretStage.ICE ? ICE_LOOK : null;
+  }
+
+  // ---- Fire and Ice (fireIce.ts) ------------------------------------------------------------
+  /** The Fire Pit of this fight: the one-player game's stage and floor, or the recorded ones (null: another arena). */
+  private setupFirePit(): FirePit | null {
+    const gs = this.gs;
+    if (this.id - SceneId.ARENA0 !== FIRE_PIT || !firePitUsable(this.bk)) return null;
+    if (gs.replay) return firePitRecorded(gs.replay.rec.secretStage, recFirePitFlags(gs.replay.rec));
+    return firePitLive(gs.fireIce, settings().gameplay.difficulty, this.storyFight);
+  }
+
+  /**
+   * The three sprites of the Fire Pit's animation 5, which the original draws into the background (0x3161d): the hole
+   * in the ceiling the robot came down through, the floor over the grille, and Ice's frost. Here they are scenery
+   * objects, so the background stays the one its artwork is made for.
+   */
+  private firePitScenery(pit: FirePit): void {
+    const info = bkGetInfo(this.bk, 5);
+    if (!info) return;
+    const add = (sprite: number) => {
+      const obj = new GameObject(this.gs, info.ani.startX, info.ani.startY);
+      obj.setAnimation(info.ani);
+      obj.setCustomString('A1');
+      obj.setRepeat(true);
+      obj.selectSprite(sprite);
+      obj.setSpriteOverride(true);
+      this.gs.addObject(obj, RENDER_LAYER_BOTTOM, false, false);
+    };
+    if (pit.stage !== SecretStage.NONE) add(0);
+    if (pit.solidFloor) add(1);
+    if (pit.stage === SecretStage.ICE) add(2);
+  }
+
+  arenaFireIceTag(obj: GameObject, b1: boolean, b2: boolean): void {
+    if (!this.firePit?.wayDown || !harData(obj).wayDown) return;
+    // (a replay shows the floor breaking, but goes nowhere)
+    if (b1 && !this.gs.replay) this.fireIceTriggered = true;
+    if (b2 && !this.floorBroken) {
+      this.floorBroken = true;
+      // The hole the robot broke into the floor's grille (the original turns animation 12 on).
+      const info = bkGetInfo(this.bk, 12);
+      if (!info) return;
+      const hole = new GameObject(this.gs, info.ani.startX, info.ani.startY);
+      hole.soundTranslationTable = this.bk.soundTranslationTable;
+      hole.setAnimation(info.ani);
+      this.gs.addObject(hole, RENDER_LAYER_BOTTOM, false, false);
+    }
+  }
+
+  /**
+   * Player 1 went down through the floor: Fire's fight (or, from Fire's, Ice's) follows in this arena, against the
+   * beaten pilot's record as the original rewrites it. The fight that led there is kept for the news.
+   */
+  private fireIceNext(): boolean {
+    const gs = this.gs;
+    if (!this.firePit || !this.fireIceTriggered || !this.storyFight || this.winner !== 0) return false;
+    const run = gs.fireIce;
+    const p1 = gs.getPlayer(0), p2 = gs.getPlayer(1);
+    if (run.stage === SecretStage.NONE || !run.resume) {
+      run.resume = { pilot: p2.pilot, spWins: [p1.spWins, p2.spWins], arena: gs.arena, fightStats: gs.fightStats, screencaps: [p1.screencaps, p2.screencaps] };
+      p1.screencaps = new HarScreencaps();
+      p2.screencaps = new HarScreencaps();
+    }
+    const stage = run.stage === SecretStage.NONE ? SecretStage.FIRE : SecretStage.ICE;
+    run.stage = stage;
+    const pilot = secretPilot(run.resume.pilot, stage, this.bk);
+    p2.pilot = pilot;
+    p2.setCtrl(createAiController(gs, settings().gameplay.difficulty, pilot, pilot.pilotId));
+    // (the computer player set the beaten pilot's personality: Fire's and Ice's own move preferences over it)
+    secretPersonality(pilot, stage);
+    p2.spWins = 0;
+    gs.restartScene();
+    return true;
+  }
+
+  /**
+   * After Fire's and Ice's fights, won or lost: the game goes on from the fight that led there (they cost nothing), with
+   * its news.
+   */
+  private fireIceResume(): boolean {
+    const gs = this.gs;
+    const run = gs.fireIce;
+    const r = run.resume;
+    if (run.stage === SecretStage.NONE || !r) return false;
+    run.stage = SecretStage.NONE;
+    run.resume = null;
+    const p1 = gs.getPlayer(0), p2 = gs.getPlayer(1);
+    p2.pilot = r.pilot;
+    p2.setCtrl(createAiController(gs, settings().gameplay.difficulty, r.pilot, r.pilot.pilotId));
+    [p1.spWins, p2.spWins] = r.spWins;
+    gs.fightStats = r.fightStats;
+    [p1.screencaps, p2.screencaps] = r.screencaps;
+    gs.arena = nextArena(r.arena);
+    gs.setNext(SceneId.NEWSROOM);
+    return true;
   }
 
   wallSlamTolerance(): number {
@@ -465,6 +614,8 @@ export class ArenaScene extends Scene implements ArenaLike {
       playerWinner.pilot.wins++;
       playerLoser.pilot.losses++;
     }
+    // Fire (or Ice) beaten: the Fire Pit's floor stays closed for the rest of the game (the original's [0x847bc]).
+    if (this.storyFight && this.firePit && this.firePit.stage !== SecretStage.NONE && winnerId === 0) gs.fireIce.fireBeaten = true;
 
     // Switch scene
     if (gs.isSingleplayer() || gs.isTournament() || gs.isDemoplay()) {
@@ -527,6 +678,9 @@ export class ArenaScene extends Scene implements ArenaLike {
       } else if (gs.matchSettings.sim) {
         gamePlayerSetPilot(p2, null);
         gs.setNext(SceneId.MECHLAB);
+      } else if (this.fireIceNext() || this.fireIceResume()) {
+        // Down to Fire's or Ice's fight (no news, no victory screen), or back from them to the news of the fight before.
+        return;
       } else {
         gs.setNext(SceneId.NEWSROOM);
       }
@@ -699,6 +853,8 @@ export class ArenaScene extends Scene implements ArenaLike {
       case HarEventType.ATTACK:
         fs.totalAttacks[event.playerId]++;
         if (obj.isAirborne()) har.airAttacked = 1;
+        // The Fire & Ice move cuts the destruction short: its bonus now (it comes when the destruction is over).
+        if (event.move && event.move.posConstraints & POS_FIRE_PIT) score.setDone();
         break;
       case HarEventType.AIR_ATTACK_DONE:
         har.airAttacked = 0;
@@ -923,6 +1079,8 @@ export class ArenaScene extends Scene implements ArenaLike {
     // appears. The original arenas keep the game's draws (and so their replays).
     const draw = modArena(this.id - SceneId.ARENA0) ? (n: number) => (gs.rand.intmax() >>> 8) % n : (n: number) => gs.rand.int(n);
     for (const [id, info] of this.bk.infos) {
+      // (Fire's and Ice's stages, and the Fire Pit once Fire was beaten: no globes, so no fireballs)
+      if (id === 0 && this.firePit?.noGlobes) continue;
       if (info.probability > 1 && draw(info.probability) === 1) {
         const obj = new GameObject(gs, info.ani.startX, info.ani.startY);
         obj.soundTranslationTable = this.bk.soundTranslationTable;

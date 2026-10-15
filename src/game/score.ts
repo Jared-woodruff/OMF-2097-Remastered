@@ -9,7 +9,9 @@ const SLIDER_HANG_TIME = 25;
 const SCRAP = 100000;
 const DESTRUCTION = 200000;
 
-const STD_MULTIPLIERS = [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4];
+// The one-player game's: DEADLY 1.5 and ULTIMATE 2 (the original program's 150 and 200 at 0x30c6b; the Fire & Ice FAQ's
+// 400,000 for a destruction on ULTIMATE).
+const STD_MULTIPLIERS = [0.2, 0.4, 0.6, 0.8, 1.0, 1.5, 2.0];
 const TOURNAMENT_MULTIPLIERS = [0.0, 0.0, 0.5, 0.0, 1.0, 1.5, 2.0];
 
 export function scoreFormat(n: number): string {
@@ -44,6 +46,8 @@ export class ChrScore {
   comboHits = 0;
   comboHitScore = 0;
   multipliers = STD_MULTIPLIERS;
+  /** The fight's own multiplier on top of the difficulty's: Fire's stage 5, Ice's 50 (fireIce.ts). */
+  stageMultiplier = 1;
   done = false;
   scrap = false;
   destruction = false;
@@ -93,7 +97,7 @@ export class ChrScore {
   }
 
   multiplier(): number {
-    return this.multipliers[this.difficulty] ?? 1;
+    return (this.multipliers[this.difficulty] ?? 1) * this.stageMultiplier;
   }
 
   tick(): void {
