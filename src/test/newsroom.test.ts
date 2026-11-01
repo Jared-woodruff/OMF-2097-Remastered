@@ -9,7 +9,7 @@ import { SCREENCAP_BLOW, SCREENCAP_H, SCREENCAP_POSE, SCREENCAP_W } from '../gam
 import { harData } from '../game/objects/har';
 import {
   LANG_STR_NEWSROOM_CHALLENGER1, LANG_STR_NEWSROOM_CHALLENGER2, LANG_STR_NEWSROOM_NEWCHAMPION, LANG_STR_NEWSROOM_TEXT,
-  NewsroomScene, newsroomFixupCapitalization, newsroomFormat, newsroomPickNewsId, type NewsNames,
+  NewsroomScene, newsPilotName, newsroomFixupCapitalization, newsroomFormat, newsroomPickNewsId, type NewsNames,
 } from '../game/scenes/newsroom';
 import type { ChrFile } from '../game/tournament/chr';
 import { langGet } from '../resources/resources';
@@ -218,6 +218,40 @@ describe.skipIf(!hasGameData)('newsroom scene (headless)', () => {
     expect(gs.nextId).toBe(SceneId.SCOREBOARD);
     expect(gs.nextNextId).toBe(SceneId.MENU);
     expect(gs.getPlayer(1).spWins).not.toBe(0);
+  });
+
+  it("says a tournament pilot's typed name as the original does: JARED (or jared) is Jared", () => {
+    expect(newsPilotName('JARED')).toBe('Jared');
+    expect(newsPilotName('jared')).toBe('Jared');
+    expect(newsPilotName('JOHN SMITH')).toBe('John Smith');
+    expect(newsPilotName('jean-paul')).toBe('Jean-Paul');
+    expect(newsPilotName('R2D2')).toBe('R2d2');
+    expect(newsPilotName('')).toBe('');
+    // (a name typed with its own capitals, and the game's own pilots, as they are)
+    for (const name of ['McCoy', 'Crystal', 'Jean-Paul', 'Dr. Lynn Yarr', "Eva O'Ryan"]) expect(newsPilotName(name)).toBe(name);
+    for (const typed of ['JARED', 'jared']) {
+      const gs = singlePlayer();
+      const p1 = gs.getPlayer(0);
+      p1.pilot.name = typed;
+      p1.chr = {
+        pilot: p1.pilot, pal: new Palette(), unknownB: 0, photo: null, winningsMultiplier: 1, enemies: [],
+        bkName: 'NORTH_AM.BK', tournamentId: 0, cutsceneText: [],
+      };
+      gs.swapScene(SceneId.NEWSROOM);
+      const sc = news(gs);
+      expect(sc.names.pilot1).toBe('Jared');
+      // (both screens' texts and the newsreader's voice take the names from there)
+      let named = 0;
+      for (let id = 0; id < 48; id++) {
+        const template = langGet(LANG_STR_NEWSROOM_TEXT + id);
+        if (!template.includes('~1')) continue;
+        named++;
+        const text = newsroomFormat(template, sc.names);
+        expect(text).toContain('Jared');
+        expect(text).not.toContain(typed);
+      }
+      expect(named).toBeGreaterThan(20);
+    }
   });
 
   it('reports a tournament challenger and lets the player accept the fight', () => {
