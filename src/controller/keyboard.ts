@@ -2,7 +2,7 @@ import { ACT_DOWN, ACT_ESC, ACT_KICK, ACT_LEFT, ACT_NONE, ACT_PUNCH, ACT_RIGHT, 
 import type { GameState } from '../game/gameState';
 import type { KeyBindings } from '../game/settings';
 import { Controller, type CtrlEvent } from './controller';
-import { anyDown, connectedPads, isDown, keyPresses, padId, readPad, rumble, type PadState } from './input';
+import { anyDown, connectedPads, gamepads, isDown, keyPresses, padId, readPad, rumble, type PadState } from './input';
 import { specialButtonActions } from './special';
 import { FinisherKeys } from './finisher';
 import { touchPad } from '../platform/touch';
@@ -290,8 +290,7 @@ export function menuPoll(ctrl: Controller, ev: CtrlEvent[], opts: MenuPollOption
   if (isDown('ShiftRight') || isDown('Numpad0')) ctrl.cmd(ACT_KICK, ev);
   if (isDown('Escape')) ctrl.cmd(ACT_ESC, ev);
   ctrl.type = CtrlType.GAMEPAD;
-  const pads = navigator.getGamepads?.() ?? [];
-  for (const gp of pads) {
+  for (const gp of gamepads()) {
     if (!gp || !gp.connected) continue;
     const p = readPad(gp.index);
     if (!p) continue;

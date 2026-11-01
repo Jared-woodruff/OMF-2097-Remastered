@@ -5,7 +5,8 @@
  * `window.__TAURI__` (src-tauri/tauri.conf.json), so the web bundle has no runtime npm
  * dependencies. Only the window commands allowed in src-tauri/capabilities/default.json are
  * usable: is/set fullscreen, set title and close; and the shell's own `save_file` and `open_studio`
- * commands (src-tauri/src/lib.rs).
+ * commands (src-tauri/src/lib.rs). The LAN games and the gamepads the shell reads talk to it
+ * themselves (net/lan.ts, controller/nativePads.ts).
  *
  * None of the functions reject. Failures (e.g. a browser refusing fullscreen outside a user
  * gesture) are logged with console.warn and otherwise ignored.
@@ -24,6 +25,7 @@ interface TauriGlobal {
   core: {
     invoke<T>(cmd: string, args?: Record<string, unknown> | ArrayBuffer | Uint8Array, options?: { headers: Record<string, string> }): Promise<T>;
   };
+  event: { listen<T>(event: string, cb: (e: { payload: T }) => void): Promise<() => void> };
 }
 
 type WithTauri = Window & { __TAURI__?: TauriGlobal };
@@ -42,6 +44,11 @@ function findTauri(): TauriGlobal | undefined {
 }
 
 const tauri: TauriGlobal | undefined = findTauri();
+
+/** The desktop shell's API (undefined on the web), for the modules that talk to the shell themselves: the gamepads it reads (controller/nativePads.ts). */
+export function shellApi(): TauriGlobal | undefined {
+  return tauri;
+}
 
 /** The game's native window when running in the desktop shell. */
 const appWindow: TauriWindow | undefined = tauri?.window.getCurrentWindow();
