@@ -282,8 +282,7 @@ page('Controls', `
   <h2>Gamepads</h2>
   <p>Plug in a controller (Xbox, PlayStation, Switch Pro and most others) and press a button: it takes over the next free
   player. The buttons are named by their place, the Xbox way: on a PlayStation pad ${key('A')} is cross, ${key('B')}
-  circle, ${key('X')} square and ${key('Y')} triangle (the controls screen shows the pad's own). On Linux and the Steam
-  Deck the app reads the pads itself: a pad is there as soon as it is plugged in. Two button layouts:</p>
+  circle, ${key('X')} square and ${key('Y')} triangle (the controls screen shows the pad's own). Two button layouts:</p>
   <table>
     <tr><th></th><th>Modern</th><th>Classic</th></tr>
     <tr><td><b>Punch</b></td><td>${key('X')}${key('Y')}${key('RB')}</td><td>${key('A')}${key('X')}</td></tr>
