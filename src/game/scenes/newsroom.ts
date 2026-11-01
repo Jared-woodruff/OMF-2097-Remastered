@@ -74,6 +74,18 @@ export function newsroomFixupCapitalization(s: string): string {
   return str();
 }
 
+/**
+ * The player's own name as the news says it. The original prints a pilot name typed in the tournament's name entry
+ * (whose font has only capitals) in small letters with a capital first letter: JARED (or jared) is "Jared". Here a name
+ * in one case only gets each word's first letter capitalized ("JOHN SMITH" is "John Smith"); a name typed with its own
+ * capitals ("McCoy") stays as it is, and so do the game's own pilots ("Jean-Paul", "Dr. Lynn Yarr").
+ */
+export function newsPilotName(name: string): string {
+  const letters = name.replace(/[^\p{L}]/gu, '');
+  if (letters !== letters.toUpperCase() && letters !== letters.toLowerCase()) return name;
+  return name.toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (_, before: string, ch: string) => before + ch.toUpperCase());
+}
+
 /** Names and pronoun data substituted into the news texts (~1..~11). */
 export interface NewsNames {
   pilot1: string;
@@ -206,7 +218,7 @@ export class NewsroomScene extends Scene {
     this.newsId = newsroomPickNewsId(this.won, health);
 
     const opp = pilotOf(p2)!;
-    this.setNames(p1.pilot.name, opp.name, p1.pilot.harId, opp.harId, p1.pilot.sex, opp.sex, gs.fightStats.arena);
+    this.setNames(newsPilotName(p1.pilot.name), opp.name, p1.pilot.harId, opp.harId, p1.pilot.sex, opp.sex, gs.fightStats.arena);
     this.fixupStr();
     this.speak();
 
