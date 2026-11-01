@@ -26,9 +26,10 @@ if-addrs = "0.15"
 sys-locale = "0.3"
 
 # Gamepads on Linux (src/pads.rs): WebKitGTK sees only some of them, so the shell reads them itself. (Its default
-# feature is Windows' backend.)
+# feature names Windows' backend, which only Windows builds; gilrs-core 0.6.8 refuses to compile without one of them on
+# any system.)
 [target.'cfg(target_os = "linux")'.dependencies]
-gilrs = { version = "0.11.2", default-features = false }
+gilrs = "0.11.2"
 
 # Raw WebView2 event hooks in src/lib.rs (disable_browser_ui). Keep these on the same versions
 # Tauri resolves (`cargo tree -i webview2-com`), or the controller types won't match.

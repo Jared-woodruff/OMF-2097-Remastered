@@ -1085,6 +1085,7 @@ dependencies = [
  "vec_map",
  "wasm-bindgen",
  "web-sys",
+ "windows",
 ]
 
 [[package]]
