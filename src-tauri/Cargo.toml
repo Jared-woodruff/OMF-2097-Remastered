@@ -25,6 +25,12 @@ if-addrs = "0.15"
 # The languages the player's system is set to (the game speaks the first one it has; src/i18n).
 sys-locale = "0.3"
 
+# Gamepads on Linux (src/pads.rs): WebKitGTK sees only some of them, so the shell reads them itself. (Its default
+# feature names Windows' backend, which only Windows builds; gilrs-core 0.6.8 refuses to compile without one of them on
+# any system.)
+[target.'cfg(target_os = "linux")'.dependencies]
+gilrs = "0.11.2"
+
 # Raw WebView2 event hooks in src/lib.rs (disable_browser_ui). Keep these on the same versions
 # Tauri resolves (`cargo tree -i webview2-com`), or the controller types won't match.
 [target.'cfg(windows)'.dependencies]

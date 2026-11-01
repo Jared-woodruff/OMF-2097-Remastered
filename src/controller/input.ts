@@ -1,4 +1,7 @@
-// Raw input state: keyboard (by KeyboardEvent.code) and gamepads (Gamepad API).
+// Raw input state: keyboard (by KeyboardEvent.code) and gamepads (Gamepad API, or the desktop app's own on Linux:
+// nativePads.ts).
+
+import { shellGamepads, shellRumble, startShellPads } from './nativePads';
 
 const down = new Set<string>();
 /** Keys pressed since the last `consumePressed` (for edge-triggered UI actions). */
@@ -46,6 +49,7 @@ export function initInput(target: Window = window): void {
   window.addEventListener('gamepadconnected', (e) => {
     console.info(`Gamepad connected: #${(e as GamepadEvent).gamepad.index} ${(e as GamepadEvent).gamepad.id}`);
   });
+  void startShellPads();
 }
 
 export function onKey(fn: (code: string, e: KeyboardEvent) => void): () => void {
@@ -133,6 +137,11 @@ export interface PadState {
   special: boolean;
 }
 
+/** The connected pads, by index: the browser's, or the ones the desktop app reads itself (Linux: nativePads.ts). */
+export function gamepads(): readonly (Gamepad | null)[] {
+  return shellGamepads() ?? navigator.getGamepads?.() ?? [];
+}
+
 /** Stick deflection below which it counts as centered. */
 const DEADZONE = 0.4;
 
@@ -188,8 +197,7 @@ function hatAxis(p: Gamepad, known: boolean): number {
 }
 
 export function readPad(index: number, layout: PadLayout = padLayout): PadState | null {
-  const pads = navigator.getGamepads?.() ?? [];
-  const p = pads[index];
+  const p = gamepads()[index];
   if (!p || !p.connected) return null;
   // (a pad without a mapping property at all, as the tests' fakes, counts as standard)
   const standard = p.mapping === undefined || p.mapping === 'standard';
@@ -236,9 +244,8 @@ export function readPad(index: number, layout: PadLayout = padLayout): PadState 
 }
 
 export function connectedPads(): number[] {
-  const pads = navigator.getGamepads?.() ?? [];
   const out: number[] = [];
-  for (const p of pads) if (p && p.connected) out.push(p.index);
+  for (const p of gamepads()) if (p && p.connected) out.push(p.index);
   return out;
 }
 
@@ -249,22 +256,23 @@ export function cleanPadName(id: string): string {
 
 /** Name of a connected pad (without the driver details browsers append), or ''. */
 export function padName(index: number): string {
-  return cleanPadName(navigator.getGamepads?.()[index]?.id ?? '');
+  return cleanPadName(gamepads()[index]?.id ?? '');
 }
 
 /** The id of a connected pad ('' if there is none at that index): it names the pad again when it reconnects elsewhere. */
 export function padId(index: number): string {
-  const p = navigator.getGamepads?.()[index];
+  const p = gamepads()[index];
   return p && p.connected ? p.id : '';
 }
 
 /** Which buttons a connected pad has printed on it (an Xbox pad's when there is no pad at that index). */
 export function padFamily(index: number): PadFamily {
-  const p = navigator.getGamepads?.()[index];
+  const p = gamepads()[index];
   return p && p.connected ? padFamilyOf(p.id) : 'xbox';
 }
 
 export function rumble(index: number, magnitude: number, durationMs: number): void {
+  if (shellRumble(index, magnitude, durationMs)) return;
   const p = navigator.getGamepads?.()[index];
   const act = (p as Gamepad & { vibrationActuator?: { playEffect?: (t: string, o: object) => Promise<unknown> } })?.vibrationActuator;
   if (act?.playEffect) {

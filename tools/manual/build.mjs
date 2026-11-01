@@ -282,7 +282,8 @@ page('Controls', `
   <h2>Gamepads</h2>
   <p>Plug in a controller (Xbox, PlayStation, Switch Pro and most others) and press a button: it takes over the next free
   player. The buttons are named by their place, the Xbox way: on a PlayStation pad ${key('A')} is cross, ${key('B')}
-  circle, ${key('X')} square and ${key('Y')} triangle (the controls screen shows the pad's own). Two button layouts:</p>
+  circle, ${key('X')} square and ${key('Y')} triangle (the controls screen shows the pad's own). On Linux and the Steam
+  Deck the app reads the pads itself: a pad is there as soon as it is plugged in. Two button layouts:</p>
   <table>
     <tr><th></th><th>Modern</th><th>Classic</th></tr>
     <tr><td><b>Punch</b></td><td>${key('X')}${key('Y')}${key('RB')}</td><td>${key('A')}${key('X')}</td></tr>
@@ -659,7 +660,7 @@ page('Troubleshooting', `
     <tr><td><b>Windows says it protected my PC.</b></td><td>The download is not signed yet. Choose <b>More info</b>, then <b>Run anyway</b>.</td></tr>
     <tr><td><b>My Mac won't open the game.</b></td><td>It is not notarized by Apple yet. Open <b>System Settings &rsaquo; Privacy &amp; Security</b> and choose <b>Open Anyway</b>.</td></tr>
     <tr><td><b>The game runs slowly.</b></td><td>Press ${key('F2')} for the classic look, or turn off effects in <b>Options &rsaquo; Graphics &rsaquo; Effects</b>.</td></tr>
-    <tr><td><b>My gamepad does nothing.</b></td><td>Press any button on it once: the game only sees a pad after a button press. Check <b>Options &rsaquo; Controls</b>.</td></tr>
+    <tr><td><b>My gamepad does nothing.</b></td><td>Press any button on it once: in a browser, and on Windows and macOS, the game only sees a pad after a button press. Check <b>Options &rsaquo; Controls</b>.</td></tr>
     <tr><td><b>There is no sound.</b></td><td>Click or press a key once: browsers only start sound after you do. Check the volumes in <b>Options &rsaquo; Sound</b>.</td></tr>
     <tr><td><b>Where are my screenshots?</b></td><td>In <b>Downloads &rsaquo; OMF 2097 Remastered</b>, with exported replays and clips (in a browser, in its downloads).</td></tr>
     <tr><td><b>I cannot find Nova.</b></td><td>That is between you and the robot select screen.</td></tr>

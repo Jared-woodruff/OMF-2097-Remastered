@@ -87,13 +87,14 @@ jobs:
           workspaces: src-tauri
           key: ${{ matrix.target }}
 
-      # WebKitGTK and what the AppImage takes along: GStreamer plays the game's sound and music on Linux.
+      # WebKitGTK and what the AppImage takes along: GStreamer plays the game's sound and music on Linux. udev: the shell
+      # reads the gamepads itself there (gilrs; src-tauri/src/pads.rs).
       - name: Linux build tools
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev patchelf libxdo-dev build-essential file libfuse2 \
-            gstreamer1.0-plugins-base gstreamer1.0-plugins-good
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-good libudev-dev
 
       - run: npm ci
 

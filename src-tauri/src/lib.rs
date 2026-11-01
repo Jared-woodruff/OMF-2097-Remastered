@@ -5,9 +5,11 @@
 //! Studio in a second window (`open_studio`); both share the game's storage, so Studio installs mods straight into it.
 //! Permissions are in `capabilities/default.json`; the frontend talks to Tauri through
 //! `src/platform/desktop.ts`. LAN games (hosting, finding and joining them) are in `lan.rs`, reached through the
-//! `lan_*` commands below (the game's `src/net/lan.ts`).
+//! `lan_*` commands below (the game's `src/net/lan.ts`). On Linux the shell reads the gamepads itself (`pads.rs`, the
+//! `pads_*` commands; the game's `src/controller/nativePads.ts`).
 
 mod lan;
+mod pads;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -143,6 +145,7 @@ pub fn run() {
     })
     .setup(|app| {
       app.manage(lan::Lan::new(Arc::new(GameEvents(app.handle().clone()))));
+      app.manage(pads::Pads::new(Arc::new(PadStates(app.handle().clone()))));
       open_window(app.handle(), studio_start())?;
       Ok(())
     })
@@ -156,7 +159,9 @@ pub fn run() {
       lan_scan,
       lan_join,
       lan_send,
-      lan_close
+      lan_close,
+      pads_start,
+      pads_rumble
     ])
     .run(tauri::generate_context!());
   if let Err(e) = started {
@@ -261,6 +266,30 @@ impl lan::LanEvents for GameEvents {
   fn closed(&self, id: u32, reason: String) {
     let _ = self.0.emit_to("main", "lan:close", serde_json::json!({ "id": id, "reason": reason }));
   }
+}
+
+/// The gamepads' state (pads.rs), for the windows that listen: the game's, and OMF Studio's for its test of a mod.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+struct PadStates(tauri::AppHandle);
+
+impl pads::PadEvents for PadStates {
+  fn state(&self, pads: &[pads::PadState]) {
+    let _ = self.0.emit("pads", pads);
+  }
+}
+
+/// Starts reading the gamepads (Linux) and sends their state; false where the window's Gamepad API reads them. (Async,
+/// the work on a blocking thread: the first call waits for gilrs to start.)
+#[tauri::command]
+async fn pads_start(pads: State<'_, Arc<pads::Pads>>) -> Result<bool, String> {
+  let pads = pads.inner().clone();
+  tauri::async_runtime::spawn_blocking(move || pads.start()).await.map_err(|e| e.to_string())
+}
+
+/// Rumbles a gamepad (its number in the state) for `ms` milliseconds; the strengths are 0 to 1.
+#[tauri::command]
+fn pads_rumble(pads: State<'_, Arc<pads::Pads>>, number: usize, strong: f32, weak: f32, ms: u32) {
+  pads.rumble(number, strong, weak, ms);
 }
 
 /// This computer's user name and network addresses (the LAN page shows them).

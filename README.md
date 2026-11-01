@@ -139,7 +139,8 @@ for the F keys
   Y or RB punch, A, B or RT kick, LT or LB fire a special (or the classic layout: A punch, B kick); on a PlayStation pad
   that is square or triangle to punch, cross or circle to kick, and the controls screen shows each pad's own buttons. A
   pad chosen for a player stays theirs when it is unplugged and plugged back in. They rumble with hits, blocks, throws,
-  wall slams and knockouts.
+  wall slams and knockouts. On Linux and the Steam Deck the app reads the pads itself, so the ones its web view misses
+  (PlayStation pads among them) work too, and started from Steam it plays with Steam Input's pads.
 - **One-button specials** (on from the start, **Options › Controls › Special button**): the special button alone, or
   with forward, back, down or up, fires one of the robot's special moves, and its air special in a jump. The original
   motions work as always.
