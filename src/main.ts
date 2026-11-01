@@ -94,8 +94,13 @@ function bootStatus(text: string, progress?: number): void {
   const pct = boot.querySelector<HTMLElement>('.pct');
   if (pct) pct.textContent = `${Math.round(p * 100)}%`;
 }
+/** Resolved as the loading screen goes: the game has loaded what it starts with. */
+let booted: () => void = () => undefined;
+const bootFinished = new Promise<void>((resolve) => (booted = resolve));
+
 /** The loading screen fades out (and is gone a moment later). */
 function hideBoot(): void {
+  booted();
   boot.classList.add('is-done');
   window.setTimeout(() => {
     if (boot.classList.contains('is-done')) boot.style.display = 'none';
@@ -920,6 +925,9 @@ if (import.meta.env.PROD && !isDesktop && 'serviceWorker' in navigator && locati
     });
     // (and after every update: a worker with a new cache starts empty, the old cache deleted)
     sw.addEventListener('controllerchange', keep);
+    // (and once the game has loaded: files still loading as the worker took over went past it, and were in no list
+    // yet; a slow first visit left game files out, and the game could not start offline)
+    void bootFinished.then(keep);
     sw.register('./sw.js').catch(() => undefined);
   });
 }
