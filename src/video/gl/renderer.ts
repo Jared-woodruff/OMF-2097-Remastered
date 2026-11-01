@@ -242,6 +242,9 @@ export class GLRenderer {
   /** Without GPU timing (WebKit's WebGL: macOS, Linux): the remastered frames' intervals (ms), the last one's time. */
   private frameIntervals: number[] = [];
   private lastFrameAt = 0;
+  /** The frame-interval heuristic's last cut (undone when frames came no closer to their beat), and whether cuts help. */
+  private intervalCut: { before: number; miss: number } | null = null;
+  private intervalCutsHelp = true;
   /** Average GPU time of the remastered frames measured recently (ms), for diagnostics. */
   gpuFrameMs = 0;
   /** Integrated / mobile / software GPU (by renderer string). */
@@ -334,7 +337,8 @@ export class GLRenderer {
     const gpu = String(dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
     // (WebKit names every Apple graphics chip "Apple GPU": a phone's or tablet's is modest, a Mac's is not)
     const appleTouch = /apple gpu/i.test(gpu) && typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
-    this.isLowEndGpu = appleTouch || /intel|mali|adreno|powervr|llvmpipe|swiftshader|basic render/i.test(gpu);
+    // (vangogh: the Steam Deck's, whose screen is 1280 x 800: four times the game's)
+    this.isLowEndGpu = appleTouch || /intel|mali|adreno|powervr|llvmpipe|swiftshader|basic render|vangogh/i.test(gpu);
     if (this.isLowEndGpu) this.hdMaxScale = 4;
   }
 
@@ -368,15 +372,16 @@ export class GLRenderer {
   /**
    * Dynamic resolution without GPU timing: frames that keep missing their beat lower the remastered render scale. The
    * beat is a low percentile of the last 90 frames' intervals: missed frames spread the intervals out (one refresh,
-   * then two), while a steady lower rate (a 30 Hz display, a Mac's Low Power Mode) is an even beat and fine. The scale
-   * is never raised again: too slow is what matters.
+   * then two), while a steady lower rate (a 30 Hz display, a Mac's Low Power Mode) is an even beat and fine. A cut is
+   * kept when the frames came closer to their beat; else it is undone and none follow (the time goes elsewhere: the
+   * game's code, the browser's own work, which a lower resolution only blurs the picture for).
    */
   private adaptToFrameIntervals(displayScale: number): void {
     const now = performance.now();
     const dt = now - this.lastFrameAt;
     this.lastFrameAt = now;
-    // (a pause in the drawing: a hidden window, a scene loading)
-    if (dt <= 0 || dt > 100) return;
+    // (a pause in the drawing: a hidden window, a scene loading; artwork being uploaded, slow on its own)
+    if (dt <= 0 || dt > 100 || hdAssets.pending > 0) return;
     this.frameIntervals.push(dt);
     if (this.frameIntervals.length < 90) return;
     const sorted = this.frameIntervals.slice().sort((a, b) => a - b);
@@ -384,8 +389,19 @@ export class GLRenderer {
     this.frameIntervals.length = 0;
     // (not the shortest interval: two frames drawn close together would pass for a faster beat)
     const beat = sorted[Math.floor(sorted.length / 10)];
-    if (this.options.hdResolution !== 'auto' || avg < beat * 1.35) return;
+    if (this.options.hdResolution !== 'auto') return;
+    const miss = avg / beat;
+    const cut = this.intervalCut;
+    this.intervalCut = null;
+    if (cut && miss >= 1.35 && miss > cut.miss * 0.9) {
+      this.hdMaxScale = cut.before;
+      this.intervalCutsHelp = false;
+      return;
+    }
+    if (miss < 1.35 || !this.intervalCutsHelp) return;
+    const before = this.hdMaxScale;
     this.hdMaxScale = Math.max(2, Math.min(this.hdMaxScale, displayScale) * 0.8);
+    if (this.hdMaxScale !== before) this.intervalCut = { before, miss };
   }
 
   /**
@@ -462,6 +478,10 @@ export class GLRenderer {
   /** Called on scene changes so stale surfaces are evicted from the atlas. */
   resetAtlas(): void {
     this.atlas.reset();
+    // (the frame intervals start afresh with the scene: its first frames upload artwork)
+    this.frameIntervals.length = 0;
+    this.lastFrameAt = 0;
+    this.intervalCut = null;
   }
 
   // ---------------------------------------------------------------------------------

@@ -35,6 +35,8 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const SCAN_TIME: Duration = Duration::from_millis(900);
 /// How often the hosting threads look whether they should stop.
 const POLL: Duration = Duration::from_millis(50);
+/// The most games one search lists (a computer answering for thousands would fill the page).
+const MAX_GAMES: usize = 32;
 /// What a second guest hears (the game's own rejection message; the code says it in the guest's language).
 const BUSY: &str = r#"{"t":"reject","reason":"That game is already being played.","code":"busy"}"#;
 /// Adapters other computers do not reach this one by (their names contain these, in lower case): virtual machines' and
@@ -70,6 +72,13 @@ pub struct LanInfo {
   pub os: &'static str,
 }
 
+/// A game hosted: the port it waits on, and its number (stopping it stops only it: see `unhost`).
+#[derive(Serialize, Clone, Copy, Debug)]
+pub struct Hosted {
+  pub port: u16,
+  pub serial: u32,
+}
+
 /// A connection made by joining.
 #[derive(Serialize, Clone, Debug)]
 pub struct Joined {
@@ -85,8 +94,19 @@ struct Conn {
 }
 
 struct Hosting {
+  serial: u32,
   stop: Arc<AtomicBool>,
   threads: Vec<JoinHandle<()>>,
+}
+
+impl Hosting {
+  /// Stops its threads, and waits for them (their sockets closed when this returns).
+  fn end(self) {
+    self.stop.store(true, Ordering::Relaxed);
+    for t in self.threads {
+      let _ = t.join();
+    }
+  }
 }
 
 pub struct Lan {
@@ -94,18 +114,30 @@ pub struct Lan {
   conns: Mutex<HashMap<u32, Conn>>,
   next_id: AtomicU32,
   hosting: Mutex<Option<Hosting>>,
+  next_serial: AtomicU32,
 }
 
 impl Lan {
   pub fn new(events: Arc<dyn LanEvents>) -> Arc<Lan> {
-    Arc::new(Lan { events, conns: Mutex::new(HashMap::new()), next_id: AtomicU32::new(0), hosting: Mutex::new(None) })
+    Arc::new(Lan {
+      events,
+      conns: Mutex::new(HashMap::new()),
+      next_id: AtomicU32::new(0),
+      hosting: Mutex::new(None),
+      next_serial: AtomicU32::new(0),
+    })
   }
 
   /// Hosts a game under a name: guests may connect (one at a time; others are told it is busy), and searches are
   /// answered. Returns the port (the game's own, or any free one when another program has it: then it can only be
-  /// joined by its address and port, and searches are not answered).
-  pub fn host(self: &Arc<Self>, name: &str, version: &str) -> io::Result<u16> {
-    self.unhost();
+  /// joined by its address and port, and searches are not answered) and the hosting's number.
+  pub fn host(self: &Arc<Self>, name: &str, version: &str) -> io::Result<Hosted> {
+    // (held from stopping the hosting before to this one in place: a stop and a host sent close together, in either
+    // order, find the old sockets closed, and this hosting gets the game's port)
+    let mut hosting = self.hosting.lock().unwrap();
+    if let Some(h) = hosting.take() {
+      h.end();
+    }
     let listener =
       TcpListener::bind((Ipv4Addr::UNSPECIFIED, PORT)).or_else(|_| TcpListener::bind((Ipv4Addr::UNSPECIFIED, 0)))?;
     listener.set_nonblocking(true)?;
@@ -127,18 +159,30 @@ impl Lan {
         }));
       }
     }
-    *self.hosting.lock().unwrap() = Some(Hosting { stop, threads });
-    Ok(port)
+    let serial = self.next_serial.fetch_add(1, Ordering::Relaxed) + 1;
+    *hosting = Some(Hosting { serial, stop, threads });
+    Ok(Hosted { port, serial })
   }
 
-  /// Stops hosting (a guest already connected stays connected).
-  pub fn unhost(&self) {
-    let hosting = self.hosting.lock().unwrap().take();
-    if let Some(h) = hosting {
-      h.stop.store(true, Ordering::Relaxed);
-      for t in h.threads {
-        let _ = t.join();
-      }
+  /// Stops hosting (a guest already connected stays connected): the hosting numbered `serial` only (a stop sent late,
+  /// for a hosting since replaced, leaves the new one alone), or whatever is hosted.
+  pub fn unhost(&self, serial: Option<u32>) {
+    let mut hosting = self.hosting.lock().unwrap();
+    if serial.is_some_and(|s| hosting.as_ref().is_some_and(|h| h.serial != s)) {
+      return;
+    }
+    if let Some(h) = hosting.take() {
+      h.end();
+    }
+  }
+
+  /// Back to nothing: hosting stopped, every connection cut (the game's page reloaded, or its window closed with OMF
+  /// Studio's still open: the hosting would answer searches and take guests nobody hears).
+  pub fn reset(&self) {
+    self.unhost(None);
+    let all: Vec<Conn> = self.conns.lock().unwrap().drain().map(|(_, c)| c).collect();
+    for c in all {
+      let _ = c.stream.shutdown(Shutdown::Both);
     }
   }
 
@@ -303,11 +347,23 @@ fn write_loop(mut stream: TcpStream, rx: &Receiver<Vec<u8>>) {
   let _ = stream.shutdown(Shutdown::Both);
 }
 
-/// Tells a guest the game is taken, and closes.
+/// Tells a guest the game is taken, and closes: on a thread of its own, reading what the guest sent (its hello) until it
+/// closes, for a moment at most (closed with that unread, the system resets the connection, and the reply may be lost).
 fn refuse(mut stream: TcpStream) {
-  let _ = stream.set_write_timeout(Some(Duration::from_secs(1)));
-  let _ = stream.write_all(&frame(BUSY));
-  let _ = stream.shutdown(Shutdown::Both);
+  thread::spawn(move || {
+    let _ = stream.set_write_timeout(Some(Duration::from_secs(1)));
+    let _ = stream.write_all(&frame(BUSY));
+    let _ = stream.shutdown(Shutdown::Write);
+    let _ = stream.set_read_timeout(Some(Duration::from_millis(500)));
+    let start = Instant::now();
+    let (mut buf, mut read) = ([0u8; 4096], 0);
+    while start.elapsed() < Duration::from_secs(2) && read < MAX_MESSAGE {
+      match stream.read(&mut buf) {
+        Ok(0) | Err(_) => break,
+        Ok(n) => read += n,
+      }
+    }
+  });
 }
 
 fn resolve(address: &str) -> io::Result<SocketAddr> {
@@ -336,13 +392,17 @@ fn is_search(datagram: &[u8]) -> bool {
 /// Answers searches until told to stop.
 fn answer_searches(udp: &UdpSocket, stop: &AtomicBool, name: &str, version: &str, port: u16, busy: impl Fn() -> bool) {
   let _ = udp.set_read_timeout(Some(Duration::from_millis(200)));
-  let mut buf = [0u8; 512];
+  // (as big as a datagram gets: Windows fails to read one bigger than the buffer, where Unix cuts it)
+  let mut buf = vec![0u8; 64 * 1024];
   while !stop.load(Ordering::Relaxed) {
     let (n, from) = match udp.recv_from(&mut buf) {
       Ok(r) => r,
       Err(e) => {
-        // (Windows reports an earlier answer's unreachable port here: carry on)
-        if !matches!(e.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut) {
+        // (Windows reports an earlier answer's unreachable port here, and a datagram too big (WSAEMSGSIZE): carry on at
+        // once; a pause after each would let a computer sending them keep the game from being found)
+        let reported = matches!(e.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut | io::ErrorKind::ConnectionReset)
+          || e.raw_os_error() == Some(10040);
+        if !reported {
           thread::sleep(POLL);
         }
         continue;
@@ -445,7 +505,7 @@ pub fn scan() -> io::Result<Vec<LanGame>> {
     udp.set_read_timeout(Some(Duration::from_millis(50)))?;
     if let Ok((n, from)) = udp.recv_from(&mut buf) {
       if let Some(g) = read_answer(&buf[..n], from) {
-        if !games.iter().any(|x| x.address == g.address && x.port == g.port) {
+        if games.len() < MAX_GAMES && !games.iter().any(|x| x.address == g.address && x.port == g.port) {
           games.push(g);
         }
       }
@@ -520,8 +580,8 @@ mod tests {
   fn host_found_joined_and_messages_in_order() {
     let (host, host_heard) = lan();
     let (guest, guest_heard) = lan();
-    let port = host.host("JARED", "0.3.0").unwrap();
-    assert_eq!(port, PORT);
+    let hosted = host.host("JARED", "0.3.0").unwrap();
+    assert_eq!(hosted.port, PORT);
     let found = scan().unwrap();
     let game = found.iter().find(|g| g.port == PORT).expect("the hosted game is found");
     assert_eq!(game.name, "JARED");
@@ -531,8 +591,9 @@ mod tests {
     let joined = guest.join("127.0.0.1").unwrap();
     let (kind, host_id, _) = next(&host_heard);
     assert_eq!(kind, "open");
-    // Many messages, both ways, arrive in order.
-    let texts: Vec<String> = (0..2000).map(|i| format!(r#"{{"t":"in","s":{i}}}"#)).collect();
+    // Many messages, both ways, arrive in order (as many as the writer's queue holds: sent faster than they go out, more
+    // would be a computer that does not read them).
+    let texts: Vec<String> = (0..WRITE_QUEUE).map(|i| format!(r#"{{"t":"in","s":{i}}}"#)).collect();
     for chunk in texts.chunks(7) {
       guest.send(joined.id, chunk.to_vec()).unwrap();
     }
@@ -560,9 +621,26 @@ mod tests {
     assert_eq!(next(&host_heard).0, "close");
     assert!(host.send(host_id, vec!["late".into()]).is_err());
 
-    host.unhost();
+    host.unhost(Some(hosted.serial));
     assert!(!scan().unwrap().iter().any(|g| g.port == PORT));
     assert!(guest.join("127.0.0.1").is_err());
+
+    // Hosting again while the stop before is still under way: on the game's port, and found.
+    let first = host.host("JARED", "0.3.0").unwrap();
+    let stopping = {
+      let host = host.clone();
+      thread::spawn(move || host.unhost(Some(first.serial)))
+    };
+    thread::sleep(Duration::from_millis(5));
+    let again = host.host("AGAIN", "0.3.0").unwrap();
+    stopping.join().unwrap();
+    assert_eq!(again.port, PORT);
+    assert!(scan().unwrap().iter().any(|g| g.port == PORT && g.name == "AGAIN"));
+    // (a stop for the hosting before, sent late, leaves this one alone)
+    host.unhost(Some(first.serial));
+    assert!(scan().unwrap().iter().any(|g| g.name == "AGAIN"));
+    host.reset();
+    assert!(!scan().unwrap().iter().any(|g| g.port == PORT));
   }
 
   #[test]

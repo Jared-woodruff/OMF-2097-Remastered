@@ -15,6 +15,7 @@ import { toast } from '../platform/toast';
 import { getFile } from '../resources/files';
 import { getGenerated } from '../resources/generated';
 import { harFileName } from '../resources/resources';
+import { readMatchSettings } from './handshake';
 import type { NetContent, NetRules } from './protocol';
 import type { NetEnd, NetSession } from './session';
 import { trKey } from '../i18n/i18n';
@@ -68,15 +69,16 @@ export function netContent(): NetContent {
 export function hostRules(gs: GameState): NetRules {
   const saved = gs.matchSettings;
   gs.matchSettingsReset();
-  const match = { ...gs.matchSettings, sim: false };
+  // (the rules exactly as the guest reads them: a value it would bring into range would make the games' fights differ)
+  const match = readMatchSettings(JSON.parse(JSON.stringify(gs.matchSettings))) ?? { ...gs.matchSettings, sim: false };
   gs.matchSettings = saved;
-  return { match, speed: settings().gameplay.speed, delayMs: LAN_DELAY_MS };
+  return { match, speed: Math.max(0, Math.min(10, settings().gameplay.speed)), delayMs: LAN_DELAY_MS };
 }
 
 /** The local player's keyboard or gamepad: player 1's controls (OPTIONS > CONTROLS), whichever side they play. */
 function localDevice(gs: GameState): Controller {
   const k = settings().keys;
-  if (k.ctrlType1 === CtrlType.GAMEPAD && k.gamepad1 >= 0) return new GamepadController(gs, k.gamepad1);
+  if (k.ctrlType1 === CtrlType.GAMEPAD && k.gamepad1 >= 0) return new GamepadController(gs, k.gamepad1, k.gamepad1Id);
   return gs.keyboardController(0, 0);
 }
 

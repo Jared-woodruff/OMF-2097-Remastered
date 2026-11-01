@@ -1,6 +1,7 @@
 // What would keep a project from playing well, for OMF Studio's checks: errors keep the game from loading the mod
 // (the same rules the game applies, mods/package.ts), warnings are things the game makes up for.
 import { encodeSprite } from '../formats/sprite';
+import { MAX_SPRITE_PIXELS, MAX_SPRITE_SIDE } from '../mods/package';
 import { CONTENT_ID_PATTERN, ID_PATTERN, PICTURE_MOVES, REQUIRED_MOVES } from '../mods/types';
 import { PILOT_NAMES } from '../game/constants';
 import { parseAnim } from './anim';
@@ -53,6 +54,9 @@ export function projectProblems(p: Project): Problem[] {
       if (!r.af.moves[id]) out.push({ level: 'error', text: `${name} has no ${MOVE_LABELS[id].toLowerCase()} animation (move ${id}).`, target: target(id) });
     }
     if (!r.af.health || !r.af.endurance) out.push({ level: 'error', text: `${name} has no health or endurance.`, target: target() });
+    if (spritePixels(r.af.moves.map((m) => m?.animation)) > MAX_SPRITE_PIXELS) {
+      out.push({ level: 'error', text: `${name}'s sprites are too big together: make some smaller, or use fewer.`, target: target() });
+    }
     for (const id of [PICTURE_MOVES.cell, PICTURE_MOVES.vs]) {
       if (!r.af.moves[id]?.animation.sprites.some((s) => !s.isEmpty())) {
         out.push({ level: 'warning', text: `${name} has no ${MOVE_LABELS[id].toLowerCase()}: the game makes one from its idle animation.`, target: target(id) });
@@ -72,6 +76,8 @@ export function projectProblems(p: Project): Problem[] {
       for (const s of m.animation.sprites) {
         if (!s.missing && s.data && s.data.length > MAX_SPRITE_BYTES) {
           out.push({ level: 'error', text: `${name}, move ${id}: a sprite is too big to store (make it smaller).`, target: target(id) });
+        } else if (!s.isEmpty() && (s.width > MAX_SPRITE_SIDE || s.height > MAX_SPRITE_SIDE)) {
+          out.push({ level: 'error', text: `${name}, move ${id}: a sprite is ${s.width} x ${s.height} pixels (${MAX_SPRITE_SIDE} x ${MAX_SPRITE_SIDE} at most).`, target: target(id) });
         }
       }
       if (id >= 15 && id !== 60 && id !== 61 && m.moveString && !/^[PK][1-9]*$|^[!0n]/.test(m.moveString)) {
@@ -92,6 +98,9 @@ export function projectProblems(p: Project): Problem[] {
     const target = (move?: number): Target => ({ kind: 'arena', index, move });
     // (the round announcements and dust are the original game's when the arena has none)
     const exists = (id: number) => !!anims[id] || [6, 7, 8, 9, 10, 11, 24, 25, 26, 27].includes(id);
+    if (spritePixels(anims.map((x) => x?.animation)) > MAX_SPRITE_PIXELS) {
+      out.push({ level: 'error', text: `${name}'s sprites are too big together: make some smaller, or use fewer.`, target: target() });
+    }
     for (const id of a.info.loops) {
       if (!anims[id]) out.push({ level: 'warning', text: `${name}: animation ${id} is to loop from the start, but there is none.`, target: target(id) });
     }
@@ -106,6 +115,9 @@ export function projectProblems(p: Project): Problem[] {
       if (x.animation.coords.length > 256) out.push({ level: 'error', text: `${name}, animation ${id}: more than 256 hit points.`, target: target(id) });
       for (const s of x.animation.sprites) {
         if (!s.missing && s.data && s.data.length > MAX_SPRITE_BYTES) out.push({ level: 'error', text: `${name}, animation ${id}: a sprite is too big to store.`, target: target(id) });
+        else if (!s.isEmpty() && (s.width > MAX_SPRITE_SIDE || s.height > MAX_SPRITE_SIDE)) {
+          out.push({ level: 'error', text: `${name}, animation ${id}: a sprite is ${s.width} x ${s.height} pixels (${MAX_SPRITE_SIDE} x ${MAX_SPRITE_SIDE} at most).`, target: target(id) });
+        }
       }
       for (const [chain, what] of [[x.chainHit, 'a robot\'s attack hits it'], [x.chainNoHit, 'it hits a robot or ends']] as [number, string][]) {
         if (chain && !exists(chain)) out.push({ level: 'warning', text: `${name}, animation ${id}: when ${what} it becomes animation ${chain}, which is empty.`, target: target(id) });
@@ -148,5 +160,12 @@ export function projectProblems(p: Project): Problem[] {
 
 /** Whether a sprite's pixels fit a fighter file (for the pixel editor). */
 export function spriteFits(pixels: Uint8Array, w: number, h: number): boolean {
-  return encodeSprite(pixels, w, h).length <= MAX_SPRITE_BYTES;
+  return w <= MAX_SPRITE_SIDE && h <= MAX_SPRITE_SIDE && encodeSprite(pixels, w, h).length <= MAX_SPRITE_BYTES;
+}
+
+/** The pixels a robot's or arena's sprites hold together (the game takes MAX_SPRITE_PIXELS at most). */
+function spritePixels(animations: ({ sprites: { missing: number; width: number; height: number; isEmpty(): boolean }[] } | null | undefined)[]): number {
+  let n = 0;
+  for (const a of animations) for (const s of a?.sprites ?? []) if (!s.missing && !s.isEmpty()) n += s.width * s.height;
+  return n;
 }

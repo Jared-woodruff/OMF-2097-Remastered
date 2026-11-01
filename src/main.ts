@@ -6,7 +6,7 @@ import { Engine } from './engine';
 import { ANIM_IDLE, isArenaScene, PILOT_INFO, SceneId } from './game/constants';
 import { GameState, hasScene } from './game/gameState';
 import { setPilotColors } from './game/pilotColors';
-import { loadSettings, saveSettings, settings } from './game/settings';
+import { loadSettings, saveSettings, settings, suspendSettingsSave } from './game/settings';
 import { loadKeyboardLayout } from './game/scenes/mainmenu/keyNames';
 import './game/scenes/index';
 import { registerPlaceholders } from './game/scenes/placeholder';
@@ -305,6 +305,7 @@ async function main(): Promise<void> {
     gs.matchSettings.hazards = true;
     gs.modTest = true;
     suspendRecords(true);
+    suspendSettingsSave(true);
   }
   if (startScene !== SceneId.MENU) gs.swapScene(startScene);
   // On scene changes: evict stale surfaces from the atlas, and start loading the HD artwork the scene needs (the VS
@@ -917,7 +918,8 @@ if (import.meta.env.PROD && !isDesktop && 'serviceWorker' in navigator && locati
         .filter((e) => e.initiatorType !== 'audio' && e.initiatorType !== 'video')
         .map((e) => e.name),
     });
-    if (!sw.controller) sw.addEventListener('controllerchange', keep, { once: true });
+    // (and after every update: a worker with a new cache starts empty, the old cache deleted)
+    sw.addEventListener('controllerchange', keep);
     sw.register('./sw.js').catch(() => undefined);
   });
 }

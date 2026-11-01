@@ -16,9 +16,20 @@ export class PngError extends Error {}
 
 const SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
 
-async function inflate(data: Uint8Array): Promise<Uint8Array> {
-  const stream = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate'));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+/** zlib data inflated, `limit` bytes at most (a small file could inflate to gigabytes; an image needs its rows only). */
+async function inflate(data: Uint8Array, limit: number): Promise<Uint8Array> {
+  const reader = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate')).getReader();
+  const out = new Uint8Array(limit);
+  let n = 0;
+  while (n < limit) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const take = Math.min(value.length, limit - n);
+    out.set(value.subarray(0, take), n);
+    n += take;
+  }
+  if (n >= limit) void reader.cancel().catch(() => undefined);
+  return out.subarray(0, n);
 }
 
 /** zlib data: deflated when the platform can, else stored blocks. */
@@ -85,7 +96,9 @@ export async function decodePng(buf: Uint8Array): Promise<PngImage> {
     p += 12 + len;
   }
   const channels = ({ 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 } as Record<number, number>)[color];
-  if (!w || !h || !channels) throw new PngError('The PNG image is damaged.');
+  // (the bit depths each kind of image may have)
+  const depths = color === 0 ? [1, 2, 4, 8, 16] : color === 3 ? [1, 2, 4, 8] : [8, 16];
+  if (!w || !h || !channels || !depths.includes(depth)) throw new PngError('The PNG image is damaged.');
   if (interlace) throw new PngError('Interlaced PNG images are not supported: save it without interlacing.');
   if (w * h > 4096 * 4096) throw new PngError('The image is too big.');
   if (color === 3 && !palette) throw new PngError('The PNG image is damaged (no palette).');
@@ -95,15 +108,15 @@ export async function decodePng(buf: Uint8Array): Promise<PngImage> {
     joined.set(d, o);
     o += d.length;
   }
-  let raw: Uint8Array;
-  try {
-    raw = await inflate(joined);
-  } catch {
-    throw new PngError('The PNG image is damaged.');
-  }
   const bitsPerPixel = depth * channels;
   const stride = Math.ceil((w * bitsPerPixel) / 8);
   const bpp = Math.max(1, bitsPerPixel >> 3);
+  let raw: Uint8Array;
+  try {
+    raw = await inflate(joined, (stride + 1) * h);
+  } catch {
+    throw new PngError('The PNG image is damaged.');
+  }
   if (raw.length < (stride + 1) * h) throw new PngError('The PNG image is damaged.');
   // Undo the filters, row by row.
   const rows = new Uint8Array(stride * h);

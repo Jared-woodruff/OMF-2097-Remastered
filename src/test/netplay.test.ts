@@ -108,8 +108,10 @@ function netGame(latency: number, players: [(n: number) => number, (n: number) =
   tweak?.(rules);
   let clock = 0;
   const sides: Side[] = games.map((gs, i) => {
+    // (the guest plays the rules as it reads them from the host's message)
+    const read = i === 0 ? rules : { ...rules, match: readMatchSettings(JSON.parse(JSON.stringify(rules.match)))! };
     const session = new NetSession({
-      link: i === 0 ? pair.a : pair.b, localPlayer: i as 0 | 1, names: ['HOST', 'GUEST'], rules, seed: 0xc0ffee, now: () => clock,
+      link: i === 0 ? pair.a : pair.b, localPlayer: i as 0 | 1, names: ['HOST', 'GUEST'], rules: read, seed: 0xc0ffee, now: () => clock,
       timers: false,
     });
     const side: Side = { gs, session, engine: new Engine(gs, { render() {} }), trace: new Map(), end: null, frame: i === 0 ? 16 : 23, next: 0 };
@@ -401,6 +403,24 @@ describe.skipIf(!hasGameData)('network games', () => {
     // Robot select again and on: no desync.
     net.run(20000);
     expect(host.end ?? guest.end).toBeNull();
+  }, 120000);
+
+  it("plays the host's POWER 0 the same in both games", () => {
+    const g = settings().gameplay;
+    const saved = [g.power1, g.power2];
+    [g.power1, g.power2] = [0, 7];
+    try {
+      const net = netGame(12, [masher(3), masher(4)]);
+      const [host, guest] = net.sides;
+      expect([guest.session.rules.match.power1, guest.session.rules.match.power2]).toEqual([0, 7]);
+      net.run(200000, () => host.gs.sc.isArena() && guest.gs.sc.isArena());
+      expect(host.gs.sc.isArena()).toBe(true);
+      net.run(20000);
+      expect(host.end ?? guest.end).toBeNull();
+      expect(guest.gs.matchSettings).toEqual(host.gs.matchSettings);
+    } finally {
+      [g.power1, g.power2] = saved;
+    }
   }, 120000);
 
   it('keeps in step over a slow network (the game waits for the inputs)', () => {
@@ -825,11 +845,49 @@ describe.skipIf(!hasGameData)('the LAN page', () => {
     expect(settings().lan.name).toBe('PLAYER');
   });
 
+  it('the keypad types the address with NUM LOCK on, and the SHIFT that types a colon does not join', async () => {
+    const joined: string[] = [];
+    setLanBackend({
+      kind: 'network', info: async () => ({ name: 'me', addresses: [] }), host: async () => Promise.reject(new Error('no')),
+      join: async (address: string) => {
+        joined.push(address);
+        return Promise.reject(new Error('no'));
+      },
+      scan: async () => [],
+    });
+    settings().lan.address = '';
+    const page = new LanPage(createGame(SceneId.MENU));
+    const help = new HelpOverlay(() => {});
+    try {
+      help.open(page);
+      const key = (code: string, typed: string) => help.key(code, { code, key: typed } as KeyboardEvent);
+      key('ArrowDown', 'ArrowDown'); // JOIN BY ADDRESS
+      for (const [code, typed] of [['Numpad1', '1'], ['Numpad9', '9'], ['Numpad2', '2'], ['NumpadDecimal', '.'], ['Numpad8', '8'], ['Numpad6', '6']]) key(code, typed);
+      expect(settings().lan.address).toBe('192.86');
+      key('ShiftRight', 'Shift');
+      await new Promise((r) => setTimeout(r, 0));
+      expect(joined).toEqual([]);
+      // (NUM LOCK off: the keypad's arrows move the cursor)
+      key('Numpad8', 'ArrowUp');
+      key('Numpad2', 'ArrowDown');
+      expect(settings().lan.address).toBe('192.86');
+      key('Enter', 'Enter');
+      await new Promise((r) => setTimeout(r, 0));
+      expect(joined).toEqual(['192.86']);
+    } finally {
+      help.close('Escape');
+      settings().lan.address = '';
+    }
+  });
+
   it('the games found keep their order, and the highlighted one stays highlighted as others come and go', async () => {
     let now = 1000;
     vi.spyOn(performance, 'now').mockImplementation(() => now);
     const game = (name: string, address: string): LanGame => ({ name, address, version: APP_VERSION, busy: false });
-    const answers = [[game('ZED', '10.0.0.9'), game('AMY', '10.0.0.5')], [game('BOB', '10.0.0.7'), game('ZED', '10.0.0.9'), game('AMY', '10.0.0.5')]];
+    const answers = [[game('ZED', '10.0.0.9'), game('AMY', '10.0.0.5')], [game('BOB', '10.0.0.7'), game('ZED', '10.0.0.9'), game('AMY', '10.0.0.5')],
+      // (ZED's answer lost once, then twice: gone)
+      [game('BOB', '10.0.0.7'), game('AMY', '10.0.0.5')], [game('BOB', '10.0.0.7'), game('AMY', '10.0.0.5')],
+      [game('BOB', '10.0.0.7'), game('ZED', '10.0.0.9'), game('AMY', '10.0.0.5')]];
     setLanBackend({
       kind: 'network', info: async () => ({ name: 'me', addresses: [] }), host: async () => Promise.reject(new Error('no')),
       join: async () => Promise.reject(new Error('no')), scan: async () => answers.shift() ?? [],
@@ -853,6 +911,18 @@ describe.skipIf(!hasGameData)('the LAN page', () => {
     now += 3000;
     await look();
     expect(inner.games.map((g) => g.name)).toEqual(['AMY', 'BOB', 'ZED']);
+    expect(picked()).toBe('ZED');
+    // One search that missed ZED's game keeps it (and its highlight); a second leaves it out.
+    now += 3000;
+    await look();
+    expect(inner.games.map((g) => g.name)).toEqual(['AMY', 'BOB', 'ZED']);
+    expect(picked()).toBe('ZED');
+    now += 3000;
+    await look();
+    expect(inner.games.map((g) => g.name)).toEqual(['AMY', 'BOB']);
+    // ... and when it is found again, the highlight goes back to it.
+    now += 3000;
+    await look();
     expect(picked()).toBe('ZED');
   });
 

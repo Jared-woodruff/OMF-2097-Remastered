@@ -1,7 +1,7 @@
 // AudioWorklet mixer: 3 sound-effect channels (8-bit PCM at Sound Blaster rates) plus the PSM music player, and the
 // remaster's impact thumps. Output 0 is the mix; output 1 carries the sound effects alone, for the arena acoustics
 // (a convolution reverb on the main thread).
-import { parsePSM } from './psm';
+import type { TrackerModule } from './psm';
 import { TrackerPlayer } from './tracker';
 
 declare const sampleRate: number;
@@ -52,9 +52,11 @@ class OmfAudioProcessor extends AudioWorkletProcessor {
   private soundVol = 0.5;
   private musicVol = 0.5;
   private music: TrackerPlayer | null = null;
-  private musicFade = 1;
-  private musicFadeDelta = 0;
-  private nextMusic: TrackerPlayer | null = null;
+  /** The song before, fading out over a few milliseconds (cut at once, it would click), and its level. */
+  private fading: TrackerPlayer | null = null;
+  private fadingGain = 0;
+  private fadeL = new Float32Array(128);
+  private fadeR = new Float32Array(128);
   private cubic = false;
   private mixL = new Float32Array(128);
   private mixR = new Float32Array(128);
@@ -123,17 +125,17 @@ class OmfAudioProcessor extends AudioWorkletProcessor {
           this.music?.setInterpolation(this.cubic ? 'cubic' : 'linear');
           break;
         case 'music': {
-          const mod = parsePSM(m.data as Uint8Array);
-          const p = new TrackerPlayer(mod, sampleRate);
+          // (read on the main thread: parsing a song here would take the audio thread several blocks' time)
+          const p = new TrackerPlayer(m.module as TrackerModule, sampleRate);
           p.setVolume(this.musicVol);
           p.setLoop(true);
           p.setInterpolation(this.cubic ? 'cubic' : 'linear');
+          this.fadeOutMusic();
           this.music = p;
-          this.musicFade = 1;
-          this.musicFadeDelta = 0;
           break;
         }
         case 'musicStop':
+          this.fadeOutMusic();
           this.music = null;
           break;
         case 'thump': {
@@ -146,6 +148,12 @@ class OmfAudioProcessor extends AudioWorkletProcessor {
     } catch (err) {
       this.port.postMessage({ type: 'error', message: String((err as Error)?.stack ?? err) });
     }
+  }
+
+  private fadeOutMusic(): void {
+    if (!this.music) return;
+    this.fading = this.music;
+    this.fadingGain = 1;
   }
 
   process(_inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
@@ -173,6 +181,30 @@ class OmfAudioProcessor extends AudioWorkletProcessor {
         this.port.postMessage({ type: 'error', message: String((err as Error)?.stack ?? err) });
         this.music = null;
       }
+    }
+    if (this.fading) {
+      if (this.fadeL.length < n) {
+        this.fadeL = new Float32Array(n);
+        this.fadeR = new Float32Array(n);
+      }
+      const fl = this.fadeL, fr = this.fadeR;
+      fl.fill(0, 0, n);
+      fr.fill(0, 0, n);
+      try {
+        this.fading.render(fl, fr, 0, n);
+      } catch {
+        this.fadingGain = 0;
+      }
+      // (30 ms down to silence)
+      const step = 1 / (0.03 * sampleRate);
+      let g = this.fadingGain;
+      for (let i = 0; i < n && g > 0; i++) {
+        ml[i] += fl[i] * g;
+        mr[i] += fr[i] * g;
+        g -= step;
+      }
+      this.fadingGain = g;
+      if (g <= 0) this.fading = null;
     }
     // Sound effects (linear interpolation; source is 8-bit PCM at ~8-22 kHz).
     const sv = this.soundVol;
@@ -233,11 +265,24 @@ class OmfAudioProcessor extends AudioWorkletProcessor {
     for (let i = 0; i < n; i++) {
       // Soft clip to avoid harsh distortion when many sources overlap.
       const l = ml[i] + sl[i], r = mr[i] + sr[i];
-      L[i] = l > 1 || l < -1 ? Math.tanh(l) : l;
-      if (R !== L) R[i] = r > 1 || r < -1 ? Math.tanh(r) : r;
+      L[i] = softClip(l);
+      if (R !== L) R[i] = softClip(r);
     }
     return true;
   }
+}
+
+/**
+ * Past KNEE a sample bends towards full scale, smoothly: the curve meets the straight line at the knee with the same
+ * slope (a tanh only past 1 would jump from 1 back to 0.76 as the mix reaches full scale, a crackle).
+ */
+const KNEE = 0.8;
+
+export function softClip(x: number): number {
+  const a = x < 0 ? -x : x;
+  if (a <= KNEE) return x;
+  const y = KNEE + (1 - KNEE) * Math.tanh((a - KNEE) / (1 - KNEE));
+  return x < 0 ? -y : y;
 }
 
 registerProcessor('omf-audio', OmfAudioProcessor);

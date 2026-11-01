@@ -60,6 +60,8 @@ export interface TextUnit {
   /** A space a line does not break at (French: before ? ! : ; and »). */
   glue?: boolean;
   dir: UnitDir;
+  /** A bracket's mirror image (the other bracket's glyph), drawn where it runs right to left (see visualOrder). */
+  mirror?: GlyphPiece[];
 }
 
 // ---- the original fonts' letters, and the ones made from them ----------------------------------------------------
@@ -313,6 +315,9 @@ function isRtl(ch: string): boolean {
   return /[֐-ࣿיִ-﷿ﹰ-﻿]/.test(ch);
 }
 
+/** Brackets and their mirror images: in a right-to-left run, "(X" reads with the bracket on X's right, as ")". */
+const MIRRORED: Record<string, string> = { '(': ')', ')': '(', '[': ']', ']': '[', '{': '}', '}': '{', '<': '>', '>': '<', '«': '»', '»': '«' };
+
 function dirOf(ch: string): UnitDir {
   if (isRtl(ch)) return 'r';
   return /[\p{L}\p{N}]/u.test(ch) ? 'l' : 'n';
@@ -356,7 +361,10 @@ export function shapeText(s: string, font: GlyphFont, vertical = false): TextUni
     const glyphs = isCjk(ch) || isJoining(ch) ? [] : (sub ?? ch).split('').map((c) => fontGlyph(font, c));
     if (glyphs.length && glyphs.every((g) => g)) {
       const kind = ch === ' ' || sub === ' ' ? UnitKind.SPACE : ch === '-' ? UnitKind.HYPHEN : UnitKind.CHAR;
-      units.push(unit(i, next, kind, cell * glyphs.length, glyphs.map((g, k) => ({ surf: g!, dx: k * cell, dy: 0, w: g!.w, h: g!.h })), true, dirOf(ch)));
+      const u = unit(i, next, kind, cell * glyphs.length, glyphs.map((g, k) => ({ surf: g!, dx: k * cell, dy: 0, w: g!.w, h: g!.h })), true, dirOf(ch));
+      const m = MIRRORED[ch] ? fontGlyph(font, MIRRORED[ch]) : null;
+      if (m) u.mirror = [{ surf: m, dx: 0, dy: 0, w: m.w, h: m.h }];
+      units.push(u);
       i = next;
       continue;
     }
@@ -442,6 +450,8 @@ export function visualOrder(units: TextUnit[], rtl: boolean): TextUnit[] {
     for (let k = i; k < j; k++) dirs[k] = d;
     i = j - 1;
   }
+  // (a bracket that runs right to left shows its mirror image: "(X" in an Arabic line reads "X)" from the right)
+  units = units.map((u, k) => (dirs[k] === 'r' && u.mirror ? { ...u, pieces: u.mirror } : u));
   const out: TextUnit[] = [];
   const flip: UnitDir = rtl ? 'l' : 'r';
   if (rtl) {

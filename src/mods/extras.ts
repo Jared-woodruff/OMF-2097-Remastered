@@ -28,5 +28,7 @@ export function testNamesExtras(params: URLSearchParams): boolean {
 
 export function reservedNumber(kind: 'robot' | 'arena' | 'pilot', key: string): number | undefined {
   if (kind === 'pilot' || !key.startsWith(`${EXTRAS_MOD_ID}/`)) return undefined;
-  return EXTRAS_NUMBERS[kind][key.slice(EXTRAS_MOD_ID.length + 1)];
+  const folder = key.slice(EXTRAS_MOD_ID.length + 1);
+  // (a folder may be called "constructor": only the extras' own folders have numbers)
+  return Object.hasOwn(EXTRAS_NUMBERS[kind], folder) ? EXTRAS_NUMBERS[kind][folder] : undefined;
 }

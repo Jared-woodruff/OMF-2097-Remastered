@@ -4,6 +4,7 @@ import workletUrl from './worklet.ts?worker&url';
 import { pitchedSampleRate, SOUND_CHANNEL_COUNT, soundSampleRate, type SoundOpts } from './soundOpts';
 import type { SoundEntry } from '../formats/misc';
 import { CustomMusicPlayer, myMusicFor, type MyMusicMode } from './customMusic';
+import { parsePSM, type TrackerModule } from './psm';
 import { isDesktop } from '../platform/desktop';
 
 export const AUDIO_INVALID_HANDLE = 0;
@@ -393,8 +394,15 @@ export class AudioSystem {
       console.warn('Music not found', name, e);
       return;
     }
-    const copy = data.slice();
-    this.post({ type: 'music', name, data: copy }, [copy.buffer]);
+    // (read here: parsing on the audio thread would take it several blocks' time, a dropout as the music changes)
+    let module: TrackerModule;
+    try {
+      module = parsePSM(data);
+    } catch (e) {
+      console.warn('Music could not be read', name, e);
+      return;
+    }
+    this.post({ type: 'music', name, module });
   }
 
   stopMusic(): void {
@@ -643,6 +651,16 @@ export class AudioSystem {
     wet.gain.cancelScheduledValues(now);
     if (!room) {
       wet.gain.setTargetAtTime(0, now, 0.05);
+      // (once faded, the reverb lets go of its room: a convolver with a response works through every block it is sent,
+      // silent or not, for the rest of the session)
+      setTimeout(() => {
+        if (this.acoustics && ROOMS[this.room]) return;
+        try {
+          conv.buffer = null;
+        } catch {
+          // (kept: it only costs time)
+        }
+      }, 500);
       return;
     }
     let ir = this.impulses.get(this.room);

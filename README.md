@@ -135,9 +135,11 @@ for the F keys
 
 <br>
 
-- **Gamepads** (Xbox and other standard controllers) work out of the box, even beside the keyboard: X, Y or RB
-  punch, A, B or RT kick, LT or LB fire a special (or the classic layout: A punch, B kick). They rumble with hits,
-  blocks, throws, wall slams and knockouts.
+- **Gamepads** (Xbox, PlayStation, Switch Pro and other controllers) work out of the box, even beside the keyboard: X,
+  Y or RB punch, A, B or RT kick, LT or LB fire a special (or the classic layout: A punch, B kick); on a PlayStation pad
+  that is square or triangle to punch, cross or circle to kick, and the controls screen shows each pad's own buttons. A
+  pad chosen for a player stays theirs when it is unplugged and plugged back in. They rumble with hits, blocks, throws,
+  wall slams and knockouts.
 - **One-button specials** (on from the start, **Options › Controls › Special button**): the special button alone, or
   with forward, back, down or up, fires one of the robot's special moves, and its air special in a jump. The original
   motions work as always.

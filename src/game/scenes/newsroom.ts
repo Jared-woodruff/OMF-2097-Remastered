@@ -21,6 +21,7 @@ import { SCREENCAP_BLOW, SCREENCAP_H, SCREENCAP_POSE, SCREENCAP_W } from '../har
 import { paletteLoadPlayerColors, setPilotColors } from '../pilotColors';
 import { Scene } from '../scene';
 import { settings } from '../settings';
+import { tournamentAiDifficulty } from './mechlab/common';
 
 const NEWS_TEXT_COLOR = 0xcf;
 
@@ -200,7 +201,10 @@ export class NewsroomScene extends Scene {
     let health = 0;
     if (p2.spWins > 0) {
       this.won = false;
-      health = p2.score.health;
+      // (the computer's health left, from the fight's figures: its score keeps none, a vitality bonus being the human
+      // winner's, so every loss was reported as a close one)
+      const fs = gs.fightStats;
+      health = fs.maxHp ? Math.round((fs.hp * 100) / fs.maxHp) : 0;
     } else {
       this.won = true;
       const fs = gs.fightStats;
@@ -311,8 +315,10 @@ export class NewsroomScene extends Scene {
     if (result === DialogResult.NO) {
       setPilot(p2, null);
       gs.setNext(SceneId.MECHLAB);
-    } else if (result === DialogResult.YES_OK) {
+    } else if (result === DialogResult.YES_OK && this.challenger) {
       setPilot(p2, this.challenger);
+      // (the challenger's own computer player: the one of the fight before plays and learned as that opponent)
+      p2.setCtrl(createAiController(gs, tournamentAiDifficulty(gs.getPlayer(0).pilot.difficulty), this.challenger, this.challenger.pilotId));
       gs.setNext(SceneId.VS);
     }
   }

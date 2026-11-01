@@ -117,7 +117,8 @@ export function arenaScreengrabWinner(gs: GameState): void {
   const o1 = gs.findObject(gs.getPlayer(0).harObjId);
   if (!o1) return;
   const h1 = o1.userdata as { state: HarState };
-  if (h1.state === HarState.VICTORY || h1.state === HarState.DONE) {
+  // (a winner still scrapping or destroying the loser has won too: the picture is theirs)
+  if (h1.state === HarState.VICTORY || h1.state === HarState.DONE || h1.state === HarState.SCRAP || h1.state === HarState.DESTRUCTION) {
     harScreencapsCapture(gs.getPlayer(0).screencaps, o1, null, SCREENCAP_POSE);
   } else {
     const o2 = gs.findObject(gs.getPlayer(1).harObjId);

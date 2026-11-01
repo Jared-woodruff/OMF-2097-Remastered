@@ -307,6 +307,20 @@ describe.skipIf(!hasGameData)('the text engine', () => {
   });
 });
 
+describe('brackets in a right-to-left line', () => {
+  it('are mirrored where they run right to left: "(JAGUAR)" in an Arabic line reads as one (it showed ")JAGUAR(")', () => {
+    loadGameData();
+    const font = getFont(FontSize.SMALL);
+    const key = (c: string) => fontGlyph(font, c)!.source!.key;
+    const latin = (s: string) => new Text(FontSize.SMALL, 300, 20, s).setHAlign(HAlign.LEFT).glyphs()
+      .filter((i) => /^small\/\d+$/.test(i.glyph.source!.key) && i.glyph.source!.key !== 'small/0')
+      .sort((a, b) => a.x - b.x).map((i) => i.glyph.source!.key);
+    expect(latin('فاز (JAGUAR) الآن')).toEqual(['(', 'J', 'A', 'G', 'U', 'A', 'R', ')'].map(key));
+    // (and not in a left-to-right line)
+    expect(latin('WON (JAGUAR) NOW').slice(3, 5)).toEqual(['(', 'J'].map(key));
+  });
+});
+
 describe('the names of the keys', () => {
   const withLayout = async (map: Record<string, string> | null) => {
     Object.defineProperty(navigator, 'keyboard', {

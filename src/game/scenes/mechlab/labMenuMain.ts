@@ -26,6 +26,8 @@ export function labMenuMainArena(_c: SpriteButton, s: MechlabScene): void {
     if (!s.robotsThere([p1.pilot.harId, pilot.harId])) return;
     const p2 = s.gs.getPlayer(1);
     p2.selectable = false;
+    // (who won the fight before is the news of that fight only)
+    p2.spWins = 0;
     gamePlayerSetPilot(p2, pilot);
     const difficulty = tournamentAiDifficulty(p1.pilot.difficulty);
     p2.setCtrl(createAiController(s.gs, difficulty, pilot, p2.pilot.pilotId));

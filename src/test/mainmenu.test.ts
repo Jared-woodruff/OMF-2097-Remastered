@@ -516,6 +516,23 @@ describe.skipIf(!hasGameData)('main menu (headless)', () => {
     expect(JSON.parse(localStorage.getItem('omf2097r.settings')!).keys.p1.jumpUp).toEqual(['KeyI']);
   });
 
+  it('DONE in CUSTOM KEYBOARD puts the keyboard to use (TOURNAMENT PLAY sets up no controls of its own: the pad stayed)', () => {
+    const k = settings().keys;
+    k.ctrlType1 = CtrlType.GAMEPAD;
+    k.gamepad1 = 0;
+    gs.reconfigureControllers();
+    expect(gs.getPlayer(0).ctrl.type).toBe(CtrlType.GAMEPAD);
+    open('OPTIONS', 'CONTROLS', 'PLAYER 1 INPUT');
+    press('ArrowDown', 2);
+    expect(selectedText()).toBe('CUSTOM KEYBOARD');
+    press('Enter');
+    press('Escape');
+    expect(selectedText()).toBe('DONE');
+    press('Enter');
+    expect(k.ctrlType1).toBe(CtrlType.KEYBOARD);
+    expect(gs.getPlayer(0).ctrl.type).toBe(CtrlType.KEYBOARD);
+  });
+
   it('HELP shows the language file pages and turns pages', () => {
     goTo('HELP');
     press('Enter');

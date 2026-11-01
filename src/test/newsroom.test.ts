@@ -3,9 +3,9 @@ import { Controller } from '../controller/controller';
 import { setKeyState } from '../controller/input';
 import { Palette } from '../formats/palette';
 import { Pilot } from '../formats/pilot';
-import { CtrlType, HarId, PILOT_SEX_FEMALE, PILOT_SEX_MALE, PilotId, SceneId } from '../game/constants';
+import { CtrlType, HarId, HarState, PILOT_SEX_FEMALE, PILOT_SEX_MALE, PilotId, SceneId } from '../game/constants';
 import type { GameState } from '../game/gameState';
-import { SCREENCAP_BLOW, SCREENCAP_H, SCREENCAP_POSE, SCREENCAP_W } from '../game/harScreencap';
+import { arenaScreengrabWinner, harScreencapsReset, SCREENCAP_BLOW, SCREENCAP_H, SCREENCAP_POSE, SCREENCAP_W } from '../game/harScreencap';
 import { harData } from '../game/objects/har';
 import {
   LANG_STR_NEWSROOM_CHALLENGER1, LANG_STR_NEWSROOM_CHALLENGER2, LANG_STR_NEWSROOM_NEWCHAMPION, LANG_STR_NEWSROOM_TEXT,
@@ -179,6 +179,20 @@ describe.skipIf(!hasGameData)('newsroom scene (headless)', () => {
     expect(gs.thisId).toBe(SceneId.END);
   });
 
+  it("reports a loss by the winner's health left (it was always a close one)", () => {
+    for (const [hp, lo, hi] of [[90, 24, 28], [60, 30, 34], [10, 42, 46]]) {
+      const gs = singlePlayer();
+      gs.getPlayer(1).spWins = 2 << PilotId.CRYSTAL;
+      gs.fightStats.hp = hp;
+      gs.fightStats.maxHp = 100;
+      gs.swapScene(SceneId.NEWSROOM);
+      const sc = news(gs);
+      expect(sc.won).toBe(false);
+      expect(sc.newsId, `${hp}`).toBeGreaterThanOrEqual(lo);
+      expect(sc.newsId, `${hp}`).toBeLessThanOrEqual(hi);
+    }
+  });
+
   it('asks to continue after a loss (yes: scoreboard then VS rematch)', () => {
     const gs = singlePlayer();
     const p1 = gs.getPlayer(0);
@@ -285,6 +299,8 @@ describe.skipIf(!hasGameData)('newsroom scene (headless)', () => {
     tap(run); // YES
     expect(gs.nextId).toBe(SceneId.VS);
     expect(gs.getPlayer(1).pilot).toBe(challenger);
+    // (with a computer player of their own, not the one of the opponent before)
+    expect((gs.getPlayer(1).ctrl as unknown as { pilot: Pilot }).pilot).toBe(challenger);
   });
 
   it('crowns a new tournament champion on a third screen', () => {
@@ -308,6 +324,22 @@ describe.skipIf(!hasGameData)('newsroom scene (headless)', () => {
     tap(run);
     expect(gs.nextId).toBe(SceneId.TRN_CUTSCENE);
     expect((gs.getPlayer(1) as unknown as { pilot: Pilot | null }).pilot).toBe(null);
+  });
+
+  it("the winner's photo is the winner's while they scrap or destroy the loser", () => {
+    const gs = singlePlayer();
+    gs.swapScene(SceneId.ARENA0);
+    const run = new HeadlessRunner(gs);
+    run.advance(3500);
+    const [p1, p2] = [gs.getPlayer(0), gs.getPlayer(1)];
+    for (const state of [HarState.SCRAP, HarState.DESTRUCTION, HarState.VICTORY]) {
+      harScreencapsReset(p1.screencaps);
+      harScreencapsReset(p2.screencaps);
+      harData(gs.findObject(p1.harObjId)!).state = state;
+      harData(gs.findObject(p2.harObjId)!).state = HarState.DEFEAT;
+      arenaScreengrabWinner(gs);
+      expect([p1.screencaps.ok[SCREENCAP_POSE], p2.screencaps.ok[SCREENCAP_POSE]], HarState[state]).toEqual([true, false]);
+    }
   });
 
   it('shows the fight photos taken in the arena', () => {

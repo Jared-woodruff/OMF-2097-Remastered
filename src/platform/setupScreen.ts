@@ -356,7 +356,14 @@ export function firstRunSetup(boot: HTMLElement): Promise<void> {
     };
     const onKey = (e: KeyboardEvent) => {
       const a = map[e.code];
-      if (!a) return;
+      if (!a) {
+        // (nor the game's help, graphics and music keys: they would act behind the setup)
+        if (/^F[123]$/.test(e.code)) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
+        return;
+      }
       // (the setup's keys don't reach the game: ENTER would also skip the intro that follows)
       e.preventDefault();
       e.stopImmediatePropagation();

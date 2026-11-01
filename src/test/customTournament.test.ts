@@ -70,6 +70,25 @@ describe.skipIf(!hasGameData)('custom tournaments', () => {
     expect(base.enemies.filter((p) => !p.secret).map((p) => p.harId)).toEqual(ranked.map((p) => p.harId));
   });
 
+  it("a challenger waits for the same opponent's defeat (by their place in the shorter list), or the nearest one's", () => {
+    createGame(SceneId.MENU);
+    for (const file of ['NORTH_AM.TRN', 'WORLD.TRN']) {
+      const base = loadTournament(file);
+      for (const size of [0, 1]) {
+        const t = buildCustomTournament({ v: 1, name: 'TEST CUP', base: file, size, robots: 0, prize: 1 }, 0, base);
+        const names = new Set(t.enemies.map((p) => p.name));
+        for (const p of t.enemies.filter((x) => x.reqEnemy)) {
+          const was = base.enemies.find((x) => x.name === p.name)!;
+          const wanted = base.enemies[was.reqEnemy - 1];
+          const now = t.enemies[p.reqEnemy - 1];
+          expect(now, `${file} ${size} ${p.name}`).toBeDefined();
+          if (names.has(wanted.name)) expect(now.name, `${file} ${size} ${p.name}`).toBe(wanted.name);
+          else expect(now.secret, `${file} ${size} ${p.name}`).toBe(0);
+        }
+      }
+    }
+  });
+
   it('registers a stored tournament: listed and loadable like the others', () => {
     createGame(SceneId.MENU);
     expect(setCustomTournament(2, { v: 1, name: 'LOCAL LEAGUE', base: 'NORTH_AM.TRN', size: 1, robots: 1, prize: 1 })).toBe(true);

@@ -33,6 +33,8 @@ export interface ReplayMeta {
   startHealth?: number;
   /** The players' workshop robots' designs as fought (see workshopDesign; null: not a workshop robot). */
   designs?: (string | null)[];
+  /** The players' score difficulties (score.ts: the points a hit is worth), for the scores shown as the fight is watched. */
+  scoreDifficulty?: [number, number];
 }
 
 export interface ReplayRecord {

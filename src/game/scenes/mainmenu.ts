@@ -18,6 +18,7 @@ import { menuExtrasCreate } from './mainmenu/menuExtras';
 import { menuModesCreate } from './mainmenu/menuModes';
 import { menuMultiplayerCreate } from './mainmenu/menuMultiplayer';
 import { PresskeyMenu } from './mainmenu/menuPresskey';
+import { HtmlHelpMenu } from '../gui/helpHtml';
 import { randomArena } from '../roster';
 import { onLanguageChange, tr } from '../../i18n/i18n';
 import { menuOptionsCreate } from './mainmenu/menuOptions';
@@ -162,7 +163,9 @@ export class MainMenuScene extends Scene {
     }
     const root = this.frame.root;
     // The reference's key capture polls the keyboard state directly, so it sees every key.
-    if (root instanceof Menu && activeMenu(root) instanceof PresskeyMenu) return this.frame.keyEvent(code, e);
+    // So do the help pages (PAGE UP / DOWN, HOME and END are player 1's keys in the CLASSIC layout).
+    const active = root instanceof Menu ? activeMenu(root) : null;
+    if (active instanceof PresskeyMenu || active instanceof HtmlHelpMenu) return this.frame.keyEvent(code, e);
     // With a gamepad, or for keys bound to player 1 (which drive the menu), key events are not passed to the GUI.
     const ctrl = this.gs.getPlayer(0).ctrl;
     if (ctrl.type === CtrlType.GAMEPAD || (ctrl instanceof KeyboardController && keyboardBindsKey(ctrl, code))) return true;

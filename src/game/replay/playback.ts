@@ -21,6 +21,8 @@ interface SavedPlayer {
   chr: ChrFile | null;
   selectable: boolean;
   spWins: number;
+  score: number;
+  difficulty: number;
 }
 
 export class ReplaySession {
@@ -60,7 +62,9 @@ export class ReplaySession {
   /** Starts watching: saves the players and settings (restored on exit) and switches to the recorded arena. */
   start(): void {
     const gs = this.gs;
-    this.saved = gs.players.map((p) => ({ pilot: p.pilot, ctrl: p.ctrl, chr: p.chr, selectable: p.selectable, spWins: p.spWins }));
+    this.saved = gs.players.map((p) => ({
+      pilot: p.pilot, ctrl: p.ctrl, chr: p.chr, selectable: p.selectable, spWins: p.spWins, score: p.score.score, difficulty: p.score.difficulty,
+    }));
     this.savedSettings = { ...gs.matchSettings };
     this.savedArena = gs.arena;
     this.active = true;
@@ -174,6 +178,8 @@ export class ReplaySession {
       p.chr = s.chr;
       p.selectable = s.selectable;
       p.spWins = s.spWins;
+      p.score.score = s.score;
+      p.score.setDifficulty(s.difficulty);
     });
     if (this.savedSettings) gs.matchSettings = this.savedSettings;
     gs.arena = this.savedArena;

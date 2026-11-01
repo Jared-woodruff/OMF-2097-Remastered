@@ -105,13 +105,22 @@ export class ArenaPauseMenu {
       }));
     }
     m.attach(new TextSlider(tr('SOUND'), tr('Raise or lower the volume of all sound effects. Press left or right to change.'), 10, true,
-      () => s.sound.soundVol, (v) => (s.sound.soundVol = v), (v) => audio.setSoundVolume(v / 10)));
+      () => s.sound.soundVol, (v) => (s.sound.soundVol = v), (v) => {
+        audio.setSoundVolume(v / 10);
+        saveSettings();
+      }));
     m.attach(new TextSlider(tr('MUSIC'), tr('Raise or lower the volume of music. Press right or left to change.'), 10, true,
-      () => s.sound.musicVol, (v) => (s.sound.musicVol = v), (v) => audio.setMusicVolume(v / 10)));
+      () => s.sound.musicVol, (v) => (s.sound.musicVol = v), (v) => {
+        audio.setMusicVolume(v / 10);
+        saveSettings();
+      }));
     // (a network game plays at the host's speed)
     if (!gs.net) {
       m.attach(new TextSlider(tr('SPEED'), tr('Change the speed of the game when in the arena. Press left or right to change.'), 10, false,
-        () => s.gameplay.speed, (v) => (s.gameplay.speed = v), (v) => gs.setSpeed(v + 5)));
+        () => s.gameplay.speed, (v) => (s.gameplay.speed = v), (v) => {
+          gs.setSpeed(v + 5);
+          saveSettings();
+        }));
     }
     // (a label of its own: CLASSIC and REMASTERED agree with it, which the GRAPHICS menu's title may not in every language)
     m.attach(new TextSelector(tr('pause|GRAPHICS'), tr('Switch between the original pixel graphics and the remastered HD renderer (F2).'),

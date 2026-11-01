@@ -107,6 +107,14 @@ export class ReplaysPage extends Page {
       playMenuSound(20);
       return;
     }
+    // (nor a robot or arena of the workshop or a mod, by its number on this computer: elsewhere the number may be
+    // another's; the new robots and arenas that come with the game have the same numbers everywhere)
+    if (r.meta.designs?.some(Boolean) || r.meta.players.some((p) => p.harId >= 15) || r.meta.arena >= 9) {
+      this.status = tr('THIS FIGHT CAN ONLY BE WATCHED HERE');
+      toast(tr('This fight has a robot or arena of a mod or the workshop, which a .REC file cannot name: played from the file elsewhere, it would go differently.'), 6000);
+      playMenuSound(20);
+      return;
+    }
     const name = replayFileName(r.meta, har);
     saveFile(name, r.data).then(
       (where) => {

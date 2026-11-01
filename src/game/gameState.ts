@@ -18,7 +18,7 @@ import {
 } from './constants';
 import type { GameObject } from './object';
 import type { Scene } from './scene';
-import { autoPadSlot } from './controls';
+import { autoPadSlot, resolvePad } from './controls';
 import { settings } from './settings';
 import { randomHarPool } from './roster';
 import { ChrScore } from './score';
@@ -286,7 +286,10 @@ export class GameState {
   }
 
   setupGamepad(playerId: number, padIndex: number): void {
-    const ctrl = new GamepadController(this, padIndex);
+    // (the pad chosen in the input menu is known by its id too: the controller follows it to another index)
+    const k = settings().keys;
+    const [index, id] = playerId === 0 ? [k.gamepad1, k.gamepad1Id] : [k.gamepad2, k.gamepad2Id];
+    const ctrl = new GamepadController(this, padIndex, index === padIndex ? id : '');
     const p = this.players[playerId];
     p.setCtrl(ctrl);
     p.selectable = true;
@@ -322,6 +325,9 @@ export class GameState {
 
   reconfigureControllers(): void {
     const k = settings().keys;
+    // (a chosen pad that reconnected under another index since)
+    k.gamepad1 = resolvePad(k.gamepad1, k.gamepad1Id, k.ctrlType2 === CtrlType.GAMEPAD ? k.gamepad2 : -1);
+    k.gamepad2 = resolvePad(k.gamepad2, k.gamepad2Id, k.ctrlType1 === CtrlType.GAMEPAD ? k.gamepad1 : -1);
     if (k.ctrlType1 === CtrlType.GAMEPAD && k.gamepad1 >= 0) this.setupGamepad(0, k.gamepad1);
     else this.setupKeyboard(0, 0);
     if (k.ctrlType2 === CtrlType.GAMEPAD && k.gamepad2 >= 0) this.setupGamepad(1, k.gamepad2);

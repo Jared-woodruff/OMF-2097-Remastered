@@ -89,7 +89,7 @@ export async function registerModPackage(pkg: ModPackage): Promise<void> {
   // Numbers first, so a mod that does not fit adds nothing.
   const take = (kind: 'robot' | 'arena' | 'pilot', key: string, used: Map<number, unknown>, extra: Set<number>): number => {
     const id = modContentId(kind, key, new Set([...used.keys(), ...extra]));
-    if (id === null) throw new ModError(`There is no room for more mod ${kind}s: turn another mod off.`);
+    if (id === null) throw new ModError(`There is no room for more mod ${kind}s: remove another mod.`);
     extra.add(id);
     return id;
   };

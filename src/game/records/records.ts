@@ -55,6 +55,13 @@ export function records(): Records {
   return current;
 }
 
+// Another page of the game (a second tab or window) saved its records: read again before this one adds to them.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === STORAGE_KEY) current = null;
+  });
+}
+
 export function saveRecords(): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(records()));

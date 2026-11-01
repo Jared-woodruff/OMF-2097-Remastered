@@ -3,6 +3,10 @@
 // Screen positions follow the sprite convention: native coordinates * u_scale + u_offset = target pixels (top-down).
 
 const NOISE = `
+// (x * x: pow(x, 2.0) is undefined for x < 0 in GLSL ES, and a driver that takes it as exp2(2.0 * log2(x)) gives NaN)
+float sq(float x) {
+  return x * x;
+}
 float hash12(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
   p3 += dot(p3, p3.yzx + 33.33);
@@ -98,7 +102,7 @@ void main() {
     o_color = vec4(col * i * a * fl * 1.5, 0.0);
   } else if (kind == 3) {
     float d = sqrt(d2);
-    float i = exp(-pow((d - 0.82) / 0.09, 2.0)) * step(d, 1.0);
+    float i = exp(-sq((d - 0.82) / 0.09)) * step(d, 1.0);
     o_color = vec4(col * i * a, 0.0);
   } else if (kind == 4 || kind == 5) {
     // Smoke / dust: a soft billow with drifting noise.
@@ -125,7 +129,7 @@ void main() {
   } else if (kind == 9) {
     // Bubble: a thin rim, brighter at the top, with a small highlight.
     float d = sqrt(d2);
-    float rim = exp(-pow((d - 0.8) / 0.13, 2.0)) * (0.55 + 0.45 * clamp(-q.y, 0.0, 1.0));
+    float rim = exp(-sq((d - 0.8) / 0.13)) * (0.55 + 0.45 * clamp(-q.y, 0.0, 1.0));
     float spot = exp(-dot(q - vec2(-0.32, -0.38), q - vec2(-0.32, -0.38)) * 40.0);
     float al = a * clamp(rim * 0.9 + spot + 0.08 * step(d, 0.8), 0.0, 1.0);
     o_color = vec4(mix(col, vec3(1.0), spot) * al, al * 0.8);
@@ -228,7 +232,7 @@ void main() {
     vec2 d = n - u_shock[i].xy;
     float r = length(d);
     float w = u_shockW[i];
-    float ring = exp(-pow((r - u_shock[i].z) / w, 2.0));
+    float ring = exp(-sq((r - u_shock[i].z) / w));
     off -= (d / max(r, 1e-3)) * ring * u_shock[i].w;
   }
   // Heat haze shimmers the arena, not the robots standing in it.
@@ -384,7 +388,7 @@ void main() {
         v += spot;
       } else {
         v += spot * (1.0 - r);
-        float ring = exp(-pow((abs(dy) - r * 95.0) / (3.0 + 5.0 * r), 2.0));
+        float ring = exp(-sq((abs(dy) - r * 95.0) / (3.0 + 5.0 * r)));
         v += sp.w * ring * (core + 0.5 * halo);
       }
     }

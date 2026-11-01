@@ -12,7 +12,7 @@ const TIPS = [
   trKey('Replays of your fights are kept: watch them in slow motion and save clips as MP4 or GIF.'),
   trKey('Build your own robot in the robot workshop, then take it into the ring.'),
   trKey('Four new robots and four new arenas were made for the remaster. Turn them on in Extras › Mods.'),
-  trKey('An Xbox controller works right away, for one player or two.'),
+  trKey('An Xbox, PlayStation or Switch Pro controller works right away, for one player or two.'),
   trKey('Hyper mode, in Options › Gameplay, makes every special move stronger.'),
   trKey('Kreissack waits at the end of arcade mode. Bring your best robot.'),
 ];

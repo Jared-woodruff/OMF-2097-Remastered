@@ -166,6 +166,31 @@ describe.skipIf(!hasGameData)('replays', () => {
     expect(replay.winner).toBe(fight.winner);
   });
 
+  it("shows the fight's own scores: from its starting scores, at its difficulty (and gives the player's back after)", () => {
+    globalRandom.setSeed(42);
+    const gs = createGame(SceneId.MENU, [0, 1], [HarId.JAGUAR, HarId.KATANA]);
+    gs.setupKeyboard(0, 0);
+    gs.setupAi(1, 4);
+    gs.rand.setSeed(1234);
+    gs.getPlayer(0).score.score = 123000;
+    gs.getPlayer(0).score.setDifficulty(4);
+    const fight = recordFight(gs, 7);
+    expect(fight.meta.scoreDifficulty?.[0]).toBe(4);
+    globalRandom.setSeed(987654);
+    const viewer = createGame(SceneId.MENU);
+    const p0 = viewer.getPlayer(0).score;
+    p0.score = 5;
+    p0.setDifficulty(0);
+    const session = new ReplaySession(viewer, { meta: fight.meta, data: fight.data }, () => {});
+    session.start();
+    const run = new HeadlessRunner(viewer);
+    for (let t = 0; t < 5000 && !viewer.sc.isArena(); t += 20) run.advance(20);
+    expect([p0.score, p0.difficulty]).toEqual([123000, 4]);
+    for (let t = 0; t < 400000 && !session.ended; t += 100) run.advance(100);
+    session.exit();
+    expect([p0.score, p0.difficulty]).toEqual([5, 0]);
+  });
+
   it('two keyboard players play back the same (inputs recorded when they change)', () => {
     globalRandom.setSeed(5);
     const gs = createGame(SceneId.MENU, [2, 3], [HarId.SHADOW, HarId.PYROS]);

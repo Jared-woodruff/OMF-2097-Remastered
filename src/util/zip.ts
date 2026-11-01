@@ -94,7 +94,11 @@ export async function readZipEntry(buf: Uint8Array, e: ZipEntry): Promise<Uint8A
   const start = lh + 30 + dv.getUint16(lh + 26, true) + dv.getUint16(lh + 28, true);
   if (start + e.compSize > buf.length) throw new ZipError('The archive is damaged.');
   const raw = buf.subarray(start, start + e.compSize);
-  if (e.method === 0) return raw.slice();
+  if (e.method === 0) {
+    // (a stored entry is its size: one claiming less would slip past unzip's limit on the total)
+    if (e.compSize !== e.size) throw new ZipError('The archive is damaged.');
+    return raw.slice();
+  }
   if (e.method === 8) {
     if (e.size > MAX_UNZIPPED) throw new ZipError('The archive is too big to open.');
     try {

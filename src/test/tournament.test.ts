@@ -776,6 +776,61 @@ describe.skipIf(!hasGameData)('tournament: mechlab', () => {
     expect(gamePlayerGetPilot(gs.getPlayer(1))).toBeNull();
   });
 
+  it('SIM: a lost practice fight calls in no debts, and the next real win is news of a win', () => {
+    globalRandom.setSeed(9);
+    prepared('SIMDEBT', (chr) => {
+      chr.pilot.money = -10;
+      chr.pilot.armPower = 3;
+    });
+    const { gs, run, sc } = openMechlab();
+    const p1 = gs.getPlayer(0), p2 = gs.getPlayer(1);
+    const chr = p1.chr!;
+    clickButton(run, sc, 7); // SIM
+    waitMenuReady(run, sc);
+    press(run, 'Enter'); // SELECT
+    expect(waitFor(run, () => gs.thisId === SceneId.VS)).toBe(true);
+    run.advance(400);
+    press(run, 'Enter');
+    expect(waitFor(run, () => gs.thisId >= SceneId.ARENA0 && gs.thisId <= SceneId.ARENA4)).toBe(true);
+    gs.warpSpeed = true;
+    let winner = -1;
+    expect(simulate(gs, () => {
+      if (gs.sc.isArena()) winner = gs.fightStats.winner;
+      return gs.thisId === SceneId.MECHLAB;
+    }, 600000)).toBe(true);
+    gs.warpSpeed = false;
+    expect(winner).toBe(1);
+    expect([chr.pilot.armPower, chr.pilot.money, chr.pilot.rank, chr.pilot.trnName]).toEqual([3, -10, 11, chr.pilot.trnName]);
+    expect(chr.pilot.trnName).not.toBe('');
+    expect(p2.spWins).toBe(0);
+
+    // A real fight won: the news says so, with the player's pictures.
+    const run2 = new HeadlessRunner(gs);
+    run2.advance(400);
+    clickButton(run2, mechlab(gs), 0); // ARENA
+    expect(waitFor(run2, () => gs.thisId === SceneId.VS)).toBe(true);
+    run2.advance(400);
+    press(run2, 'Enter');
+    expect(waitFor(run2, () => gs.thisId >= SceneId.ARENA0 && gs.thisId <= SceneId.ARENA4)).toBe(true);
+    p1.god = true;
+    let t = 0;
+    const ok = simulate(gs, () => {
+      if (gs.thisId === SceneId.NEWSROOM) return true;
+      const h = gs.findObject(p2.harObjId);
+      if (h && harData(h).health > 1) harData(h).health = 1;
+      t++;
+      setKeyState('ArrowRight', t % 200 < 150);
+      setKeyState('Enter', t % 20 < 3);
+      return false;
+    }, 600000);
+    setKeyState('ArrowRight', false);
+    setKeyState('Enter', false);
+    expect(ok).toBe(true);
+    expect(gs.fightStats.winner).toBe(0);
+    expect((gs.sc as unknown as { won: boolean }).won).toBe(true);
+    expect(p1.screencaps.ok).toEqual([true, true]);
+  });
+
   it('deletes another pilot and replays the ending cutscene of a champion with "E"', () => {
     prepared('KEEPER', (chr) => {
       chr.pilot.rank = 1;

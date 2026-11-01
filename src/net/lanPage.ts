@@ -94,6 +94,10 @@ export class LanPage extends Page {
   private row = ROW_HOST;
   private games: LanGame[] = [];
   private gamesTop = 0;
+  /** The game the player highlighted (its address): the highlight follows it as the list changes. */
+  private picked: string | null = null;
+  /** Games the last search missed: they stay listed for one more (answers get lost, on Wi-Fi above all). */
+  private missed = new Set<string>();
   private status = '';
   private statusColor = PC.dim;
   private addresses: string[] = [];
@@ -134,6 +138,8 @@ export class LanPage extends Page {
     this.state = 'menu';
     this.row = ROW_HOST;
     this.games = [];
+    this.picked = null;
+    this.missed.clear();
     this.scanFailed = false;
     this.lastScan = -Infinity;
     this.setStatus('');
@@ -314,9 +320,11 @@ export class LanPage extends Page {
     this.scanning = true;
     void b.scan().then((games) => {
       // (in a steady order, and the highlighted game stays highlighted where it goes: ENTER joins the game it shows)
-      const picked = this.games[this.row - ROW_ADDRESS - 1]?.address;
-      this.games = [...games].sort(byName);
-      const at = picked === undefined ? -1 : this.games.findIndex((g) => g.address === picked);
+      const found = new Set(games.map((g) => g.address));
+      const kept = this.games.filter((g) => !found.has(g.address) && !this.missed.has(g.address));
+      this.missed = new Set(kept.map((g) => g.address));
+      this.games = [...games, ...kept].sort(byName);
+      const at = this.picked === null ? -1 : this.games.findIndex((g) => g.address === this.picked);
       if (at >= 0) this.row = ROW_ADDRESS + 1 + at;
       this.row = Math.min(this.row, ROW_ADDRESS + this.games.length);
       this.gamesTop = Math.max(0, Math.min(this.gamesTop, this.games.length - GAMES_SHOWN));
@@ -325,6 +333,7 @@ export class LanPage extends Page {
       this.scanFailed = false;
     }).catch(() => {
       this.games = [];
+      this.missed.clear();
       this.row = Math.min(this.row, ROW_ADDRESS);
       this.scanFailed = true;
     }).finally(() => {
@@ -342,6 +351,7 @@ export class LanPage extends Page {
   private pick(row: number): void {
     this.row = (row + this.rows()) % this.rows();
     const g = this.row - ROW_ADDRESS - 1;
+    this.picked = this.games[g]?.address ?? null;
     if (g >= 0) this.gamesTop = Math.max(Math.min(this.gamesTop, g), g - GAMES_SHOWN + 1);
     playMenuSound(19);
   }
@@ -374,7 +384,8 @@ export class LanPage extends Page {
     if (!this.backend || this.state !== 'menu') return 1;
     if (action & ACT_UP) this.pick(this.row - 1);
     else if (action & ACT_DOWN) this.pick(this.row + 1);
-    else if (action & (ACT_PUNCH | ACT_KICK)) this.activate();
+    // (not the kick on the address: RIGHT SHIFT is player 1's kick, and the shift that types a colon)
+    else if (action & ACT_PUNCH || (action & ACT_KICK && this.row !== ROW_ADDRESS)) this.activate();
     return 1;
   }
 

@@ -136,7 +136,8 @@ export class ChrScore {
   }
 
   private add(str: string, points: number, x: number, y: number, position: number): void {
-    const text = hudText(str, 0xe7, 0xf8, 155, 6);
+    // (as wide as the screen: the score counter's 155 px hold 25 letters, and "destruction bonus 2,000,000" broke mid-number)
+    const text = hudText(str, 0xe7, 0xf8, NATIVE_W, 6);
     // Centered over the robot, but kept on screen (the reference lets it run off the edge near the walls).
     const w = text.width();
     const startX = Math.max(2, Math.min(NATIVE_W - 2 - w, x - Math.trunc(w / 2)));
@@ -158,10 +159,10 @@ export class ChrScore {
     this.health = health;
     if (health === 100) {
       const points = Math.trunc(DESTRUCTION * this.multiplier());
-      this.add(`perfect round ${scoreFormat(points)}`, points, 160, 100, 1.0);
+      this.add(tr('perfect round {points}', { points: scoreFormat(points) }), points, 160, 100, 1.0);
     }
     const points = Math.trunc(DESTRUCTION * this.multiplier() * (health / 100));
-    this.add(`vitality ${scoreFormat(points)}`, points, 160, 100, 1.0);
+    this.add(tr('vitality {points}', { points: scoreFormat(points) }), points, 160, 100, 1.0);
   }
 
   setScrap(): void {
@@ -177,11 +178,11 @@ export class ChrScore {
     this.done = true;
     if (this.destruction) {
       const points = Math.trunc(DESTRUCTION * this.multiplier());
-      this.add(`destruction bonus ${scoreFormat(points)}`, points, 160, 100, 1.0);
+      this.add(tr('destruction bonus {points}', { points: scoreFormat(points) }), points, 160, 100, 1.0);
       this.destruction = false;
     } else if (this.scrap) {
       const points = Math.trunc(SCRAP * this.multiplier());
-      this.add(`scrap bonus ${scoreFormat(points)}`, points, 160, 100, 1.0);
+      this.add(tr('scrap bonus {points}', { points: scoreFormat(points) }), points, 160, 100, 1.0);
       this.scrap = false;
     }
   }

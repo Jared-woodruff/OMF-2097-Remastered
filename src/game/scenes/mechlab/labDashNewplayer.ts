@@ -13,9 +13,9 @@ export interface NewplayerWidgets {
   input: TextInput | null;
 }
 
-/** lab_dash_newplayer_textinput_filter(): no dots (they would end up in the save file name). */
+/** lab_dash_newplayer_textinput_filter(): no dots or slashes (they would end up in the save file name). */
 function labDashNewplayerTextinputFilter(c: string): boolean {
-  return c !== '.';
+  return c !== '.' && c !== '/' && c !== '\\';
 }
 
 /** lab_dash_newplayer_create() */

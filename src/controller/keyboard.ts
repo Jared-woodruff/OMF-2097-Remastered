@@ -2,7 +2,7 @@ import { ACT_DOWN, ACT_ESC, ACT_KICK, ACT_LEFT, ACT_NONE, ACT_PUNCH, ACT_RIGHT, 
 import type { GameState } from '../game/gameState';
 import type { KeyBindings } from '../game/settings';
 import { Controller, type CtrlEvent } from './controller';
-import { anyDown, connectedPads, isDown, keyPresses, readPad, rumble, type PadState } from './input';
+import { anyDown, connectedPads, isDown, keyPresses, padId, readPad, rumble, type PadState } from './input';
 import { specialButtonActions } from './special';
 import { FinisherKeys } from './finisher';
 import { touchPad } from '../platform/touch';
@@ -183,18 +183,40 @@ export class KeyboardController extends Controller {
   }
 }
 
+/** The gamepad controllers in use (a pad that reconnects goes back to its own controller, not to another's). */
+const liveGamepads = new Set<GamepadController>();
+
 export class GamepadController extends Controller {
   private specialHeld = false;
   private padSpecial = new SpecialLatch();
   private finishers = new FinisherKeys();
+  /** The pad's id ('' if unknown): when the pad reconnects under another index, the controller follows it. */
+  readonly padIdent: string;
 
-  constructor(gs: GameState, public padIndex: number) {
+  constructor(gs: GameState, public padIndex: number, id = '') {
     super(gs);
     this.type = CtrlType.GAMEPAD;
     this.supportsDelay = true;
+    this.padIdent = id || padId(padIndex);
+    liveGamepads.add(this);
+  }
+
+  /** The pad is not at its index any more but connected under another one (that no other controller holds): follow it. */
+  private follow(): void {
+    if (!this.padIdent || padId(this.padIndex) === this.padIdent) return;
+    const held = new Set<number>();
+    for (const c of liveGamepads) if (c !== this) held.add(c.padIndex);
+    const found = connectedPads().find((i) => !held.has(i) && padId(i) === this.padIdent);
+    if (found !== undefined) this.padIndex = found;
+  }
+
+  override free(): void {
+    liveGamepads.delete(this);
+    super.free();
   }
 
   override poll(ev: CtrlEvent[]): number {
+    this.follow();
     this.current = 0;
     const p = readPad(this.padIndex);
     let action = 0;
@@ -214,6 +236,7 @@ export class GamepadController extends Controller {
   }
 
   protected override onTick(): number {
+    this.follow();
     this.padSpecial.sample(!!readPad(this.padIndex)?.special, this.gs.paused);
     return 0;
   }
