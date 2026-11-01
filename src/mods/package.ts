@@ -65,17 +65,29 @@ const MOVE_NAMES: Record<number, string> = {
 };
 
 /** The largest sprite a mod may have, per side (the game's own are at most a screen wide). */
-const MAX_SPRITE_SIDE = 1024;
+export const MAX_SPRITE_SIDE = 1024;
+/**
+ * The most pixels a robot's or arena's sprites may hold together (the largest original robot has about 1.5 million;
+ * thousands of big, nearly empty sprites fit a small file and would take gigabytes as they load).
+ */
+export const MAX_SPRITE_PIXELS = 32 * 1024 * 1024;
 
-/** Sprites the game could not hold (one claiming 65535 x 65535 pixels would take gigabytes as it loads). */
-function checkSprites(animations: (AnimationData | null | undefined)[], where: string): void {
+/**
+ * Sprites the game could not hold (one claiming 65535 x 65535 pixels would take gigabytes as it loads). `lenient`
+ * (OMF Studio opening a project): sprites a little past the limit, from an earlier Studio, open, for its checks to name.
+ */
+function checkSprites(animations: (AnimationData | null | undefined)[], where: string, lenient = false): void {
+  const side = lenient ? 4 * MAX_SPRITE_SIDE : MAX_SPRITE_SIDE;
+  let total = 0;
   for (const a of animations) {
     for (const s of a?.sprites ?? []) {
-      if ((s.missing || !s.isEmpty()) && (s.width > MAX_SPRITE_SIDE || s.height > MAX_SPRITE_SIDE)) {
+      if ((s.missing || !s.isEmpty()) && (s.width > side || s.height > side)) {
         throw new ModError(`${where}: a sprite of ${s.width} x ${s.height} pixels is too big (${MAX_SPRITE_SIDE} x ${MAX_SPRITE_SIDE} at most).`);
       }
+      if (!s.missing && !s.isEmpty()) total += s.width * s.height;
     }
   }
+  if (total > MAX_SPRITE_PIXELS) throw new ModError(`${where}: its sprites are too big together (${Math.round(total / 1e6)} million pixels, ${Math.round(MAX_SPRITE_PIXELS / 1e6)} million at most).`);
 }
 
 /** Checks a robot's fighter file; returns it parsed (`lenient`: see readModPackage). */
@@ -89,7 +101,7 @@ export function checkFighter(af: Uint8Array, where: string, lenient = false): Af
   const missing = REQUIRED_MOVES.filter((id) => !f.moves[id]);
   if (missing.length) throw new ModError(`${where} has no ${missing.map((id) => MOVE_NAMES[id]).join(', ')} animation${missing.length > 1 ? 's' : ''}.`);
   if (!f.health || !f.endurance) throw new ModError(`${where}: the robot has no health or endurance.`);
-  checkSprites(f.moves.map((m) => m?.animation), where);
+  checkSprites(f.moves.map((m) => m?.animation), where, lenient);
   return f;
 }
 
@@ -107,7 +119,7 @@ export function checkArena(bk: Uint8Array, wid: Uint8Array | null, where: string
     const w = wid.length >= 4 ? wid[0] | (wid[1] << 8) : 0, h = wid.length >= 4 ? wid[2] | (wid[3] << 8) : 0;
     if (w !== 576 || h !== 200) throw new ModError(`${where}: the widescreen background must be 576 x 200.`);
   }
-  checkSprites(f.anims.map((a) => a?.animation), where);
+  checkSprites(f.anims.map((a) => a?.animation), where, lenient);
   return f;
 }
 

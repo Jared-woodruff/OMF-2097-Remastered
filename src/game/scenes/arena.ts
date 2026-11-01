@@ -40,6 +40,7 @@ import { ArenaPauseMenu } from '../gui/pauseMenu';
 import { InputDisplay } from '../gui/inputDisplay';
 import type { Af } from '../../resources/resources';
 import { arenaScreengrabWinner, harScreencapsCompress, harScreencapsReset, SCREENCAP_BLOW, SCREENCAP_POSE } from '../harScreencap';
+import { scoreFormat } from '../score';
 import { arenaBase, arenaMusic, nextArena, pilotWinBit } from '../roster';
 import { modArena } from '../../mods/registry';
 import { recSerialize } from '../../formats/rec';
@@ -263,6 +264,15 @@ export class ArenaScene extends Scene implements ArenaLike {
     p1.score.reset(true);
     p0.score.stageMultiplier = stageScoreFactor(pit?.stage ?? SecretStage.NONE);
     p1.score.stageMultiplier = 1;
+    // A replay's scores go as they went: from the fight's starting scores, at its difficulty (older replays have none).
+    if (gs.replay) {
+      const { rec, record } = gs.replay;
+      [p0, p1].forEach((p, i) => {
+        if (record.meta.scoreDifficulty) p.score.setDifficulty(record.meta.scoreDifficulty[i]);
+        p.score.score = rec.scores[i] >>> 0;
+        p.score.total.set(scoreFormat(p.score.score));
+      });
+    }
     if (gs.isSingleplayer()) {
       p0.score.resetWins();
       p1.score.resetWins();
@@ -291,7 +301,8 @@ export class ArenaScene extends Scene implements ArenaLike {
     const startHealth = gs.replay ? gs.replay.record.meta.startHealth : run?.kind === 'survival' ? run.health : undefined;
     if (startHealth !== undefined && startHealth < 100) {
       const h = harData(this.harObj(0));
-      h.health = Math.max(1, (h.healthMax * startHealth) / 100);
+      // (whole hit points, as health always is: 70.29 would outlive a hit of 70)
+      h.health = Math.max(1, Math.trunc((h.healthMax * startHealth) / 100));
       this.startHealth = startHealth;
     }
     // Last, like the reference (arena_create records the random seed when the fight is ready).
@@ -657,11 +668,13 @@ export class ArenaScene extends Scene implements ArenaLike {
           fs.plugText = PLUG_WIN + globalRandom.int(3);
         }
       } else {
-        const sold = p1.pilot.money < 0 ? sellHighestValueUpgrade(p1.pilot) : null;
+        // (a SIM fight is practice: Plug sells nothing, and nobody is put out of the tournament for it)
+        const sim = gs.matchSettings.sim;
+        const sold = !sim && p1.pilot.money < 0 ? sellHighestValueUpgrade(p1.pilot) : null;
         if (sold !== null) {
           fs.sold = sold;
           fs.plugText = PLUG_SOLD_UPGRADE;
-        } else if (warningGiven && p1.pilot.money < 0) {
+        } else if (!sim && warningGiven && p1.pilot.money < 0) {
           fs.plugText = PLUG_KICK_OUT;
           p1.pilot.money = 0;
           pilotExitTournament(p1.pilot);
@@ -677,6 +690,8 @@ export class ArenaScene extends Scene implements ArenaLike {
         gs.setNext(SceneId.VS);
       } else if (gs.matchSettings.sim) {
         gamePlayerSetPilot(p2, null);
+        // (the newsroom forgets who won; with no news after a SIM, the next real fight would be reported as lost)
+        p2.spWins = 0;
         gs.setNext(SceneId.MECHLAB);
       } else if (this.fireIceNext() || this.fireIceResume()) {
         // Down to Fire's or Ice's fight (no news, no victory screen), or back from them to the news of the fight before.
@@ -1489,6 +1504,7 @@ export class ArenaScene extends Scene implements ArenaLike {
       kept: false,
     };
     if (this.startHealth !== undefined) meta.startHealth = this.startHealth;
+    meta.scoreDifficulty = [gs.getPlayer(0).score.difficulty, gs.getPlayer(1).score.difficulty];
     const designs = meta.players.map((p) => workshopDesign(p.harId) ?? null);
     if (designs.some((d) => d !== null)) meta.designs = designs;
     storeFight(meta, recSerialize(rec.finish(gs.tick)));

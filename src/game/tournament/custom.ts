@@ -80,7 +80,21 @@ export function buildCustomTournament(spec: CustomTournamentSpec, slot: number, 
   const want = Math.min(ranked.length, SIZES[spec.size]);
   const keep = new Set<number>();
   for (let k = 0; k < want; k++) keep.add(ranked[Math.round((k * (ranked.length - 1)) / Math.max(1, want - 1))].i);
-  const enemies = base.enemies.filter((p, i) => p.secret || keep.has(i)).map((p) => p.clone());
+  const kept = base.enemies.map((_, i) => i).filter((i) => base.enemies[i].secret || keep.has(i));
+  const enemies = kept.map((i) => base.enemies[i].clone());
+  // A challenger's required win names an opponent by place in the list: their place in the shorter one, or the
+  // nearest opponent kept when they are not.
+  for (const p of enemies) {
+    if (!p.reqEnemy) continue;
+    let k = kept.indexOf(p.reqEnemy - 1);
+    if (k < 0) {
+      for (let j = 0; j < kept.length; j++) {
+        if (base.enemies[kept[j]].secret) continue;
+        if (k < 0 || Math.abs(kept[j] - (p.reqEnemy - 1)) < Math.abs(kept[k] - (p.reqEnemy - 1))) k = j;
+      }
+    }
+    p.reqEnemy = k + 1;
+  }
   // Robots: every other one, or all, on the remaster's robots (in turn).
   if (spec.robots > 0 && newRobotsAvailable()) {
     let n = 0;

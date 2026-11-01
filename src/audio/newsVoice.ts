@@ -157,16 +157,22 @@ function indexOf(voice: Voice): Promise<Set<string> | null> {
   return p;
 }
 
+/** The decoded recordings kept (the latest used): all of a voice's would hold well over 100 MB of audio. */
+const KEPT_RECORDINGS = 64;
+
 function recording(voice: Voice, id: string): Promise<AudioBuffer | null> {
   const key = `${voice}/${id}`;
   let p = buffers.get(key);
-  if (!p) {
+  if (p) {
+    buffers.delete(key);
+  } else {
     p = fetch(`audio/news/${key}.mp3`)
       .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`${r.status}`))))
       .then((data) => audio.decode(data))
       .catch(() => null);
-    buffers.set(key, p);
   }
+  buffers.set(key, p);
+  if (buffers.size > KEPT_RECORDINGS) buffers.delete(buffers.keys().next().value!);
   return p;
 }
 

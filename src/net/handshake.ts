@@ -57,7 +57,8 @@ export function readMatchSettings(m: unknown): MatchSettings | null {
   const s = {
     throwRange: num('throwRange', 0, 1000), hitPause: num('hitPause', 0, 100), blockDamage: num('blockDamage', 0, 100),
     vitality: num('vitality', 1, 1000), jumpHeight: num('jumpHeight', 0, 1000), knockDown: num('knockDown', KnockDownMode.NONE, KnockDownMode.BOTH),
-    rehit: bool('rehit'), defensiveThrows: bool('defensiveThrows'), power1: num('power1', 1, 8), power2: num('power2', 1, 8),
+    // (OPTIONS > GAMEPLAY's POWER 1 and 2 go from 0 to 7)
+    rehit: bool('rehit'), defensiveThrows: bool('defensiveThrows'), power1: num('power1', 0, 8), power2: num('power2', 0, 8),
     hazards: bool('hazards'), rounds: num('rounds', 0, 3), fightMode: num('fightMode', 0, 1),
   };
   if (Object.values(s).some((v) => v === null)) return null;

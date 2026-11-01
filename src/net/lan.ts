@@ -102,6 +102,8 @@ class DesktopLan implements LanBackend {
   private early = new Map<number, ({ data: string } | { close: string })[]>();
   private onGuest: ((link: NetLink) => void) | null = null;
   private listening: Promise<void> | null = null;
+  /** The last hosting asked for (the next waits for it). */
+  private hosting: Promise<unknown> = Promise.resolve();
 
   constructor(private api: TauriApi) {}
 
@@ -159,12 +161,16 @@ class DesktopLan implements LanBackend {
   async host(name: string, version: string, onGuest: (link: NetLink) => void): Promise<LanHosting> {
     await this.listen();
     this.onGuest = onGuest;
-    const port = await this.api.core.invoke<number>('lan_host', { name, version });
+    // (one at a time, in order: a hosting asked for and called off at once is over before the next one starts)
+    const hosted = this.hosting.catch(() => undefined).then(() => this.api.core.invoke<{ port: number; serial: number }>('lan_host', { name, version }));
+    this.hosting = hosted;
+    const { port, serial } = await hosted;
     return {
       port,
       stop: () => {
         if (this.onGuest === onGuest) this.onGuest = null;
-        void this.api.core.invoke('lan_unhost').catch(() => undefined);
+        // (that hosting only: a stop late for one since replaced leaves the new one alone)
+        void this.api.core.invoke('lan_unhost', { serial }).catch(() => undefined);
       },
     };
   }

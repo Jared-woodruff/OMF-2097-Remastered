@@ -86,6 +86,8 @@ export class PresskeyMenu extends Menu {
       this.onKey(code);
       return true;
     }
+    // (the game's own keys: help, graphics, music, fullscreen and the screenshot would act on every press)
+    if (/^F(1|2|3|11|12)$/.test(code)) return true;
     const keys = playerKeys(this.player);
     const slot = BINDING_ACTIONS[this.slotIndex];
     const bound = isKeyBound(code);

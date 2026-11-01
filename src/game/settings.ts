@@ -113,6 +113,9 @@ export interface Settings {
     ctrlType2: CtrlType;
     gamepad1: number; // gamepad index or -1
     gamepad2: number;
+    /** The chosen pads' ids ('' if none): a pad that reconnects under another index is found again by it. */
+    gamepad1Id: string;
+    gamepad2Id: string;
     /** Gamepad vibration on hits and screen shakes. */
     rumble: boolean;
     /** Keyboard players also play with a free gamepad (player 1 the first, player 2 the second). */
@@ -217,6 +220,8 @@ export function defaultSettings(): Settings {
       ctrlType2: CtrlType.KEYBOARD,
       gamepad1: -1,
       gamepad2: -1,
+      gamepad1Id: '',
+      gamepad2Id: '',
       rumble: true,
       autoPads: true,
       layout: 'classic',
@@ -310,10 +315,16 @@ export function loadSettings(): Settings {
     if (raw) {
       const saved = JSON.parse(raw) as Partial<Settings> | null;
       current = merge(defaultSettings(), saved);
-      // Saved before the special button: the modern layout gets its own special keys (else the classic ones).
-      if (saved?.keys && !saved.keys.p1?.special && saved.keys.layout === 'modern') {
-        current.keys.p1.special = [...MODERN_SPECIAL_KEYS.p1];
-        current.keys.p2.special = [...MODERN_SPECIAL_KEYS.p2];
+      // Saved before the special button: the layout's own special keys (keys rebound by the player keep theirs: what
+      // clashes stays free; a kick on '/' would also fire the robot's special move).
+      if (saved?.keys && !saved.keys.p1?.special) {
+        const d = saved.keys.layout === 'modern' ? MODERN_SPECIAL_KEYS : { p1: defaultSettings().keys.p1.special, p2: defaultSettings().keys.p2.special };
+        const used = new Set<string>();
+        for (const k of [current.keys.p1, current.keys.p2]) {
+          for (const [action, codes] of Object.entries(k)) if (!['special', 'scrap', 'destruction', 'fireIce'].includes(action)) for (const c of codes) used.add(c);
+        }
+        current.keys.p1.special = d.p1.filter((c) => !used.has(c));
+        current.keys.p2.special = d.p2.filter((c) => !used.has(c));
       }
       // Saved before the finisher keys: the layout's own (keys rebound by the player keep theirs: what clashes stays free).
       if (saved?.keys && !saved.keys.p1?.scrap) fillFinisherKeys(current.keys, saved.keys.layout === 'modern' ? 'modern' : 'classic');
@@ -330,7 +341,40 @@ export function loadSettings(): Settings {
   return current;
 }
 
+/** OMF Studio's test page plays with the player's settings, its own test set up in them: none of it is saved (main.ts). */
+let saveSuspended = false;
+
+export function suspendSettingsSave(on: boolean): void {
+  saveSuspended = on;
+}
+
+/** Another settings' values put into these objects (code holds on to them: a player's key bindings, say). */
+function adopt(into: Record<string, unknown>, from: Record<string, unknown>): void {
+  for (const k of Object.keys(into)) {
+    const a = into[k], b = from[k];
+    if (a && typeof a === 'object' && !Array.isArray(a) && b && typeof b === 'object' && !Array.isArray(b)) {
+      adopt(a as Record<string, unknown>, b as Record<string, unknown>);
+    } else if (b !== undefined) {
+      into[k] = b;
+    }
+  }
+}
+
+// Another page of the game (a second tab or window) saved its settings: this one takes them, so its next save does not
+// put back what the other changed.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key !== STORAGE_KEY || !e.newValue || saveSuspended) return;
+    try {
+      adopt(current as unknown as Record<string, unknown>, merge(defaultSettings(), JSON.parse(e.newValue)) as unknown as Record<string, unknown>);
+    } catch {
+      // unreadable: these stay
+    }
+  });
+}
+
 export function saveSettings(): void {
+  if (saveSuspended) return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
   } catch {

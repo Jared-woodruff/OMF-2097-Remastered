@@ -280,7 +280,9 @@ page('Controls', `
   <p class="small">The numeric keypad works too for player 1 (${key('8')} jump, ${key('2')} duck, ${key('0')} punch,
   ${key('.')} kick). In the modern layout, player 2 uses the arrow keys with ${key(',')} punch, ${key('.')} kick and ${key('/')} special.</p>
   <h2>Gamepads</h2>
-  <p>Plug in an Xbox-style controller and press a button: it takes over the next free player. Two button layouts:</p>
+  <p>Plug in a controller (Xbox, PlayStation, Switch Pro and most others) and press a button: it takes over the next free
+  player. The buttons are named by their place, the Xbox way: on a PlayStation pad ${key('A')} is cross, ${key('B')}
+  circle, ${key('X')} square and ${key('Y')} triangle (the controls screen shows the pad's own). Two button layouts:</p>
   <table>
     <tr><th></th><th>Modern</th><th>Classic</th></tr>
     <tr><td><b>Punch</b></td><td>${key('X')}${key('Y')}${key('RB')}</td><td>${key('A')}${key('X')}</td></tr>

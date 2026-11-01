@@ -38,6 +38,11 @@ function fill(text: string, params?: Params): string {
   return text.replace(/\{(\w+)\}/g, (m, k: string) => (k in params ? String(params[k]) : m));
 }
 
+/** A catalogue's own entry (a mod's arena may be called "constructor": not the one every object has). */
+function own<T>(c: Record<string, T>, key: string): T | undefined {
+  return Object.hasOwn(c, key) ? c[key] : undefined;
+}
+
 /**
  * A key's context: 'key|DELETE' is the text DELETE as a key's name, translated apart from the menu entry DELETE (the
  * English shows without it).
@@ -50,7 +55,7 @@ const CONTEXT = /^[a-z]+\|/;
  * ('key|DELETE', 'clip|START') where one English word has to read differently in some places.
  */
 export function tr(english: string, params?: Params): string {
-  const t = catalogue[english];
+  const t = own(catalogue, english);
   if (t === undefined) return fill(english.replace(CONTEXT, ''), params);
   if (typeof t === 'string') return fill(t, params);
   const n = Number(params?.n ?? 0);
@@ -60,7 +65,7 @@ export function tr(english: string, params?: Params): string {
 /** A text with a number in it, by the number's plural form: trn(n, '{n} WIN', '{n} WINS') (the key: the second). */
 export function trn(n: number, one: string, other: string, params?: Params): string {
   const p = { ...params, n };
-  const t = catalogue[other];
+  const t = own(catalogue, other);
   if (t === undefined) return fill((n === 1 ? one : other).replace(CONTEXT, ''), p);
   return tr(other, p);
 }
@@ -72,7 +77,7 @@ export function trn(n: number, one: string, other: string, params?: Params): str
  */
 export function trnText(english: string, german?: string): string {
   if (current === 'de' && german && german !== english) return german;
-  return trnCatalogue[english] ?? english;
+  return own(trnCatalogue, english) ?? english;
 }
 
 let graphemes: Intl.Segmenter | null | undefined;
@@ -187,6 +192,8 @@ export async function loadLanguageData(code: LangCode): Promise<LanguageData> {
     if (ui && typeof ui === 'object' && !Array.isArray(ui)) data.ui = ui as Catalogue;
     data.original = originalTexts(original);
     if (trn && typeof trn === 'object' && !Array.isArray(trn)) data.trn = trn as Record<string, string>;
+    // (kept only when all came: one lost connection would leave the language English until the next start)
+    if (ui === null || original === null || trn === null) return data;
   }
   loaded.set(code, data);
   return data;

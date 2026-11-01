@@ -82,6 +82,8 @@ export function menuKeyboardCreate(s: MainMenuScene, selectedPlayer: number): Me
     const k = settings().keys;
     if (selectedPlayer === 1) k.ctrlType1 = CtrlType.KEYBOARD;
     else k.ctrlType2 = CtrlType.KEYBOARD;
+    // (the keyboard in use from now on: TOURNAMENT PLAY sets up no controls of its own, and kept the pad's)
+    s.gs.reconfigureControllers();
     settingsChanged();
   }));
   // menu_keyboard_keypress_done()

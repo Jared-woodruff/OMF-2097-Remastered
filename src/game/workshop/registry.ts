@@ -29,6 +29,13 @@ function load(): (WorkshopSpec | null)[] {
   return specs;
 }
 
+// Another page of the game (a second tab or window) saved its robots: read again before this one changes a slot.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === STORAGE_KEY) specs = null;
+  });
+}
+
 function save(): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(load()));

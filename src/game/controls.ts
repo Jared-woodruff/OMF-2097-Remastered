@@ -1,5 +1,5 @@
 // Control layouts: the original keyboard layout, a modern one, and the gamepad button layouts (see controller/input.ts).
-import { setPadLayout } from '../controller/input';
+import { connectedPads, padId, setPadLayout } from '../controller/input';
 import { CtrlType } from './constants';
 import { defaultSettings, FINISHER_KEYS, MODERN_SPECIAL_KEYS, settings, type KeyBindings } from './settings';
 
@@ -55,6 +55,16 @@ export function detectKeyLayout(): KeyLayout | 'custom' {
     if (same(k.p1, layoutKeys(layout, 0)) && same(k.p2, layoutKeys(layout, 1))) return layout;
   }
   return 'custom';
+}
+
+/**
+ * The index of the pad chosen for a player: the stored index if the pad there is still the chosen one (its id), else
+ * the index of a connected pad with that id that the other player's pad (`taken`) isn't on; the stored index when the
+ * pad isn't connected now (browsers report a pad only after one of its buttons is pressed).
+ */
+export function resolvePad(index: number, id: string, taken: number): number {
+  if (!id || index < 0 || padId(index) === id) return index;
+  return connectedPads().find((i) => i !== taken && padId(i) === id) ?? index;
 }
 
 /** Applies the gamepad settings to the input layer. */

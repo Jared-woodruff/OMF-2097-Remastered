@@ -1,5 +1,5 @@
 // Input device selection for player 1 or 2 (port of the reference mainmenu/menu_input.c).
-import { connectedPads } from '../../../controller/input';
+import { connectedPads, padId, padName as connectedPadName } from '../../../controller/input';
 import { CtrlType } from '../../constants';
 import { Button, Filler, Label, Menu } from '../../gui/widgets';
 import { defaultSettings, settings } from '../../settings';
@@ -39,9 +39,11 @@ function setJoystick(s: MainMenuScene, selectedPlayer: number, nth: number): voi
   if (selectedPlayer === 1) {
     k.ctrlType1 = CtrlType.GAMEPAD;
     k.gamepad1 = pad;
+    k.gamepad1Id = padId(pad);
   } else {
     k.ctrlType2 = CtrlType.GAMEPAD;
     k.gamepad2 = pad;
+    k.gamepad2Id = padId(pad);
   }
   s.gs.reconfigureControllers();
   settingsChanged();
@@ -49,10 +51,7 @@ function setJoystick(s: MainMenuScene, selectedPlayer: number, nth: number): voi
 
 function padName(nth: number): string {
   const index = connectedPads()[nth];
-  if (index === undefined) return '';
-  const id = navigator.getGamepads?.()[index]?.id ?? '';
-  // Gamepad ids look like "Xbox 360 Controller (XInput STANDARD GAMEPAD)"; keep the readable part.
-  return id.replace(/\s*\(.*$/, '').slice(0, 40);
+  return index === undefined ? '' : connectedPadName(index).slice(0, 40);
 }
 
 export function menuInputCreate(s: MainMenuScene, playerId: number): Menu {

@@ -198,7 +198,8 @@ export class MoveEditor {
       } }, arrow)));
     const nameInput = h('input', { type: 'text', value: this.robot.info.moves[id] ?? '', maxLength: 24, placeholder: 'e.g. ICE LANCE' });
     nameInput.addEventListener('input', () => {
-      const v = nameInput.value.trim().toUpperCase();
+      // (cut after upper-casing: a ß becomes SS, and a name past 24 letters would keep the mod from opening)
+      const v = nameInput.value.trim().toUpperCase().slice(0, 24);
       if (v) this.robot.info.moves[id] = v;
       else delete this.robot.info.moves[id];
       this.app.changed(false);

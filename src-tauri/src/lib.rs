@@ -132,6 +132,13 @@ pub fn run() {
     .on_page_load(|webview, payload| {
       if payload.event() == PageLoadEvent::Finished {
         let _ = webview.window().show();
+      } else if webview.label() == "main" {
+        reset_lan(webview.app_handle());
+      }
+    })
+    .on_window_event(|window, event| {
+      if matches!(event, tauri::WindowEvent::Destroyed) && window.label() == "main" {
+        reset_lan(window.app_handle());
       }
     })
     .setup(|app| {
@@ -262,10 +269,10 @@ fn lan_info() -> lan::LanInfo {
   lan::info()
 }
 
-/// Hosts a LAN game under the player's name; returns the port it waits on. (Async, the work on a blocking thread:
-/// re-hosting waits for the last hosting's threads.)
+/// Hosts a LAN game under the player's name; returns the port it waits on and the hosting's number. (Async, the work
+/// on a blocking thread: re-hosting waits for the last hosting's threads.)
 #[tauri::command]
-async fn lan_host(lan: State<'_, Arc<lan::Lan>>, name: String, version: String) -> Result<u16, String> {
+async fn lan_host(lan: State<'_, Arc<lan::Lan>>, name: String, version: String) -> Result<lan::Hosted, String> {
   let lan = lan.inner().clone();
   tauri::async_runtime::spawn_blocking(move || lan.host(&name, &version))
     .await
@@ -273,11 +280,20 @@ async fn lan_host(lan: State<'_, Arc<lan::Lan>>, name: String, version: String) 
     .map_err(|e| e.to_string())
 }
 
-/// Stops hosting (a guest already playing stays connected).
+/// Stops the hosting numbered `serial` (a guest already playing stays connected).
 #[tauri::command]
-async fn lan_unhost(lan: State<'_, Arc<lan::Lan>>) -> Result<(), String> {
+async fn lan_unhost(lan: State<'_, Arc<lan::Lan>>, serial: Option<u32>) -> Result<(), String> {
   let lan = lan.inner().clone();
-  tauri::async_runtime::spawn_blocking(move || lan.unhost()).await.map_err(|e| e.to_string())
+  tauri::async_runtime::spawn_blocking(move || lan.unhost(serial)).await.map_err(|e| e.to_string())
+}
+
+/// The game's page went (reloaded, or its window closed): its LAN games go with it (OMF Studio's window may keep the
+/// program running; a hosting left behind would be found, and take guests nobody hears).
+fn reset_lan(app: &tauri::AppHandle) {
+  if let Some(lan) = app.try_state::<Arc<lan::Lan>>() {
+    let lan = lan.inner().clone();
+    std::thread::spawn(move || lan.reset());
+  }
 }
 
 /// Looks for LAN games on the network (about a second).

@@ -155,7 +155,9 @@ export class HelpOverlay {
     if (!m) return false;
     const page = this.page;
     if (page) {
-      if (code === 'F1' || code === 'Escape') {
+      if (/^Numpad\d$/.test(code) && /^\d$/.test(e?.key ?? '') && page.key(code, e)) {
+        // (NUM LOCK on: the keypad's digits type into the page's field, an address or a name)
+      } else if (code === 'F1' || code === 'Escape') {
         if (!page.back()) this.close(code);
       } else if (code === 'Enter' || code === 'NumpadEnter' || code === 'Space') page.action(ACT_PUNCH, CtrlType.KEYBOARD);
       else if (code === 'ArrowUp' || code === 'Numpad8') page.action(ACT_UP, CtrlType.KEYBOARD);
