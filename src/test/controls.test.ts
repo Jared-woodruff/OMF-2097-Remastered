@@ -7,7 +7,7 @@ import { Controller, type CtrlEvent } from '../controller/controller';
 import { cleanPadName, hatDirections, PadButton, padFamilyOf, padUsbIds, readPad, setPadLayout, setKeyState } from '../controller/input';
 import { ACT_DOWN, ACT_ESC, ACT_KICK, ACT_LEFT, ACT_PUNCH, ACT_RIGHT, ACT_UP, CtrlType } from '../game/constants';
 import { applyKeyLayout, detectKeyLayout, layoutKeys, resolvePad } from '../game/controls';
-import type { GameState } from '../game/gameState';
+import { GameState } from '../game/gameState';
 import { defaultSettings, settings } from '../game/settings';
 
 interface FakePad {
@@ -189,6 +189,30 @@ describe('a pad chosen for a player', () => {
     } finally {
       a.free();
       b.free();
+    }
+  });
+
+  it('takes its place in the settings along: a keyboard player does not pick it up as a free pad', () => {
+    const k = settings().keys;
+    const saved = structuredClone(k);
+    Object.assign(k, { ctrlType1: CtrlType.GAMEPAD, gamepad1: 0, gamepad1Id: 'Pad A', ctrlType2: CtrlType.KEYBOARD, autoPads: true });
+    pads = [named(0, 'Pad A')];
+    const a = new GamepadController(gs, 0, 'Pad A');
+    const kb = GameState.prototype.keyboardController.call(gs, 1, 1);
+    try {
+      expect(kb.pad()).toBe(-1);
+      // Pad A reconnects under another index: player 1 follows it, and it stays theirs alone.
+      pads = [null, named(1, 'Pad A', [PadButton.X])];
+      expect(poll(a)[0] & ACT_PUNCH).toBeTruthy();
+      expect([a.padIndex, k.gamepad1]).toEqual([1, 1]);
+      expect(kb.pad()).toBe(-1);
+      // (a second pad is the keyboard player's)
+      pads = [named(0, 'Pad B'), named(1, 'Pad A')];
+      expect(kb.pad()).toBe(0);
+    } finally {
+      a.free();
+      kb.free();
+      Object.assign(k, saved);
     }
   });
 

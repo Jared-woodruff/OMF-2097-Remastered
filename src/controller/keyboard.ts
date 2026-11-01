@@ -207,7 +207,13 @@ export class GamepadController extends Controller {
     const held = new Set<number>();
     for (const c of liveGamepads) if (c !== this) held.add(c.padIndex);
     const found = connectedPads().find((i) => !held.has(i) && padId(i) === this.padIdent);
-    if (found !== undefined) this.padIndex = found;
+    if (found === undefined) return;
+    // (the player's pad in the settings moves with it: a keyboard player leaves the pads there out of the free ones,
+    // and would play with this one too)
+    const k = settings().keys;
+    if (k.gamepad1Id === this.padIdent && k.gamepad1 === this.padIndex) k.gamepad1 = found;
+    else if (k.gamepad2Id === this.padIdent && k.gamepad2 === this.padIndex) k.gamepad2 = found;
+    this.padIndex = found;
   }
 
   override free(): void {
