@@ -552,6 +552,7 @@
  "PRESS DELETE AGAIN TO DELETE THIS ROBOT": "이 로봇을 삭제하려면 DEL을 한 번 더 누르세요",
  "PRESS DELETE AGAIN TO DELETE THIS TOURNAMENT": "이 토너먼트를 삭제하려면 DEL을 한 번 더 누르세요",
  "PRESS DELETE AGAIN TO REMOVE {name}": "{name} 제거: DEL을 한 번 더 누르세요",
+ "PRESS PUNCH TO FIGHT": "펀치를 눌러 시작",
  "PRINTSCREEN": "PRINTSCREEN",
  "PRIZE MONEY": "상금",
  "PRIZE MONEY: {prize}.": "상금: {prize}.",
