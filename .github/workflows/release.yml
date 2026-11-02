@@ -138,7 +138,8 @@ jobs:
           chmod +x "$image"
           (cd "$work" && "$image" --appimage-extract > /dev/null)
           test -x "$work/squashfs-root/AppRun"
-          if find "$work/squashfs-root" -name 'libwayland-*' | grep .; then echo "libwayland is still in the AppImage"; exit 1; fi
+          # (the libraries: the image keeps their documentation, usr/share/doc/libwayland-client0...)
+          if find "$work/squashfs-root" -name 'libwayland-*.so*' | grep .; then echo "libwayland is still in the AppImage"; exit 1; fi
           ls -l "$image"
           rm -rf "$work"
 
