@@ -121,7 +121,8 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get install -y squashfs-tools
-          image=$(ls src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage | head -n 1)
+          # (absolute: the check below runs it from the work directory)
+          image=$(realpath "$(ls src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage | head -n 1)")
           offset=$("$image" --appimage-offset)
           info=$(unsquashfs -s -o "$offset" "$image")
           comp=$(sed -n 's/^Compression //p' <<< "$info")
