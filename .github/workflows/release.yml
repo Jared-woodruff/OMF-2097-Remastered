@@ -111,6 +111,38 @@ jobs:
           esac
           npx tauri build --target ${{ matrix.target }} $bundles
 
+      # The AppImage takes libwayland from the system. linuxdeploy bundles the build machine's (Ubuntu 22.04's), and a
+      # newer system's Mesa can't make its EGL display with that copy: WebKit aborts and the window stays black (issue
+      # #16, SteamOS 3.9). The image is unpacked, the libraries removed, and the rest packed again as it was (its runtime,
+      # compression and block size). Then the check: it unpacks with its own runtime, has its AppRun, and no libwayland.
+      - name: Leave libwayland to the system (AppImage)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y squashfs-tools
+          # (absolute: the check below runs it from the work directory)
+          image=$(realpath "$(ls src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage | head -n 1)")
+          offset=$("$image" --appimage-offset)
+          info=$(unsquashfs -s -o "$offset" "$image")
+          comp=$(sed -n 's/^Compression //p' <<< "$info")
+          block=$(sed -n 's/^Block size //p' <<< "$info")
+          if [ -z "$comp" ] || [ -z "$block" ]; then echo "$info"; exit 1; fi
+          work=$(mktemp -d)
+          unsquashfs -no-progress -no-xattrs -d "$work/root" -o "$offset" "$image" > /dev/null
+          echo "Removed:"
+          find "$work/root" -name 'libwayland-*.so*' -print -delete
+          head -c "$offset" "$image" > "$work/runtime"
+          mksquashfs "$work/root" "$work/fs" -comp "$comp" -b "$block" -all-root -no-xattrs -noappend -no-progress > /dev/null
+          cat "$work/runtime" "$work/fs" > "$image"
+          chmod +x "$image"
+          (cd "$work" && "$image" --appimage-extract > /dev/null)
+          test -x "$work/squashfs-root/AppRun"
+          # (the libraries: the image keeps their documentation, usr/share/doc/libwayland-client0...)
+          if find "$work/squashfs-root" -name 'libwayland-*.so*' | grep .; then echo "libwayland is still in the AppImage"; exit 1; fi
+          ls -l "$image"
+          rm -rf "$work"
+
       - name: Package
         shell: bash
         run: |

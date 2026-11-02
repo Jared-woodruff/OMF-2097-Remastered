@@ -556,6 +556,7 @@
  "PRESS DELETE AGAIN TO DELETE THIS ROBOT": "এই রোবট মুছতে আবার DELETE চাপুন",
  "PRESS DELETE AGAIN TO DELETE THIS TOURNAMENT": "এই টুর্নামেন্ট মুছতে আবার DELETE চাপুন",
  "PRESS DELETE AGAIN TO REMOVE {name}": "{name} সরাতে আবার DELETE চাপুন",
+ "PRESS PUNCH TO FIGHT": "লড়তে ঘুষি চাপুন",
  "PRINTSCREEN": "PRINTSCREEN",
  "PRIZE MONEY": "পুরস্কার",
  "PRIZE MONEY: {prize}.": "পুরস্কারের টাকা: {prize}।",

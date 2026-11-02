@@ -37,6 +37,13 @@ const TEXT_GREEN = 0xa7;
 /** The top of the box of the arena to pick (two players). */
 const ARENA_BOX_Y = 150;
 const COLOR_GREEN = 0xa7;
+/**
+ * The line that says what starts the fight, and when it comes (static ticks: 1.5 s, so the screen shows as it was
+ * first). Not in the original: the screen waits for PUNCH with nothing to say so, and was taken for a stuck one.
+ */
+const HINT_AFTER = 150;
+/** (above the bottom band, which the portraits, the pilots' words or the arena to pick fill) */
+const HINT_Y = ARENA_BOX_Y - 10;
 const COLOR_YELLOW = 0xcf;
 /** The menu colors every scene has (vga.setMenuColors): bright green, light green, a dark shadow. */
 const MENU_BRIGHT_GREEN = 0xfd;
@@ -246,6 +253,8 @@ export class VsScene extends Scene {
   private easyKreissack = false;
   arenaName: Text | null = null;
   arenaDesc: Text | null = null;
+  /** What starts the fight (HINT_AFTER), when this computer's players start it. */
+  private hint: Text | null = null;
 
   report: ReportCard | null = null;
 
@@ -531,6 +540,13 @@ export class VsScene extends Scene {
     if (easyKreissack) {
       // kreissack, but not on Veteran or higher
       this.tooPatheticDialog.show(true);
+    }
+
+    // (a network game's status bar says it there; the demo and a spectator start nothing)
+    if (p2Pilot && !gs.net && !gs.isDemoplay() && !isSpectator(gs)) {
+      const text = player2.selectable ? tr('PICK THE ARENA (LEFT/RIGHT), THEN PUNCH') : tr('PRESS PUNCH TO FIGHT');
+      this.hint = new Text(FontSize.SMALL, 320, 8, text).setHAlign(HAlign.CENTER).setColor(COLOR_GREEN)
+        .setShadowColor(202).setShadow(GLYPH_SHADOW_RIGHT | GLYPH_SHADOW_BOTTOM);
     }
   }
 
@@ -825,6 +841,8 @@ export class VsScene extends Scene {
     video.setTag(TAG_MENU);
     // (over the portraits, which are scene objects)
     if (this.gs.net) this.renderNetBadges(this.gs.net.localPlayer);
+    const dialog = this.quitDialog.isVisible() || this.tooPatheticDialog.isVisible();
+    if (this.hint && !dialog && this.staticTicksSinceStart >= HINT_AFTER) this.hint.draw(0, HINT_Y);
     if (this.quitDialog.isVisible()) this.quitDialog.render();
     if (this.tooPatheticDialog.isVisible()) this.tooPatheticDialog.render();
   }

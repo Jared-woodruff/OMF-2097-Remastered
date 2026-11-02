@@ -244,7 +244,9 @@ export class HelpOverlay {
       now.back ||= p.back || p.b;
       now.punch ||= p.a || p.start;
     }
-    const pressed = (k: keyof typeof now) => now[k] && !this.padPrev[k];
+    // (the state of the last update: each branch below takes `now` as the last one before its close checks)
+    const prev = this.padPrev;
+    const pressed = (k: keyof typeof now) => now[k] && !prev[k];
     const page = this.page;
     if (page) {
       if (pressed('up')) page.action(ACT_UP, CtrlType.GAMEPAD);

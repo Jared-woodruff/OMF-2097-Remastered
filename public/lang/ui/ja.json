@@ -552,6 +552,7 @@
  "PRESS DELETE AGAIN TO DELETE THIS ROBOT": "もう一度DELを押すと、このロボットを削除します",
  "PRESS DELETE AGAIN TO DELETE THIS TOURNAMENT": "もう一度DELを押すと、このトーナメントを削除します",
  "PRESS DELETE AGAIN TO REMOVE {name}": "もう一度DELを押すと、{name}を削除します",
+ "PRESS PUNCH TO FIGHT": "パンチで試合開始",
  "PRINTSCREEN": "PRINTSCREEN",
  "PRIZE MONEY": "賞金",
  "PRIZE MONEY: {prize}.": "賞金: {prize}。",
