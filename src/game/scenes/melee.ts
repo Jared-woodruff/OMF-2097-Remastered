@@ -30,7 +30,8 @@ import { menuBackground, MenuBackgroundStyle, playMenuSound } from '../gui/widge
 import { GameObject } from '../object';
 import { paletteLoadPlayerColors, PRIMARY, SECONDARY, setPilotColor, TERTIARY } from '../pilotColors';
 import { extraHarIds, modPilotIds, pilotBio, pilotInfo, pilotNameOf, pilotWinBit, randomHarPool } from '../roster';
-import { addPilotPortrait, nearestColor, pilotPortrait, PORTRAIT_FIRST, PORTRAIT_LAST } from '../../mods/portraits';
+import { addPilotPortrait, nearestColor, nearestOf, pilotPortrait, PORTRAIT_FIRST, PORTRAIT_LAST } from '../../mods/portraits';
+import type { Palette } from '../../formats/palette';
 import { modPilot } from '../../mods/registry';
 import { Scene } from '../scene';
 import { leaveNetGame } from '../../net/netplay';
@@ -50,6 +51,34 @@ const MENU_LIGHT_GREEN = 0xff;
 const MENU_SHADOW = 0xfc;
 const BLUE_CURSOR_INDEX = 0xf7;
 const VIOLET_CURSOR_INDEX = 0xf8;
+/**
+ * The palette entries this screen changes while it shows: the cursors' colors and the menu colors (vga.setMenuColors,
+ * 0xFA-0xFF). A few pixels of the pilots' portraits are in them (Steffan's and Cossette's eye highlights, white in the
+ * BK's palette; a pixel of Angel's green eye), which then showed a cursor's or a menu's color: steadyPortrait.
+ */
+const LIVE_ENTRIES: ReadonlySet<number> = new Set([RED_CURSOR_INDEX, BLUE_CURSOR_INDEX, VIOLET_CURSOR_INDEX, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff]);
+/** The portraits' colors the screen leaves as they are (0xA1-0xFF but the live ones). */
+const STEADY_ENTRIES = Array.from({ length: 0x5f }, (_, i) => 0xa1 + i).filter((i) => !LIVE_ENTRIES.has(i));
+
+/**
+ * A portrait with its pixels in LIVE_ENTRIES moved to the nearest entry of their color in the BK's palette that the
+ * screen leaves alone (the same surface when it has none). The remastered renderer draws the copy from the original's
+ * artwork, matching its pixels against the copy's entries.
+ */
+function steadyPortrait(surf: Surface, pal: Palette): Surface {
+  let copy: Surface | null = null;
+  const near = new Map<number, number>();
+  for (let i = 0; i < surf.data.length; i++) {
+    const v = surf.data[i];
+    if (!LIVE_ENTRIES.has(v)) continue;
+    let n = near.get(v);
+    if (n === undefined) near.set(v, (n = nearestOf(pal, STEADY_ENTRIES, pal.r(v), pal.g(v), pal.b(v))));
+    copy ??= surf.clone();
+    copy.data[i] = n;
+  }
+  if (copy) copy.hdSource = { surf, x: 0, y: 0, gray: false };
+  return copy ?? surf;
+}
 
 interface Portrait {
   x: number;
@@ -295,6 +324,9 @@ export class MeleeScene extends Scene {
 
     // Load the big faces on the top corners
     const pilotBigPortraits = bkGetInfo(this.bk, 4)!.ani;
+    // (their pixels in the cursors' and the menus' colors, see steadyPortrait; a new surface for the sprite: loadBk()
+    // shares decoded pixels between loads)
+    for (const s of pilotBigPortraits.sprites) if (s.surface) s.surface = steadyPortrait(s.surface, this.bk.palettes[0]);
     this.bigPortrait1 = new GameObject(gs, 0, 0);
     this.bigPortrait1.setAnimation(pilotBigPortraits);
     this.bigPortrait1.selectSprite(0);
@@ -882,7 +914,11 @@ export class MeleeScene extends Scene {
     const r = this.screenRow(cursor.row);
     const p = portraits[cursor.row >= 2 ? this.extraAt(cursor.row, cursor.column) : 5 * cursor.row + cursor.column];
     if (!p || r < 0) return;
-    const x = 11 + 62 * cursor.column, y = 115 + 42 * r;
+    // The original rows' portraits sit where their sprites say, as the reference draws them: Christian's and Ibrahim's
+    // faces are narrower, a pixel or two right of their cell's corner. (The extra rows' fill their cells.)
+    const own = cursor.row < 2;
+    const x = 11 + 62 * cursor.column + (own ? p.x - (11 + 62 * cursor.column) : 0);
+    const y = 115 + 42 * r + (own ? p.y - (115 + 42 * cursor.row) : 0);
     if (player < 0) video.draw(p.enabled, x, y);
     else video.drawOffset(p.enabled, x, y, player * 48, (player + 1) * 48);
   }
@@ -1030,7 +1066,7 @@ export class MeleeScene extends Scene {
     for (let i = 0; i < 10; i++) {
       const current = pilotsEnabled.getSprite(i)!;
       // Copy the face image in full color (shown when selected)
-      const enabled = current.surface!.clone();
+      const enabled = steadyPortrait(current.surface!.clone(), this.bk.palettes[0]);
       // Copy the face image in dimmed color (shown when not selected). Built like the reference, which never
       // draws it: the unselected faces come from the dimmed palette of the grid sprite (BK animation 0).
       const disabled = enabled.clone();
