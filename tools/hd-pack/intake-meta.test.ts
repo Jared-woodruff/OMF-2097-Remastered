@@ -134,8 +134,10 @@ it.skipIf(!hasGameData || !PACK)('HD asset import metadata', () => {
   for (const item of cat.items) add(item);
 
   // Aliases: images drawn from pixel-identical sources in two scenes, where one delivered version is preferred for
-  // both (consistency, or because the other is wrong). The alias keeps its own bundle and file list but uses the
-  // preferred artwork, made against the preferred job's palette (the renderer maps it to the live palette).
+  // both (consistency, or because the other is wrong). The alias keeps its own bundle, file list and palette but uses
+  // the preferred artwork: the renderer maps an image from its palette to the live one, so with the other scene's
+  // palette it would take the scenes' differences for changes (VS's darkest grey, 12 12 12, is black on the pilot select
+  // screen: a shadow on Raven's face matched to it went black). With its own, the artwork shows as painted.
   const byJob = new Map(entries.map((e) => [e.job, e]));
   for (const [from, to] of Object.entries(ALIASES)) {
     for (const e of entries) {
@@ -143,7 +145,6 @@ it.skipIf(!hasGameData || !PACK)('HD asset import metadata', () => {
       const target = byJob.get(to + e.job.slice(from.length));
       if (!target || target.hash !== e.hash) throw new Error(`Alias ${e.job}: no pixel-identical ${to} image`);
       e.output = target.output;
-      e.palette = target.palette;
     }
   }
 
